@@ -1,0 +1,138 @@
+    .section { display: grid; gap: 14px; }
+    .summary-box {
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      border-radius: 20px;
+      background: var(--surface-summary);
+      border: 1px solid var(--line);
+    }
+    .summary-box strong { font-size: 18px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 16px;
+      background: var(--surface-table);
+      border: 1px solid var(--line);
+    }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    th:first-child, td:first-child { text-align: left; }
+    .overview-table th:last-child,
+    .overview-table td:last-child { text-align: center; }
+    tr:last-child td { border-bottom: none; }
+    th {
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      color: var(--muted);
+      background: var(--surface-table-head);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .sort-button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      padding: 0;
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    th:first-child .sort-button {
+      justify-content: flex-start;
+    }
+    .sort-button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+      border-radius: 8px;
+    }
+    .sort-arrow {
+      min-width: 1em;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1;
+    }
+    .sort-button.active .sort-arrow {
+      color: var(--accent);
+    }
+    .overview-table tbody tr {
+      cursor: pointer;
+      transition: background 120ms ease;
+    }
+    .overview-table tbody tr:hover { background: color-mix(in srgb, var(--accent-2) 10%, transparent); }
+    .overview-table tbody tr.active {
+      background: color-mix(in srgb, var(--accent-2) 16%, transparent);
+      outline: 1px solid color-mix(in srgb, var(--accent-2) 52%, transparent);
+    }
+    .overview-table tbody tr.supply-disabled {
+      opacity: 0.56;
+    }
+    .supply-hell-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .supply-hell-toggle input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    .stack { display: grid; gap: 16px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .error {
+      color: var(--text-bad);
+      font-size: 13px;
+      min-height: 20px;
+      margin-top: 8px;
+    }
+    .foot { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    body:not(.dev-mode) .dev-only {
+      display: none !important;
+    }
+    @media (max-width: 1240px) {
+      .grid { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .supply-summary-layout { grid-template-columns: 1fr; }
+      .supply-summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .detail-summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .supply-total-soul-list { grid-template-columns: 1fr; }
+      .supply-detail-layout { grid-template-columns: 1fr; }
+      .split { grid-template-columns: 1fr; }
+      .supply-content-layout { grid-template-columns: 1fr; }
+      .supply-roster-layout { grid-template-columns: 1fr; }
+      .supply-roster-actions {
+        grid-auto-flow: column;
+        justify-content: stretch;
+        padding-top: 0;
+      }
+    }
+    @media (max-width: 720px) {
+      .wrap { padding: 14px; }
+      .cards { grid-template-columns: 1fr; }
+      .supply-summary-layout { grid-template-columns: 1fr; }
+      .supply-summary-cards { grid-template-columns: 1fr; }
+      .detail-summary-cards { grid-template-columns: 1fr; }
+      .supply-detail-cards { grid-template-columns: 1fr; }
+      .supply-total-soul-list { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 24px; }
+    }
+  

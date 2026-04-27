@@ -1,0 +1,563 @@
+    .supply-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .supply-table th:nth-child(2),
+    .supply-table td:nth-child(2),
+    .supply-table th:nth-child(3),
+    .supply-table td:nth-child(3),
+    .supply-table th:nth-child(4),
+    .supply-table td:nth-child(4),
+    .supply-table th:nth-child(5),
+    .supply-table td:nth-child(5),
+    .supply-table th:nth-child(6),
+    .supply-table td:nth-child(6) {
+      text-align: right;
+    }
+    .supply-preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-start;
+      width: 100%;
+    }
+    .supply-check-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .supply-category {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: var(--surface-deep-soft);
+    }
+    .supply-category-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .supply-category-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .supply-limit-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 8px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 40%, transparent);
+      background: var(--surface-chip);
+      color: var(--text-warn);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .supply-limit-pill.full {
+      border-color: color-mix(in srgb, var(--bad) 46%, transparent);
+      background: color-mix(in srgb, var(--bad) 20%, transparent);
+      color: var(--text-bad);
+    }
+    .supply-category-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .supply-category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+      gap: 10px;
+    }
+    .supply-category-grid-advanced {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .supply-content-groups {
+      display: grid;
+      gap: 10px;
+    }
+    .supply-content-layout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    .supply-content-column {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+    .supply-content-column-stack {
+      grid-template-rows: auto auto;
+    }
+    .supply-roster-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .supply-roster-column {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+    .supply-roster-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .supply-roster-head-main {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .supply-roster-head-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .supply-roster-head-actions .ghost-button {
+      min-height: 30px;
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 999px;
+    }
+    .supply-roster-head-spacer {
+      min-height: 30px;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .supply-roster-list {
+      display: grid;
+      gap: 8px;
+      min-height: 140px;
+      max-height: calc((88px * 5) + (8px * 4));
+      overflow-y: auto;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--bg-deep) 36%, transparent);
+      scrollbar-gutter: stable;
+      -ms-overflow-style: none; 
+      scrollbar-width: none;
+    }
+    .supply-roster-list.drag-over {
+      outline: 2px dashed color-mix(in srgb, var(--accent-2) 70%, transparent);
+      outline-offset: 2px;
+      background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+    }
+    .supply-roster-actions {
+      display: grid;
+      gap: 10px;
+      align-content: center;
+      align-self: center;
+      justify-items: center;
+      padding-top: 0;
+    }
+    .supply-roster-move {
+      width: 48px;
+      min-width: 48px;
+      padding-inline: 0;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .supply-roster-item {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: var(--surface-deep);
+      cursor: grab;
+    }
+    .supply-roster-item:active {
+      cursor: grabbing;
+    }
+    .supply-roster-item.active {
+      border-color: color-mix(in srgb, var(--accent-2) 48%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 14%, transparent);
+    }
+    .supply-roster-item.selected {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-2) 30%, transparent);
+    }
+    .supply-roster-item.active.selected {
+      border-color: color-mix(in srgb, var(--accent-2) 72%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 20%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-2) 34%, transparent);
+    }
+    .supply-roster-item-selected-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--line-epic);
+      background: var(--surface-epic);
+      color: var(--text-epic);
+      font-size: 10px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .supply-roster-item.dragging {
+      opacity: 0.55;
+    }
+    .supply-roster-item-main {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+    .supply-roster-item-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .supply-roster-item-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .supply-detail-editor-shell {
+      padding: 10px 12px;
+      margin: 0;
+    }
+    .supply-detail-editor-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .supply-detail-editor-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .supply-detail-editor-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 28%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+      color: var(--text-accent);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .supply-detail-editor-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .supply-detail-editor-summary .supply-roster-cost {
+      padding: 2px 7px;
+      font-size: 11px;
+    }
+    .supply-detail-editor-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+      align-items: start;
+    }
+    .supply-detail-editor-note {
+      margin-top: 8px;
+    }
+    .supply-detail-editor-summary-block {
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line-white-soft);
+      border-radius: 14px;
+      padding: 10px;
+      background: color-mix(in srgb, var(--panel-3) 50%, transparent);
+      min-width: 0;
+    }
+    .supply-detail-editor-summary-block .supply-detail-editor-summary {
+      margin-top: 0;
+    }
+    .supply-detail-editor-summary-card {
+      display: grid;
+      gap: 4px;
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+      min-width: 0;
+    }
+    .supply-detail-editor-summary-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.01em;
+    }
+    .supply-detail-editor-summary-value {
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+    .supply-detail-editor-summary-sub {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .supply-detail-editor-controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+      margin-top: 0;
+      min-width: 0;
+    }
+    .supply-detail-editor-group {
+      border: 1px solid var(--line-white-soft);
+      border-radius: 12px;
+      padding: 8px;
+      background: color-mix(in srgb, var(--panel-3) 50%, transparent);
+      display: grid;
+      gap: 6px;
+    }
+    .supply-detail-editor-group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .supply-detail-editor-group-title {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.01em;
+    }
+    .supply-detail-editor-shell .supply-roster-item-options {
+      margin-top: 0;
+      gap: 4px;
+    }
+    .supply-detail-editor-shell .supply-roster-hell-toggle {
+      padding: 3px 7px;
+      font-size: 11px;
+    }
+    .supply-detail-editor-shell .supply-roster-potion-fold {
+      margin-top: 0;
+    }
+    .supply-detail-editor-shell .supply-roster-potion-fold-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .supply-roster-item-name {
+      font-size: 13px;
+      font-weight: 700;
+      min-width: 0;
+      word-break: keep-all;
+    }
+    .supply-roster-item-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 40%, transparent);
+      background: var(--surface-chip);
+      color: var(--text-warn);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .supply-roster-item-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--white) 10%, transparent);
+      background: var(--surface-white-soft);
+      white-space: nowrap;
+    }
+    .supply-roster-balance {
+      border-color: color-mix(in srgb, var(--accent-2) 34%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 12%, transparent);
+      color: var(--text-accent);
+    }
+    .supply-roster-balance.good {
+      border-color: color-mix(in srgb, var(--good) 28%, transparent);
+      background: color-mix(in srgb, var(--good) 10%, transparent);
+      color: var(--text-good);
+    }
+    .supply-roster-balance.warn {
+      border-color: color-mix(in srgb, var(--accent-2) 34%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+      color: var(--text-warn);
+    }
+    .supply-roster-item-options {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .supply-roster-potion-fold {
+      margin-top: 6px;
+    }
+    .supply-roster-potion-fold-summary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+      width: 100%;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 28%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+      color: var(--text-accent);
+      font-size: 11px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+    .supply-roster-potion-fold-summary > span:first-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .supply-roster-potion-fold-state {
+      flex: 0 0 auto;
+      color: color-mix(in srgb, var(--accent) 78%, transparent);
+    }
+    .supply-roster-potion-fold-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .supply-roster-potion-fold-content[hidden] {
+      display: none !important;
+    }
+    .supply-roster-hell-toggle {
+      border: 1px solid var(--line-white);
+      background: var(--surface-white-soft);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+    .supply-roster-hell-toggle.active {
+      border-color: color-mix(in srgb, var(--accent-2) 44%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+      color: var(--text-accent);
+    }
+    .supply-roster-cost {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--white) 10%, transparent);
+      background: var(--surface-white-soft);
+      color: var(--text);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .supply-roster-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .supply-roster-item-actions .ghost-button {
+      min-width: 34px;
+      padding: 6px 8px;
+      font-size: 12px;
+      border-radius: 10px;
+    }
+    .supply-content-group {
+      border: 1px solid var(--line-white-soft);
+      border-radius: 12px;
+      padding: 10px;
+      background: color-mix(in srgb, var(--bg-deep) 42%, transparent);
+    }
+    .supply-content-group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .supply-check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: var(--surface-deep);
+      font-size: 12px;
+      line-height: 1.25;
+      color: var(--text);
+      min-width: 0;
+      white-space: normal;
+    }
+    .supply-check-item input {
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+      margin-top: 1px;
+    }
+    .supply-check-item span {
+      min-width: 0;
+      word-break: keep-all;
+    }
+    .supply-check-item-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+    .supply-check-item-name {
+      min-width: 0;
+      word-break: keep-all;
+      white-space: nowrap;
+    }
+    .supply-check-item-fame {
+      flex: 0 0 auto;
+      font-size: 9px;
+      line-height: 1;
+      letter-spacing: 0.01em;
+      color: var(--muted);
+      border: 1px solid var(--line-white);
+      background: var(--surface-white-soft);
+      border-radius: 999px;
+      padding: 1px 4px;
+      white-space: nowrap;
+    }
+    .supply-check-item[aria-disabled="true"] {
+      opacity: 0.45;
+    }
+    .row-delete-button {
+      border-color: color-mix(in srgb, var(--bad) 62%, transparent);
+      background: color-mix(in srgb, var(--bad) 12%, transparent);
+      color: var(--text-bad);
+      min-width: 64px;
+    }
+    .row-delete-button:hover {
+      border-color: color-mix(in srgb, var(--bad) 86%, transparent);
+      background: color-mix(in srgb, var(--bad) 20%, transparent);
+    }
