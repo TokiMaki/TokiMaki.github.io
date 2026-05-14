@@ -48,6 +48,17 @@ htmlcov/
 # Type checkers
 .mypy_cache/
 
+### Node / Vite
+node_modules/
+.vite/
+dist/
+*.tsbuildinfo
+
+### Local project cache
+Docs/.price_cache/
+.venv-xlsx/
+.codex
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
