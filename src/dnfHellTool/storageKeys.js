@@ -1,4 +1,9 @@
 function resolveApiBase() {
+  const configuredApiBase = import.meta.env.VITE_API_BASE?.trim();
+  if (configuredApiBase) {
+    return configuredApiBase.replace(/\/$/, '');
+  }
+
   if (location.protocol === 'file:') {
     return 'http://127.0.0.1:8787';
   }
