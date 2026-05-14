@@ -22,6 +22,7 @@ export function fmtCost(value) {
 export function fmtDecimal(value, digits = 3) {
   const normalized = Number(value);
   if (!Number.isFinite(normalized)) return '0';
+  if (digits <= 0) return String(Math.round(normalized));
   return normalized.toFixed(digits).replace(/\.?0+$/, '');
 }
 

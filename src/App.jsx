@@ -1,5 +1,5 @@
-import LegacyDnfHellTool from './components/LegacyDnfHellTool.jsx';
+import DnfHellTool from './components/DnfHellTool.jsx';
 
 export default function App() {
-  return <LegacyDnfHellTool />;
+  return <DnfHellTool />;
 }

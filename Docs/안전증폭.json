@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "kind": "safeAmplificationCost",
+  "rules": {
+    "failure": "단계 하락 없음",
+    "failureBonusPercent": "실패할 때마다 다음 시도 성공률에 누적 가산"
+  },
+  "rows": [
+    {
+      "fromLevel": 0,
+      "toLevel": 1,
+      "successRatePercent": 100,
+      "failureBonusPercent": 0,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 36,
+          "gold": 430100
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 16,
+          "gold": 189860
+        }
+      }
+    },
+    {
+      "fromLevel": 1,
+      "toLevel": 2,
+      "successRatePercent": 100,
+      "failureBonusPercent": 0,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 41,
+          "gold": 490600
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 21,
+          "gold": 250360
+        }
+      }
+    },
+    {
+      "fromLevel": 2,
+      "toLevel": 3,
+      "successRatePercent": 100,
+      "failureBonusPercent": 0,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 46,
+          "gold": 551100
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 26,
+          "gold": 310860
+        }
+      }
+    },
+    {
+      "fromLevel": 3,
+      "toLevel": 4,
+      "successRatePercent": 100,
+      "failureBonusPercent": 0,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 51,
+          "gold": 611600
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 31,
+          "gold": 371360
+        }
+      }
+    },
+    {
+      "fromLevel": 4,
+      "toLevel": 5,
+      "successRatePercent": 70,
+      "failureBonusPercent": 10,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 55,
+          "gold": 876652
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 46,
+          "gold": 490750
+        }
+      }
+    },
+    {
+      "fromLevel": 5,
+      "toLevel": 6,
+      "successRatePercent": 60,
+      "failureBonusPercent": 10,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 67,
+          "gold": 1072098
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 58,
+          "gold": 615450
+        }
+      }
+    },
+    {
+      "fromLevel": 6,
+      "toLevel": 7,
+      "successRatePercent": 50,
+      "failureBonusPercent": 10,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 109,
+          "gold": 1730400
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 98,
+          "gold": 1043132
+        }
+      }
+    },
+    {
+      "fromLevel": 7,
+      "toLevel": 8,
+      "successRatePercent": 50,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 122,
+          "gold": 1932679
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 109,
+          "gold": 1157283
+        }
+      }
+    },
+    {
+      "fromLevel": 8,
+      "toLevel": 9,
+      "successRatePercent": 40,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 230,
+          "gold": 3656400
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 212,
+          "gold": 2246200
+        }
+      }
+    },
+    {
+      "fromLevel": 9,
+      "toLevel": 10,
+      "successRatePercent": 30,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "harmonyCrystal": 320,
+          "gold": 5004870
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 277,
+          "gold": 2937440
+        }
+      }
+    }
+  ]
+}

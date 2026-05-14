@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-05-12",
+  "source": {
+    "type": "manual_seed_from_neople_item_search",
+    "note": "크리쳐는 /df/items 전체 수집이 불안정하므로 시즌별 키워드/아이템명을 수동으로 추가한다. 가격은 itemId 기준 경매장 조회에서 minFame/maxFame을 사용한다."
+  },
+  "groups": [
+    {
+      "groupName": "운명을 담는 재단사",
+      "searchName": "운명을 담는 재단사",
+      "itemType": "크리쳐",
+      "targetFame": 1261,
+      "candidates": [
+        {
+          "name": "운명을 담는 재단사",
+          "variant": "일반",
+          "searchNames": [
+            "운명을 담는 재단사 알",
+            "[프리미엄 코인샵]운명을 담는 재단사 크리쳐 상자"
+          ],
+          "includeItemNames": [
+            "운명을 담는 재단사 알",
+            "[프리미엄 코인샵]운명을 담는 재단사 크리쳐 상자"
+          ],
+          "targetFame": 1261,
+          "includeZeroFameBox": true
+        },
+        {
+          "name": "운명을 담는 재단사 플래티넘",
+          "variant": "플래티넘",
+          "searchNames": [
+            "운명을 담는 재단사 플래티넘",
+            "운명을 담는 재단사 플래티넘 크리쳐 알 선택 상자"
+          ],
+          "includeNamePrefixes": [
+            "운명을 담는 재단사 플래티넘[",
+            "운명을 담는 재단사 플래티넘 크리쳐 알 선택 상자"
+          ],
+          "targetFame": 1261,
+          "includeZeroFameBox": true
+        }
+      ]
+    },
+    {
+      "groupName": "탐사대장 셀레나/스타 체이서",
+      "searchName": "탐사대장 셀레나/스타 체이서",
+      "itemType": "크리쳐",
+      "targetFame": 1261,
+      "candidates": [
+        {
+          "name": "탐사대장 셀레나",
+          "variant": "플래티넘",
+          "searchNames": [
+            "탐사대장 셀레나",
+            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
+          ],
+          "includeNamePrefixes": [
+            "탐사대장 셀레나[",
+            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
+          ],
+          "targetFame": 1261,
+          "includeZeroFameBox": true
+        },
+        {
+          "name": "스타 체이서",
+          "variant": "플래티넘",
+          "searchNames": [
+            "스타 체이서",
+            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
+          ],
+          "includeNamePrefixes": [
+            "스타 체이서[",
+            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
+          ],
+          "targetFame": 1261,
+          "includeZeroFameBox": true
+        }
+      ]
+    }
+  ]
+}

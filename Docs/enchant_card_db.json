@@ -1,0 +1,355 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-05-12",
+  "source": {
+    "type": "arca_article",
+    "url": "https://arca.live/b/dunfa/169495645",
+    "title": "마법부여 정리 - 딜러편 (아포 레기온 갱신)",
+    "note": "경매장 매물이 아니라 /df/items 아이템 검색으로 카드 itemId를 수집했고, 효과 수치는 글 본문을 기준으로 수동 구조화함."
+  },
+  "cards": [
+    {
+      "searchName": "기억과 안개의 신, 무 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "더 파이퍼 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "멸절의 폭룡왕 바칼 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "허망한 맹신, 호스디그 카드",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "정직한 픽툼 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "종말의 칼날 로페즈 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "폭주하는 욕망의 현신 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "백금의 행운, 엘리브 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "불신위괴 라르고 카드",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "검은 공포의 아스타로스 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "사라 웨인 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "폭음 크래시머 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "무관심한 카리타 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "사무치는 냉룡 스카사 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "연구소장 엘디르 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "적아 울라드 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "종언을 고하는 본능 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "왜곡된 욕신, 루브라 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "요기를 머금은 요무무 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "결백의 페카토르 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "구속의 공작 유리스 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "불길한 사벨리 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "인공신 프로토 타입 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "제 6 사도 디레지에 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "첫 기억을 간직한 자 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "비명을 머금은 분노 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "숲의 전언자 카밀라 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "인공신 3호 나벨 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "침묵의 카라 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "선별자 룬디어 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "아홉 꼬리 블로나 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "조율의 감시자 오르테르 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "파괴의 트라우마트 카드",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "무의식의 테르미누스 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "무지의 악 나벨 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "불의 숨결을 내는 자 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "붕괴한 광신, 마흐나발 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "역병을 담은 눈, 옴마 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "거짓의 베리디쿠스 카드",
+      "tier": "종결"
+    },
+    {
+      "searchName": "무결한 죽음 비시마 카드",
+      "tier": "준종결"
+    },
+    {
+      "searchName": "요격대 테아스 카드",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "큰 어른 루톤 카드",
+      "tier": "가성비"
+    }
+  ],
+  "materialEnchantItems": [
+    {
+      "searchName": "딜러 목걸이 보주 (모든 속성 강화 +33)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 팔찌 보주 (모든 속성 강화 +33)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 반지 보주 (모든 속성 강화 +33)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 보조장비 보주 (물리, 마법, 독립 공격력 +110)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 마법석 보주 (모든 속성 강화 +30)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 귀걸이 보주 (모든 속성 강화 +11)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 상의 보주 (물리, 마법, 독립 공격력 +90, 힘, 지능 +60)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 하의 보주 (물리, 마법, 독립 공격력 +90, 힘, 지능 +60)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 머리어깨 보주 (최종 데미지 1.5%)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 벨트 보주 (최종 데미지 1.5%)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 신발 보주 (최종 데미지 1%)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 무기 보주(화속성 강화 +15)",
+      "displayName": "딜러 무기 보주(각속성 강화 +15)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "베누스 딜러 상의 보주(물리, 마법, 독립 공격력 +110, 힘, 지능 +80)",
+      "acquisition": {
+        "type": "material",
+        "label": "베누스 재료 구매",
+        "materialSearchName": "흩어지는 찬사의 비단",
+        "materialLabel": "비단",
+        "amount": 135
+      }
+    },
+    {
+      "searchName": "베누스 딜러 머리어깨 보주(최종 데미지 2%)",
+      "acquisition": {
+        "type": "material",
+        "label": "베누스 재료 구매",
+        "materialSearchName": "흩어지는 찬사의 비단",
+        "materialLabel": "비단",
+        "amount": 135
+      }
+    },
+    {
+      "searchName": "나벨 딜러 벨트 보주(최종 데미지 2% 증가)",
+      "acquisition": {
+        "type": "material",
+        "label": "나벨 재료 구매",
+        "materialSearchName": "깨진 악몽의 잔해",
+        "materialLabel": "잔해",
+        "amount": 135
+      }
+    },
+    {
+      "searchName": "나벨 딜러 하의 보주(물리, 마법, 독립 공격력 +110, 힘, 지능 +80)",
+      "acquisition": {
+        "type": "material",
+        "label": "나벨 재료 구매",
+        "materialSearchName": "깨진 악몽의 잔해",
+        "materialLabel": "잔해",
+        "amount": 135
+      }
+    },
+    {
+      "itemId": "86cff1252c5e883640b8501efb21a080",
+      "searchName": "아포칼립스 딜러 상의 보주(최종 데미지 1%)",
+      "acquisition": {
+        "type": "material",
+        "label": "아포칼립스 재료 구매",
+        "materialSearchName": "안개의 소명",
+        "materialLabel": "소명",
+        "amount": 120
+      }
+    }
+  ],
+  "unresolved": []
+}

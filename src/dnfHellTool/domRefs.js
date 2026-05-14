@@ -1,5 +1,5 @@
-// 레거시 HTML에서 사용하는 DOM 참조를 한 곳에 모은다.
-export function createLegacyDomRefs() {
+// 도구 화면에서 사용하는 DOM 참조를 한 곳에 모은다.
+export function createToolDomRefs() {
   const $id = (id) => document.getElementById(id);
   const $all = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -10,6 +10,7 @@ export function createLegacyDomRefs() {
       devModeToggle: $id('devModeToggle'),
       hellTabButton: $id('hellTabButton'),
       supplyTabButton: $id('supplyTabButton'),
+      enchantTabButton: $id('enchantTabButton'),
       tabButtons: $all('.tab-button[data-tab-target]'),
 
       // Hell calculator inputs
@@ -23,6 +24,8 @@ export function createLegacyDomRefs() {
       taechoRate: $id('taechoRate'),
       hellPerRun: $id('hellPerRun'),
       recoveryAmount: $id('recoveryAmount'),
+      applySupplyHellCalcButton: $id('applySupplyHellCalcButton'),
+      supplyHellCalcMeta: $id('supplyHellCalcMeta'),
       epicCraftCost: $id('epicCraftCost'),
       taechoCraftCost: $id('taechoCraftCost'),
       trials: $id('trials'),
@@ -52,9 +55,6 @@ export function createLegacyDomRefs() {
       selectedHellRuns: $id('selectedHellRuns'),
       craftCost: $id('craftCost'),
       craftRoute: $id('craftRoute'),
-      fragmentNeedCost: $id('fragmentNeedCost'),
-      fragmentNeedPieces: $id('fragmentNeedPieces'),
-      fragmentNeedBreakdown: $id('fragmentNeedBreakdown'),
       verdictText: $id('verdictText'),
       verdictSub: $id('verdictSub'),
       quantileCompact: $id('quantileCompact'),
@@ -69,6 +69,19 @@ export function createLegacyDomRefs() {
       setTableBody: $id('setTableBody'),
       sortButtons: $all('.sort-button[data-sort-key]'),
 
+      // Enchant price table
+      enchantServerIdInput: $id('enchantServerIdInput'),
+      enchantCharacterNameInput: $id('enchantCharacterNameInput'),
+      loadEnchantCharacterButton: $id('loadEnchantCharacterButton'),
+      enchantCharacterStatus: $id('enchantCharacterStatus'),
+      enchantSlotFilter: $id('enchantSlotFilter'),
+      enchantTierFilter: $id('enchantTierFilter'),
+      refreshEnchantCardsButton: $id('refreshEnchantCardsButton'),
+      enchantStatus: $id('enchantStatus'),
+      enchantEfficiencyLegend: $id('enchantEfficiencyLegend'),
+      enchantRecommendList: $id('enchantRecommendList'),
+      enchantTableBody: $id('enchantTableBody'),
+
       // Revelation management inputs
       supplyServerIdInput: $id('supplyServerIdInput'),
       supplyCharacterNameInput: $id('supplyCharacterNameInput'),
@@ -78,9 +91,6 @@ export function createLegacyDomRefs() {
       enableAllSupplyHellsButton: $id('enableAllSupplyHellsButton'),
       disableAllSupplyHellsButton: $id('disableAllSupplyHellsButton'),
       clearSupplyCharactersButton: $id('clearSupplyCharactersButton'),
-      setAllSupplyHellPcBangButton: $id('setAllSupplyHellPcBangButton'),
-      setAllSupplyHellAradPassButton: $id('setAllSupplyHellAradPassButton'),
-      setAllSupplyHellPotionsButton: $id('setAllSupplyHellPotionsButton'),
       moveSupplyToHellButton: $id('moveSupplyToHellButton'),
       moveSupplyToAltButton: $id('moveSupplyToAltButton'),
       supplyPresetButtons: $all('[data-supply-preset]'),
@@ -92,9 +102,13 @@ export function createLegacyDomRefs() {
       supplyTotalResetUsage: $id('supplyTotalResetUsage'),
       supplyTotalSoul: $id('supplyTotalSoul'),
       supplyTotalSoulSub: $id('supplyTotalSoulSub'),
+      supplySoulExcludeControls: $id('supplySoulExcludeControls'),
+      supplyTotalEvent: $id('supplyTotalEvent'),
+      supplyTotalEventSub: $id('supplyTotalEventSub'),
       supplyTotalTodayUsage: $id('supplyTotalTodayUsage'),
       supplyTotalBound: $id('supplyTotalBound'),
       supplyTotalAccount: $id('supplyTotalAccount'),
+      supplyTotalAccountSub: $id('supplyTotalAccountSub'),
       supplyHellRosterList: $id('supplyHellRosterList'),
       supplyAltRosterList: $id('supplyAltRosterList'),
       supplyHellRosterCount: $id('supplyHellRosterCount'),
@@ -107,6 +121,7 @@ export function createLegacyDomRefs() {
       supplyDetailTodayHell: $id('supplyDetailTodayHell'),
       supplyDetailTodayHellSub: $id('supplyDetailTodayHellSub'),
       supplyDetailBound: $id('supplyDetailBound'),
+      supplyDetailBoundSub: $id('supplyDetailBoundSub'),
       supplyDetailRecovery: $id('supplyDetailRecovery'),
       supplyDetailRecoverySub: $id('supplyDetailRecoverySub'),
       supplyDetailAccount: $id('supplyDetailAccount'),

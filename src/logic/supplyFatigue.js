@@ -3,6 +3,10 @@ import {
   SUPPLY_CHARACTER_FATIGUE_PROFILES,
   SUPPLY_USAGE_CONSTANTS,
 } from '../data/supplyConstants.js';
+import {
+  getSupplyResetWindowCounts,
+  getSupplyTodayWindowCounts,
+} from './supplyDate.js';
 import { fmtInt } from './formatters.js';
 
 // 캐릭터별 피로도, 무료 헬, 계시 사용량 계산.
@@ -78,42 +82,166 @@ export function getSupplyCharacterFatigueLabel(character) {
   return `${profile.label} ${fmtInt(getSupplyCharacterWeeklyFatigue(character))}`;
 }
 
-export function calcHellUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', potionRunsPerDay = 0, dayCounts = null) {
+function calcBoundFundedHellRuns(boundSupply, hellRevelationPerRun, eventBoundRevelationPerHellRun = 0) {
+  const cost = Math.max(1, Number(hellRevelationPerRun || 0));
+  const baseSupply = Math.max(0, Number(boundSupply || 0));
+  const eventPerRun = Math.max(0, Number(eventBoundRevelationPerHellRun || 0));
+  if (eventPerRun <= 0 || eventPerRun >= cost) {
+    return Math.floor(baseSupply / cost);
+  }
+  
+  let runs = Math.floor(baseSupply / cost);
+  for (let index = 0; index < 100; index += 1) {
+    const nextRuns = Math.floor((baseSupply + runs * eventPerRun) / cost);
+    if (nextRuns === runs) return runs;
+    runs = nextRuns;
+  }
+  return runs;
+}
+
+function calcUnlimitedRunPlan({
+  baseBoundSupply,
+  hellRevelationPerRun,
+  eventBoundRevelationPerHellRun,
+  unlimitedBaseRuns,
+  unlimitedAdvancedRunLoss,
+  unlimitedFatigueCost,
+}) {
+  const cost = Math.max(1, Number(hellRevelationPerRun || 0));
+  const baseSupply = Math.max(0, Number(baseBoundSupply || 0));
+  const eventPerRun = Math.max(0, Number(eventBoundRevelationPerHellRun || 0));
+  const baseRuns = Math.max(0, Number(unlimitedBaseRuns || 0) - Number(unlimitedAdvancedRunLoss || 0));
+  const fatigueCost = Math.max(1, Number(unlimitedFatigueCost || 0));
+  let boundHellRuns = Math.floor(baseSupply / cost);
+  let unlimitedRuns = baseRuns;
+  
+  for (let index = 0; index < 100; index += 1) {
+    const boundHellRunLoss = Math.ceil((boundHellRuns * SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun) / fatigueCost);
+    const nextUnlimitedRuns = Math.max(0, baseRuns - boundHellRunLoss);
+    const eventEligibleRuns = boundHellRuns + nextUnlimitedRuns;
+    const nextBoundHellRuns = eventPerRun > 0 && eventPerRun < cost
+      ? Math.floor((baseSupply + (eventEligibleRuns * eventPerRun)) / cost)
+      : Math.floor(baseSupply / cost);
+    
+    if (nextBoundHellRuns === boundHellRuns && nextUnlimitedRuns === unlimitedRuns) {
+      unlimitedRuns = nextUnlimitedRuns;
+      break;
+    }
+    boundHellRuns = nextBoundHellRuns;
+    unlimitedRuns = nextUnlimitedRuns;
+  }
+  
+  const boundHellRunLoss = Math.ceil((boundHellRuns * SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun) / fatigueCost);
+  const eventEligibleRuns = boundHellRuns + unlimitedRuns;
+  return {
+    boundHellRuns,
+    boundHellRunLoss,
+    unlimitedRuns,
+    eventEligibleRuns,
+    eventBoundSupply: eventEligibleRuns * eventPerRun,
+  };
+}
+
+export function calcHellUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', potionRunsPerDay = 0, dayCounts = null, eventBoundRevelationPerHellRun = 0) {
   const profile = getSupplyCharacterFatigueProfile({ fatigueMode });
   const counts = dayCounts || {
     weekdayCount: SUPPLY_USAGE_CONSTANTS.weekdayCount,
     weekendCount: SUPPLY_USAGE_CONSTANTS.weekendCount,
+    mwfCount: 3,
     dayCount: SUPPLY_USAGE_CONSTANTS.weekdayCount + SUPPLY_USAGE_CONSTANTS.weekendCount,
   };
   const advancedCount = Array.isArray(entries)
     ? entries.filter((entry) => entry.contentType === 'advanced').length
     : 0;
+  const unlimitedFatigueCost = (Array.isArray(entries) ? entries : [])
+    .reduce((maxCost, entry) => Math.max(maxCost, Number(entry.unlimitedFatigueCost || 0)), 0);
   const hasHeaven = Array.isArray(entries)
     ? entries.some((entry) => String(entry?.key || entry?.accountPoolKey || '').trim() === 'heaven')
     : false;
+  const contentBoundSupply = (Array.isArray(entries) ? entries : [])
+    .reduce((sum, entry) => {
+      const dailyBase = Number(entry.dailyBoundSupplyBase || 0);
+      const dailyMwfBonus = Number(entry.dailyMwfBoundSupplyBonus || 0);
+      if (dailyBase > 0 || dailyMwfBonus > 0) {
+        return sum
+          + dailyBase * Math.max(0, Number(counts.dayCount || 0))
+          + dailyMwfBonus * Math.max(0, Number(counts.mwfCount || 0));
+      }
+      return sum + Number(entry.boundSupply || 0);
+    }, 0);
   const weekdayRuns = Math.ceil(Number(profile.weekdayFatigue || SUPPLY_USAGE_CONSTANTS.weekdayFatigue) / SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun)
     * Math.max(0, Number(counts.weekdayCount || 0));
   const weekendRuns = Math.ceil(Number(profile.weekendFatigue || SUPPLY_USAGE_CONSTANTS.weekendFatigue) / SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun)
     * Math.max(0, Number(counts.weekendCount || 0));
   const advancedRunLoss = advancedCount * Math.ceil(SUPPLY_USAGE_CONSTANTS.advancedDungeonFatigue / SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun);
-  const fatigueHellRuns = Math.max(0, weekdayRuns + weekendRuns - advancedRunLoss);
+  const weeklyFatigue = Number(profile.weekdayFatigue || SUPPLY_USAGE_CONSTANTS.weekdayFatigue) * Math.max(0, Number(counts.weekdayCount || 0))
+      + Number(profile.weekendFatigue || SUPPLY_USAGE_CONSTANTS.weekendFatigue) * Math.max(0, Number(counts.weekendCount || 0));
+  const heavenDailyFatigue = hasHeaven ? SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun * SUPPLY_USAGE_CONSTANTS.freeHellPerDay : 0;
+  const baseContentFatigue = advancedCount * SUPPLY_USAGE_CONSTANTS.advancedDungeonFatigue
+    + heavenDailyFatigue * Math.max(0, Number(counts.dayCount || 0));
+  const remainingWeekdayFatigue = Math.max(0, Number(profile.weekdayFatigue || SUPPLY_USAGE_CONSTANTS.weekdayFatigue) - heavenDailyFatigue);
+  const remainingWeekendFatigue = Math.max(0, Number(profile.weekendFatigue || SUPPLY_USAGE_CONSTANTS.weekendFatigue) - heavenDailyFatigue);
+  const unlimitedAdvancedRunLoss = advancedCount * Math.ceil(SUPPLY_USAGE_CONSTANTS.advancedDungeonFatigue / Math.max(1, unlimitedFatigueCost));
+  const unlimitedBaseRuns = unlimitedFatigueCost > 0
+    ? (
+        Math.ceil(remainingWeekdayFatigue / unlimitedFatigueCost) * Math.max(0, Number(counts.weekdayCount || 0))
+        + Math.ceil(remainingWeekendFatigue / unlimitedFatigueCost) * Math.max(0, Number(counts.weekendCount || 0))
+      )
+    : 0;
+  const unlimitedPlan = unlimitedFatigueCost > 0
+    ? calcUnlimitedRunPlan({
+        baseBoundSupply: contentBoundSupply,
+        hellRevelationPerRun,
+        eventBoundRevelationPerHellRun,
+        unlimitedBaseRuns,
+        unlimitedAdvancedRunLoss,
+        unlimitedFatigueCost,
+      })
+    : null;
+  const contentBoundHellRuns = unlimitedPlan
+    ? unlimitedPlan.boundHellRuns
+    : calcBoundFundedHellRuns(contentBoundSupply, hellRevelationPerRun, eventBoundRevelationPerHellRun);
+  const eventBoundSupplyForContentHell = unlimitedPlan
+    ? unlimitedPlan.eventBoundSupply
+    : contentBoundHellRuns * Math.max(0, Number(eventBoundRevelationPerHellRun || 0));
+  const contentBoundHellFatigue = contentBoundHellRuns * SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun;
+  const contentFatigue = baseContentFatigue + contentBoundHellFatigue;
+  const remainingFatigue = Math.max(0, weeklyFatigue - contentFatigue);
+  const unlimitedBoundHellRunLoss = unlimitedPlan
+    ? unlimitedPlan.boundHellRunLoss
+    : Math.ceil(contentBoundHellFatigue / Math.max(1, unlimitedFatigueCost));
+  const unlimitedRuns = unlimitedPlan ? unlimitedPlan.unlimitedRuns : 0;
+  const unlimitedRunLoss = unlimitedRuns * Math.ceil(unlimitedFatigueCost / SUPPLY_USAGE_CONSTANTS.hellFatiguePerRun);
+  const fatigueHellRuns = unlimitedFatigueCost > 0
+    ? 0
+    : Math.max(0, weekdayRuns + weekendRuns - advancedRunLoss);
   const freeHellRuns = hasHeaven ? SUPPLY_USAGE_CONSTANTS.freeHellPerDay * Math.max(0, Number(counts.dayCount || 0)) : 0;
   const totalPotionRuns = Math.max(0, Number(potionRunsPerDay || 0)) * Math.max(0, Number(counts.dayCount || 0));
   const revelationHellRuns = Math.max(0, fatigueHellRuns - freeHellRuns) + totalPotionRuns;
-  const totalHellRuns = fatigueHellRuns + totalPotionRuns;
+  const contentBoundHellRunsForUsage = unlimitedFatigueCost > 0 ? contentBoundHellRuns : 0;
+  const totalHellRuns = fatigueHellRuns + totalPotionRuns + contentBoundHellRunsForUsage;
   const hellUsage = revelationHellRuns * Number(hellRevelationPerRun || 0);
   
   return {
     advancedCount,
     advancedRunLoss,
+    contentFatigue,
+    remainingFatigue,
+    contentBoundSupply,
+    eventBoundSupplyForContentHell,
+    contentBoundHellRuns,
+    contentBoundHellFatigue,
+    contentBoundHellRunsForUsage,
+    unlimitedRuns,
+    unlimitedRunLoss,
+    unlimitedBoundHellRunLoss,
     hasHeaven,
     dayCount: Math.max(0, Number(counts.dayCount || 0)),
     weekdayRuns,
     weekendRuns,
-    weeklyFatigue: Number(profile.weekdayFatigue || SUPPLY_USAGE_CONSTANTS.weekdayFatigue) * Math.max(0, Number(counts.weekdayCount || 0))
-      + Number(profile.weekendFatigue || SUPPLY_USAGE_CONSTANTS.weekendFatigue) * Math.max(0, Number(counts.weekendCount || 0)),
+    weeklyFatigue,
     fatigueHellRuns,
-    paidHellRuns: fatigueHellRuns,
+    paidHellRuns: revelationHellRuns,
     freeHellRuns,
     potionRuns: totalPotionRuns,
     revelationHellRuns,
@@ -123,20 +251,33 @@ export function calcHellUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_
   };
 }
 
-export function calcWeeklyUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', dailyPotionRuns = 0) {
+export function calcWeeklyUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', dailyPotionRuns = 0, eventBoundRevelationPerHellRun = 0) {
   return calcHellUsageFromEntries(entries, hellRevelationPerRun, fatigueMode, dailyPotionRuns, {
     weekdayCount: SUPPLY_USAGE_CONSTANTS.weekdayCount,
     weekendCount: SUPPLY_USAGE_CONSTANTS.weekendCount,
+    mwfCount: 3,
     dayCount: SUPPLY_USAGE_CONSTANTS.weekdayCount + SUPPLY_USAGE_CONSTANTS.weekendCount,
-  });
+  }, eventBoundRevelationPerHellRun);
 }
 
-export function calcResetUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', dailyPotionRuns = 0, date = new Date()) {
-  return calcHellUsageFromEntries(entries, hellRevelationPerRun, fatigueMode, dailyPotionRuns, getSupplyResetWindowCounts(date));
+function isRecurringWindowEntry(entry) {
+  return Number(entry?.dailyBoundSupplyBase || 0) > 0
+    || Number(entry?.dailyMwfBoundSupplyBonus || 0) > 0
+    || Number(entry?.unlimitedFatigueCost || 0) > 0;
 }
 
-export function calcTodayUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', dailyPotionRuns = 0, date = new Date()) {
-  return calcHellUsageFromEntries(entries, hellRevelationPerRun, fatigueMode, dailyPotionRuns, getSupplyTodayWindowCounts(date));
+export function calcResetUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', dailyPotionRuns = 0, date = new Date(), eventBoundRevelationPerHellRun = 0) {
+  const resetEntries = Array.isArray(entries)
+    ? entries.filter(isRecurringWindowEntry)
+    : entries;
+  return calcHellUsageFromEntries(resetEntries, hellRevelationPerRun, fatigueMode, dailyPotionRuns, getSupplyResetWindowCounts(date), eventBoundRevelationPerHellRun);
+}
+
+export function calcTodayUsageFromEntries(entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, fatigueMode = 'home', dailyPotionRuns = 0, date = new Date(), eventBoundRevelationPerHellRun = 0) {
+  const todayEntries = Array.isArray(entries)
+    ? entries.filter(isRecurringWindowEntry)
+    : entries;
+  return calcHellUsageFromEntries(todayEntries, hellRevelationPerRun, fatigueMode, dailyPotionRuns, getSupplyTodayWindowCounts(date), eventBoundRevelationPerHellRun);
 }
 
 export function calcTodayNeedFromCharacter(character, entries, hellRevelationPerRun = SUPPLY_USAGE_CONSTANTS.hellRevelationPerRun, date = new Date()) {
@@ -153,6 +294,7 @@ export function calcTodayNeedFromCharacter(character, entries, hellRevelationPer
   const freeHellRuns = hasHeaven ? SUPPLY_USAGE_CONSTANTS.freeHellPerDay * Math.max(0, Number(counts.dayCount || 0)) : 0;
   const potionRuns = Number(getSupplyCharacterFatiguePotionDailyRuns(character) || 0);
   const revelationHellRuns = Math.max(0, fatigueHellRuns - freeHellRuns) + potionRuns;
+  const totalHellRuns = fatigueHellRuns + potionRuns;
   const hellUsage = revelationHellRuns * Number(hellRevelationPerRun || 0);
   return {
     dayCount: Math.max(0, Number(counts.dayCount || 0)),
@@ -164,7 +306,7 @@ export function calcTodayNeedFromCharacter(character, entries, hellRevelationPer
     freeHellRuns,
     potionRuns,
     revelationHellRuns,
-    totalHellRuns: revelationHellRuns,
+    totalHellRuns,
     hellRevelationPerRun: Number(hellRevelationPerRun || 0),
     hellUsage,
   };

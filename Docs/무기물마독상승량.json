@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "kind": "weaponReinforcementAttackByLevel",
+  "rows": [
+    {
+      "level": 0,
+      "attack": 0
+    },
+    {
+      "level": 7,
+      "attack": 215
+    },
+    {
+      "level": 8,
+      "attack": 288
+    },
+    {
+      "level": 9,
+      "attack": 381
+    },
+    {
+      "level": 10,
+      "attack": 490
+    },
+    {
+      "level": 11,
+      "attack": 706
+    },
+    {
+      "level": 12,
+      "attack": 961
+    },
+    {
+      "level": 13,
+      "attack": 1126
+    },
+    {
+      "level": 14,
+      "attack": 1288
+    },
+    {
+      "level": 15,
+      "attack": 1453
+    },
+    {
+      "level": 16,
+      "attack": 1616
+    },
+    {
+      "level": 17,
+      "attack": 1776
+    },
+    {
+      "level": 18,
+      "attack": 1936
+    }
+  ]
+}

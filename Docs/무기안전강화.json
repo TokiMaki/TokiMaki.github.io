@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "kind": "safeWeaponReinforcementCost",
+  "rows": [
+    {
+      "fromLevel": 0,
+      "toLevel": 1,
+      "successRatePercent": 100,
+      "failureBonusPercent": null,
+      "costs": {
+        "weapon": {
+          "lionCore": 40,
+          "gold": 124448
+        }
+      },
+      "expected": {
+        "lionCore": 40,
+        "gold": 124448
+      },
+      "expectedFromZero": {
+        "lionCore": 40,
+        "gold": 124448
+      }
+    },
+    {
+      "fromLevel": 1,
+      "toLevel": 2,
+      "successRatePercent": 100,
+      "failureBonusPercent": null,
+      "costs": {
+        "weapon": {
+          "lionCore": 41,
+          "gold": 124448
+        }
+      },
+      "expected": {
+        "lionCore": 41,
+        "gold": 124448
+      },
+      "expectedFromZero": {
+        "lionCore": 81,
+        "gold": 248896
+      }
+    },
+    {
+      "fromLevel": 2,
+      "toLevel": 3,
+      "successRatePercent": 100,
+      "failureBonusPercent": null,
+      "costs": {
+        "weapon": {
+          "lionCore": 43,
+          "gold": 124448
+        }
+      },
+      "expected": {
+        "lionCore": 43,
+        "gold": 124448
+      },
+      "expectedFromZero": {
+        "lionCore": 124,
+        "gold": 373344
+      }
+    },
+    {
+      "fromLevel": 3,
+      "toLevel": 4,
+      "successRatePercent": 100,
+      "failureBonusPercent": null,
+      "costs": {
+        "weapon": {
+          "lionCore": 44,
+          "gold": 124448
+        }
+      },
+      "expected": {
+        "lionCore": 44,
+        "gold": 124448
+      },
+      "expectedFromZero": {
+        "lionCore": 168,
+        "gold": 497792
+      }
+    },
+    {
+      "fromLevel": 4,
+      "toLevel": 5,
+      "successRatePercent": 80,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "lionCore": 81,
+          "gold": 247893
+        }
+      },
+      "expected": {
+        "lionCore": 100,
+        "gold": 305689
+      },
+      "expectedFromZero": {
+        "lionCore": 268,
+        "gold": 803481
+      }
+    },
+    {
+      "fromLevel": 5,
+      "toLevel": 6,
+      "successRatePercent": 70,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "lionCore": 91,
+          "gold": 276207
+        }
+      },
+      "expected": {
+        "lionCore": 127,
+        "gold": 380461
+      },
+      "expectedFromZero": {
+        "lionCore": 395,
+        "gold": 1188096
+      }
+    },
+    {
+      "fromLevel": 6,
+      "toLevel": 7,
+      "successRatePercent": 60,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "lionCore": 99,
+          "gold": 298734
+        }
+      },
+      "expected": {
+        "lionCore": 158,
+        "gold": 530436
+      },
+      "expectedFromZero": {
+        "lionCore": 553,
+        "gold": 1718532
+      }
+    },
+    {
+      "fromLevel": 7,
+      "toLevel": 8,
+      "successRatePercent": 50,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "lionCore": 110,
+          "gold": 332572
+        }
+      },
+      "expected": {
+        "lionCore": 204,
+        "gold": 618204
+      },
+      "expectedFromZero": {
+        "lionCore": 757,
+        "gold": 2336736
+      }
+    },
+    {
+      "fromLevel": 8,
+      "toLevel": 9,
+      "successRatePercent": 40,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "lionCore": 124,
+          "gold": 377149
+        }
+      },
+      "expected": {
+        "lionCore": 274,
+        "gold": 834789
+      },
+      "expectedFromZero": {
+        "lionCore": 1031,
+        "gold": 3171525
+      }
+    },
+    {
+      "fromLevel": 9,
+      "toLevel": 10,
+      "successRatePercent": 30,
+      "failureBonusPercent": 5,
+      "costs": {
+        "weapon": {
+          "lionCore": 145,
+          "gold": 436960
+        }
+      },
+      "expected": {
+        "lionCore": 383,
+        "gold": 1154304
+      },
+      "expectedFromZero": {
+        "lionCore": 1414,
+        "gold": 4325829
+      }
+    },
+    {
+      "fromLevel": 10,
+      "toLevel": 11,
+      "successRatePercent": 10,
+      "failureBonusPercent": 2,
+      "costs": {
+        "weapon": {
+          "lionCore": 491,
+          "gold": 1485598
+        }
+      },
+      "expected": {
+        "lionCore": 2859,
+        "gold": 8651294
+      },
+      "expectedFromZero": {
+        "lionCore": 4273,
+        "gold": 12977123
+      }
+    },
+    {
+      "fromLevel": 11,
+      "toLevel": 12,
+      "successRatePercent": 6,
+      "failureBonusPercent": 2,
+      "costs": {
+        "weapon": {
+          "lionCore": 1529,
+          "gold": 4626036
+        }
+      },
+      "expected": {
+        "lionCore": 10667,
+        "gold": 32271875
+      },
+      "expectedFromZero": {
+        "lionCore": 14940,
+        "gold": 45248998
+      }
+    }
+  ]
+}

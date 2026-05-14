@@ -1,7 +1,8 @@
 // 계시 수급 탭에서 쓰는 콘텐츠 표/프리셋 정의.
 
-export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWeeklySupply }) {
+export function createSupplyContentConfig({ calcSupplyParts, calcIndependentSupplyParts, calcDailyContentWeeklySupply }) {
   const HEAVEN_WEEKLY_BOUND_SUPPLY = calcDailyContentWeeklySupply(36, 31);
+  const MUKKISUL_RATES = { rare: 0.1128, unique: 0.0759, legendary: 0.0141 };
 
   const SUPPLY_CONTENT_GROUPS = [
     {
@@ -48,6 +49,14 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
         { key: 'diregie-normal', label: '일반', minFame: 77399, ...calcSupplyParts(12, 9, 180) },
         { key: 'diregie-hard', label: '악연', minFame: 81799, ...calcSupplyParts(12, 10, 0, 180) },
       ],
+    },
+    {
+      key: 'last_task',
+      label: '최후의 과업',
+      minFame: 108921,
+      ...calcSupplyParts(14, 19, 280),
+      advancedDungeonKey: 'last_task',
+      contentType: 'advanced',
     },
     {
       key: 'starbook',
@@ -102,8 +111,20 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
       label: '계시 : 천해를 품은 하늘',
       minFame: 33249,
       ...calcSupplyParts(14, 14, HEAVEN_WEEKLY_BOUND_SUPPLY),
+      dailyBoundSupplyBase: 36,
+      dailyMwfBoundSupplyBonus: 31,
       accountLimit: 20,
       accountPoolKey: 'heaven',
+      contentType: 'bound',
+    },
+    {
+      key: 'mukkisul',
+      label: '무끼슬',
+      minFame: 0,
+      ...calcIndependentSupplyParts(0, ['rare', 'unique', 'legendary'], 0, 0, MUKKISUL_RATES),
+      unlimitedFatigueCost: 16,
+      independentRarityKeys: ['rare', 'unique', 'legendary'],
+      independentRarityRates: MUKKISUL_RATES,
       contentType: 'bound',
     },
     {
@@ -118,8 +139,9 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
   ];
     
   const SUPPLY_SHEET3_ROWS = [
-    { key: 'apocalypse:apocalypse-2', label: '아포칼립스 2단계', gearMultiplier: 12, tunerMultiplier: 17, boundSupply: 260, accountSupply: 0, note: '' },
-    { key: 'apocalypse:apocalypse-1', label: '아포칼립스 1단계', gearMultiplier: 12, tunerMultiplier: 14, boundSupply: 240, accountSupply: 0, note: '' },
+    { key: 'last_task', label: '최후의 과업', gearMultiplier: 14, tunerMultiplier: 19, boundSupply: 280, accountSupply: 0, note: '' },
+    { key: 'apocalypse:apocalypse-2', label: '아포칼립스 2단', gearMultiplier: 12, tunerMultiplier: 17, boundSupply: 260, accountSupply: 0, note: '' },
+    { key: 'apocalypse:apocalypse-1', label: '아포칼립스 1단', gearMultiplier: 12, tunerMultiplier: 14, boundSupply: 240, accountSupply: 0, note: '' },
     { key: 'apocalypse:apocalypse-match', label: '아포칼립스 매칭', gearMultiplier: 12, tunerMultiplier: 9, boundSupply: 180, accountSupply: 0, note: '' },
     { key: 'apostate', label: '배교자', gearMultiplier: 12, tunerMultiplier: 15, boundSupply: 240, accountSupply: 0, note: '' },
     { key: 'starbook', label: '별거북', gearMultiplier: 12, tunerMultiplier: 12, boundSupply: 220, accountSupply: 0, note: '' },
@@ -128,16 +150,17 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
     { key: 'azure', label: '애쥬어', gearMultiplier: 10, tunerMultiplier: 4, boundSupply: 100, accountSupply: 0, note: '' },
     { key: 'lake', label: '호수', gearMultiplier: 7, tunerMultiplier: 3, boundSupply: 60, accountSupply: 0, note: '' },
     { key: 'diregie:diregie-hard', label: '디레 악연', gearMultiplier: 12, tunerMultiplier: 10, boundSupply: 0, accountSupply: 180, note: '' },
-    { key: 'diregie:diregie-normal', label: '디레 보통', gearMultiplier: 12, tunerMultiplier: 9, boundSupply: 180, accountSupply: 0, note: '' },
+    { key: 'diregie:diregie-normal', label: '디레 일반', gearMultiplier: 12, tunerMultiplier: 9, boundSupply: 180, accountSupply: 0, note: '' },
     { key: 'diregie:diregie-match', label: '디레 매칭', gearMultiplier: 10, tunerMultiplier: 6, boundSupply: 160, accountSupply: 0, note: '' },
     { key: 'diregie:diregie-single', label: '디레 싱글', gearMultiplier: 9, tunerMultiplier: 5, boundSupply: 140, accountSupply: 0, note: '' },
     { key: 'inner_twilight', label: '이내황혼전', gearMultiplier: 12, tunerMultiplier: 0, boundSupply: 0, accountSupply: 180, note: '' },
-    { key: 'nabel:nabel-normal', label: '나벨 레이드', gearMultiplier: 12, tunerMultiplier: 0, boundSupply: 200, accountSupply: 0, note: '' },
+    { key: 'nabel:nabel-normal', label: '나벨 일반/하드', gearMultiplier: 12, tunerMultiplier: 0, boundSupply: 200, accountSupply: 0, note: '' },
     { key: 'nabel:nabel-match', label: '나벨 매칭', gearMultiplier: 8, tunerMultiplier: 0, boundSupply: 110, accountSupply: 0, note: '' },
     { key: 'nabel:nabel-single', label: '나벨 싱글', gearMultiplier: 7, tunerMultiplier: 0, boundSupply: 90, accountSupply: 0, note: '' },
-    { key: 'venus:venus-2', label: '베누스 2/3단계', gearMultiplier: 8, tunerMultiplier: 0, boundSupply: 100, accountSupply: 0, note: '' },
-    { key: 'venus:venus-1', label: '베누스 1단계', gearMultiplier: 5, tunerMultiplier: 0, boundSupply: 60, accountSupply: 0, note: '' },
+    { key: 'venus:venus-2', label: '베누스 2단/강림', gearMultiplier: 8, tunerMultiplier: 0, boundSupply: 100, accountSupply: 0, note: '' },
+    { key: 'venus:venus-1', label: '베누스 1단', gearMultiplier: 5, tunerMultiplier: 0, boundSupply: 60, accountSupply: 0, note: '' },
     { key: 'heaven', label: '계시:천해를 품은 하늘', gearMultiplier: 14, tunerMultiplier: 14, boundSupply: 345, accountSupply: 0, note: '일일컨텐츠, 하루에 피로도 8*2' },
+    { key: 'mukkisul', label: '무끼슬', gearMultiplier: 0, tunerMultiplier: 0, boundSupply: 0, accountSupply: 0, note: '제한 없는 일일컨텐츠, 한 판 피로도 16, 레어/유니크/레전 장비와 서약결정 독립 드랍' },
   ];
   const SUPPLY_SHEET3_ROW_MAP = new Map(SUPPLY_SHEET3_ROWS.map((row) => [row.key, row]));
 
@@ -148,7 +171,7 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
     raid: '레이드',
     legion: '레기온',
   };
-  const SUPPLY_CONTENT_ORDER = ['apostate', 'starbook', 'dream', 'goddess', 'azure', 'lake', 'heaven', 'apocalypse', 'nabel', 'diregie', 'venus', 'inner_twilight'];
+  const SUPPLY_CONTENT_ORDER = ['last_task', 'apostate', 'starbook', 'dream', 'goddess', 'azure', 'lake', 'heaven', 'mukkisul', 'apocalypse', 'nabel', 'diregie', 'venus', 'inner_twilight'];
   const SUPPLY_CONTENT_LABELS = {
     lake: '달이 잠긴 호수',
     azure: '애쥬어 메인',
@@ -156,7 +179,9 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
     dream: '해방된 흉몽',
     starbook: '별거북 대서고',
     apostate: '배교자의 성',
+    last_task: '최후의 과업',
     heaven: '계시 : 천해를 품은 하늘',
+    mukkisul: '무끼슬',
     apocalypse: '아포칼립스 : 안티엔바이',
     nabel: '만들어진 신 나벨',
     diregie: '검은 질병의 디레지에',
@@ -170,7 +195,9 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
     dream: '흉몽',
     starbook: '별거북',
     apostate: '배교자',
+    last_task: '과업',
     heaven: '천해',
+    mukkisul: '무끼슬',
     apocalypse: '아포칼립스',
     nabel: '나벨',
     diregie: '디레지에',
@@ -179,6 +206,7 @@ export function createSupplyContentConfig({ calcSupplyParts, calcDailyContentWee
   };
     
   const SUPPLY_PRESET_DEFINITIONS = [
+    { key: 'last-task-apostate', label: '과업+배교자', advancedKeys: ['last_task', 'apostate'] },
     { key: 'apocalypse-2', label: '아포칼립스 2단', anchorKey: 'apocalypse-2' },
     { key: 'apostate-starbook', label: '배교자+별거북', advancedKeys: ['apostate', 'starbook'] },
     { key: 'apocalypse-1', label: '아포칼립스 1단', anchorKey: 'apocalypse-1' },

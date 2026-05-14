@@ -1,0 +1,2915 @@
+{
+  "schemaVersion": 3,
+  "sources": {
+    "statIncrease": "Docs/증폭별증가량.json",
+    "safeAmplification": "Docs/안전증폭.json",
+    "normalAmplification": "Docs/일반증폭.json"
+  },
+  "rules": {
+    "safe": {
+      "failure": "단계 하락 없음",
+      "bonusPercent": "실패할 때마다 다음 시도 성공률에 누적 가산"
+    },
+    "normal": {
+      "failureUntilLevel10": "실패시 3단계 하락",
+      "failureFromLevel11": "실패시 증폭보호권 1개 소모 후 0증폭 복귀",
+      "successRateAfterLevel13Percent": 20,
+      "goldPerAttempt": {
+        "weapon": 739200,
+        "nonWeapon": 258720
+      },
+      "contradictionCrystalPerAttempt": "도전 목표 증폭 단계 + 10",
+      "statApplication": "강화로 오르는 공격력/추가 스탯에 증폭 스탯 상승량을 더한다",
+      "finalDamage": "10증부터 모든 부위에 적용"
+    }
+  },
+  "statByLevel": [
+    {
+      "level": 0,
+      "generalStat": 12,
+      "specialEquipmentStat": 12,
+      "earringAttack": 0,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 1,
+      "generalStat": 14,
+      "specialEquipmentStat": 19,
+      "earringAttack": 12,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 2,
+      "generalStat": 16,
+      "specialEquipmentStat": 24,
+      "earringAttack": 16,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 3,
+      "generalStat": 19,
+      "specialEquipmentStat": 28,
+      "earringAttack": 22,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 4,
+      "generalStat": 21,
+      "specialEquipmentStat": 33,
+      "earringAttack": 27,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 5,
+      "generalStat": 26,
+      "specialEquipmentStat": 41,
+      "earringAttack": 32,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 6,
+      "generalStat": 31,
+      "specialEquipmentStat": 48,
+      "earringAttack": 40,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 7,
+      "generalStat": 36,
+      "specialEquipmentStat": 56,
+      "earringAttack": 47,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 8,
+      "generalStat": 65,
+      "specialEquipmentStat": 87,
+      "earringAttack": 55,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 9,
+      "generalStat": 79,
+      "specialEquipmentStat": 106,
+      "earringAttack": 62,
+      "finalDamagePercent": 0
+    },
+    {
+      "level": 10,
+      "generalStat": 96,
+      "specialEquipmentStat": 126,
+      "earringAttack": 81,
+      "finalDamagePercent": 0.2
+    },
+    {
+      "level": 11,
+      "generalStat": 113,
+      "specialEquipmentStat": 176,
+      "earringAttack": 125,
+      "finalDamagePercent": 0.4
+    },
+    {
+      "level": 12,
+      "generalStat": 137,
+      "specialEquipmentStat": 229,
+      "earringAttack": 188,
+      "finalDamagePercent": 0.7
+    },
+    {
+      "level": 13,
+      "generalStat": 178,
+      "specialEquipmentStat": 300,
+      "earringAttack": 250,
+      "finalDamagePercent": 1
+    },
+    {
+      "level": 14,
+      "generalStat": 277,
+      "specialEquipmentStat": 487,
+      "earringAttack": 377,
+      "finalDamagePercent": 1.2
+    },
+    {
+      "level": 15,
+      "generalStat": 379,
+      "specialEquipmentStat": 656,
+      "earringAttack": 524,
+      "finalDamagePercent": 1.4
+    },
+    {
+      "level": 16,
+      "generalStat": 480,
+      "specialEquipmentStat": 837,
+      "earringAttack": 718,
+      "finalDamagePercent": 1.6
+    },
+    {
+      "level": 17,
+      "generalStat": 661,
+      "specialEquipmentStat": null,
+      "earringAttack": 871,
+      "finalDamagePercent": 1.8
+    },
+    {
+      "level": 18,
+      "generalStat": 842,
+      "specialEquipmentStat": null,
+      "earringAttack": null,
+      "finalDamagePercent": 2
+    }
+  ],
+  "safeAmplification": [
+    {
+      "level": 1,
+      "successRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": 7,
+        "earringAttack": 12
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 36.0,
+          "gold": 430100.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 16.0,
+          "gold": 189860.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 36.0,
+          "gold": 430100.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 16.0,
+          "gold": 189860.0
+        }
+      }
+    },
+    {
+      "level": 2,
+      "successRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": 5,
+        "earringAttack": 4
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 41.0,
+          "gold": 490600.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 21.0,
+          "gold": 250360.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 77.0,
+          "gold": 920700.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 37.0,
+          "gold": 440220.0
+        }
+      }
+    },
+    {
+      "level": 3,
+      "successRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 3,
+        "specialEquipmentStat": 4,
+        "earringAttack": 6
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 46.0,
+          "gold": 551100.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 26.0,
+          "gold": 310860.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 123.0,
+          "gold": 1471800.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 63.0,
+          "gold": 751080.0
+        }
+      }
+    },
+    {
+      "level": 4,
+      "successRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": 5,
+        "earringAttack": 5
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 51.0,
+          "gold": 611600.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 31.0,
+          "gold": 371360.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 174.0,
+          "gold": 2083400.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 94.0,
+          "gold": 1122440.0
+        }
+      }
+    },
+    {
+      "level": 5,
+      "successRatePercent": 70,
+      "bonusPercent": 10,
+      "expectedAttempts": 1.366,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 8,
+        "earringAttack": 5
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 75.13,
+          "gold": 1197506.632
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 62.836,
+          "gold": 670364.5
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 249.13,
+          "gold": 3280906.632
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 156.836,
+          "gold": 1792804.5
+        }
+      }
+    },
+    {
+      "level": 6,
+      "successRatePercent": 60,
+      "bonusPercent": 10,
+      "expectedAttempts": 1.5464,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 7,
+        "earringAttack": 8
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 103.6088,
+          "gold": 1657892.3472
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 89.6912,
+          "gold": 951731.88
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 352.7388,
+          "gold": 4938798.9792
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 246.5272,
+          "gold": 2744536.38
+        }
+      }
+    },
+    {
+      "level": 7,
+      "successRatePercent": 50,
+      "bonusPercent": 10,
+      "expectedAttempts": 1.7732,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 8,
+        "earringAttack": 7
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 193.2788,
+          "gold": 3068345.28
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 173.7736,
+          "gold": 1849681.6624
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 546.0176,
+          "gold": 8007144.2592
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 420.3008,
+          "gold": 4594218.0424
+        }
+      }
+    },
+    {
+      "level": 8,
+      "successRatePercent": 50,
+      "bonusPercent": 5,
+      "expectedAttempts": 1.858863,
+      "gain": {
+        "generalStat": 29,
+        "specialEquipmentStat": 31,
+        "earringAttack": 8
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 226.781286,
+          "gold": 3592585.483977
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 202.616067,
+          "gold": 2151230.549229
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 772.798886,
+          "gold": 11599729.743177
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 622.916867,
+          "gold": 6745448.591629
+        }
+      }
+    },
+    {
+      "level": 9,
+      "successRatePercent": 40,
+      "bonusPercent": 5,
+      "expectedAttempts": 2.213425,
+      "gain": {
+        "generalStat": 14,
+        "specialEquipmentStat": 19,
+        "earringAttack": 7
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 509.08775,
+          "gold": 8093167.17
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 469.2461,
+          "gold": 4971795.235
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 1281.886636,
+          "gold": 19692896.913177
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 1092.162967,
+          "gold": 11717243.826629
+        }
+      }
+    },
+    {
+      "level": 10,
+      "successRatePercent": 30,
+      "bonusPercent": 5,
+      "expectedAttempts": 2.707108,
+      "gain": {
+        "generalStat": 17,
+        "specialEquipmentStat": 20,
+        "earringAttack": 19
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 866.27456,
+          "gold": 13548723.61596
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 749.868916,
+          "gold": 7951967.32352
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 2148.161196,
+          "gold": 33241620.529137
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 1842.031883,
+          "gold": 19669211.150149
+        }
+      }
+    }
+  ],
+  "normalAmplification": [
+    {
+      "level": 1,
+      "successRatePercent": 100.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": 7,
+        "earringAttack": 12
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 739200.0,
+          "contradictionCrystal": 11.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 258720.0,
+          "contradictionCrystal": 11.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 739200.0,
+            "contradictionCrystal": 11.0,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 258720.0,
+            "contradictionCrystal": 11.0,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 739200.0,
+          "contradictionCrystal": 11.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 258720.0,
+          "contradictionCrystal": 11.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 2,
+      "successRatePercent": 100.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": 5,
+        "earringAttack": 4
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 739200.0,
+          "contradictionCrystal": 12.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 258720.0,
+          "contradictionCrystal": 12.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 1478400.0,
+            "contradictionCrystal": 23.0,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 739200.0,
+            "contradictionCrystal": 12.0,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 517440.0,
+            "contradictionCrystal": 23.0,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 258720.0,
+            "contradictionCrystal": 12.0,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 1478400.0,
+          "contradictionCrystal": 23.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 517440.0,
+          "contradictionCrystal": 23.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 3,
+      "successRatePercent": 100.0,
+      "gain": {
+        "generalStat": 3,
+        "specialEquipmentStat": 4,
+        "earringAttack": 6
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 739200.0,
+          "contradictionCrystal": 13.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 258720.0,
+          "contradictionCrystal": 13.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 2217600.0,
+            "contradictionCrystal": 36.0,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 1478400.0,
+            "contradictionCrystal": 25.0,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 739200.0,
+            "contradictionCrystal": 13.0,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 776160.0,
+            "contradictionCrystal": 36.0,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 517440.0,
+            "contradictionCrystal": 25.0,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 258720.0,
+            "contradictionCrystal": 13.0,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 2217600.0,
+          "contradictionCrystal": 36.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 776160.0,
+          "contradictionCrystal": 36.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 4,
+      "successRatePercent": 100.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": 5,
+        "earringAttack": 5
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 739200.0,
+          "contradictionCrystal": 14.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 258720.0,
+          "contradictionCrystal": 14.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 2956800.0,
+            "contradictionCrystal": 50.0,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 2217600.0,
+            "contradictionCrystal": 39.0,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 1478400.0,
+            "contradictionCrystal": 27.0,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 739200.0,
+            "contradictionCrystal": 14.0,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 1034880.0,
+            "contradictionCrystal": 50.0,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 776160.0,
+            "contradictionCrystal": 39.0,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 517440.0,
+            "contradictionCrystal": 27.0,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 258720.0,
+            "contradictionCrystal": 14.0,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 2956800.0,
+          "contradictionCrystal": 50.0,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 1034880.0,
+          "contradictionCrystal": 50.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 5,
+      "successRatePercent": 80.0,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 8,
+        "earringAttack": 5
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 1478400.0,
+          "contradictionCrystal": 28.5,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 517440.0,
+          "contradictionCrystal": 28.5,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 4435200.0,
+            "contradictionCrystal": 78.5,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 3696000.0,
+            "contradictionCrystal": 67.5,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 2956800.0,
+            "contradictionCrystal": 55.5,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 2217600.0,
+            "contradictionCrystal": 42.5,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 1478400.0,
+            "contradictionCrystal": 28.5,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 1552320.0,
+            "contradictionCrystal": 78.5,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 1293600.0,
+            "contradictionCrystal": 67.5,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 1034880.0,
+            "contradictionCrystal": 55.5,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 776160.0,
+            "contradictionCrystal": 42.5,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 517440.0,
+            "contradictionCrystal": 28.5,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 4435200.0,
+          "contradictionCrystal": 78.5,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 1552320.0,
+          "contradictionCrystal": 78.5,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 6,
+      "successRatePercent": 70.0,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 7,
+        "earringAttack": 8
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 2323200.0,
+          "contradictionCrystal": 46.642857,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 813120.0,
+          "contradictionCrystal": 46.642857,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 6758400.0,
+            "contradictionCrystal": 125.142857,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 6019200.0,
+            "contradictionCrystal": 114.142857,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 5280000.0,
+            "contradictionCrystal": 102.142857,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 4540800.0,
+            "contradictionCrystal": 89.142857,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 3801600.0,
+            "contradictionCrystal": 75.142857,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 2323200.0,
+            "contradictionCrystal": 46.642857,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 2365440.0,
+            "contradictionCrystal": 125.142857,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 2106720.0,
+            "contradictionCrystal": 114.142857,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 1848000.0,
+            "contradictionCrystal": 102.142857,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 1589280.0,
+            "contradictionCrystal": 89.142857,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 1330560.0,
+            "contradictionCrystal": 75.142857,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 813120.0,
+            "contradictionCrystal": 46.642857,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 6758400.0,
+          "contradictionCrystal": 125.142857,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 2365440.0,
+          "contradictionCrystal": 125.142857,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 7,
+      "successRatePercent": 60.0,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 8,
+        "earringAttack": 7
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 4259200.0,
+          "contradictionCrystal": 87.761905,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 1490720.0,
+          "contradictionCrystal": 87.761905,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 11017600.0,
+            "contradictionCrystal": 212.904762,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 10278400.0,
+            "contradictionCrystal": 201.904762,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 9539200.0,
+            "contradictionCrystal": 189.904762,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 8800000.0,
+            "contradictionCrystal": 176.904762,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 8060800.0,
+            "contradictionCrystal": 162.904762,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 6582400.0,
+            "contradictionCrystal": 134.404762,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 4259200.0,
+            "contradictionCrystal": 87.761905,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 3856160.0,
+            "contradictionCrystal": 212.904762,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 3597440.0,
+            "contradictionCrystal": 201.904762,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 3338720.0,
+            "contradictionCrystal": 189.904762,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 3080000.0,
+            "contradictionCrystal": 176.904762,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 2821280.0,
+            "contradictionCrystal": 162.904762,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 2303840.0,
+            "contradictionCrystal": 134.404762,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 1490720.0,
+            "contradictionCrystal": 87.761905,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 11017600.0,
+          "contradictionCrystal": 212.904762,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 3856160.0,
+          "contradictionCrystal": 212.904762,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 8,
+      "successRatePercent": 70.0,
+      "gain": {
+        "generalStat": 29,
+        "specialEquipmentStat": 31,
+        "earringAttack": 8
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 4510628.571429,
+          "contradictionCrystal": 95.530612,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 1578720.0,
+          "contradictionCrystal": 95.530612,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 15528228.571429,
+            "contradictionCrystal": 308.435374,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 14789028.571429,
+            "contradictionCrystal": 297.435374,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 14049828.571429,
+            "contradictionCrystal": 285.435374,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 13310628.571429,
+            "contradictionCrystal": 272.435374,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 12571428.571429,
+            "contradictionCrystal": 258.435374,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 11093028.571429,
+            "contradictionCrystal": 229.935374,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 8769828.571429,
+            "contradictionCrystal": 183.292517,
+            "protectionTicket": 0.0
+          },
+          "7": {
+            "gold": 4510628.571429,
+            "contradictionCrystal": 95.530612,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 5434880.0,
+            "contradictionCrystal": 308.435374,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 5176160.0,
+            "contradictionCrystal": 297.435374,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 4917440.0,
+            "contradictionCrystal": 285.435374,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 4658720.0,
+            "contradictionCrystal": 272.435374,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 4400000.0,
+            "contradictionCrystal": 258.435374,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 3882560.0,
+            "contradictionCrystal": 229.935374,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 3069440.0,
+            "contradictionCrystal": 183.292517,
+            "protectionTicket": 0.0
+          },
+          "7": {
+            "gold": 1578720.0,
+            "contradictionCrystal": 95.530612,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 15528228.571429,
+          "contradictionCrystal": 308.435374,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 5434880.0,
+          "contradictionCrystal": 308.435374,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 9,
+      "successRatePercent": 60.0,
+      "gain": {
+        "generalStat": 14,
+        "specialEquipmentStat": 19,
+        "earringAttack": 7
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "gold": 8627352.380952,
+          "contradictionCrystal": 184.956916,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 3019573.333333,
+          "contradictionCrystal": 184.956916,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 24155580.952381,
+            "contradictionCrystal": 493.39229,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 23416380.952381,
+            "contradictionCrystal": 482.39229,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 22677180.952381,
+            "contradictionCrystal": 470.39229,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 21937980.952381,
+            "contradictionCrystal": 457.39229,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 21198780.952381,
+            "contradictionCrystal": 443.39229,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 19720380.952381,
+            "contradictionCrystal": 414.89229,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 17397180.952381,
+            "contradictionCrystal": 368.249433,
+            "protectionTicket": 0.0
+          },
+          "7": {
+            "gold": 13137980.952381,
+            "contradictionCrystal": 280.487528,
+            "protectionTicket": 0.0
+          },
+          "8": {
+            "gold": 8627352.380952,
+            "contradictionCrystal": 184.956916,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 8454453.333333,
+            "contradictionCrystal": 493.39229,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 8195733.333333,
+            "contradictionCrystal": 482.39229,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 7937013.333333,
+            "contradictionCrystal": 470.39229,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 7678293.333333,
+            "contradictionCrystal": 457.39229,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 7419573.333333,
+            "contradictionCrystal": 443.39229,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 6902133.333333,
+            "contradictionCrystal": 414.89229,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 6089013.333333,
+            "contradictionCrystal": 368.249433,
+            "protectionTicket": 0.0
+          },
+          "7": {
+            "gold": 4598293.333333,
+            "contradictionCrystal": 280.487528,
+            "protectionTicket": 0.0
+          },
+          "8": {
+            "gold": 3019573.333333,
+            "contradictionCrystal": 184.956916,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 24155580.952381,
+          "contradictionCrystal": 493.39229,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 8454453.333333,
+          "contradictionCrystal": 493.39229,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 10,
+      "successRatePercent": 50.0,
+      "gain": {
+        "generalStat": 17,
+        "specialEquipmentStat": 20,
+        "earringAttack": 19
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "gold": 18875580.952381,
+          "contradictionCrystal": 408.249433,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 6606453.333333,
+          "contradictionCrystal": 408.249433,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 43031161.904762,
+            "contradictionCrystal": 901.641723,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 42291961.904762,
+            "contradictionCrystal": 890.641723,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 41552761.904762,
+            "contradictionCrystal": 878.641723,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 40813561.904762,
+            "contradictionCrystal": 865.641723,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 40074361.904762,
+            "contradictionCrystal": 851.641723,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 38595961.904762,
+            "contradictionCrystal": 823.141723,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 36272761.904762,
+            "contradictionCrystal": 776.498866,
+            "protectionTicket": 0.0
+          },
+          "7": {
+            "gold": 32013561.904762,
+            "contradictionCrystal": 688.736961,
+            "protectionTicket": 0.0
+          },
+          "8": {
+            "gold": 27502933.333333,
+            "contradictionCrystal": 593.206349,
+            "protectionTicket": 0.0
+          },
+          "9": {
+            "gold": 18875580.952381,
+            "contradictionCrystal": 408.249433,
+            "protectionTicket": 0.0
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 15060906.666667,
+            "contradictionCrystal": 901.641723,
+            "protectionTicket": 0.0
+          },
+          "1": {
+            "gold": 14802186.666667,
+            "contradictionCrystal": 890.641723,
+            "protectionTicket": 0.0
+          },
+          "2": {
+            "gold": 14543466.666667,
+            "contradictionCrystal": 878.641723,
+            "protectionTicket": 0.0
+          },
+          "3": {
+            "gold": 14284746.666667,
+            "contradictionCrystal": 865.641723,
+            "protectionTicket": 0.0
+          },
+          "4": {
+            "gold": 14026026.666667,
+            "contradictionCrystal": 851.641723,
+            "protectionTicket": 0.0
+          },
+          "5": {
+            "gold": 13508586.666667,
+            "contradictionCrystal": 823.141723,
+            "protectionTicket": 0.0
+          },
+          "6": {
+            "gold": 12695466.666667,
+            "contradictionCrystal": 776.498866,
+            "protectionTicket": 0.0
+          },
+          "7": {
+            "gold": 11204746.666667,
+            "contradictionCrystal": 688.736961,
+            "protectionTicket": 0.0
+          },
+          "8": {
+            "gold": 9626026.666667,
+            "contradictionCrystal": 593.206349,
+            "protectionTicket": 0.0
+          },
+          "9": {
+            "gold": 6606453.333333,
+            "contradictionCrystal": 408.249433,
+            "protectionTicket": 0.0
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 43031161.904762,
+          "contradictionCrystal": 901.641723,
+          "protectionTicket": 0.0
+        },
+        "nonWeapon": {
+          "gold": 15060906.666667,
+          "contradictionCrystal": 901.641723,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 11,
+      "successRatePercent": 40.0,
+      "gain": {
+        "generalStat": 17,
+        "specialEquipmentStat": 50,
+        "earringAttack": 44
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "gold": 66394742.857143,
+          "contradictionCrystal": 1404.962585,
+          "protectionTicket": 1.5
+        },
+        "nonWeapon": {
+          "gold": 23238160.0,
+          "contradictionCrystal": 1404.962585,
+          "protectionTicket": 1.5
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 109425904.761905,
+            "contradictionCrystal": 2306.604308,
+            "protectionTicket": 1.5
+          },
+          "1": {
+            "gold": 108686704.761905,
+            "contradictionCrystal": 2295.604308,
+            "protectionTicket": 1.5
+          },
+          "2": {
+            "gold": 107947504.761905,
+            "contradictionCrystal": 2283.604308,
+            "protectionTicket": 1.5
+          },
+          "3": {
+            "gold": 107208304.761905,
+            "contradictionCrystal": 2270.604308,
+            "protectionTicket": 1.5
+          },
+          "4": {
+            "gold": 106469104.761905,
+            "contradictionCrystal": 2256.604308,
+            "protectionTicket": 1.5
+          },
+          "5": {
+            "gold": 104990704.761905,
+            "contradictionCrystal": 2228.104308,
+            "protectionTicket": 1.5
+          },
+          "6": {
+            "gold": 102667504.761905,
+            "contradictionCrystal": 2181.461451,
+            "protectionTicket": 1.5
+          },
+          "7": {
+            "gold": 98408304.761905,
+            "contradictionCrystal": 2093.699546,
+            "protectionTicket": 1.5
+          },
+          "8": {
+            "gold": 93897676.190476,
+            "contradictionCrystal": 1998.168934,
+            "protectionTicket": 1.5
+          },
+          "9": {
+            "gold": 85270323.809524,
+            "contradictionCrystal": 1813.212018,
+            "protectionTicket": 1.5
+          },
+          "10": {
+            "gold": 66394742.857143,
+            "contradictionCrystal": 1404.962585,
+            "protectionTicket": 1.5
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 38299066.666667,
+            "contradictionCrystal": 2306.604308,
+            "protectionTicket": 1.5
+          },
+          "1": {
+            "gold": 38040346.666667,
+            "contradictionCrystal": 2295.604308,
+            "protectionTicket": 1.5
+          },
+          "2": {
+            "gold": 37781626.666667,
+            "contradictionCrystal": 2283.604308,
+            "protectionTicket": 1.5
+          },
+          "3": {
+            "gold": 37522906.666667,
+            "contradictionCrystal": 2270.604308,
+            "protectionTicket": 1.5
+          },
+          "4": {
+            "gold": 37264186.666667,
+            "contradictionCrystal": 2256.604308,
+            "protectionTicket": 1.5
+          },
+          "5": {
+            "gold": 36746746.666667,
+            "contradictionCrystal": 2228.104308,
+            "protectionTicket": 1.5
+          },
+          "6": {
+            "gold": 35933626.666667,
+            "contradictionCrystal": 2181.461451,
+            "protectionTicket": 1.5
+          },
+          "7": {
+            "gold": 34442906.666667,
+            "contradictionCrystal": 2093.699546,
+            "protectionTicket": 1.5
+          },
+          "8": {
+            "gold": 32864186.666667,
+            "contradictionCrystal": 1998.168934,
+            "protectionTicket": 1.5
+          },
+          "9": {
+            "gold": 29844613.333333,
+            "contradictionCrystal": 1813.212018,
+            "protectionTicket": 1.5
+          },
+          "10": {
+            "gold": 23238160.0,
+            "contradictionCrystal": 1404.962585,
+            "protectionTicket": 1.5
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 109425904.761905,
+          "contradictionCrystal": 2306.604308,
+          "protectionTicket": 1.5
+        },
+        "nonWeapon": {
+          "gold": 38299066.666667,
+          "contradictionCrystal": 2306.604308,
+          "protectionTicket": 1.5
+        }
+      }
+    },
+    {
+      "level": 12,
+      "successRatePercent": 30.0,
+      "gain": {
+        "generalStat": 24,
+        "specialEquipmentStat": 53,
+        "earringAttack": 63
+      },
+      "finalDamagePercent": 0.3,
+      "stepExpected": {
+        "weapon": {
+          "gold": 257791111.111112,
+          "contradictionCrystal": 5455.410053,
+          "protectionTicket": 5.833333
+        },
+        "nonWeapon": {
+          "gold": 90226888.888889,
+          "contradictionCrystal": 5455.410053,
+          "protectionTicket": 5.833333
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 367217015.873018,
+            "contradictionCrystal": 7762.014361,
+            "protectionTicket": 7.333333
+          },
+          "1": {
+            "gold": 366477815.873018,
+            "contradictionCrystal": 7751.014361,
+            "protectionTicket": 7.333333
+          },
+          "2": {
+            "gold": 365738615.873018,
+            "contradictionCrystal": 7739.014361,
+            "protectionTicket": 7.333333
+          },
+          "3": {
+            "gold": 364999415.873018,
+            "contradictionCrystal": 7726.014361,
+            "protectionTicket": 7.333333
+          },
+          "4": {
+            "gold": 364260215.873018,
+            "contradictionCrystal": 7712.014361,
+            "protectionTicket": 7.333333
+          },
+          "5": {
+            "gold": 362781815.873018,
+            "contradictionCrystal": 7683.514361,
+            "protectionTicket": 7.333333
+          },
+          "6": {
+            "gold": 360458615.873018,
+            "contradictionCrystal": 7636.871504,
+            "protectionTicket": 7.333333
+          },
+          "7": {
+            "gold": 356199415.873018,
+            "contradictionCrystal": 7549.109599,
+            "protectionTicket": 7.333333
+          },
+          "8": {
+            "gold": 351688787.301589,
+            "contradictionCrystal": 7453.578987,
+            "protectionTicket": 7.333333
+          },
+          "9": {
+            "gold": 343061434.920637,
+            "contradictionCrystal": 7268.622071,
+            "protectionTicket": 7.333333
+          },
+          "10": {
+            "gold": 324185853.968255,
+            "contradictionCrystal": 6860.372638,
+            "protectionTicket": 7.333333
+          },
+          "11": {
+            "gold": 257791111.111112,
+            "contradictionCrystal": 5455.410053,
+            "protectionTicket": 5.833333
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 128525955.555556,
+            "contradictionCrystal": 7762.014361,
+            "protectionTicket": 7.333333
+          },
+          "1": {
+            "gold": 128267235.555556,
+            "contradictionCrystal": 7751.014361,
+            "protectionTicket": 7.333333
+          },
+          "2": {
+            "gold": 128008515.555556,
+            "contradictionCrystal": 7739.014361,
+            "protectionTicket": 7.333333
+          },
+          "3": {
+            "gold": 127749795.555556,
+            "contradictionCrystal": 7726.014361,
+            "protectionTicket": 7.333333
+          },
+          "4": {
+            "gold": 127491075.555556,
+            "contradictionCrystal": 7712.014361,
+            "protectionTicket": 7.333333
+          },
+          "5": {
+            "gold": 126973635.555556,
+            "contradictionCrystal": 7683.514361,
+            "protectionTicket": 7.333333
+          },
+          "6": {
+            "gold": 126160515.555556,
+            "contradictionCrystal": 7636.871504,
+            "protectionTicket": 7.333333
+          },
+          "7": {
+            "gold": 124669795.555556,
+            "contradictionCrystal": 7549.109599,
+            "protectionTicket": 7.333333
+          },
+          "8": {
+            "gold": 123091075.555556,
+            "contradictionCrystal": 7453.578987,
+            "protectionTicket": 7.333333
+          },
+          "9": {
+            "gold": 120071502.222223,
+            "contradictionCrystal": 7268.622071,
+            "protectionTicket": 7.333333
+          },
+          "10": {
+            "gold": 113465048.888889,
+            "contradictionCrystal": 6860.372638,
+            "protectionTicket": 7.333333
+          },
+          "11": {
+            "gold": 90226888.888889,
+            "contradictionCrystal": 5455.410053,
+            "protectionTicket": 5.833333
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 367217015.873018,
+          "contradictionCrystal": 7762.014361,
+          "protectionTicket": 7.333333
+        },
+        "nonWeapon": {
+          "gold": 128525955.555556,
+          "contradictionCrystal": 7762.014361,
+          "protectionTicket": 7.333333
+        }
+      }
+    },
+    {
+      "level": 13,
+      "successRatePercent": 20.0,
+      "gain": {
+        "generalStat": 41,
+        "specialEquipmentStat": 71,
+        "earringAttack": 62
+      },
+      "finalDamagePercent": 0.3,
+      "stepExpected": {
+        "weapon": {
+          "gold": 1472564063.492057,
+          "contradictionCrystal": 31163.057445,
+          "protectionTicket": 33.333333
+        },
+        "nonWeapon": {
+          "gold": 515397422.22222,
+          "contradictionCrystal": 31163.057445,
+          "protectionTicket": 33.333333
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 1839781079.365071,
+            "contradictionCrystal": 38925.071807,
+            "protectionTicket": 40.666667
+          },
+          "1": {
+            "gold": 1839041879.365071,
+            "contradictionCrystal": 38914.071807,
+            "protectionTicket": 40.666667
+          },
+          "2": {
+            "gold": 1838302679.365071,
+            "contradictionCrystal": 38902.071807,
+            "protectionTicket": 40.666667
+          },
+          "3": {
+            "gold": 1837563479.365071,
+            "contradictionCrystal": 38889.071807,
+            "protectionTicket": 40.666667
+          },
+          "4": {
+            "gold": 1836824279.365071,
+            "contradictionCrystal": 38875.071807,
+            "protectionTicket": 40.666667
+          },
+          "5": {
+            "gold": 1835345879.365071,
+            "contradictionCrystal": 38846.571807,
+            "protectionTicket": 40.666667
+          },
+          "6": {
+            "gold": 1833022679.365071,
+            "contradictionCrystal": 38799.928949,
+            "protectionTicket": 40.666667
+          },
+          "7": {
+            "gold": 1828763479.365071,
+            "contradictionCrystal": 38712.167045,
+            "protectionTicket": 40.666667
+          },
+          "8": {
+            "gold": 1824252850.793642,
+            "contradictionCrystal": 38616.636432,
+            "protectionTicket": 40.666667
+          },
+          "9": {
+            "gold": 1815625498.41269,
+            "contradictionCrystal": 38431.679516,
+            "protectionTicket": 40.666667
+          },
+          "10": {
+            "gold": 1796749917.460309,
+            "contradictionCrystal": 38023.430083,
+            "protectionTicket": 40.666667
+          },
+          "11": {
+            "gold": 1730355174.603167,
+            "contradictionCrystal": 36618.467498,
+            "protectionTicket": 39.166667
+          },
+          "12": {
+            "gold": 1472564063.492057,
+            "contradictionCrystal": 31163.057445,
+            "protectionTicket": 33.333333
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 643923377.777774,
+            "contradictionCrystal": 38925.071807,
+            "protectionTicket": 40.666667
+          },
+          "1": {
+            "gold": 643664657.777774,
+            "contradictionCrystal": 38914.071807,
+            "protectionTicket": 40.666667
+          },
+          "2": {
+            "gold": 643405937.777774,
+            "contradictionCrystal": 38902.071807,
+            "protectionTicket": 40.666667
+          },
+          "3": {
+            "gold": 643147217.777774,
+            "contradictionCrystal": 38889.071807,
+            "protectionTicket": 40.666667
+          },
+          "4": {
+            "gold": 642888497.777774,
+            "contradictionCrystal": 38875.071807,
+            "protectionTicket": 40.666667
+          },
+          "5": {
+            "gold": 642371057.777774,
+            "contradictionCrystal": 38846.571807,
+            "protectionTicket": 40.666667
+          },
+          "6": {
+            "gold": 641557937.777775,
+            "contradictionCrystal": 38799.928949,
+            "protectionTicket": 40.666667
+          },
+          "7": {
+            "gold": 640067217.777775,
+            "contradictionCrystal": 38712.167045,
+            "protectionTicket": 40.666667
+          },
+          "8": {
+            "gold": 638488497.777774,
+            "contradictionCrystal": 38616.636432,
+            "protectionTicket": 40.666667
+          },
+          "9": {
+            "gold": 635468924.444441,
+            "contradictionCrystal": 38431.679516,
+            "protectionTicket": 40.666667
+          },
+          "10": {
+            "gold": 628862471.111108,
+            "contradictionCrystal": 38023.430083,
+            "protectionTicket": 40.666667
+          },
+          "11": {
+            "gold": 605624311.111108,
+            "contradictionCrystal": 36618.467498,
+            "protectionTicket": 39.166667
+          },
+          "12": {
+            "gold": 515397422.22222,
+            "contradictionCrystal": 31163.057445,
+            "protectionTicket": 33.333333
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 1839781079.365071,
+          "contradictionCrystal": 38925.071807,
+          "protectionTicket": 40.666667
+        },
+        "nonWeapon": {
+          "gold": 643923377.777774,
+          "contradictionCrystal": 38925.071807,
+          "protectionTicket": 40.666667
+        }
+      }
+    },
+    {
+      "level": 14,
+      "successRatePercent": 20.0,
+      "gain": {
+        "generalStat": 99,
+        "specialEquipmentStat": 187,
+        "earringAttack": 127
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "gold": 7362820317.460148,
+          "contradictionCrystal": 155820.287226,
+          "protectionTicket": 166.666667
+        },
+        "nonWeapon": {
+          "gold": 2576987111.111051,
+          "contradictionCrystal": 155820.287226,
+          "protectionTicket": 166.666667
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 9202601396.825184,
+            "contradictionCrystal": 194745.359032,
+            "protectionTicket": 207.333333
+          },
+          "1": {
+            "gold": 9201862196.825184,
+            "contradictionCrystal": 194734.359032,
+            "protectionTicket": 207.333333
+          },
+          "2": {
+            "gold": 9201122996.825184,
+            "contradictionCrystal": 194722.359032,
+            "protectionTicket": 207.333333
+          },
+          "3": {
+            "gold": 9200383796.825184,
+            "contradictionCrystal": 194709.359032,
+            "protectionTicket": 207.333333
+          },
+          "4": {
+            "gold": 9199644596.825184,
+            "contradictionCrystal": 194695.359032,
+            "protectionTicket": 207.333333
+          },
+          "5": {
+            "gold": 9198166196.825184,
+            "contradictionCrystal": 194666.859032,
+            "protectionTicket": 207.333333
+          },
+          "6": {
+            "gold": 9195842996.825184,
+            "contradictionCrystal": 194620.216175,
+            "protectionTicket": 207.333333
+          },
+          "7": {
+            "gold": 9191583796.825184,
+            "contradictionCrystal": 194532.454271,
+            "protectionTicket": 207.333333
+          },
+          "8": {
+            "gold": 9187073168.253756,
+            "contradictionCrystal": 194436.923658,
+            "protectionTicket": 207.333333
+          },
+          "9": {
+            "gold": 9178445815.872805,
+            "contradictionCrystal": 194251.966742,
+            "protectionTicket": 207.333333
+          },
+          "10": {
+            "gold": 9159570234.920424,
+            "contradictionCrystal": 193843.717309,
+            "protectionTicket": 207.333333
+          },
+          "11": {
+            "gold": 9093175492.063282,
+            "contradictionCrystal": 192438.754724,
+            "protectionTicket": 205.833333
+          },
+          "12": {
+            "gold": 8835384380.952177,
+            "contradictionCrystal": 186983.344671,
+            "protectionTicket": 200.0
+          },
+          "13": {
+            "gold": 7362820317.460148,
+            "contradictionCrystal": 155820.287226,
+            "protectionTicket": 166.666667
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 3220910488.888813,
+            "contradictionCrystal": 194745.359032,
+            "protectionTicket": 207.333333
+          },
+          "1": {
+            "gold": 3220651768.888813,
+            "contradictionCrystal": 194734.359032,
+            "protectionTicket": 207.333333
+          },
+          "2": {
+            "gold": 3220393048.888813,
+            "contradictionCrystal": 194722.359032,
+            "protectionTicket": 207.333333
+          },
+          "3": {
+            "gold": 3220134328.888813,
+            "contradictionCrystal": 194709.359032,
+            "protectionTicket": 207.333333
+          },
+          "4": {
+            "gold": 3219875608.888813,
+            "contradictionCrystal": 194695.359032,
+            "protectionTicket": 207.333333
+          },
+          "5": {
+            "gold": 3219358168.888813,
+            "contradictionCrystal": 194666.859032,
+            "protectionTicket": 207.333333
+          },
+          "6": {
+            "gold": 3218545048.888813,
+            "contradictionCrystal": 194620.216175,
+            "protectionTicket": 207.333333
+          },
+          "7": {
+            "gold": 3217054328.888813,
+            "contradictionCrystal": 194532.454271,
+            "protectionTicket": 207.333333
+          },
+          "8": {
+            "gold": 3215475608.888813,
+            "contradictionCrystal": 194436.923658,
+            "protectionTicket": 207.333333
+          },
+          "9": {
+            "gold": 3212456035.55548,
+            "contradictionCrystal": 194251.966742,
+            "protectionTicket": 207.333333
+          },
+          "10": {
+            "gold": 3205849582.222147,
+            "contradictionCrystal": 193843.717309,
+            "protectionTicket": 207.333333
+          },
+          "11": {
+            "gold": 3182611422.222147,
+            "contradictionCrystal": 192438.754724,
+            "protectionTicket": 205.833333
+          },
+          "12": {
+            "gold": 3092384533.333261,
+            "contradictionCrystal": 186983.344671,
+            "protectionTicket": 200.0
+          },
+          "13": {
+            "gold": 2576987111.111051,
+            "contradictionCrystal": 155820.287226,
+            "protectionTicket": 166.666667
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 9202601396.825184,
+          "contradictionCrystal": 194745.359032,
+          "protectionTicket": 207.333333
+        },
+        "nonWeapon": {
+          "gold": 3220910488.888813,
+          "contradictionCrystal": 194745.359032,
+          "protectionTicket": 207.333333
+        }
+      }
+    },
+    {
+      "level": 15,
+      "successRatePercent": 20.0,
+      "gain": {
+        "generalStat": 102,
+        "specialEquipmentStat": 169,
+        "earringAttack": 147
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "gold": 36814101587.29737,
+          "contradictionCrystal": 779106.43613,
+          "protectionTicket": 833.333333
+        },
+        "nonWeapon": {
+          "gold": 12884935555.554075,
+          "contradictionCrystal": 779106.43613,
+          "protectionTicket": 833.333333
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 46016702984.12171,
+            "contradictionCrystal": 973851.795162,
+            "protectionTicket": 1040.666667
+          },
+          "1": {
+            "gold": 46015963784.12171,
+            "contradictionCrystal": 973840.795162,
+            "protectionTicket": 1040.666667
+          },
+          "2": {
+            "gold": 46015224584.12171,
+            "contradictionCrystal": 973828.795162,
+            "protectionTicket": 1040.666667
+          },
+          "3": {
+            "gold": 46014485384.12171,
+            "contradictionCrystal": 973815.795162,
+            "protectionTicket": 1040.666667
+          },
+          "4": {
+            "gold": 46013746184.12171,
+            "contradictionCrystal": 973801.795162,
+            "protectionTicket": 1040.666667
+          },
+          "5": {
+            "gold": 46012267784.12171,
+            "contradictionCrystal": 973773.295162,
+            "protectionTicket": 1040.666667
+          },
+          "6": {
+            "gold": 46009944584.12171,
+            "contradictionCrystal": 973726.652305,
+            "protectionTicket": 1040.666667
+          },
+          "7": {
+            "gold": 46005685384.121704,
+            "contradictionCrystal": 973638.8904,
+            "protectionTicket": 1040.666667
+          },
+          "8": {
+            "gold": 46001174755.550285,
+            "contradictionCrystal": 973543.359788,
+            "protectionTicket": 1040.666667
+          },
+          "9": {
+            "gold": 45992547403.169334,
+            "contradictionCrystal": 973358.402872,
+            "protectionTicket": 1040.666667
+          },
+          "10": {
+            "gold": 45973671822.21696,
+            "contradictionCrystal": 972950.153439,
+            "protectionTicket": 1040.666667
+          },
+          "11": {
+            "gold": 45907277079.35981,
+            "contradictionCrystal": 971545.190854,
+            "protectionTicket": 1039.166667
+          },
+          "12": {
+            "gold": 45649485968.24874,
+            "contradictionCrystal": 966089.780801,
+            "protectionTicket": 1033.333333
+          },
+          "13": {
+            "gold": 44176921904.75684,
+            "contradictionCrystal": 934926.723356,
+            "protectionTicket": 1000.0
+          },
+          "14": {
+            "gold": 36814101587.29737,
+            "contradictionCrystal": 779106.43613,
+            "protectionTicket": 833.333333
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 16105846044.442595,
+            "contradictionCrystal": 973851.795162,
+            "protectionTicket": 1040.666667
+          },
+          "1": {
+            "gold": 16105587324.442595,
+            "contradictionCrystal": 973840.795162,
+            "protectionTicket": 1040.666667
+          },
+          "2": {
+            "gold": 16105328604.442595,
+            "contradictionCrystal": 973828.795162,
+            "protectionTicket": 1040.666667
+          },
+          "3": {
+            "gold": 16105069884.442595,
+            "contradictionCrystal": 973815.795162,
+            "protectionTicket": 1040.666667
+          },
+          "4": {
+            "gold": 16104811164.442595,
+            "contradictionCrystal": 973801.795162,
+            "protectionTicket": 1040.666667
+          },
+          "5": {
+            "gold": 16104293724.442595,
+            "contradictionCrystal": 973773.295162,
+            "protectionTicket": 1040.666667
+          },
+          "6": {
+            "gold": 16103480604.442593,
+            "contradictionCrystal": 973726.652305,
+            "protectionTicket": 1040.666667
+          },
+          "7": {
+            "gold": 16101989884.44259,
+            "contradictionCrystal": 973638.8904,
+            "protectionTicket": 1040.666667
+          },
+          "8": {
+            "gold": 16100411164.442595,
+            "contradictionCrystal": 973543.359788,
+            "protectionTicket": 1040.666667
+          },
+          "9": {
+            "gold": 16097391591.10926,
+            "contradictionCrystal": 973358.402872,
+            "protectionTicket": 1040.666667
+          },
+          "10": {
+            "gold": 16090785137.775928,
+            "contradictionCrystal": 972950.153439,
+            "protectionTicket": 1040.666667
+          },
+          "11": {
+            "gold": 16067546977.775927,
+            "contradictionCrystal": 971545.190854,
+            "protectionTicket": 1039.166667
+          },
+          "12": {
+            "gold": 15977320088.887053,
+            "contradictionCrystal": 966089.780801,
+            "protectionTicket": 1033.333333
+          },
+          "13": {
+            "gold": 15461922666.66489,
+            "contradictionCrystal": 934926.723356,
+            "protectionTicket": 1000.0
+          },
+          "14": {
+            "gold": 12884935555.554075,
+            "contradictionCrystal": 779106.43613,
+            "protectionTicket": 833.333333
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 46016702984.12171,
+          "contradictionCrystal": 973851.795162,
+          "protectionTicket": 1040.666667
+        },
+        "nonWeapon": {
+          "gold": 16105846044.442595,
+          "contradictionCrystal": 973851.795162,
+          "protectionTicket": 1040.666667
+        }
+      }
+    },
+    {
+      "level": 16,
+      "successRatePercent": 20.0,
+      "gain": {
+        "generalStat": 101,
+        "specialEquipmentStat": 181,
+        "earringAttack": 194
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "gold": 184070507936.40265,
+          "contradictionCrystal": 3895537.180648,
+          "protectionTicket": 4166.666667
+        },
+        "nonWeapon": {
+          "gold": 64424677777.740906,
+          "contradictionCrystal": 3895537.180648,
+          "protectionTicket": 4166.666667
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 230087210920.5033,
+            "contradictionCrystal": 4869388.97581,
+            "protectionTicket": 5207.333333
+          },
+          "1": {
+            "gold": 230086471720.5033,
+            "contradictionCrystal": 4869377.97581,
+            "protectionTicket": 5207.333333
+          },
+          "2": {
+            "gold": 230085732520.5033,
+            "contradictionCrystal": 4869365.97581,
+            "protectionTicket": 5207.333333
+          },
+          "3": {
+            "gold": 230084993320.5033,
+            "contradictionCrystal": 4869352.97581,
+            "protectionTicket": 5207.333333
+          },
+          "4": {
+            "gold": 230084254120.5033,
+            "contradictionCrystal": 4869338.97581,
+            "protectionTicket": 5207.333333
+          },
+          "5": {
+            "gold": 230082775720.5033,
+            "contradictionCrystal": 4869310.47581,
+            "protectionTicket": 5207.333333
+          },
+          "6": {
+            "gold": 230080452520.5033,
+            "contradictionCrystal": 4869263.832953,
+            "protectionTicket": 5207.333333
+          },
+          "7": {
+            "gold": 230076193320.5032,
+            "contradictionCrystal": 4869176.071048,
+            "protectionTicket": 5207.333333
+          },
+          "8": {
+            "gold": 230071682691.9319,
+            "contradictionCrystal": 4869080.540436,
+            "protectionTicket": 5207.333333
+          },
+          "9": {
+            "gold": 230063055339.55093,
+            "contradictionCrystal": 4868895.58352,
+            "protectionTicket": 5207.333333
+          },
+          "10": {
+            "gold": 230044179758.59854,
+            "contradictionCrystal": 4868487.334086,
+            "protectionTicket": 5207.333333
+          },
+          "11": {
+            "gold": 229977785015.7414,
+            "contradictionCrystal": 4867082.371501,
+            "protectionTicket": 5205.833333
+          },
+          "12": {
+            "gold": 229719993904.6305,
+            "contradictionCrystal": 4861626.961448,
+            "protectionTicket": 5200.0
+          },
+          "13": {
+            "gold": 228247429841.13928,
+            "contradictionCrystal": 4830463.904003,
+            "protectionTicket": 5166.666667
+          },
+          "14": {
+            "gold": 220884609523.68317,
+            "contradictionCrystal": 4674643.616777,
+            "protectionTicket": 5000.0
+          },
+          "15": {
+            "gold": 184070507936.40265,
+            "contradictionCrystal": 3895537.180648,
+            "protectionTicket": 4166.666667
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 80530523822.17613,
+            "contradictionCrystal": 4869388.97581,
+            "protectionTicket": 5207.333333
+          },
+          "1": {
+            "gold": 80530265102.17613,
+            "contradictionCrystal": 4869377.97581,
+            "protectionTicket": 5207.333333
+          },
+          "2": {
+            "gold": 80530006382.17613,
+            "contradictionCrystal": 4869365.97581,
+            "protectionTicket": 5207.333333
+          },
+          "3": {
+            "gold": 80529747662.17613,
+            "contradictionCrystal": 4869352.97581,
+            "protectionTicket": 5207.333333
+          },
+          "4": {
+            "gold": 80529488942.17613,
+            "contradictionCrystal": 4869338.97581,
+            "protectionTicket": 5207.333333
+          },
+          "5": {
+            "gold": 80528971502.17613,
+            "contradictionCrystal": 4869310.47581,
+            "protectionTicket": 5207.333333
+          },
+          "6": {
+            "gold": 80528158382.17612,
+            "contradictionCrystal": 4869263.832953,
+            "protectionTicket": 5207.333333
+          },
+          "7": {
+            "gold": 80526667662.1761,
+            "contradictionCrystal": 4869176.071048,
+            "protectionTicket": 5207.333333
+          },
+          "8": {
+            "gold": 80525088942.17612,
+            "contradictionCrystal": 4869080.540436,
+            "protectionTicket": 5207.333333
+          },
+          "9": {
+            "gold": 80522069368.8428,
+            "contradictionCrystal": 4868895.58352,
+            "protectionTicket": 5207.333333
+          },
+          "10": {
+            "gold": 80515462915.50946,
+            "contradictionCrystal": 4868487.334086,
+            "protectionTicket": 5207.333333
+          },
+          "11": {
+            "gold": 80492224755.50946,
+            "contradictionCrystal": 4867082.371501,
+            "protectionTicket": 5205.833333
+          },
+          "12": {
+            "gold": 80401997866.62065,
+            "contradictionCrystal": 4861626.961448,
+            "protectionTicket": 5200.0
+          },
+          "13": {
+            "gold": 79886600444.39873,
+            "contradictionCrystal": 4830463.904003,
+            "protectionTicket": 5166.666667
+          },
+          "14": {
+            "gold": 77309613333.28908,
+            "contradictionCrystal": 4674643.616777,
+            "protectionTicket": 5000.0
+          },
+          "15": {
+            "gold": 64424677777.740906,
+            "contradictionCrystal": 3895537.180648,
+            "protectionTicket": 4166.666667
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 230087210920.5033,
+          "contradictionCrystal": 4869388.97581,
+          "protectionTicket": 5207.333333
+        },
+        "nonWeapon": {
+          "gold": 80530523822.17613,
+          "contradictionCrystal": 4869388.97581,
+          "protectionTicket": 5207.333333
+        }
+      }
+    },
+    {
+      "level": 17,
+      "successRatePercent": 20.0,
+      "gain": {
+        "generalStat": 181,
+        "specialEquipmentStat": null,
+        "earringAttack": 153
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "gold": 920352539679.9092,
+          "contradictionCrystal": 19477690.903195,
+          "protectionTicket": 20833.333333
+        },
+        "nonWeapon": {
+          "gold": 322123388887.9681,
+          "contradictionCrystal": 19477690.903195,
+          "protectionTicket": 20833.333333
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 1150439750599.8865,
+            "contradictionCrystal": 24347079.878993,
+            "protectionTicket": 26040.666667
+          },
+          "1": {
+            "gold": 1150439011399.8865,
+            "contradictionCrystal": 24347068.878993,
+            "protectionTicket": 26040.666667
+          },
+          "2": {
+            "gold": 1150438272199.8865,
+            "contradictionCrystal": 24347056.878993,
+            "protectionTicket": 26040.666667
+          },
+          "3": {
+            "gold": 1150437532999.8865,
+            "contradictionCrystal": 24347043.878993,
+            "protectionTicket": 26040.666667
+          },
+          "4": {
+            "gold": 1150436793799.8865,
+            "contradictionCrystal": 24347029.878993,
+            "protectionTicket": 26040.666667
+          },
+          "5": {
+            "gold": 1150435315399.8865,
+            "contradictionCrystal": 24347001.378993,
+            "protectionTicket": 26040.666667
+          },
+          "6": {
+            "gold": 1150432992199.8862,
+            "contradictionCrystal": 24346954.736136,
+            "protectionTicket": 26040.666667
+          },
+          "7": {
+            "gold": 1150428732999.886,
+            "contradictionCrystal": 24346866.974231,
+            "protectionTicket": 26040.666667
+          },
+          "8": {
+            "gold": 1150424222371.3152,
+            "contradictionCrystal": 24346771.443619,
+            "protectionTicket": 26040.666667
+          },
+          "9": {
+            "gold": 1150415595018.9343,
+            "contradictionCrystal": 24346586.486703,
+            "protectionTicket": 26040.666667
+          },
+          "10": {
+            "gold": 1150396719437.9817,
+            "contradictionCrystal": 24346178.23727,
+            "protectionTicket": 26040.666667
+          },
+          "11": {
+            "gold": 1150330324695.1245,
+            "contradictionCrystal": 24344773.274685,
+            "protectionTicket": 26039.166667
+          },
+          "12": {
+            "gold": 1150072533584.0146,
+            "contradictionCrystal": 24339317.864632,
+            "protectionTicket": 26033.333333
+          },
+          "13": {
+            "gold": 1148599969520.5266,
+            "contradictionCrystal": 24308154.807187,
+            "protectionTicket": 26000.0
+          },
+          "14": {
+            "gold": 1141237149203.0874,
+            "contradictionCrystal": 24152334.519961,
+            "protectionTicket": 25833.333333
+          },
+          "15": {
+            "gold": 1104423047615.8909,
+            "contradictionCrystal": 23373228.083833,
+            "protectionTicket": 25000.0
+          },
+          "16": {
+            "gold": 920352539679.9092,
+            "contradictionCrystal": 19477690.903195,
+            "protectionTicket": 20833.333333
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 402653912709.9601,
+            "contradictionCrystal": 24347079.878993,
+            "protectionTicket": 26040.666667
+          },
+          "1": {
+            "gold": 402653653989.9601,
+            "contradictionCrystal": 24347068.878993,
+            "protectionTicket": 26040.666667
+          },
+          "2": {
+            "gold": 402653395269.9601,
+            "contradictionCrystal": 24347056.878993,
+            "protectionTicket": 26040.666667
+          },
+          "3": {
+            "gold": 402653136549.9601,
+            "contradictionCrystal": 24347043.878993,
+            "protectionTicket": 26040.666667
+          },
+          "4": {
+            "gold": 402652877829.9601,
+            "contradictionCrystal": 24347029.878993,
+            "protectionTicket": 26040.666667
+          },
+          "5": {
+            "gold": 402652360389.9601,
+            "contradictionCrystal": 24347001.378993,
+            "protectionTicket": 26040.666667
+          },
+          "6": {
+            "gold": 402651547269.96,
+            "contradictionCrystal": 24346954.736136,
+            "protectionTicket": 26040.666667
+          },
+          "7": {
+            "gold": 402650056549.95996,
+            "contradictionCrystal": 24346866.974231,
+            "protectionTicket": 26040.666667
+          },
+          "8": {
+            "gold": 402648477829.96014,
+            "contradictionCrystal": 24346771.443619,
+            "protectionTicket": 26040.666667
+          },
+          "9": {
+            "gold": 402645458256.6268,
+            "contradictionCrystal": 24346586.486703,
+            "protectionTicket": 26040.666667
+          },
+          "10": {
+            "gold": 402638851803.2934,
+            "contradictionCrystal": 24346178.23727,
+            "protectionTicket": 26040.666667
+          },
+          "11": {
+            "gold": 402615613643.29346,
+            "contradictionCrystal": 24344773.274685,
+            "protectionTicket": 26039.166667
+          },
+          "12": {
+            "gold": 402525386754.4049,
+            "contradictionCrystal": 24339317.864632,
+            "protectionTicket": 26033.333333
+          },
+          "13": {
+            "gold": 402009989332.18414,
+            "contradictionCrystal": 24308154.807187,
+            "protectionTicket": 26000.0
+          },
+          "14": {
+            "gold": 399433002221.08044,
+            "contradictionCrystal": 24152334.519961,
+            "protectionTicket": 25833.333333
+          },
+          "15": {
+            "gold": 386548066665.5617,
+            "contradictionCrystal": 23373228.083833,
+            "protectionTicket": 25000.0
+          },
+          "16": {
+            "gold": 322123388887.9681,
+            "contradictionCrystal": 19477690.903195,
+            "protectionTicket": 20833.333333
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 1150439750599.8865,
+          "contradictionCrystal": 24347079.878993,
+          "protectionTicket": 26040.666667
+        },
+        "nonWeapon": {
+          "gold": 402653912709.9601,
+          "contradictionCrystal": 24347079.878993,
+          "protectionTicket": 26040.666667
+        }
+      }
+    },
+    {
+      "level": 18,
+      "successRatePercent": 20.0,
+      "gain": {
+        "generalStat": 181,
+        "specialEquipmentStat": null,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "gold": 4601762698346.944,
+          "contradictionCrystal": 97388459.514859,
+          "protectionTicket": 104166.666665
+        },
+        "nonWeapon": {
+          "gold": 1610616944421.43,
+          "contradictionCrystal": 97388459.514859,
+          "protectionTicket": 104166.666665
+        }
+      },
+      "expectedByStartLevel": {
+        "weapon": {
+          "0": {
+            "gold": 5752202448933.681,
+            "contradictionCrystal": 121735539.393574,
+            "protectionTicket": 130207.333331
+          },
+          "1": {
+            "gold": 5752201709733.681,
+            "contradictionCrystal": 121735528.393574,
+            "protectionTicket": 130207.333331
+          },
+          "2": {
+            "gold": 5752200970533.681,
+            "contradictionCrystal": 121735516.393574,
+            "protectionTicket": 130207.333331
+          },
+          "3": {
+            "gold": 5752200231333.681,
+            "contradictionCrystal": 121735503.393574,
+            "protectionTicket": 130207.333331
+          },
+          "4": {
+            "gold": 5752199492133.681,
+            "contradictionCrystal": 121735489.393574,
+            "protectionTicket": 130207.333331
+          },
+          "5": {
+            "gold": 5752198013733.681,
+            "contradictionCrystal": 121735460.893574,
+            "protectionTicket": 130207.333331
+          },
+          "6": {
+            "gold": 5752195690533.68,
+            "contradictionCrystal": 121735414.250717,
+            "protectionTicket": 130207.333331
+          },
+          "7": {
+            "gold": 5752191431333.678,
+            "contradictionCrystal": 121735326.488812,
+            "protectionTicket": 130207.333331
+          },
+          "8": {
+            "gold": 5752186920705.108,
+            "contradictionCrystal": 121735230.9582,
+            "protectionTicket": 130207.333331
+          },
+          "9": {
+            "gold": 5752178293352.729,
+            "contradictionCrystal": 121735046.001284,
+            "protectionTicket": 130207.333331
+          },
+          "10": {
+            "gold": 5752159417771.775,
+            "contradictionCrystal": 121734637.751851,
+            "protectionTicket": 130207.333331
+          },
+          "11": {
+            "gold": 5752093023028.919,
+            "contradictionCrystal": 121733232.789266,
+            "protectionTicket": 130205.833331
+          },
+          "12": {
+            "gold": 5751835231917.8125,
+            "contradictionCrystal": 121727777.379213,
+            "protectionTicket": 130199.999998
+          },
+          "13": {
+            "gold": 5750362667854.342,
+            "contradictionCrystal": 121696614.321768,
+            "protectionTicket": 130166.666665
+          },
+          "14": {
+            "gold": 5742999847536.986,
+            "contradictionCrystal": 121540794.034544,
+            "protectionTicket": 129999.999998
+          },
+          "15": {
+            "gold": 5706185745950.211,
+            "contradictionCrystal": 120761687.598426,
+            "protectionTicket": 129166.666665
+          },
+          "16": {
+            "gold": 5522115238016.333,
+            "contradictionCrystal": 116866150.417831,
+            "protectionTicket": 124999.999998
+          },
+          "17": {
+            "gold": 4601762698346.944,
+            "contradictionCrystal": 97388459.514859,
+            "protectionTicket": 104166.666665
+          }
+        },
+        "nonWeapon": {
+          "0": {
+            "gold": 2013270857126.7874,
+            "contradictionCrystal": 121735539.393574,
+            "protectionTicket": 130207.333331
+          },
+          "1": {
+            "gold": 2013270598406.7874,
+            "contradictionCrystal": 121735528.393574,
+            "protectionTicket": 130207.333331
+          },
+          "2": {
+            "gold": 2013270339686.7874,
+            "contradictionCrystal": 121735516.393574,
+            "protectionTicket": 130207.333331
+          },
+          "3": {
+            "gold": 2013270080966.7874,
+            "contradictionCrystal": 121735503.393574,
+            "protectionTicket": 130207.333331
+          },
+          "4": {
+            "gold": 2013269822246.7874,
+            "contradictionCrystal": 121735489.393574,
+            "protectionTicket": 130207.333331
+          },
+          "5": {
+            "gold": 2013269304806.7874,
+            "contradictionCrystal": 121735460.893574,
+            "protectionTicket": 130207.333331
+          },
+          "6": {
+            "gold": 2013268491686.787,
+            "contradictionCrystal": 121735414.250717,
+            "protectionTicket": 130207.333331
+          },
+          "7": {
+            "gold": 2013267000966.7864,
+            "contradictionCrystal": 121735326.488812,
+            "protectionTicket": 130207.333331
+          },
+          "8": {
+            "gold": 2013265422246.7874,
+            "contradictionCrystal": 121735230.9582,
+            "protectionTicket": 130207.333331
+          },
+          "9": {
+            "gold": 2013262402673.454,
+            "contradictionCrystal": 121735046.001284,
+            "protectionTicket": 130207.333331
+          },
+          "10": {
+            "gold": 2013255796220.1206,
+            "contradictionCrystal": 121734637.751851,
+            "protectionTicket": 130207.333331
+          },
+          "11": {
+            "gold": 2013232558060.1208,
+            "contradictionCrystal": 121733232.789266,
+            "protectionTicket": 130205.833331
+          },
+          "12": {
+            "gold": 2013142331171.2336,
+            "contradictionCrystal": 121727777.379213,
+            "protectionTicket": 130199.999998
+          },
+          "13": {
+            "gold": 2012626933749.0188,
+            "contradictionCrystal": 121696614.321768,
+            "protectionTicket": 130166.666665
+          },
+          "14": {
+            "gold": 2010049946637.9446,
+            "contradictionCrystal": 121540794.034544,
+            "protectionTicket": 129999.999998
+          },
+          "15": {
+            "gold": 1997165011082.573,
+            "contradictionCrystal": 120761687.598426,
+            "protectionTicket": 129166.666665
+          },
+          "16": {
+            "gold": 1932740333305.7158,
+            "contradictionCrystal": 116866150.417831,
+            "protectionTicket": 124999.999998
+          },
+          "17": {
+            "gold": 1610616944421.43,
+            "contradictionCrystal": 97388459.514859,
+            "protectionTicket": 104166.666665
+          }
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 5752202448933.681,
+          "contradictionCrystal": 121735539.393574,
+          "protectionTicket": 130207.333331
+        },
+        "nonWeapon": {
+          "gold": 2013270857126.7874,
+          "contradictionCrystal": 121735539.393574,
+          "protectionTicket": 130207.333331
+        }
+      }
+    }
+  ]
+}

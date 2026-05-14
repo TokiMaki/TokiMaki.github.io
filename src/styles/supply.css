@@ -3,6 +3,92 @@
       font-size: 13px;
       line-height: 1.6;
     }
+    .supply-note-empty {
+      padding: 4px 2px;
+    }
+    .supply-note-wide {
+      grid-column: 1 / -1;
+    }
+    .supply-summary-section {
+      position: relative;
+      z-index: 40;
+      overflow: visible;
+    }
+    .supply-event-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      line-height: 1.35;
+    }
+    .supply-event-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .supply-event-value {
+      flex: 0 0 auto;
+      color: var(--text);
+    }
+    .supply-event-detail {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      margin-bottom: 2px;
+    }
+    .supply-event-popover-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: 100%;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      margin-bottom: 1px;
+    }
+    .supply-event-summary-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .supply-event-popover-trigger {
+      cursor: pointer;
+      display: inline-flex;
+      padding: 1px 5px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--rarity-dim) 26%, transparent);
+      background: transparent;
+      color: var(--text-accent);
+      font-size: 10px;
+      line-height: 1.1;
+      font: inherit;
+      flex: 0 0 auto;
+    }
+    .supply-event-popover {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 6px);
+      z-index: 9999;
+      display: none;
+      min-width: 260px;
+      max-width: min(420px, 78vw);
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel-2) 98%, var(--bg-deep));
+      box-shadow: 0 16px 34px rgb(0 0 0 / 0.55);
+      color: var(--muted);
+    }
+    .supply-event-popover-wrap:hover .supply-event-popover,
+    .supply-event-popover-wrap:focus-within .supply-event-popover {
+      display: block;
+    }
+    .supply-event-detail-list {
+      display: grid;
+      gap: 2px;
+    }
     .supply-table th:nth-child(2),
     .supply-table td:nth-child(2),
     .supply-table th:nth-child(3),
@@ -21,6 +107,43 @@
       gap: 8px;
       justify-content: flex-start;
       width: 100%;
+    }
+    .supply-preset-row-spaced {
+      margin-top: 8px;
+    }
+    .supply-input-row {
+      margin-top: 14px;
+    }
+    .supply-input-actions {
+      margin-top: 10px;
+    }
+    .supply-roster-block {
+      margin-bottom: 14px;
+    }
+    .supply-content-panel {
+      padding: 14px;
+      margin: 12px 0;
+    }
+    .supply-content-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .supply-content-title {
+      font-size: 14px;
+    }
+    .table-scroll-supply-detail {
+      max-height: 320px;
+    }
+    .supply-detail-total-row td {
+      font-weight: 700;
+      background: var(--surface-table-head);
+    }
+    .table-scroll-supply-reference {
+      max-height: 360px;
+      margin-top: 12px;
     }
     .supply-check-grid {
       display: grid;
@@ -134,9 +257,7 @@
       border-radius: 999px;
     }
     .supply-roster-head-spacer {
-      min-height: 30px;
-      visibility: hidden;
-      pointer-events: none;
+      display: none;
     }
     .supply-roster-list {
       display: grid;
@@ -186,7 +307,8 @@
     .supply-roster-item:active {
       cursor: grabbing;
     }
-    .supply-roster-item.active {
+    .supply-roster-item.active,
+    .supply-roster-item.selected {
       border-color: color-mix(in srgb, var(--accent-2) 48%, transparent);
       background: color-mix(in srgb, var(--accent-2) 14%, transparent);
     }
@@ -212,6 +334,23 @@
     }
     .supply-roster-item.dragging {
       opacity: 0.55;
+    }
+    .supply-roster-drag-image {
+      position: fixed;
+      left: -10000px;
+      top: -10000px;
+      z-index: -1;
+      display: grid;
+      gap: 6px;
+      width: 280px;
+      max-height: 70vh;
+      overflow: hidden;
+      pointer-events: none;
+      opacity: 0.92;
+    }
+    .supply-roster-drag-image .supply-roster-item {
+      cursor: grabbing;
+      box-shadow: 0 10px 24px rgb(0 0 0 / 0.35);
     }
     .supply-roster-item-main {
       min-width: 0;
@@ -382,11 +521,21 @@
     .supply-roster-item-badge {
       display: inline-flex;
       align-items: center;
+      gap: 3px;
       padding: 1px 6px;
       border-radius: 999px;
       border: 1px solid color-mix(in srgb, var(--white) 10%, transparent);
       background: var(--surface-white-soft);
+      font-size: 10px;
+      line-height: 1.15;
       white-space: nowrap;
+    }
+    .supply-roster-item-badge img {
+      width: 15px;
+      height: 13px;
+      object-fit: contain;
+      display: block;
+      flex: 0 0 auto;
     }
     .supply-roster-balance {
       border-color: color-mix(in srgb, var(--accent-2) 34%, transparent);
@@ -474,6 +623,28 @@
       font-size: 11px;
       line-height: 1.2;
       white-space: nowrap;
+    }
+    .supply-roster-bonus-icons {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 20px;
+    }
+    .supply-roster-bonus-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 1px solid color-mix(in srgb, var(--white) 10%, transparent);
+      background: var(--surface-white-soft);
+    }
+    .supply-roster-bonus-icon img {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      display: block;
     }
     .supply-roster-item-actions {
       display: flex;

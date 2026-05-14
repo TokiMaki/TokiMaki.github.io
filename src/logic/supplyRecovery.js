@@ -67,6 +67,54 @@ export function calcSoulRecoveryRows(gearMultiplier = 0, tunerMultiplier = 0, he
   return [...gearRows, ...tunerRows];
 }
 
+export function calcIndependentSoulRecoveryRows(runCount = 0, rarityKeys = [], rarityRates = null) {
+  const runs = Number(runCount || 0);
+  const allowedKeys = new Set(Array.isArray(rarityKeys) ? rarityKeys : []);
+  const rates = rarityRates && typeof rarityRates === 'object' ? rarityRates : {};
+  return SUPPLY_SOUL_RECOVERY_RARITIES
+    .filter((rarity) => allowedKeys.size <= 0 || allowedKeys.has(rarity.key))
+    .flatMap((rarity) => {
+      const rate = Object.prototype.hasOwnProperty.call(rates, rarity.key)
+        ? Number(rates[rarity.key] || 0)
+        : Number(rarity.gearRate || 0);
+      const gearExpectedCount = runs * rate;
+      const gearValueTotal = gearExpectedCount * Number(rarity.gearValue || 0);
+      const tunerExpectedCount = runs * rate;
+      const contentDimSoulExpectedCount = tunerExpectedCount * Number(rarity.dimSoulCount || 0);
+      const tunerValueTotal = contentDimSoulExpectedCount * 4;
+      return [
+        {
+          key: `gear:${rarity.key}`,
+          label: rarity.label,
+          sourceLabel: '일반 장비',
+          gearExpectedCount,
+          boundHellGearExpectedCount: 0,
+          tunerExpectedCount: 0,
+          expectedCount: gearExpectedCount,
+          gearValueTotal,
+          boundHellGearValueTotal: 0,
+          tunerValueTotal: 0,
+          valueTotal: gearValueTotal,
+        },
+        {
+          key: `tuner:${rarity.key}`,
+          label: `미광(${rarity.decisionLabel})`,
+          sourceLabel: '서약결정',
+          gearExpectedCount: 0,
+          tunerExpectedCount,
+          tunerHellExpectedCount: 0,
+          contentDimSoulExpectedCount,
+          boundHellDimSoulExpectedCount: 0,
+          expectedCount: contentDimSoulExpectedCount,
+          gearValueTotal: 0,
+          tunerValueTotal,
+          boundHellValueTotal: 0,
+          valueTotal: tunerValueTotal,
+        },
+      ];
+    });
+}
+
 export function mergeSupplyRecoveryRows(rows) {
   const merged = new Map();
   for (const row of Array.isArray(rows) ? rows : []) {
@@ -122,6 +170,40 @@ export function calcSupplyParts(gearMultiplier, tunerMultiplier, boundSupply = 0
     boundRecovery: boundHellGearRecovery + boundHellDimRecovery,
     boundHellGearRecovery,
     boundHellDimRecovery,
+    fixedAccountSupply: Number(accountBonus || 0),
+    gearRows,
+    dimRows,
+    gearRecoveryTotal,
+    dimSoulCount,
+    dimSoulValue,
+    soulRecoveryTotal,
+    soulRecoveries,
+  };
+  const weeklyAccountSupply = Number(accountBonus || 0);
+  return {
+    boundSupply: weeklyBoundSupply,
+    accountSupply: weeklyAccountSupply,
+    totalSupply: weeklyBoundSupply + weeklyAccountSupply,
+    supply: weeklyAccountSupply,
+    supplyParts,
+  };
+}
+
+export function calcIndependentSupplyParts(runCount = 0, rarityKeys = ['rare', 'unique', 'legendary'], boundSupply = 0, accountBonus = 0, rarityRates = null) {
+  const weeklyBoundSupply = Number(boundSupply || 0);
+  const soulRecoveries = calcIndependentSoulRecoveryRows(runCount, rarityKeys, rarityRates);
+  const gearRows = mergeSupplyRecoveryRows(soulRecoveries.filter((row) => String(row.key || '').startsWith('gear:')));
+  const dimRows = mergeSupplyRecoveryRows(soulRecoveries.filter((row) => String(row.key || '').startsWith('tuner:')));
+  const gearRecoveryTotal = gearRows.reduce((sum, row) => sum + Number(row.valueTotal || 0), 0);
+  const dimSoulCount = dimRows.reduce((sum, row) => sum + Number(row.expectedCount || 0), 0);
+  const dimSoulValue = dimSoulCount * 4;
+  const soulRecoveryTotal = gearRecoveryTotal + dimSoulValue;
+  const supplyParts = {
+    gearRecovery: gearRecoveryTotal,
+    tunerRecovery: dimSoulValue,
+    boundRecovery: 0,
+    boundHellGearRecovery: 0,
+    boundHellDimRecovery: 0,
     fixedAccountSupply: Number(accountBonus || 0),
     gearRows,
     dimRows,
@@ -254,6 +336,7 @@ export function calcSupplyPartsFromEntries(entries, weeklyHellRuns = 0, includeB
 
 export function summarizeSoulRecoveryParts(characters) {
   const gearMap = new Map();
+  const dimMap = new Map();
   let dimSoulCount = 0;
   let dimSoulValue = 0;
   let total = 0;
@@ -277,20 +360,41 @@ export function summarizeSoulRecoveryParts(characters) {
       current.valueTotal += Number(row.valueTotal || 0);
       gearMap.set(key, current);
     }
+
+    for (const row of Array.isArray(supplyParts.dimRows) ? supplyParts.dimRows : []) {
+      const key = String(row?.key || '').trim();
+      if (!key) continue;
+      const current = dimMap.get(key) || {
+        key,
+        label: row.label || key,
+        tunerExpectedCount: 0,
+        tunerHellExpectedCount: 0,
+        expectedCount: 0,
+        valueTotal: 0,
+      };
+      current.tunerExpectedCount += Number(row.tunerExpectedCount || 0);
+      current.tunerHellExpectedCount += Number(row.tunerHellExpectedCount || 0);
+      current.expectedCount += Number(row.expectedCount || 0);
+      current.valueTotal += Number(row.valueTotal || 0);
+      dimMap.set(key, current);
+    }
   }
   
   const order = { rare: 0, unique: 1, legendary: 2, epic: 3, taecho: 4 };
-  const gearRows = [...gearMap.values()].sort((a, b) => {
+  const sortByRarity = (a, b) => {
     const aKey = String(a.key || '').split(':')[1] || '';
     const bKey = String(b.key || '').split(':')[1] || '';
     const orderDiff = (order[aKey] ?? 99) - (order[bKey] ?? 99);
     if (orderDiff !== 0) return orderDiff;
     return String(a.label || '').localeCompare(String(b.label || ''), 'ko-KR');
-  });
+  };
+  const gearRows = [...gearMap.values()].sort(sortByRarity);
+  const dimRows = [...dimMap.values()].sort(sortByRarity);
   
   return {
     total,
     gearRows,
+    dimRows,
     dimSoulCount,
     dimSoulValue,
   };

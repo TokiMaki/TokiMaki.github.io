@@ -1,0 +1,1096 @@
+{
+  "expires_at": 1778751206.2020383,
+  "payload": {
+    "updatedAt": "2026-05-12",
+    "pricedAt": "2026-05-14 18:03:26",
+    "source": {
+      "type": "manual_seed_from_neople_item_search",
+      "note": "크리쳐는 /df/items 전체 수집이 불안정하므로 시즌별 키워드/아이템명을 수동으로 추가한다. 가격은 itemId 기준 경매장 조회에서 minFame/maxFame을 사용한다."
+    },
+    "groups": [
+      {
+        "groupName": "운명을 담는 재단사",
+        "searchName": "운명을 담는 재단사",
+        "itemType": "크리쳐",
+        "targetFame": 1261,
+        "candidates": [
+          {
+            "name": "운명을 담는 재단사",
+            "variant": "일반",
+            "targetFame": 1261,
+            "items": [
+              {
+                "itemId": "0e7f6b6de8df0ec334c5c2bc0aabd60a",
+                "itemName": "운명을 담는 재단사 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/0e7f6b6de8df0ec334c5c2bc0aabd60a",
+                "itemExplain": "",
+                "effects": {
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 34988886,
+                  "averagePrice": 34999480,
+                  "auctionNo": 1495044854,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "2feb7c018051a6f28ffce59ecbbace01",
+                "itemName": "[프리미엄 코인샵]운명을 담는 재단사 크리쳐 상자",
+                "itemRarity": "레어",
+                "fame": 0,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/2feb7c018051a6f28ffce59ecbbace01",
+                "itemExplain": "사용 시 운명을 담는 재단사 크리쳐를 얻을 수 있습니다. 크리쳐는 교환불가, 기간 무제한 상태로 지급됩니다.",
+                "effects": {},
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              }
+            ],
+            "itemId": "0e7f6b6de8df0ec334c5c2bc0aabd60a",
+            "itemName": "운명을 담는 재단사 알",
+            "iconUrl": "https://img-api.neople.co.kr/df/items/0e7f6b6de8df0ec334c5c2bc0aabd60a",
+            "itemExplain": "",
+            "effects": {
+              "attackAmplification": 40.0,
+              "elementAll": 40.0,
+              "allStat": 150.0,
+              "critical": 3.0
+            },
+            "auction": {
+              "listingCount": 0,
+              "minUnitPrice": 34988886,
+              "averagePrice": 34999480,
+              "auctionNo": 1495044854,
+              "upgrade": null,
+              "upgradeMax": null,
+              "isMaxUpgrade": true
+            }
+          },
+          {
+            "name": "운명을 담는 재단사 플래티넘",
+            "variant": "플래티넘",
+            "targetFame": 1261,
+            "items": [
+              {
+                "itemId": "7218337ac36173c6a16d86909bf2d9a5",
+                "itemName": "운명을 담는 재단사 플래티넘[75Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/7218337ac36173c6a16d86909bf2d9a5",
+                "itemExplain": "75 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 61650000,
+                  "averagePrice": 61600231,
+                  "auctionNo": 1495039638,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "be8e5e360c6a3b6f7c076f4b84ebaabb",
+                "itemName": "운명을 담는 재단사 플래티넘[30Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/be8e5e360c6a3b6f7c076f4b84ebaabb",
+                "itemExplain": "30 레벨 액티브 스킬 공격력 15% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 61766523,
+                  "averagePrice": 61834692,
+                  "auctionNo": 1494991050,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "41b434f17e1485a2c64634e6019796cf",
+                "itemName": "운명을 담는 재단사 플래티넘[80Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/41b434f17e1485a2c64634e6019796cf",
+                "itemExplain": "80 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 61900000,
+                  "averagePrice": 60899000,
+                  "auctionNo": 1495000832,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "1691ecca70c8cff167b7b87ef40d6ab1",
+                "itemName": "운명을 담는 재단사 플래티넘[50Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/1691ecca70c8cff167b7b87ef40d6ab1",
+                "itemExplain": "50 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 62000000,
+                  "averagePrice": 62000000,
+                  "auctionNo": 1494993909,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "68227e3eaf4117abe2a8942bb6be0f05",
+                "itemName": "운명을 담는 재단사 플래티넘[35Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/68227e3eaf4117abe2a8942bb6be0f05",
+                "itemExplain": "35 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 63396875,
+                  "averagePrice": 63622709,
+                  "auctionNo": 1494991057,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "ea0da2c27509d1c97cbcac2987fa144e",
+                "itemName": "운명을 담는 재단사 플래티넘[45Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/ea0da2c27509d1c97cbcac2987fa144e",
+                "itemExplain": "45 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 65000000,
+                  "averagePrice": 62400000,
+                  "auctionNo": 1495043143,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "c68bdc22ccfcede2344c5b7fed8e23d6",
+                "itemName": "운명을 담는 재단사 플래티넘[40Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/c68bdc22ccfcede2344c5b7fed8e23d6",
+                "itemExplain": "40 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 65990000,
+                  "averagePrice": 65000000,
+                  "auctionNo": 1495016116,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "206536639ad98b75091d8e56ea81d95c",
+                "itemName": "운명을 담는 재단사 플래티넘[60Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/206536639ad98b75091d8e56ea81d95c",
+                "itemExplain": "60 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 69990000,
+                  "averagePrice": 82388614,
+                  "auctionNo": 1495016144,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "a24417947c0090ee56347b7d3d25d940",
+                "itemName": "운명을 담는 재단사 플래티넘[70Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/a24417947c0090ee56347b7d3d25d940",
+                "itemExplain": "70 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 69990000,
+                  "averagePrice": 59990000,
+                  "auctionNo": 1495016068,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "f1c9f42cabc2ade8a55b78abf460d945",
+                "itemName": "운명을 담는 재단사 플래티넘[95Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/f1c9f42cabc2ade8a55b78abf460d945",
+                "itemExplain": "95 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 69990000,
+                  "averagePrice": null,
+                  "auctionNo": 1495016089,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "651e94ffe671229b099340b44f804287",
+                "itemName": "운명을 담는 재단사 플래티넘[100Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/651e94ffe671229b099340b44f804287",
+                "itemExplain": "100 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 69990000,
+                  "averagePrice": 59999999,
+                  "auctionNo": 1495016082,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "125c3a868e68c61baf0026c383a35980",
+                "itemName": "운명을 담는 재단사 플래티넘[85Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/125c3a868e68c61baf0026c383a35980",
+                "itemExplain": "85 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": 80000000,
+                  "averagePrice": null,
+                  "auctionNo": 1495000204,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "4a6aea875d97279c8a7735d88625a614",
+                "itemName": "운명을 담는 재단사 플래티넘 크리쳐 알 선택 상자",
+                "itemRarity": "레어",
+                "fame": 0,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/4a6aea875d97279c8a7735d88625a614",
+                "itemExplain": "상자를 개봉 시 운명을 담는 재단사 플래티넘[30Lv], [35Lv], [40Lv], [45Lv], [50Lv], [60Lv], [70Lv], [75Lv], [80Lv], [85Lv], [95Lv], [100Lv] 알 중 1종을 선택하여 얻을 수 있습니다. 크리쳐 알은 밀봉, 기간 무제한 상태로 지급되며 인벤토리 무게 한도 +5kg과 크리쳐명의 레벨과 동일하게 아래 옵션 중 1종이 부여됩니다. * 옵션 정보 -30레벨 액티브 스킬 공격력 15% 증가 -35레벨 액티브 스킬 공격력 10% 증가 -40레벨 액티브 스킬 공격력 10% 증가 -45레벨 액티브 스킬 공격력 10% 증가 -50레벨 액티브 스킬 공격력 10% 증가 -60레벨 액티브 스킬 공격력 10% 증가 -70레벨 액티브 스킬 공격력 10% 증가 -75레벨 액티브 스킬 공격력 10% 증가 -80레벨 액티브 스킬 공격력 10% 증가 -85레벨 액티브 스킬 공격력 10% 증가 -95레벨 액티브 스킬 공격력 10% 증가 -100레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {},
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              }
+            ],
+            "itemId": "7218337ac36173c6a16d86909bf2d9a5",
+            "itemName": "운명을 담는 재단사 플래티넘[75Lv] 알",
+            "iconUrl": "https://img-api.neople.co.kr/df/items/7218337ac36173c6a16d86909bf2d9a5",
+            "itemExplain": "30 레벨 액티브 스킬 공격력 15% 증가",
+            "effects": {
+              "finalDamage": 1.5,
+              "attackAmplification": 40.0,
+              "elementAll": 40.0,
+              "allStat": 150.0,
+              "critical": 3.0
+            },
+            "auction": {
+              "listingCount": 0,
+              "minUnitPrice": 61650000,
+              "averagePrice": 61600231,
+              "auctionNo": 1495039638,
+              "upgrade": null,
+              "upgradeMax": null,
+              "isMaxUpgrade": true
+            }
+          }
+        ]
+      },
+      {
+        "groupName": "탐사대장 셀레나/스타 체이서",
+        "searchName": "탐사대장 셀레나/스타 체이서",
+        "itemType": "크리쳐",
+        "targetFame": 1261,
+        "candidates": [
+          {
+            "name": "탐사대장 셀레나",
+            "variant": "플래티넘",
+            "targetFame": 1261,
+            "items": [
+              {
+                "itemId": "2ebc3bcf3a0621d288d084ee15782107",
+                "itemName": "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자",
+                "itemRarity": "레어",
+                "fame": 0,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/2ebc3bcf3a0621d288d084ee15782107",
+                "itemExplain": "상자를 개봉 시 탐사대장 셀레나 크리쳐 알 또는 스타 체이서 크리쳐 알 중 1종과 레벨 액티브 스킬 공격력을 선택하여 크리쳐 알을 획득할 수 있습니다. 크리쳐 알은 밀봉, 기간 무제한 상태로 지급되며 인벤토리 무게 한도 +5kg과 크리쳐명의 레벨과 동일하게 아래 옵션 중 1종이 부여됩니다. * 옵션 정보 -30레벨 액티브 스킬 공격력 15% 증가 -35레벨 액티브 스킬 공격력 10% 증가 -40레벨 액티브 스킬 공격력 10% 증가 -45레벨 액티브 스킬 공격력 10% 증가 -50레벨 액티브 스킬 공격력 10% 증가 -60레벨 액티브 스킬 공격력 10% 증가 -70레벨 액티브 스킬 공격력 10% 증가 -75레벨 액티브 스킬 공격력 10% 증가 -80레벨 액티브 스킬 공격력 10% 증가 -85레벨 액티브 스킬 공격력 10% 증가 -95레벨 액티브 스킬 공격력 10% 증가 -100레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {},
+                "auction": {
+                  "listingCount": 12,
+                  "minUnitPrice": 59800000,
+                  "averagePrice": 59999999,
+                  "auctionNo": 1495035338,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "f71ab774813d1d0eba772d2833d0ecc6",
+                "itemName": "탐사대장 셀레나[70Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/f71ab774813d1d0eba772d2833d0ecc6",
+                "itemExplain": "70 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "9b3a1cc671589cc23bcdf280bcbe283e",
+                "itemName": "탐사대장 셀레나[45Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/9b3a1cc671589cc23bcdf280bcbe283e",
+                "itemExplain": "45 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "cf0566ef0fca57d42029bba9cd249adc",
+                "itemName": "탐사대장 셀레나[60Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/cf0566ef0fca57d42029bba9cd249adc",
+                "itemExplain": "60 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "a9d5dcdbd6913299708776f4991fc1e7",
+                "itemName": "탐사대장 셀레나[75Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/a9d5dcdbd6913299708776f4991fc1e7",
+                "itemExplain": "75 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "c69d1ecb77100c109721a780fd0c86ca",
+                "itemName": "탐사대장 셀레나[30Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/c69d1ecb77100c109721a780fd0c86ca",
+                "itemExplain": "30 레벨 액티브 스킬 공격력 15% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "8012341616ea45ab4640ffccab9cbe21",
+                "itemName": "탐사대장 셀레나[35Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/8012341616ea45ab4640ffccab9cbe21",
+                "itemExplain": "35 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "c813271636e537bcaa61819fefca2b76",
+                "itemName": "탐사대장 셀레나[40Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/c813271636e537bcaa61819fefca2b76",
+                "itemExplain": "40 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "3619aaa5082a585402df1bcd875e6c52",
+                "itemName": "탐사대장 셀레나[85Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/3619aaa5082a585402df1bcd875e6c52",
+                "itemExplain": "85 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "95413e507265fb899be31956f2ea4b9b",
+                "itemName": "탐사대장 셀레나[100Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/95413e507265fb899be31956f2ea4b9b",
+                "itemExplain": "100 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "27359efa1b2874ee1b9add627da2e246",
+                "itemName": "탐사대장 셀레나[50Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/27359efa1b2874ee1b9add627da2e246",
+                "itemExplain": "50 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "f0f45eec4a6843272fdeca0e0c5a24e5",
+                "itemName": "탐사대장 셀레나[80Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/f0f45eec4a6843272fdeca0e0c5a24e5",
+                "itemExplain": "80 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "00826459f05c4a19a910676daa84cd59",
+                "itemName": "탐사대장 셀레나[95Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/00826459f05c4a19a910676daa84cd59",
+                "itemExplain": "95 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              }
+            ],
+            "itemId": "2ebc3bcf3a0621d288d084ee15782107",
+            "itemName": "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자",
+            "iconUrl": "https://img-api.neople.co.kr/df/items/2ebc3bcf3a0621d288d084ee15782107",
+            "itemExplain": "70 레벨 액티브 스킬 공격력 10% 증가",
+            "effects": {
+              "finalDamage": 1.5,
+              "attackAmplification": 40.0,
+              "elementAll": 40.0,
+              "allStat": 150.0,
+              "critical": 3.0
+            },
+            "auction": {
+              "listingCount": 12,
+              "minUnitPrice": 59800000,
+              "averagePrice": 59999999,
+              "auctionNo": 1495035338,
+              "upgrade": null,
+              "upgradeMax": null,
+              "isMaxUpgrade": true
+            }
+          },
+          {
+            "name": "스타 체이서",
+            "variant": "플래티넘",
+            "targetFame": 1261,
+            "items": [
+              {
+                "itemId": "2ebc3bcf3a0621d288d084ee15782107",
+                "itemName": "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자",
+                "itemRarity": "레어",
+                "fame": 0,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/2ebc3bcf3a0621d288d084ee15782107",
+                "itemExplain": "상자를 개봉 시 탐사대장 셀레나 크리쳐 알 또는 스타 체이서 크리쳐 알 중 1종과 레벨 액티브 스킬 공격력을 선택하여 크리쳐 알을 획득할 수 있습니다. 크리쳐 알은 밀봉, 기간 무제한 상태로 지급되며 인벤토리 무게 한도 +5kg과 크리쳐명의 레벨과 동일하게 아래 옵션 중 1종이 부여됩니다. * 옵션 정보 -30레벨 액티브 스킬 공격력 15% 증가 -35레벨 액티브 스킬 공격력 10% 증가 -40레벨 액티브 스킬 공격력 10% 증가 -45레벨 액티브 스킬 공격력 10% 증가 -50레벨 액티브 스킬 공격력 10% 증가 -60레벨 액티브 스킬 공격력 10% 증가 -70레벨 액티브 스킬 공격력 10% 증가 -75레벨 액티브 스킬 공격력 10% 증가 -80레벨 액티브 스킬 공격력 10% 증가 -85레벨 액티브 스킬 공격력 10% 증가 -95레벨 액티브 스킬 공격력 10% 증가 -100레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {},
+                "auction": {
+                  "listingCount": 12,
+                  "minUnitPrice": 59800000,
+                  "averagePrice": 59999999,
+                  "auctionNo": 1495035338,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": true
+                }
+              },
+              {
+                "itemId": "0a00612f615d4f3e363d90e94c2421c3",
+                "itemName": "스타 체이서[30Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/0a00612f615d4f3e363d90e94c2421c3",
+                "itemExplain": "30 레벨 액티브 스킬 공격력 15% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "f79f36ea7c68e4dafd576af9b694b560",
+                "itemName": "스타 체이서[40Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/f79f36ea7c68e4dafd576af9b694b560",
+                "itemExplain": "40 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "00f4240dd3f6f51355853fc6b7eda78f",
+                "itemName": "스타 체이서[35Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/00f4240dd3f6f51355853fc6b7eda78f",
+                "itemExplain": "35 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "cb6d25ba52a7b4d80b7e626417fde275",
+                "itemName": "스타 체이서[45Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/cb6d25ba52a7b4d80b7e626417fde275",
+                "itemExplain": "45 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "1e28e6236c969c8dafe8767854729b40",
+                "itemName": "스타 체이서[60Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/1e28e6236c969c8dafe8767854729b40",
+                "itemExplain": "60 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "70ef35dc927f7900fb1089be2bde4d79",
+                "itemName": "스타 체이서[70Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/70ef35dc927f7900fb1089be2bde4d79",
+                "itemExplain": "70 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "5f31fbb47df44dfdc767f69d35ee80ff",
+                "itemName": "스타 체이서[75Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/5f31fbb47df44dfdc767f69d35ee80ff",
+                "itemExplain": "75 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "242df1462d6aeac5d08a8dd2a1251b26",
+                "itemName": "스타 체이서[80Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/242df1462d6aeac5d08a8dd2a1251b26",
+                "itemExplain": "80 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "ab35fe2f8aa508828259b6cba63af921",
+                "itemName": "스타 체이서[85Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/ab35fe2f8aa508828259b6cba63af921",
+                "itemExplain": "85 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "5f8fef22617b8ef71782b68a6cbb93b8",
+                "itemName": "스타 체이서[50Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/5f8fef22617b8ef71782b68a6cbb93b8",
+                "itemExplain": "50 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "8e0d8405ba26e6e264491738d1281086",
+                "itemName": "스타 체이서[95Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/8e0d8405ba26e6e264491738d1281086",
+                "itemExplain": "95 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              },
+              {
+                "itemId": "792a491fb4242434dadbf6dc69538508",
+                "itemName": "스타 체이서[100Lv] 알",
+                "itemRarity": "레어",
+                "fame": 1261,
+                "iconUrl": "https://img-api.neople.co.kr/df/items/792a491fb4242434dadbf6dc69538508",
+                "itemExplain": "100 레벨 액티브 스킬 공격력 10% 증가",
+                "effects": {
+                  "finalDamage": 1.5,
+                  "attackAmplification": 40.0,
+                  "elementAll": 40.0,
+                  "allStat": 150.0,
+                  "critical": 3.0
+                },
+                "auction": {
+                  "listingCount": 0,
+                  "minUnitPrice": null,
+                  "averagePrice": null,
+                  "auctionNo": null,
+                  "upgrade": null,
+                  "upgradeMax": null,
+                  "isMaxUpgrade": false
+                }
+              }
+            ],
+            "itemId": "2ebc3bcf3a0621d288d084ee15782107",
+            "itemName": "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자",
+            "iconUrl": "https://img-api.neople.co.kr/df/items/2ebc3bcf3a0621d288d084ee15782107",
+            "itemExplain": "30 레벨 액티브 스킬 공격력 15% 증가",
+            "effects": {
+              "finalDamage": 1.5,
+              "attackAmplification": 40.0,
+              "elementAll": 40.0,
+              "allStat": 150.0,
+              "critical": 3.0
+            },
+            "auction": {
+              "listingCount": 12,
+              "minUnitPrice": 59800000,
+              "averagePrice": 59999999,
+              "auctionNo": 1495035338,
+              "upgrade": null,
+              "upgradeMax": null,
+              "isMaxUpgrade": true
+            }
+          }
+        ]
+      }
+    ],
+    "errors": []
+  }
+}

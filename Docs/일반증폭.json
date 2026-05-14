@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "kind": "normalAmplificationCost",
+  "notes": [
+    "13증 이후 성공 확률은 20%. 14증 이상 데이터는 생략."
+  ],
+  "rules": {
+    "failureUntilLevel10": "실패시 -3단계",
+    "failureFromLevel11": "증폭보호권 1개를 사용해 파괴를 방지하고 0증폭으로 돌아감",
+    "successRateAfterLevel13Percent": 20,
+    "contradictionCrystalPerAttempt": "targetLevel + 10"
+  },
+  "costs": {
+    "weapon": {
+      "goldPerAttempt": 739200
+    },
+    "nonWeapon": {
+      "goldPerAttempt": 258720
+    }
+  },
+  "successRates": [
+    {
+      "toLevel": 1,
+      "successRatePercent": 100
+    },
+    {
+      "toLevel": 2,
+      "successRatePercent": 100
+    },
+    {
+      "toLevel": 3,
+      "successRatePercent": 100
+    },
+    {
+      "toLevel": 4,
+      "successRatePercent": 100
+    },
+    {
+      "toLevel": 5,
+      "successRatePercent": 80
+    },
+    {
+      "toLevel": 6,
+      "successRatePercent": 70
+    },
+    {
+      "toLevel": 7,
+      "successRatePercent": 60
+    },
+    {
+      "toLevel": 8,
+      "successRatePercent": 70
+    },
+    {
+      "toLevel": 9,
+      "successRatePercent": 60
+    },
+    {
+      "toLevel": 10,
+      "successRatePercent": 50
+    },
+    {
+      "toLevel": 11,
+      "successRatePercent": 40
+    },
+    {
+      "toLevel": 12,
+      "successRatePercent": 30
+    },
+    {
+      "toLevel": 13,
+      "successRatePercent": 20
+    }
+  ]
+}

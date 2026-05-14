@@ -45,6 +45,7 @@ export function getSupplyResetWindowCounts(date = new Date()) {
   const endMs = getSupplyNextResetMs(date);
   let weekdayCount = 0;
   let weekendCount = 0;
+  let mwfCount = 0;
   let dayCount = 0;
   
   for (let dayMs = startMs; dayMs < endMs; dayMs += SUPPLY_DAY_MS) {
@@ -55,6 +56,9 @@ export function getSupplyResetWindowCounts(date = new Date()) {
     } else {
       weekdayCount += 1;
     }
+    if (parts.dayOfWeek === 1 || parts.dayOfWeek === 3 || parts.dayOfWeek === 5) {
+      mwfCount += 1;
+    }
     dayCount += 1;
   }
   
@@ -63,6 +67,7 @@ export function getSupplyResetWindowCounts(date = new Date()) {
     endMs,
     weekdayCount,
     weekendCount,
+    mwfCount,
     dayCount,
   };
 }
@@ -76,6 +81,7 @@ export function getSupplyTodayWindowCounts(date = new Date()) {
     endMs: startMs + SUPPLY_DAY_MS,
     weekdayCount: isWeekend ? 0 : 1,
     weekendCount: isWeekend ? 1 : 0,
+    mwfCount: dayParts.dayOfWeek === 1 || dayParts.dayOfWeek === 3 || dayParts.dayOfWeek === 5 ? 1 : 0,
     dayCount: 1,
   };
 }

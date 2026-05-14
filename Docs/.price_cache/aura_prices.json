@@ -1,0 +1,168 @@
+{
+  "expires_at": 1778750317.9100666,
+  "payload": {
+    "updatedAt": "2026-05-14",
+    "pricedAt": "2026-05-14 17:48:37",
+    "source": {
+      "type": "manual_keyword_seed_from_user",
+      "note": "오라는 키워드 기반으로 네오플 아이템 검색에서 직접 오라 아바타와 관련 상자를 찾아 가격을 비교한다."
+    },
+    "groups": [
+      {
+        "groupName": "아라드 로얄 패스 오라",
+        "searchName": "아라드 로얄 패스 오라",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "카드 오브 파툼",
+        "searchName": "카드 오브 파툼",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "위그드라실의 축복",
+        "searchName": "위그드라실의 축복",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "대자연의 기운을 담은 대나무",
+        "searchName": "대자연의 기운을 담은 대나무",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "대자연의 기운을 담은 국화",
+        "searchName": "대자연의 기운을 담은 국화",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "대자연의 기운을 담은 난초",
+        "searchName": "대자연의 기운을 담은 난초",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "대자연의 기운을 담은 매화",
+        "searchName": "대자연의 기운을 담은 매화",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "해변의 수호자",
+        "searchName": "해변의 수호자",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "심연에 드리운 어둠 오라",
+        "searchName": "심연에 드리운 어둠 오라",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "오색찬란한 햇살",
+        "searchName": "오색찬란한 햇살",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "초월한 폭풍의 기세",
+        "searchName": "초월한 폭풍의 기세",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "햇살에 반짝이는 순백의 눈꽃",
+        "searchName": "햇살에 반짝이는 순백의 눈꽃",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "밤하늘을 수놓은 순백의 눈꽃",
+        "searchName": "밤하늘을 수놓은 순백의 눈꽃",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "초월한 기사의 의지",
+        "searchName": "초월한 기사의 의지",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "라이트닝 시트린 문",
+        "searchName": "라이트닝 시트린 문",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "라이트닝 아메시스트 문",
+        "searchName": "라이트닝 아메시스트 문",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "고결한 영혼의 잔상",
+        "searchName": "고결한 영혼의 잔상",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "바다속 작은 세상",
+        "searchName": "바다속 작은 세상",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "별의 하모니",
+        "searchName": "별의 하모니",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "아카사의 곡옥 물든 달",
+        "searchName": "아카사의 곡옥 물든 달",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "시라누이류 풍월",
+        "searchName": "시라누이류 풍월",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      },
+      {
+        "groupName": "삼신기의 불꽃",
+        "searchName": "삼신기의 불꽃",
+        "itemType": "오라",
+        "candidates": [],
+        "unresolved": true
+      }
+    ],
+    "errors": []
+  }
+}

@@ -35,6 +35,11 @@ export function normalizeCharacters(parsed) {
 
       return { name: setName, taecho, epic };
     });
+    const setNameSet = new Set(sets.map((set) => set.name));
+    const providedAliveSetNames = Array.isArray(character.aliveSetNames) ? character.aliveSetNames : null;
+    const aliveSetNames = providedAliveSetNames
+      ? [...new Set(providedAliveSetNames.map((name) => String(name)).filter((name) => setNameSet.has(name)))]
+      : sets.map((set) => set.name);
 
     return {
       key,
@@ -46,6 +51,7 @@ export function normalizeCharacters(parsed) {
       jobGrowId,
       jobGrowName,
       sets,
+      aliveSetNames: aliveSetNames.length ? aliveSetNames : sets.map((set) => set.name),
     };
   });
 }

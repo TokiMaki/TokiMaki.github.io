@@ -1,0 +1,1811 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-05-14",
+  "sourcePolicy": "초안 DB. 게임조선 직업 가이드의 정옵 문구에서 스킬명 사실값만 추출했으며, 문장 설명은 사용하지 않는다. 틀린 값은 수동 검수로 수정한다.",
+  "fields": {
+    "avatar.topOptions": "상의 아바타 옵션 후보. 앞쪽일수록 우선 후보.",
+    "avatar.platinumEmblems": "상의/하의 플래티넘 엠블렘 추천값. 후보가 여러 개 추출되면 첫 번째 후보만 사용한다.",
+    "avatar.needsReview": "추출 누락 또는 형식 불확실 여부."
+  },
+  "entries": [
+    {
+      "classGroup": "귀검사(남)",
+      "guideName": "웨펀마스터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "검기상인"
+        ],
+        "platinumEmblems": [
+          "검기상인"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "검기상인"
+        ],
+        "platinumCandidatesFromTable": [
+          "검기상인"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(남)",
+      "guideName": "버서커",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "블러드 인카넷"
+        ],
+        "platinumEmblems": [
+          "혈십자"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "혈십자"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(남)",
+      "guideName": "소울브링어",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "팬텀 마스터리"
+        ],
+        "platinumEmblems": [
+          "달의 커튼"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "팬텀 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "달의 커튼"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(남)",
+      "guideName": "아수라",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "뇌신의 기운"
+        ],
+        "platinumEmblems": [
+          "정신이 번쩍"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "정신이 번쩍"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(남)",
+      "guideName": "검귀",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=5"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "검귀의 도 마스터리"
+        ],
+        "platinumEmblems": [
+          "검귀의 도 마스터리"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "검귀의 도 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(여)",
+      "guideName": "소드마스터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "무기 마스터리"
+        ],
+        "platinumEmblems": [
+          "무기 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "무기 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(여)",
+      "guideName": "데몬슬레이어",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "마검 제어"
+        ],
+        "platinumEmblems": [
+          "마검 제어"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "마검 제어",
+          "마검 제어"
+        ],
+        "platinumCandidatesFromTable": [
+          "마검 제어"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(여)",
+      "guideName": "베가본드",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "삼화취정"
+        ],
+        "platinumEmblems": [
+          "삼화취정"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "삼화취정",
+          "삼화취정"
+        ],
+        "platinumCandidatesFromTable": [
+          "삼화취정"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(여)",
+      "guideName": "다크템플러",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "우시르의 저주"
+        ],
+        "platinumEmblems": [
+          "우시르의 저주"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "우시르의 저주"
+        ],
+        "platinumCandidatesFromTable": [
+          "우시르의 저주"
+        ]
+      }
+    },
+    {
+      "classGroup": "귀검사(여)",
+      "guideName": "블레이드",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=5"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "빈티지"
+        ],
+        "platinumEmblems": [
+          "빈티지"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "빈티지",
+          "빈티지"
+        ],
+        "platinumCandidatesFromTable": [
+          "빈티지"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(남)",
+      "guideName": "넨마스터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "나선의 넨"
+        ],
+        "platinumEmblems": [
+          "나선의 넨"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "나선의 넨",
+          "나선의 넨"
+        ],
+        "platinumCandidatesFromTable": [
+          "나선의 넨"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(남)",
+      "guideName": "스트라이커",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "화염의 각"
+        ],
+        "platinumEmblems": [
+          "머슬 시프트"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "머슬 시프트"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(남)",
+      "guideName": "스트리트파이터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "도발"
+        ],
+        "platinumEmblems": [
+          "도발"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "도발"
+        ],
+        "platinumCandidatesFromTable": [
+          "도발"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(남)",
+      "guideName": "그래플러",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "강렬한 테이크 다운"
+        ],
+        "platinumEmblems": [
+          "강렬한 테이크 다운"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "강렬한 테이크 다운"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(여)",
+      "guideName": "넨마스터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "나선의 넨"
+        ],
+        "platinumEmblems": [
+          "나선의 넨"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "나선의 넨"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(여)",
+      "guideName": "스트라이커",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "급소 지정"
+        ],
+        "platinumEmblems": [
+          "급소 지정"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "급소 지정"
+        ],
+        "platinumCandidatesFromTable": [
+          "급소 지정"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(여)",
+      "guideName": "스트리트파이터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "독문무공"
+        ],
+        "platinumEmblems": [
+          "도발"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "도발"
+        ]
+      }
+    },
+    {
+      "classGroup": "격투가(여)",
+      "guideName": "그래플러",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "강렬한 테이크 다운"
+        ],
+        "platinumEmblems": [
+          "강렬한 테이크 다운"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "강렬한 테이크 다운",
+          "강렬한 테이크 다운"
+        ],
+        "platinumCandidatesFromTable": [
+          "강렬한 테이크 다운"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(남)",
+      "guideName": "레인저",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "스타일리쉬"
+        ],
+        "platinumEmblems": [
+          "스타일리쉬"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "스타일리쉬",
+          "스타일리쉬"
+        ],
+        "platinumCandidatesFromTable": [
+          "스타일리쉬 or 리볼버 강화"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(남)",
+      "guideName": "런처",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "중화기 마스터리"
+        ],
+        "platinumEmblems": [
+          "중화기 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "중화기 마스터리",
+          "중화기 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "중화기 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(남)",
+      "guideName": "메카닉",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "아크리액터"
+        ],
+        "platinumEmblems": [
+          "아크리액터"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "아크리액터",
+          "아크리액터"
+        ],
+        "platinumCandidatesFromTable": [
+          "아크리액터"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(남)",
+      "guideName": "스핏파이어",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "병기 숙련"
+        ],
+        "platinumEmblems": [
+          "병기 숙련"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "병기 숙련",
+          "병기 숙련"
+        ],
+        "platinumCandidatesFromTable": [
+          "병기 숙련"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(남)",
+      "guideName": "어썰트",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=5"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "센서빌리티"
+        ],
+        "platinumEmblems": [
+          "센서빌리티"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "센서빌리티"
+        ],
+        "platinumCandidatesFromTable": [
+          "센서빌리티"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(여)",
+      "guideName": "레인저",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "스타일리쉬"
+        ],
+        "platinumEmblems": [
+          "스타일리쉬"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "스타일리쉬",
+          "스타일리쉬"
+        ],
+        "platinumCandidatesFromTable": [
+          "스타일리쉬 or 리볼버 강화"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(여)",
+      "guideName": "런처",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "중화기 마스터리"
+        ],
+        "platinumEmblems": [
+          "중화기 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "중화기 마스터리",
+          "중화기 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "중화기 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(여)",
+      "guideName": "메카닉",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "트랜스포메이션"
+        ],
+        "platinumEmblems": [
+          "하이테크놀로지"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "하이테크놀로지"
+        ]
+      }
+    },
+    {
+      "classGroup": "거너(여)",
+      "guideName": "스핏파이어",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "병기 숙련"
+        ],
+        "platinumEmblems": [
+          "병기 숙련"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "병기 숙련",
+          "병기 숙련"
+        ],
+        "platinumCandidatesFromTable": [
+          "병기 숙련"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(남)",
+      "guideName": "엘레멘탈바머",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "원소의 이해"
+        ],
+        "platinumEmblems": [
+          "원소의 이해"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "원소의 이해",
+          "원소의 이해"
+        ],
+        "platinumCandidatesFromTable": [
+          "원소의 이해"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(남)",
+      "guideName": "빙결사",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "발현"
+        ],
+        "platinumEmblems": [
+          "공명"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "발현",
+          "발현"
+        ],
+        "platinumCandidatesFromTable": [
+          "공명"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(남)",
+      "guideName": "블러드 메이지",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "블러드 혼"
+        ],
+        "platinumEmblems": [
+          "블러드 혼"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "블러드 or 블러드 혼"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(남)",
+      "guideName": "스위프트마스터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "휘몰아치는 질풍의 봉 마스터리"
+        ],
+        "platinumEmblems": [
+          "휘몰아치는 질풍의 봉 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "휘몰아치는 질풍의 봉 마스터리",
+          "휘몰아치는 질풍의 봉 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "휘몰아치는 봉 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(남)",
+      "guideName": "디멘션워커",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=5"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "도그마 디바이스"
+        ],
+        "platinumEmblems": [
+          "도그마 디바이스"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "도그마 디바이스",
+          "도그마 디바이스"
+        ],
+        "platinumCandidatesFromTable": [
+          "도그마 디바이스"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(여)",
+      "guideName": "엘레멘탈바머",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "속성 마스터리"
+        ],
+        "platinumEmblems": [
+          "속성 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "속성 마스터리",
+          "속성 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "화력 중심 : 속성 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(여)",
+      "guideName": "배틀메이지",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "니우의 전투술"
+        ],
+        "platinumEmblems": [
+          "니우의 전투술"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "니우의 전투술"
+        ],
+        "platinumCandidatesFromTable": [
+          "니우의 전투술"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(여)",
+      "guideName": "소환사",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "교감"
+        ],
+        "platinumEmblems": [
+          "교감"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "교감"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(여)",
+      "guideName": "마도학자",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "퍼밀리어와 친하게 지내기"
+        ],
+        "platinumEmblems": [
+          "퍼밀리어와 친하게 지내기"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "화력 중심 : 퍼밀리어와 친하게 지내기"
+        ]
+      }
+    },
+    {
+      "classGroup": "마법사(여)",
+      "guideName": "인챈트리스",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=5"
+      },
+      "role": "buffer",
+      "avatar": {
+        "topOptions": [
+          "마리오네트"
+        ],
+        "platinumEmblems": [
+          "버프 : 퍼페티어"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "버프 : 퍼페티어"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(남)",
+      "guideName": "크루세이더",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=1"
+      },
+      "role": "buffer",
+      "avatar": {
+        "topOptions": [
+          "아포칼립스",
+          "용기의 은총"
+        ],
+        "platinumEmblems": [
+          "수호의 은총"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "용기의 은총",
+          "용기의 은총"
+        ],
+        "platinumCandidatesFromTable": [
+          "수호의 은총",
+          "용기의 은총"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(남)",
+      "guideName": "인파이터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "윌 드라이버"
+        ],
+        "platinumEmblems": [
+          "윌 드라이버"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "윌 드라이버",
+          "윌 드라이버"
+        ],
+        "platinumCandidatesFromTable": [
+          "윌 드라이버"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(남)",
+      "guideName": "퇴마사",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "신선의 경지"
+        ],
+        "platinumEmblems": [
+          "퇴마의 서"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "신선의 경지"
+        ],
+        "platinumCandidatesFromTable": [
+          "퇴마의 서"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(남)",
+      "guideName": "어벤저",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "환청"
+        ],
+        "platinumEmblems": [
+          "환청"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "환청",
+          "환청"
+        ],
+        "platinumCandidatesFromTable": [
+          "환청"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(여)",
+      "guideName": "크루세이더",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=1"
+      },
+      "role": "buffer",
+      "avatar": {
+        "topOptions": [
+          "크럭스 오브 빅토리아"
+        ],
+        "platinumEmblems": [
+          "버프 : 계시 : 아리아"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "버프 : 계시 : 아리아"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(여)",
+      "guideName": "이단심판관",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "성화"
+        ],
+        "platinumEmblems": [
+          "성화"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "성화",
+          "성화"
+        ],
+        "platinumCandidatesFromTable": [
+          "성화 or 배틀엑스 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(여)",
+      "guideName": "무녀",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "법력 강화"
+        ],
+        "platinumEmblems": [
+          "법력 강화"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "법력 강화",
+          "법력 강화"
+        ],
+        "platinumCandidatesFromTable": [
+          "법력 강화 or 천녀기우제"
+        ]
+      }
+    },
+    {
+      "classGroup": "프리스트(여)",
+      "guideName": "미스트리스",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "죄업에 짓눌린 육신"
+        ],
+        "platinumEmblems": [
+          "죄업에 짓눌린 육신"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "죄업에 짓눌린 육신"
+        ]
+      }
+    },
+    {
+      "classGroup": "도적",
+      "guideName": "로그",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "무기 마스터리"
+        ],
+        "platinumEmblems": [
+          "무기 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "무기 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "도적",
+      "guideName": "사령술사",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "발라크르의 맹약"
+        ],
+        "platinumEmblems": [
+          "발라크르의 맹약"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "발라크르의 맹약",
+          "발라크르의 맹약"
+        ],
+        "platinumCandidatesFromTable": [
+          "발라크르의 맹약"
+        ]
+      }
+    },
+    {
+      "classGroup": "도적",
+      "guideName": "쿠노이치",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "인법 : 잔영 남기기",
+          "인법 : 잔영남기기"
+        ],
+        "platinumEmblems": [
+          "인법 : 잔영 남기기"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "인법 : 잔영 남기기",
+          "인법 : 잔영 남기기"
+        ],
+        "platinumCandidatesFromTable": [
+          "인법 : 잔영 남기기"
+        ]
+      }
+    },
+    {
+      "classGroup": "도적",
+      "guideName": "섀도우댄서",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "날카로운 단검"
+        ],
+        "platinumEmblems": [
+          "날카로운 단검"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "날카로운 단검",
+          "날카로운 단검"
+        ],
+        "platinumCandidatesFromTable": [
+          "날카로운 단검"
+        ]
+      }
+    },
+    {
+      "classGroup": "나이트",
+      "guideName": "엘븐나이트",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "대자연의 가호"
+        ],
+        "platinumEmblems": [
+          "강인한 신념"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "강인한 신념 or 체인러시"
+        ]
+      }
+    },
+    {
+      "classGroup": "나이트",
+      "guideName": "카오스",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "혼혈"
+        ],
+        "platinumEmblems": [
+          "혼혈"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "혼혈",
+          "혼혈"
+        ],
+        "platinumCandidatesFromTable": [
+          "혼혈"
+        ]
+      }
+    },
+    {
+      "classGroup": "나이트",
+      "guideName": "팔라딘",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "세라픽 페더"
+        ],
+        "platinumEmblems": [
+          "세라픽 페더"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "세라픽 페더"
+        ]
+      }
+    },
+    {
+      "classGroup": "나이트",
+      "guideName": "드래곤나이트",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "대식가, 아스트라 소환"
+        ],
+        "platinumEmblems": [
+          "대식가, 아스트라 소환"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "대식가, 아스트라 소환"
+        ]
+      }
+    },
+    {
+      "classGroup": "마창사",
+      "guideName": "뱅가드",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "임팩트 스매쉬"
+        ],
+        "platinumEmblems": [
+          "임팩트 스매쉬"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "임팩트 스매쉬",
+          "임팩트 스매쉬"
+        ],
+        "platinumCandidatesFromTable": [
+          "임팩트 스매쉬"
+        ]
+      }
+    },
+    {
+      "classGroup": "마창사",
+      "guideName": "듀얼리스트",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "미라지 부스트",
+          "장창 숙련"
+        ],
+        "platinumEmblems": [
+          "미라지 부스트"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "미라지 부스트"
+        ]
+      }
+    },
+    {
+      "classGroup": "마창사",
+      "guideName": "드래고니안 랜서",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "광창 마스터리"
+        ],
+        "platinumEmblems": [
+          "광창 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "광창 마스터리",
+          "광창 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "광창 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "마창사",
+      "guideName": "다크랜서",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "어둠의 투창 마스터리"
+        ],
+        "platinumEmblems": [
+          "어둠의 투창 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "어둠의 투창 마스터리",
+          "어둠의 투창 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "어둠의 투창 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "총검사",
+      "guideName": "히트맨",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "장도 마스터리",
+          "장도 마스터리"
+        ],
+        "platinumEmblems": [
+          "장도 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "장도 마스터리",
+          "장도 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "장도 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "총검사",
+      "guideName": "요원",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "소태도 마스터리",
+          "소태도 마스터리"
+        ],
+        "platinumEmblems": [
+          "소태도 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "소태도 마스터리",
+          "소태도 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "소태도 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "총검사",
+      "guideName": "트러블슈터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "중검 마스터리"
+        ],
+        "platinumEmblems": [
+          "중검 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "중검 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "총검사",
+      "guideName": "스페셜리스트",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "코어 블레이드 마스터리",
+          "코어 블레이드 마스터리"
+        ],
+        "platinumEmblems": [
+          "코어 블레이드 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "코어 블레이드 마스터리",
+          "코어 블레이드 마스터리"
+        ],
+        "platinumCandidatesFromTable": [
+          "코어 블레이드 마스터리, 인젝션"
+        ]
+      }
+    },
+    {
+      "classGroup": "아처",
+      "guideName": "뮤즈",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=1"
+      },
+      "role": "buffer",
+      "avatar": {
+        "topOptions": [
+          "온 더 스테이지"
+        ],
+        "platinumEmblems": [
+          "센세이션"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": [
+          "센세이션"
+        ]
+      }
+    },
+    {
+      "classGroup": "아처",
+      "guideName": "트래블러",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "여행자의 직감"
+        ],
+        "platinumEmblems": [
+          "여행자의 직감"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "여행자의 직감",
+          "여행자의 직감"
+        ],
+        "platinumCandidatesFromTable": [
+          "여행자의 직감"
+        ]
+      }
+    },
+    {
+      "classGroup": "아처",
+      "guideName": "헌터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=3"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "사냥감 식별"
+        ],
+        "platinumEmblems": [
+          "사냥감 식별"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": []
+      }
+    },
+    {
+      "classGroup": "아처",
+      "guideName": "비질란테",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=4"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "특이체질"
+        ],
+        "platinumEmblems": [
+          "특이체질"
+        ],
+        "needsReview": true,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [],
+        "platinumCandidatesFromTable": []
+      }
+    },
+    {
+      "classGroup": "외전",
+      "guideName": "다크나이트",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=20&c2=1"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "차원일치"
+        ],
+        "platinumEmblems": [
+          "무기 마스터리"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "차원일치"
+        ],
+        "platinumCandidatesFromTable": [
+          "무기 마스터리"
+        ]
+      }
+    },
+    {
+      "classGroup": "외전",
+      "guideName": "크리에이터",
+      "source": {
+        "site": "df.gamechosun.co.kr",
+        "url": "https://df.gamechosun.co.kr/info/character/?c1=20&c2=2"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "계열 강화"
+        ],
+        "platinumEmblems": [
+          "계열 강화"
+        ],
+        "needsReview": false,
+        "extractor": "gamechosun-table-and-sentence-v1"
+      },
+      "review": {
+        "topOptionCandidatesFromSentence": [
+          "계열 강화",
+          "계열 강화"
+        ],
+        "platinumCandidatesFromTable": [
+          "계열 강화"
+        ]
+      }
+    }
+  ],
+  "errors": []
+}

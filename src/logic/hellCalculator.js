@@ -71,60 +71,80 @@ function sampleGeometricSteps(probability, rng) {
   return Math.floor(Math.log1p(-random) / Math.log1p(-probability)) + 1;
 }
   
-export function simulateCharacterCompletion(inputSets, epicRate, taechoRate, setCount, trials, seedText = '') {
-  const results = [];
+export function simulateCharacterCompletion(inputSets, epicRate, taechoRate, setCount, trials, seedText = '', targetSetNames = null) {
+  const results = new Array(trials);
   const maxRuns = 300000;
   const totalRate = epicRate + taechoRate;
   const epicShare = totalRate > 0 ? epicRate / totalRate : 0;
+  const targetSetNameSet = Array.isArray(targetSetNames) && targetSetNames.length
+    ? new Set(targetSetNames)
+    : null;
+  const setLength = inputSets.length;
+  const baseTaecho = new Int8Array(setLength);
+  const baseEpic = new Int8Array(setLength);
+  const isTargetSet = new Uint8Array(setLength);
+  let initialComplete = false;
+
+  for (let index = 0; index < setLength; index += 1) {
+    const set = inputSets[index];
+    const taecho = Math.min(TARGET_TAECHO, set.taecho);
+    const epic = Math.min(TARGET_EPIC, set.epic);
+    const isTarget = !targetSetNameSet || targetSetNameSet.has(set.name);
+    baseTaecho[index] = taecho;
+    baseEpic[index] = epic;
+    isTargetSet[index] = isTarget ? 1 : 0;
+    if (isTarget && taecho >= TARGET_TAECHO && epic >= TARGET_EPIC) {
+      initialComplete = true;
+    }
+  }
+
+  if (initialComplete) {
+    results.fill(0);
+    return results;
+  }
+
+  if (!(totalRate > 0)) {
+    results.fill(maxRuns);
+    return results;
+  }
+
+  const logMiss = Math.log1p(-totalRate);
   const rng = createSeededRng(seedText);
   
   for (let trial = 0; trial < trials; trial += 1) {
-    const states = inputSets.map((set) => ({
-      t: Math.min(TARGET_TAECHO, set.taecho),
-      e: Math.min(TARGET_EPIC, set.epic),
-    }));
+    const taechoCounts = new Int8Array(baseTaecho);
+    const epicCounts = new Int8Array(baseEpic);
     let run = 0;
-    let completed = false;
   
     while (run < maxRuns) {
-      if (states.some(isComplete)) {
-        results.push(run);
-        completed = true;
-        break;
-      }
-  
-      const step = sampleGeometricSteps(totalRate, rng);
-      if (!Number.isFinite(step)) {
-        break;
-      }
-  
+      const random = rng();
+      const step = Math.floor(Math.log1p(-random) / logMiss) + 1;
       run += step;
       if (run > maxRuns) {
         break;
       }
   
       const setIndex = Math.floor(rng() * setCount);
-      const target = states[setIndex];
-      if (target) {
+      if (setIndex < setLength) {
         if (rng() < epicShare) {
-          if (target.e < TARGET_EPIC) {
-            target.e += 1;
+          if (epicCounts[setIndex] < TARGET_EPIC) {
+            epicCounts[setIndex] += 1;
           }
-        } else if (target.t < TARGET_TAECHO) {
-          target.t += 1;
+        } else if (taechoCounts[setIndex] < TARGET_TAECHO) {
+          taechoCounts[setIndex] += 1;
+        }
+
+        if (
+          isTargetSet[setIndex] &&
+          taechoCounts[setIndex] >= TARGET_TAECHO &&
+          epicCounts[setIndex] >= TARGET_EPIC
+        ) {
+          break;
         }
       }
-  
-      if (states.some(isComplete)) {
-        results.push(run);
-        completed = true;
-        break;
-      }
     }
-  
-    if (!completed) {
-      results.push(maxRuns);
-    }
+
+    results[trial] = Math.min(run, maxRuns);
   }
   
   results.sort((a, b) => a - b);
@@ -139,6 +159,11 @@ export function percentileValue(sortedRuns, percentile) {
 }
   
 export function verdictClass(selectedHellCost, craftCost) {
+  if (craftCost <= 0) {
+    return selectedHellCost <= 0
+      ? { text: '졸업 완료', className: 'good' }
+      : { text: '정가 불필요', className: 'good' };
+  }
   const ratio = selectedHellCost / craftCost;
   if (ratio <= 0.9) return { text: '헬 유지', className: 'good' };
   if (ratio <= 1.1) return { text: '헬/정가 경계', className: 'warn' };
@@ -180,13 +205,21 @@ export function applySelectedPercentile(results, selectedPercentile) {
     const selectedRuns = percentileValue(result.sortedRuns, selectedPercentile);
     result.selectedRuns = selectedRuns;
     result.selectedHellCost = selectedRuns * result.netCost;
-    result.ratio = result.selectedHellCost / result.craftBest.craftCost;
+    result.ratio = result.craftBest.craftCost > 0 ? result.selectedHellCost / result.craftBest.craftCost : 0;
     result.verdict = verdictClass(result.selectedHellCost, result.craftBest.craftCost);
   }
 }
   
 export function calcCharacter(character, config) {
-  const setRows = buildSetRows(character.sets, config.taechoCraftCost, config.epicCraftCost);
+  const aliveSetNameSet = new Set(
+    Array.isArray(character.aliveSetNames) && character.aliveSetNames.length
+      ? character.aliveSetNames
+      : character.sets.map((set) => set.name)
+  );
+  const aliveSets = character.sets.filter((set) => aliveSetNameSet.has(set.name));
+  const targetSets = aliveSets.length ? aliveSets : character.sets;
+  const setRows = buildSetRows(targetSets, config.taechoCraftCost, config.epicCraftCost);
+  const allSetRows = buildSetRows(character.sets, config.taechoCraftCost, config.epicCraftCost);
   const craftBest = setRows[0];
   const seedText = JSON.stringify({
     characterKey: character.key,
@@ -202,7 +235,8 @@ export function calcCharacter(character, config) {
     config.taechoRate,
     config.setCount,
     config.trials,
-    seedText
+    seedText,
+    targetSets.map((set) => set.name)
   );
   
   const meanRuns = sortedRuns.reduce((acc, value) => acc + value, 0) / sortedRuns.length;
@@ -220,7 +254,12 @@ export function calcCharacter(character, config) {
     jobName: character.jobName || '',
     jobGrowId: character.jobGrowId || '',
     jobGrowName: character.jobGrowName || '',
+    sets: character.sets,
+    aliveSetNames: targetSets.map((set) => set.name),
+    aliveSetCount: targetSets.length,
+    totalSetCount: config.setCount,
     setRows,
+    allSetRows,
     craftBest,
     sortedRuns,
     hellPerRun: config.hellPerRun,

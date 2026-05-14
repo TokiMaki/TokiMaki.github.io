@@ -1,0 +1,1073 @@
+{
+  "schemaVersion": 3,
+  "sources": {
+    "cost": "Docs/강화.txt",
+    "safeWeaponReinforcement": "Docs/무기안전강화.json",
+    "stat": "Docs/증폭별증가량.json",
+    "weaponAttack": "Docs/무기물마독상승량.json"
+  },
+  "rules": {
+    "failureBeforeLevel10": "실패시 단계 유지",
+    "weaponDestructionFromLevel13": "무기는 13강 도전부터 실패시 강화보호권 1개 소모 후 0강 복귀",
+    "specialEquipmentDestructionFromLevel11": "보조장비/마법석/귀걸이는 11강 도전부터 실패시 강화보호권 1개 소모 후 0강 복귀",
+    "recommendedSlots": [
+      "weapon",
+      "support",
+      "magicStone",
+      "earring"
+    ],
+    "statApplication": {
+      "weapon": "12강부터 최종데미지 적용",
+      "support": "추가 스탯만 적용",
+      "magicStone": "추가 스탯만 적용",
+      "earring": "물리/마법/독립 공격력과 12강부터 최종데미지 적용",
+      "finalDamage": "강화 12강은 0.4%, 이후는 11증 이후 최종데미지 테이블을 한 단계씩 밀어 사용",
+      "finalDamageField": "최종데미지는 gain과 분리해 finalDamagePercent에 기록"
+    },
+    "safeWeaponReinforcement": {
+      "range": "0강부터 12강까지 무기 안전강화 비용을 우선 기준으로 사용",
+      "failure": "단계 하락 없음",
+      "bonusPercent": "실패할 때마다 다음 시도 성공률에 누적 가산"
+    }
+  },
+  "reinforcement": [
+    {
+      "level": 1,
+      "successRatePercent": 100.0,
+      "gain": {
+        "weapon": {
+          "attack": null
+        },
+        "support": {
+          "additionalStat": 7
+        },
+        "magicStone": {
+          "additionalStat": 7
+        },
+        "earring": {
+          "attack": 12
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 177300.0,
+          "colorlessCube": 10.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 147750.0,
+          "colorlessCube": 10.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 177300.0,
+          "colorlessCube": 10.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 147750.0,
+          "colorlessCube": 10.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 2,
+      "successRatePercent": 100.0,
+      "gain": {
+        "weapon": {
+          "attack": null
+        },
+        "support": {
+          "additionalStat": 5
+        },
+        "magicStone": {
+          "additionalStat": 5
+        },
+        "earring": {
+          "attack": 4
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 177300.0,
+          "colorlessCube": 20.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 147750.0,
+          "colorlessCube": 20.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 354600.0,
+          "colorlessCube": 30.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 295500.0,
+          "colorlessCube": 30.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 3,
+      "successRatePercent": 100.0,
+      "gain": {
+        "weapon": {
+          "attack": null
+        },
+        "support": {
+          "additionalStat": 4
+        },
+        "magicStone": {
+          "additionalStat": 4
+        },
+        "earring": {
+          "attack": 6
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 177300.0,
+          "colorlessCube": 30.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 147750.0,
+          "colorlessCube": 30.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 531900.0,
+          "colorlessCube": 60.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 443250.0,
+          "colorlessCube": 60.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 4,
+      "successRatePercent": 100.0,
+      "gain": {
+        "weapon": {
+          "attack": null
+        },
+        "support": {
+          "additionalStat": 5
+        },
+        "magicStone": {
+          "additionalStat": 5
+        },
+        "earring": {
+          "attack": 5
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 177300.0,
+          "colorlessCube": 40.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 147750.0,
+          "colorlessCube": 40.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 709200.0,
+          "colorlessCube": 100.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 591000.0,
+          "colorlessCube": 100.0,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 5,
+      "successRatePercent": 80.0,
+      "gain": {
+        "weapon": {
+          "attack": null
+        },
+        "support": {
+          "additionalStat": 8
+        },
+        "magicStone": {
+          "additionalStat": 8
+        },
+        "earring": {
+          "attack": 5
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 443250.0,
+          "colorlessCube": 62.5,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 369375.0,
+          "colorlessCube": 62.5,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 1152450.0,
+          "colorlessCube": 162.5,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 960375.0,
+          "colorlessCube": 162.5,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 6,
+      "successRatePercent": 70.0,
+      "gain": {
+        "weapon": {
+          "attack": null
+        },
+        "support": {
+          "additionalStat": 7
+        },
+        "magicStone": {
+          "additionalStat": 7
+        },
+        "earring": {
+          "attack": 8
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 557228.571429,
+          "colorlessCube": 85.714286,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 464357.142857,
+          "colorlessCube": 85.714286,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 1709678.571429,
+          "colorlessCube": 248.214286,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 1424732.142857,
+          "colorlessCube": 248.214286,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 7,
+      "successRatePercent": 60.0,
+      "gain": {
+        "weapon": {
+          "attack": 215
+        },
+        "support": {
+          "additionalStat": 8
+        },
+        "magicStone": {
+          "additionalStat": 8
+        },
+        "earring": {
+          "attack": 7
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 709200.0,
+          "colorlessCube": 116.666667,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 591000.0,
+          "colorlessCube": 116.666667,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 2418878.571429,
+          "colorlessCube": 364.880952,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 2015732.142857,
+          "colorlessCube": 364.880952,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 8,
+      "successRatePercent": 50.0,
+      "gain": {
+        "weapon": {
+          "attack": 73
+        },
+        "support": {
+          "additionalStat": 31
+        },
+        "magicStone": {
+          "additionalStat": 31
+        },
+        "earring": {
+          "attack": 8
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 921960.0,
+          "colorlessCube": 160.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 768300.0,
+          "colorlessCube": 160.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 3340838.571429,
+          "colorlessCube": 524.880952,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 2784032.142857,
+          "colorlessCube": 524.880952,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 9,
+      "successRatePercent": 40.0,
+      "gain": {
+        "weapon": {
+          "attack": 93
+        },
+        "support": {
+          "additionalStat": 19
+        },
+        "magicStone": {
+          "additionalStat": 19
+        },
+        "earring": {
+          "attack": 7
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 1241100.0,
+          "colorlessCube": 225.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 1034250.0,
+          "colorlessCube": 225.0,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 4581938.571429,
+          "colorlessCube": 749.880952,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 3818282.142857,
+          "colorlessCube": 749.880952,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 10,
+      "successRatePercent": 30.0,
+      "gain": {
+        "weapon": {
+          "attack": 109
+        },
+        "support": {
+          "additionalStat": 20
+        },
+        "magicStone": {
+          "additionalStat": 20
+        },
+        "earring": {
+          "attack": 19
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 1773000.0,
+          "colorlessCube": 333.333333,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 1477500.0,
+          "colorlessCube": 333.333333,
+          "protectionTicket": 0.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 6354938.571429,
+          "colorlessCube": 1083.214286,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 5295782.142857,
+          "colorlessCube": 1083.214286,
+          "protectionTicket": 0.0
+        }
+      }
+    },
+    {
+      "level": 11,
+      "successRatePercent": 25.0,
+      "gain": {
+        "weapon": {
+          "attack": 216
+        },
+        "support": {
+          "additionalStat": 50
+        },
+        "magicStone": {
+          "additionalStat": 50
+        },
+        "earring": {
+          "attack": 44
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0,
+        "earring": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 2127600.0,
+          "colorlessCube": 480.0,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 17660346.428571,
+          "colorlessCube": 3729.642857,
+          "protectionTicket": 3.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 8482538.571429,
+          "colorlessCube": 1563.214286,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 22956128.571429,
+          "colorlessCube": 4812.857143,
+          "protectionTicket": 3.0
+        }
+      }
+    },
+    {
+      "level": 12,
+      "successRatePercent": 15.0,
+      "gain": {
+        "weapon": {
+          "attack": 255
+        },
+        "support": {
+          "additionalStat": 53
+        },
+        "magicStone": {
+          "additionalStat": 53
+        },
+        "earring": {
+          "attack": 63
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0.4,
+        "earring": 0.4
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 5910000.0,
+          "colorlessCube": 933.333333,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 135009728.571427,
+          "colorlessCube": 28206.190476,
+          "protectionTicket": 22.666667
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 14392538.571429,
+          "colorlessCube": 2496.547619,
+          "protectionTicket": 0.0
+        },
+        "specialEquipment": {
+          "gold": 157965857.142856,
+          "colorlessCube": 33019.047619,
+          "protectionTicket": 25.666667
+        }
+      }
+    },
+    {
+      "level": 13,
+      "successRatePercent": 14.0,
+      "gain": {
+        "weapon": {
+          "attack": 165
+        },
+        "support": {
+          "additionalStat": 71
+        },
+        "magicStone": {
+          "additionalStat": 71
+        },
+        "earring": {
+          "attack": 62
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0.3,
+        "earring": 0.3
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 108674165.510204,
+          "colorlessCube": 16478.792517,
+          "protectionTicket": 6.142857
+        },
+        "specialEquipment": {
+          "gold": 987247408.163206,
+          "colorlessCube": 203974.14966,
+          "protectionTicket": 163.809524
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 123066704.081632,
+          "colorlessCube": 18975.340136,
+          "protectionTicket": 6.142857
+        },
+        "specialEquipment": {
+          "gold": 1145213265.306053,
+          "colorlessCube": 236993.197279,
+          "protectionTicket": 189.47619
+        }
+      }
+    },
+    {
+      "level": 14,
+      "successRatePercent": 13.0,
+      "gain": {
+        "weapon": {
+          "attack": 162
+        },
+        "support": {
+          "additionalStat": 187
+        },
+        "magicStone": {
+          "additionalStat": 187
+        },
+        "earring": {
+          "attack": 127
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0.3,
+        "earring": 0.3
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 856332558.084764,
+          "colorlessCube": 128373.430141,
+          "protectionTicket": 47.802198
+        },
+        "specialEquipment": {
+          "gold": 7691396467.815706,
+          "colorlessCube": 1587416.012558,
+          "protectionTicket": 1274.725275
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 979399262.166396,
+          "colorlessCube": 147348.770277,
+          "protectionTicket": 53.945055
+        },
+        "specialEquipment": {
+          "gold": 8836609733.1215,
+          "colorlessCube": 1824409.209837,
+          "protectionTicket": 1464.201465
+        }
+      }
+    },
+    {
+      "level": 15,
+      "successRatePercent": 12.0,
+      "gain": {
+        "weapon": {
+          "attack": 165
+        },
+        "support": {
+          "additionalStat": 169
+        },
+        "magicStone": {
+          "additionalStat": 169
+        },
+        "earring": {
+          "attack": 147
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0.2,
+        "earring": 0.2
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 7232496255.885339,
+          "colorlessCube": 1082224.315367,
+          "protectionTicket": 402.930403
+        },
+        "specialEquipment": {
+          "gold": 64843667209.3763,
+          "colorlessCube": 13380667.538769,
+          "protectionTicket": 10744.810745
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 8211895518.051522,
+          "colorlessCube": 1229573.085644,
+          "protectionTicket": 456.875458
+        },
+        "specialEquipment": {
+          "gold": 73680276942.47307,
+          "colorlessCube": 15205076.748601,
+          "protectionTicket": 12209.01221
+        }
+      }
+    },
+    {
+      "level": 16,
+      "successRatePercent": 11.0,
+      "gain": {
+        "weapon": {
+          "attack": 163
+        },
+        "support": {
+          "additionalStat": 181
+        },
+        "magicStone": {
+          "additionalStat": 181
+        },
+        "earring": {
+          "attack": 194
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0.2,
+        "earring": 0.2
+      },
+      "stepExpected": {
+        "weapon": {
+          "gold": 66515843736.86282,
+          "colorlessCube": 9950364.056561,
+          "protectionTicket": 3704.628705
+        },
+        "specialEquipment": {
+          "gold": 596202208891.4181,
+          "colorlessCube": 123024893.691831,
+          "protectionTicket": 98790.098789
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "gold": 74727739254.90205,
+          "colorlessCube": 11179937.142204,
+          "protectionTicket": 4161.504162
+        },
+        "specialEquipment": {
+          "gold": 669882485833.0541,
+          "colorlessCube": 138229970.44026,
+          "protectionTicket": 110999.110999
+        }
+      }
+    }
+  ],
+  "safeWeaponReinforcement": [
+    {
+      "level": 1,
+      "successRatePercent": 100,
+      "bonusPercent": null,
+      "gain": {
+        "weapon": {
+          "attack": null
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 40,
+          "gold": 124448
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 40,
+          "gold": 124448
+        }
+      }
+    },
+    {
+      "level": 2,
+      "successRatePercent": 100,
+      "bonusPercent": null,
+      "gain": {
+        "weapon": {
+          "attack": null
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 41,
+          "gold": 124448
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 81,
+          "gold": 248896
+        }
+      }
+    },
+    {
+      "level": 3,
+      "successRatePercent": 100,
+      "bonusPercent": null,
+      "gain": {
+        "weapon": {
+          "attack": null
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 43,
+          "gold": 124448
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 124,
+          "gold": 373344
+        }
+      }
+    },
+    {
+      "level": 4,
+      "successRatePercent": 100,
+      "bonusPercent": null,
+      "gain": {
+        "weapon": {
+          "attack": null
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 44,
+          "gold": 124448
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 168,
+          "gold": 497792
+        }
+      }
+    },
+    {
+      "level": 5,
+      "successRatePercent": 80,
+      "bonusPercent": 5,
+      "gain": {
+        "weapon": {
+          "attack": null
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 100,
+          "gold": 305689
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 268,
+          "gold": 803481
+        }
+      }
+    },
+    {
+      "level": 6,
+      "successRatePercent": 70,
+      "bonusPercent": 5,
+      "gain": {
+        "weapon": {
+          "attack": null
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 127,
+          "gold": 380461
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 395,
+          "gold": 1188096
+        }
+      }
+    },
+    {
+      "level": 7,
+      "successRatePercent": 60,
+      "bonusPercent": 5,
+      "gain": {
+        "weapon": {
+          "attack": 215
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 158,
+          "gold": 530436
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 553,
+          "gold": 1718532
+        }
+      }
+    },
+    {
+      "level": 8,
+      "successRatePercent": 50,
+      "bonusPercent": 5,
+      "gain": {
+        "weapon": {
+          "attack": 73
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 204,
+          "gold": 618204
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 757,
+          "gold": 2336736
+        }
+      }
+    },
+    {
+      "level": 9,
+      "successRatePercent": 40,
+      "bonusPercent": 5,
+      "gain": {
+        "weapon": {
+          "attack": 93
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 274,
+          "gold": 834789
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 1031,
+          "gold": 3171525
+        }
+      }
+    },
+    {
+      "level": 10,
+      "successRatePercent": 30,
+      "bonusPercent": 5,
+      "gain": {
+        "weapon": {
+          "attack": 109
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 383,
+          "gold": 1154304
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 1414,
+          "gold": 4325829
+        }
+      }
+    },
+    {
+      "level": 11,
+      "successRatePercent": 10,
+      "bonusPercent": 2,
+      "gain": {
+        "weapon": {
+          "attack": 216
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 2859,
+          "gold": 8651294
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 4273,
+          "gold": 12977123
+        }
+      }
+    },
+    {
+      "level": 12,
+      "successRatePercent": 6,
+      "bonusPercent": 2,
+      "gain": {
+        "weapon": {
+          "attack": 255
+        }
+      },
+      "finalDamagePercent": {
+        "weapon": 0.4
+      },
+      "stepExpected": {
+        "weapon": {
+          "lionCore": 10667,
+          "gold": 32271875
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "lionCore": 14940,
+          "gold": 45248998
+        }
+      }
+    }
+  ]
+}
