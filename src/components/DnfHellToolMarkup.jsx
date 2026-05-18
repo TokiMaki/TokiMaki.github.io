@@ -1,3 +1,5 @@
+const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
+
 export default function DnfHellToolMarkup() {
   return (
     <div className={'wrap'}>
@@ -235,24 +237,21 @@ export default function DnfHellToolMarkup() {
               </div>
             </div>
             <div className={'foot'}>
-              현재 계산은 브라우저 내 단순 시뮬레이션입니다. 가정은 다음과 같습니다.
-              에픽/태초 드랍 후 세트는 균등 분배로 가정하며, 목표는
-              <strong>살아있는 세트 중 하나가 3태초 + 8에픽 완성</strong>
+              목표는<strong>살아있는 세트 중 하나가 3태초 + 8에픽 완성</strong>
               상태가 되는 순간입니다.
               즉, 태초 3칸과 에픽 8칸을 별도 슬롯으로 보고 계산합니다.
               헬 1판 순원가는
               <strong>한판 계시량 - 회수 계시량</strong>
               으로 계산합니다.
-              overview 행을 클릭하거나 드롭다운을 바꾸면 해당 캐릭 상세를 바로 볼 수 있습니다.
             </div>
           </section>
         </main>
       </section>
       <section className={'grid tab-panel'} id={'enchantPanel'} hidden>
         <aside className={'panel'}>
-          <h2>마법부여 기준</h2>
+          <h2>스펙업 순서</h2>
           <div className={'supply-note'}>
-            카드/크리쳐 DB와 경매장 최저가로 골드 대비 딜 상승 효율을 정렬합니다.
+            모든 스펙업 요소들을 골드 대비 딜 상승 효율을 정렬합니다.
           </div>
           <div className={'loader-row supply-input-row'}>
             <div className={'field'}>
@@ -537,9 +536,11 @@ export default function DnfHellToolMarkup() {
           </section>
         </main>
       </section>
-      <div className={'utility-footer'}>
-        <button type={'button'} className={'ghost-button footer-dev-toggle'} id={'devModeToggle'} aria-pressed={'false'}>개발자 모드</button>
-      </div>
+      {ENABLE_DEV_MODE ? (
+        <div className={'utility-footer'}>
+          <button type={'button'} className={'ghost-button footer-dev-toggle'} id={'devModeToggle'} aria-pressed={'false'}>개발자 모드</button>
+        </div>
+      ) : null}
     </div>
   );
 }

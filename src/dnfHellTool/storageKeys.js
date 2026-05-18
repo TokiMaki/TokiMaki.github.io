@@ -16,6 +16,7 @@ function resolveApiBase() {
 }
 
 export const API_BASE = resolveApiBase();
+export const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
 
 export async function parseApiJsonResponse(response, fallbackMessage = 'API 요청에 실패했습니다.') {
   const text = await response.text();

@@ -44,6 +44,7 @@ export function installBrowserState(ctx) {
     ACTIVE_TAB_STORAGE_KEY,
     API_BASE,
     DEV_MODE_STORAGE_KEY,
+    ENABLE_DEV_MODE,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
     SUPPLY_CHARACTER_FATIGUE_POTIONS,
@@ -70,6 +71,7 @@ function getSelectedPercentile() {
 }
 
 function readDevModePreference() {
+  if (!ENABLE_DEV_MODE) return false;
   try {
     return localStorage.getItem(DEV_MODE_STORAGE_KEY) === '1';
   } catch {
@@ -78,6 +80,7 @@ function readDevModePreference() {
 }
 
 function writeDevModePreference(enabled) {
+  if (!ENABLE_DEV_MODE) return;
   try {
     localStorage.setItem(DEV_MODE_STORAGE_KEY, enabled ? '1' : '0');
   } catch {
@@ -102,6 +105,9 @@ function refreshModeLabels(selectedPercentile = getSelectedPercentile()) {
 }
 
 function setDevMode(enabled) {
+  if (!ENABLE_DEV_MODE) {
+    enabled = false;
+  }
   state.isDevMode = Boolean(enabled);
   document.body.classList.toggle('dev-mode', state.isDevMode);
   writeDevModePreference(state.isDevMode);

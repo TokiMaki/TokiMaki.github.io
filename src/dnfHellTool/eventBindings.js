@@ -106,9 +106,11 @@ export function bindToolEvents(ctx) {
 // Event bindings and bootstrap
 // -------------------------------------------------------------------------
   
-els.devModeToggle.addEventListener('click', () => {
-  setDevMode(!state.isDevMode);
-});
+if (els.devModeToggle) {
+  els.devModeToggle.addEventListener('click', () => {
+    setDevMode(!state.isDevMode);
+  });
+}
 els.hellTabButton.addEventListener('click', () => {
   setActiveTab('hellPanel');
 });
