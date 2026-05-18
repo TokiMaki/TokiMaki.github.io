@@ -2,7 +2,7 @@ export default function DnfHellToolMarkup() {
   return (
     <div className={'wrap'}>
       <section className={'hero'}>
-        <h1>헬 플래너</h1>
+        <h1>던파일럿</h1>
         <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
           <button type={'button'} className={'tab-button active'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'true'}>헬 계산기</button>
           <button type={'button'} className={'tab-button'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
