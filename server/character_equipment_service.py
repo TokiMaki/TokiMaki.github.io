@@ -42,7 +42,31 @@ def status_rows_to_map(status_rows: list) -> dict:
     }
 
 
-def load_character_damage_baseline(server_id: str, character_id: str) -> dict:
+def parse_element_bonus_from_text(text: str) -> float:
+    values = [
+        parse_percent_or_number(match.group(1))
+        for match in re.finditer(r"(?:모든\s*)?속성\s*강화\s*\+?\s*([0-9.]+)", clean_text(text))
+    ]
+    return max(values or [0])
+
+
+def get_equipment_base_element_bonus(equipment_rows: list) -> float:
+    item_ids = {
+        clean_text(row.get("itemId")): clean_text(row.get("slotId"))
+        for row in equipment_rows or []
+        if clean_text(row.get("itemId")) and clean_text(row.get("slotId")) != "TITLE"
+    }
+    total = 0
+    for detail in fetch_item_details(list(item_ids.keys())):
+        effects = normalize_enchant_status(detail.get("itemStatus") or [])
+        explain_element = parse_element_bonus_from_text(
+            detail.get("itemExplainDetail") or detail.get("itemExplain") or ""
+        )
+        total += max(effects.get("elementAll", 0), explain_element)
+    return total
+
+
+def load_character_damage_baseline(server_id: str, character_id: str, equipment_base_element: float = 0) -> dict:
     url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/status?apikey={API_KEY}"
     payload = request_json(url)
     status = status_rows_to_map(payload.get("status") or [])
@@ -54,7 +78,13 @@ def load_character_damage_baseline(server_id: str, character_id: str) -> dict:
         status.get("수속성 강화", 0),
         status.get("명속성 강화", 0),
         status.get("암속성 강화", 0),
-    )
+    ) + equipment_base_element
+    status_element_damage = max(
+        value
+        for key, value in status.items()
+        if "속성 피해" in key
+    ) if any("속성 피해" in key for key in status) else 0
+    element_damage = status_element_damage + equipment_base_element * 0.45 if status_element_damage else 0
     attack_value = max(
         status.get("물리 공격", 0),
         status.get("마법 공격", 0),
@@ -67,6 +97,8 @@ def load_character_damage_baseline(server_id: str, character_id: str) -> dict:
         "jobGrowName": job_grow_name,
         "attack": attack_value,
         "element": element_strength,
+        "elementDamage": element_damage,
+        "equipmentBaseElement": equipment_base_element,
         "attackIncrease": status.get("공격력 증가", 0),
         "attackAmplification": status.get("공격력 증폭", 0),
     }
@@ -109,7 +141,11 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "characterId": payload.get("characterId"),
         "characterName": payload.get("characterName"),
         "fame": payload.get("fame"),
-        "damageBaseline": load_character_damage_baseline(server_id, character_id),
+        "damageBaseline": load_character_damage_baseline(
+            server_id,
+            character_id,
+            get_equipment_base_element_bonus(payload.get("equipment") or []),
+        ),
         "enchants": rows,
         "equipmentUpgrades": equipment_upgrades,
         "blackFangRecommendations": build_black_fang_recommendations(payload.get("equipment") or []),

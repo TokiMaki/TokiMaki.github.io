@@ -56,11 +56,13 @@ const UPGRADE_MATERIAL_LABELS = {
   harmonyCrystal: '조화의 결정체',
   contradictionCrystal: '모순의 결정체',
   colorlessCube: '무색 큐브 조각',
+  lionCore: '라이언 코어',
 };
 const UPGRADE_MATERIAL_ICON_IDS = {
   harmonyCrystal: 'ab8eab6848ed81b8bdd65d1c5a6ae8b2',
   contradictionCrystal: 'f1afc13118b2b07ec1e3b8c2f1958b03',
   colorlessCube: '785e56a0ed4e3efd573da1f56a45217d',
+  lionCore: '3840051cf487429c5a757c8bdb00e33b',
   amplificationProtectionTicket: '55be75a1c024aac3ef84ed3bed5b8db9',
   reinforcementProtectionTicket: '8bc063c2b80179bc002f7dfb8203c4ab',
 };
@@ -78,8 +80,7 @@ const REGION_STAT_SCALE = 3.08;
 const REGION_STAT_OFFSET = 2886;
 const REGION_ATTACK_FLAT = 31215;
 const ELEMENT_DAMAGE_PER_ELEMENT = 0.45;
-const EQUIPMENT_BASE_ELEMENT = 130;
-const ELEMENT_BASE_MULTIPLIER = 1.05;
+const ELEMENT_BASE_DAMAGE_PERCENT = 5;
 
 function formatGold(value) {
   if (!Number.isFinite(value) || value <= 0) return '-';
@@ -224,6 +225,9 @@ function getDamageBaseline(baseline = {}) {
     statName: baseline.statName === '지능' ? '지능' : '힘',
     baseStat,
     element: Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element,
+    elementDamage: Number.isFinite(Number(baseline.elementDamage))
+      ? Number(baseline.elementDamage)
+      : ELEMENT_BASE_DAMAGE_PERCENT + (Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element) * ELEMENT_DAMAGE_PER_ELEMENT,
     attack: Number(baseline.attack || 0) || ENCHANT_DAMAGE_BASELINE.attack,
     finalDamage: Number(baseline.finalDamage || 0),
     attackIncrease: Number(baseline.attackIncrease || 0) || ENCHANT_DAMAGE_BASELINE.attackIncrease,
@@ -255,11 +259,20 @@ function estimateDamagePercent(effects = {}, baseline = {}) {
 function estimateDamageMultiplier(effects = {}, baseline = {}) {
   effects = effects || {};
   const base = getDamageBaseline(baseline);
-  const finalDamageMultiplier = 1 + (base.finalDamage + Number(effects.finalDamage || 0)) / 100;
-  const attackIncreaseMultiplier = 1 + (base.attackIncrease + Number(effects.attackIncrease || 0)) / 100;
-  const attackAmplificationMultiplier = 1 + (base.attackAmplification + Number(effects.attackAmplification || 0)) / 100;
-  const element = EQUIPMENT_BASE_ELEMENT + base.element + Number(effects.elementAll || 0);
-  const elementMultiplier = ELEMENT_BASE_MULTIPLIER + element * ELEMENT_DAMAGE_PER_ELEMENT / 100;
+  const currentFinalDamageMultiplier = 1 + base.finalDamage / 100;
+  const candidateFinalDamageMultiplier = 1 + (base.finalDamage + Number(effects.finalDamage || 0)) / 100;
+  const finalDamageMultiplier = candidateFinalDamageMultiplier / currentFinalDamageMultiplier;
+  const currentAttackIncreaseMultiplier = 1 + base.attackIncrease / 100;
+  const candidateAttackIncreaseMultiplier = 1 + (base.attackIncrease + Number(effects.attackIncrease || 0)) / 100;
+  const attackIncreaseMultiplier = candidateAttackIncreaseMultiplier / currentAttackIncreaseMultiplier;
+  const currentAttackAmplificationMultiplier = 1 + base.attackAmplification / 100;
+  const candidateAttackAmplificationMultiplier = 1 + (base.attackAmplification + Number(effects.attackAmplification || 0)) / 100;
+  const attackAmplificationMultiplier = candidateAttackAmplificationMultiplier / currentAttackAmplificationMultiplier;
+  const currentElementDamage = base.elementDamage;
+  const candidateElementDamage = currentElementDamage + Number(effects.elementAll || 0) * ELEMENT_DAMAGE_PER_ELEMENT;
+  const currentElementMultiplier = 1 + currentElementDamage / 100;
+  const candidateElementMultiplier = 1 + candidateElementDamage / 100;
+  const elementMultiplier = candidateElementMultiplier / currentElementMultiplier;
   const effectiveAttack = base.attack + REGION_ATTACK_FLAT;
   const attackMultiplier = (effectiveAttack + Number(effects.attack || 0)) / effectiveAttack;
   const statValue = getSelectedStatEffect(effects, base);
@@ -774,12 +787,56 @@ function getEffectSignature(effects = {}) {
     .join('|');
 }
 
+function getRecommendationDamageEffects(row, current) {
+  if (row.sourceType === 'upgrade') return row.effects || {};
+  if (row.sourceType === 'blackFang') {
+    return subtractEffects(
+      row.targetEffects || addEffects(row.currentEffects, row.effects),
+      row.currentEffects || {},
+    );
+  }
+  if (['avatar'].includes(row.sourceType)) return row.effects || {};
+  return subtractEffects(row.effects || {}, current?.effects || {});
+}
+
+function getElementDeltaEffects(targetEffects = {}, currentEffects = {}) {
+  const elementDelta = Number(targetEffects.elementAll || 0) - Number(currentEffects.elementAll || 0);
+  return elementDelta ? { elementAll: elementDelta } : {};
+}
+
+function getReplacementIncrementalDamagePercent(row, current, baseline) {
+  const currentEffects = current?.effects || {};
+  const targetEffects = row.effects || {};
+  const base = getDamageBaseline(baseline);
+  const baseFinalDamage = Math.max(0, base.finalDamage - Number(currentEffects.finalDamage || 0));
+  const currentFinalDamageMultiplier = 1 + (baseFinalDamage + Number(currentEffects.finalDamage || 0)) / 100;
+  const targetFinalDamageMultiplier = 1 + (baseFinalDamage + Number(targetEffects.finalDamage || 0)) / 100;
+  const finalDamageMultiplier = targetFinalDamageMultiplier / currentFinalDamageMultiplier;
+  const baseAttackIncrease = Math.max(0, base.attackIncrease - Number(currentEffects.attackIncrease || 0));
+  const currentAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(currentEffects.attackIncrease || 0)) / 100;
+  const targetAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(targetEffects.attackIncrease || 0)) / 100;
+  const attackIncreaseMultiplier = targetAttackIncreaseMultiplier / currentAttackIncreaseMultiplier;
+  const baseAttackAmplification = Math.max(0, base.attackAmplification - Number(currentEffects.attackAmplification || 0));
+  const currentAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(currentEffects.attackAmplification || 0)) / 100;
+  const targetAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(targetEffects.attackAmplification || 0)) / 100;
+  const attackAmplificationMultiplier = targetAttackAmplificationMultiplier / currentAttackAmplificationMultiplier;
+  const elementMultiplier = estimateDamageMultiplier(getElementDeltaEffects(targetEffects, currentEffects), baseline);
+  const currentAttack = base.attack + REGION_ATTACK_FLAT + Number(currentEffects.attack || 0);
+  const targetAttack = base.attack + REGION_ATTACK_FLAT + Number(targetEffects.attack || 0);
+  const attackMultiplier = targetAttack / currentAttack;
+  const currentStatValue = getSelectedStatEffect(currentEffects, base);
+  const targetStatValue = getSelectedStatEffect(targetEffects, base);
+  const currentEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + currentStatValue, base.baseStat);
+  const targetEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + targetStatValue, base.baseStat);
+  const statMultiplier = (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
+  return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier - 1) * 100;
+}
+
 function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreature, currentTitle, currentAura, baseline) {
   const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
   const bySlotTier = new Map();
   rows.forEach((row) => {
     if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
-    const estimatedDamagePercent = estimateDamagePercent(row.effects, baseline);
     const current = row.sourceType === 'upgrade'
       ? { effects: {} }
       : row.sourceType === 'blackFang'
@@ -805,18 +862,19 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     if (row.sourceType === 'creature' && current?.itemId && current.itemId === row.itemId) return;
     if (row.sourceType === 'title' && current?.itemId && current.itemId === row.itemId) return;
     if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
-    const blackFangCurrentEffects = row.sourceType === 'blackFang'
-      ? row.currentEffects || {}
-      : null;
-    const blackFangTargetEffects = row.sourceType === 'blackFang'
-      ? row.targetEffects || addEffects(row.currentEffects, row.effects)
-      : null;
-    const currentDamagePercent = row.sourceType === 'blackFang'
-      ? estimateDamagePercent(blackFangCurrentEffects, baseline)
-      : current?.estimatedDamagePercent || 0;
-    const currentDamageMultiplier = estimateDamageMultiplier(blackFangCurrentEffects || current?.effects || {}, baseline);
-    const candidateDamageMultiplier = estimateDamageMultiplier(blackFangTargetEffects || row.effects, baseline);
-    const incrementalDamagePercent = (candidateDamageMultiplier / currentDamageMultiplier - 1) * 100;
+    const isReplacement = !['upgrade', 'avatar'].includes(row.sourceType);
+    const damageEffects = getRecommendationDamageEffects(row, current);
+    const estimatedDamagePercent = isReplacement
+      ? getReplacementIncrementalDamagePercent(
+        row.sourceType === 'blackFang'
+          ? { ...row, effects: row.targetEffects || addEffects(row.currentEffects, row.effects) }
+          : row,
+        row.sourceType === 'blackFang' ? { effects: row.currentEffects || {} } : current,
+        baseline,
+      )
+      : estimateDamagePercent(damageEffects, baseline);
+    const currentDamagePercent = 0;
+    const incrementalDamagePercent = estimatedDamagePercent;
     if (incrementalDamagePercent <= 0.0001) return;
 
     const titleLevelKey = row.sourceType === 'title' && currentTitle?.levelTag ? row.levelTag || 0 : 0;
@@ -972,6 +1030,12 @@ export function installEnchantView(ctx) {
   function setEnchantCharacterStatus(text) {
     if (els.enchantCharacterStatus) {
       els.enchantCharacterStatus.textContent = text;
+    }
+  }
+
+  function setEnchantPriceStatus(text, devText = text) {
+    if (els.enchantStatus) {
+      els.enchantStatus.textContent = state.isDevMode ? devText : text;
     }
   }
 
@@ -1132,7 +1196,9 @@ export function installEnchantView(ctx) {
     state.currentDamageBaseline = payload.damageBaseline || null;
     state.currentEnchantCharacterKey = characterKey;
     const label = payload.characterName || character.name || character.characterName || character.characterId;
-    setEnchantCharacterStatus(`${label} 기준 · 현재 마부 ${state.currentEnchants.length}부위 · 강화/증폭 ${state.currentEquipmentUpgrades.length}부위 · 흑아 ${state.currentBlackFangRecommendations.length}부위`);
+    setEnchantCharacterStatus(state.isDevMode
+      ? `${label} 기준 · 현재 마부 ${state.currentEnchants.length}부위 · 강화/증폭 ${state.currentEquipmentUpgrades.length}부위 · 흑아 ${state.currentBlackFangRecommendations.length}부위`
+      : `${label} 기준`);
   }
 
   async function loadCurrentCreature() {
@@ -1273,7 +1339,7 @@ export function installEnchantView(ctx) {
       state.currentAvatarCharacterKey = '';
     }
     els.refreshEnchantCardsButton.disabled = true;
-    els.enchantStatus.textContent = '경매장 가격을 가져오는 중...';
+    setEnchantPriceStatus('시세 확인 중...', '경매장 가격을 가져오는 중...');
     try {
       const query = forceRefresh ? '?refresh=1' : '';
       const [enchantResponse, creatureResponse, titleResponse, auraResponse] = await Promise.all([
@@ -1324,9 +1390,11 @@ export function installEnchantView(ctx) {
       const errorText = errorCount ? `, 실패 ${errorCount}개` : '';
       const refreshingText = payload.cache?.refreshing || creaturePayload.cache?.refreshing || titlePayload.cache?.refreshing || auraPayload.cache?.refreshing ? ', 백그라운드 갱신 중' : '';
       const pricedAtText = state.enchantPricedAt || state.creaturePricedAt || state.titlePricedAt || state.auraPricedAt || '캐시 준비 중';
-      els.enchantStatus.textContent = `${state.enchantCards.length}개 카드 + 크리쳐 ${creatureCount}개 + 칭호 ${titleCount}개 + 오라 ${auraCount}개 + 아바타 ${avatarCount}개 가격 불러오기 완료 · ${pricedAtText}${refreshingText}${errorText}${currentEnchantError}`;
+      const devStatus = `${state.enchantCards.length}개 카드 + 크리쳐 ${creatureCount}개 + 칭호 ${titleCount}개 + 오라 ${auraCount}개 + 아바타 ${avatarCount}개 가격 불러오기 완료 · ${pricedAtText}${refreshingText}${errorText}${currentEnchantError}`;
+      const userStatus = currentEnchantError ? '일부 정보를 확인하지 못했습니다.' : '시세 반영 완료';
+      setEnchantPriceStatus(userStatus, devStatus);
     } catch (error) {
-      els.enchantStatus.textContent = error.message;
+      setEnchantPriceStatus(error.message);
     } finally {
       state.enchantLoading = false;
       els.refreshEnchantCardsButton.disabled = false;

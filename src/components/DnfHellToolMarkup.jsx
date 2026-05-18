@@ -70,7 +70,7 @@ export default function DnfHellToolMarkup() {
             </div>
             <div className={'field field-wide'}>
               <label>캐릭터 추가</label>
-              <div className={'loader-status'}>별도 이름 없이 이 컴퓨터 저장소에 자동 저장됩니다. 같은 브라우저/컴퓨터에서 다시 열면 유지됩니다.</div>
+              <div className={'loader-status dev-only'}>별도 이름 없이 이 컴퓨터 저장소에 자동 저장됩니다. 같은 브라우저/컴퓨터에서 다시 열면 유지됩니다.</div>
               <div className={'search-row'}>
                 <select id={'serverIdInput'} defaultValue={'cain'}>
                   <option value={'cain'}>카인</option>
@@ -291,16 +291,16 @@ export default function DnfHellToolMarkup() {
             </div>
           </div>
           <div className={'loader-actions'}>
-            <button type={'button'} className={'ghost-button'} id={'refreshEnchantCardsButton'}>가격 갱신</button>
+            <button type={'button'} className={'ghost-button'} id={'refreshEnchantCardsButton'}>시세 새로고침</button>
           </div>
-          <div className={'loader-status'} id={'enchantStatus'}>가격 미갱신</div>
+          <div className={'loader-status'} id={'enchantStatus'}></div>
         </aside>
         <main className={'stack'}>
           <section className={'panel section'}>
             <h2>스펙업 순서 추천</h2>
             <div className={'enchant-efficiency-legend'} id={'enchantEfficiencyLegend'}></div>
             <div className={'enchant-recommend-grid'} id={'enchantRecommendList'}>
-              <div className={'table-empty-cell'}>가격 갱신을 눌러 주세요.</div>
+              <div className={'table-empty-cell'}>시세를 먼저 불러와 주세요.</div>
             </div>
           </section>
         </main>
