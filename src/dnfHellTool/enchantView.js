@@ -154,7 +154,8 @@ function formatEffectNumber(value) {
 
 function formatEffectValue(key, value) {
   const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'critical'].includes(key) ? '%' : '';
-  return `${EFFECT_LABELS[key] || key} +${formatEffectNumber(value)}${suffix}`;
+  const sign = Number(value) < 0 ? '' : '+';
+  return `${EFFECT_LABELS[key] || key} ${sign}${formatEffectNumber(value)}${suffix}`;
 }
 
 function formatEffects(effects = {}) {
