@@ -33,17 +33,13 @@ from server.neople_client import (
 from server.price_cache import (
     AURA_PRICE_CACHE_PATH,
     CREATURE_PRICE_CACHE_PATH,
-    CREATURE_PRICE_CACHE_SECONDS,
     ENCHANT_PRICE_CACHE_PATH,
-    ENCHANT_PRICE_CACHE_SECONDS,
     TITLE_PRICE_CACHE_PATH,
     _AURA_PRICE_CACHE,
-    _CACHE_LOCK,
     _CREATURE_PRICE_CACHE,
     _ENCHANT_PRICE_CACHE,
     _TITLE_PRICE_CACHE,
     load_price_cache_from_disk,
-    start_periodic_price_refresh,
 )
 
 DEFAULT_HTML = "dnf_hell_vs_craft_percentile_tool_fixed.html"
@@ -328,11 +324,6 @@ def main():
     load_price_cache_from_disk(_CREATURE_PRICE_CACHE, CREATURE_PRICE_CACHE_PATH)
     load_price_cache_from_disk(_TITLE_PRICE_CACHE, TITLE_PRICE_CACHE_PATH)
     load_price_cache_from_disk(_AURA_PRICE_CACHE, AURA_PRICE_CACHE_PATH)
-    start_periodic_price_refresh([
-        (_ENCHANT_PRICE_CACHE, lambda: load_enchant_cards_with_prices(force_refresh=True, allow_stale=False)),
-        (_CREATURE_PRICE_CACHE, lambda: load_creature_upgrades_with_prices(force_refresh=True, allow_stale=False)),
-        (_TITLE_PRICE_CACHE, lambda: load_title_upgrades_with_prices(force_refresh=True, allow_stale=False)),
-    ])
     try:
         server.serve_forever()
     except KeyboardInterrupt:
