@@ -3,6 +3,7 @@
 import argparse
 import errno
 import json
+import os
 import sys
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -47,7 +48,7 @@ from server.price_cache import (
 
 DEFAULT_HTML = "dnf_hell_vs_craft_percentile_tool_fixed.html"
 HOST = "127.0.0.1"
-PORT = 8787
+PORT = int(os.environ.get("PORT") or 8787)
 
 
 def json_response(payload: dict) -> bytes:
