@@ -3,7 +3,7 @@ services:
     name: dnf-hell-api
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: python --version
     startCommand: python neople_hell_api_server.py --host 0.0.0.0
     healthCheckPath: /api/health
     envVars:
