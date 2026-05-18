@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "sources": {
     "cost": "Docs/강화.txt",
     "safeWeaponReinforcement": "Docs/무기안전강화.json",
@@ -30,6 +30,156 @@
       "bonusPercent": "실패할 때마다 다음 시도 성공률에 누적 가산"
     }
   },
+  "effectsByLevel": [
+    {
+      "level": 0
+    },
+    {
+      "level": 1
+    },
+    {
+      "level": 2
+    },
+    {
+      "level": 3
+    },
+    {
+      "level": 4
+    },
+    {
+      "level": 5,
+      "specialEquipment": {
+        "allStat": 15
+      }
+    },
+    {
+      "level": 6,
+      "specialEquipment": {
+        "allStat": 18
+      }
+    },
+    {
+      "level": 7,
+      "weapon": {
+        "attack": 215
+      },
+      "specialEquipment": {
+        "allStat": 21
+      }
+    },
+    {
+      "level": 8,
+      "weapon": {
+        "attack": 288
+      },
+      "specialEquipment": {
+        "allStat": 24
+      }
+    },
+    {
+      "level": 9,
+      "weapon": {
+        "attack": 381
+      },
+      "specialEquipment": {
+        "allStat": 28
+      }
+    },
+    {
+      "level": 10,
+      "weapon": {
+        "attack": 490
+      },
+      "specialEquipment": {
+        "allStat": 31
+      },
+      "earring": {
+        "attack": 54
+      }
+    },
+    {
+      "level": 11,
+      "weapon": {
+        "attack": 706
+      },
+      "specialEquipment": {
+        "allStat": 59
+      },
+      "earring": {
+        "attack": 85
+      }
+    },
+    {
+      "level": 12,
+      "weapon": {
+        "attack": 961,
+        "finalDamage": 0.4
+      },
+      "specialEquipment": {
+        "allStat": 88
+      },
+      "earring": {
+        "attack": 127,
+        "finalDamage": 0.4
+      }
+    },
+    {
+      "level": 13,
+      "weapon": {
+        "attack": 1126,
+        "finalDamage": 0.7
+      },
+      "specialEquipment": {
+        "allStat": 118
+      },
+      "earring": {
+        "attack": 170,
+        "finalDamage": 0.7
+      }
+    },
+    {
+      "level": 14,
+      "weapon": {
+        "attack": 1288,
+        "finalDamage": 1
+      },
+      "specialEquipment": {
+        "allStat": 177
+      },
+      "earring": {
+        "attack": 255,
+        "finalDamage": 1
+      }
+    },
+    {
+      "level": 15,
+      "weapon": {
+        "attack": 1453,
+        "finalDamage": 1.2
+      },
+      "specialEquipment": {
+        "allStat": 246
+      },
+      "earring": {
+        "attack": 355,
+        "finalDamage": 1.2
+      }
+    },
+    {
+      "level": 16,
+      "weapon": {
+        "attack": 1616,
+        "finalDamage": 1.4
+      },
+      "specialEquipment": {
+        "allStat": 315
+      },
+      "earring": {
+        "attack": 454,
+        "finalDamage": 1.4
+      }
+    }
+  ],
   "reinforcement": [
     {
       "level": 1,

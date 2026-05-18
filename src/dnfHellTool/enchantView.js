@@ -182,6 +182,19 @@ function formatBlackFangEffect(row) {
   return parts.length ? parts.join(' / ') : formatEffects(row.effects);
 }
 
+function formatEnchantTransitionEffect(row) {
+  const currentEffects = row.currentEnchant?.effects || {};
+  const targetEffects = row.effects || {};
+  const changedKeys = EFFECT_ORDER
+    .filter((key) => Number.isFinite(currentEffects[key]) || Number.isFinite(targetEffects[key]))
+    .filter((key) => Number(currentEffects[key] || 0) !== Number(targetEffects[key] || 0))
+    .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int'].includes(key)))
+    .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int'].includes(key)));
+  const parts = changedKeys
+    .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
+  return parts.length ? parts.join(' / ') : formatEffects(row.effects);
+}
+
 function formatUpgradeEffect(row) {
   const parts = formatEffects(row.effects).split(' / ').filter(Boolean);
   const finalDamage = row.effects?.finalDamage;
@@ -417,35 +430,25 @@ function addEffects(...effectRows) {
   return result;
 }
 
-function getUpgradeEffects(slot, level, mode, upgradeDb = {}) {
+function getUpgradeEffectGroup(slot) {
   const slotKey = UPGRADE_SLOT_LABELS[slot];
-  if (!slotKey) return {};
-  const reinforcementRows = upgradeDb.reinforcement?.reinforcement || [];
-  const reinforcement = reinforcementRows.find((row) => Number(row.level) === Number(level));
-  const effects = {};
-  const isAmplificationMode = mode === 'amplification';
-  if (!isAmplificationMode) {
-    if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.gain?.[slotKey]?.attack) effects.attack = reinforcement.gain[slotKey].attack;
-    if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.gain?.[slotKey]?.additionalStat) effects.allStat = reinforcement.gain[slotKey].additionalStat;
-    if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.finalDamagePercent?.[slotKey]) {
-      effects.finalDamage = reinforcement.finalDamagePercent[slotKey];
-    }
-    return effects;
+  if (['support', 'magicStone'].includes(slotKey)) {
+    return 'specialEquipment';
   }
+  return slotKey;
+}
 
-  const amplificationRows = upgradeDb.amplification?.normalAmplification || [];
-  const amplification = amplificationRows.find((row) => Number(row.level) === Number(level));
-  if (!amplification) return effects;
-  addEffectValue(effects, 'allStat', amplification.gain?.generalStat);
-  if (slot === '보조장비' || slot === '마법석') {
-    addEffectValue(effects, 'allStat', amplification.gain?.specialEquipmentStat);
-  } else if (slot === '귀걸이') {
-    addEffectValue(effects, 'attack', amplification.gain?.earringAttack);
-  }
-  if (Number.isFinite(amplification.finalDamagePercent) && amplification.finalDamagePercent > 0) {
-    effects.finalDamage = Number(effects.finalDamage || 0) + Number(amplification.finalDamagePercent || 0);
-  }
-  return effects;
+function getEffectsByLevel(source = {}, slot, level) {
+  const groupKey = getUpgradeEffectGroup(slot);
+  const row = (source.effectsByLevel || []).find((item) => Number(item.level) === Number(level));
+  return addEffects(row?.common, row?.[groupKey]);
+}
+
+function getUpgradeEffects(slot, level, mode, upgradeDb = {}) {
+  return subtractEffects(
+    getCumulativeUpgradeEffects(slot, level, mode, upgradeDb),
+    getCumulativeUpgradeEffects(slot, level - 1, mode, upgradeDb),
+  );
 }
 
 function addEffectValue(effects, key, value) {
@@ -456,12 +459,11 @@ function addEffectValue(effects, key, value) {
 }
 
 function getCumulativeUpgradeEffects(slot, level, mode, upgradeDb = {}) {
-  const effects = {};
-  for (let nextLevel = 1; nextLevel <= level; nextLevel += 1) {
-    const stepEffects = getUpgradeEffects(slot, nextLevel, mode, upgradeDb);
-    Object.entries(stepEffects).forEach(([key, value]) => addEffectValue(effects, key, value));
+  if (level <= 0) return {};
+  if (mode === 'amplification') {
+    return getEffectsByLevel(upgradeDb.amplification, slot, level);
   }
-  return effects;
+  return getEffectsByLevel(upgradeDb.reinforcement, slot, level);
 }
 
 function subtractEffects(nextEffects = {}, currentEffects = {}) {
@@ -1027,7 +1029,7 @@ export function installEnchantView(ctx) {
     const recommendations = getRepresentativeRecommendationRows(rows, state.currentEnchants, state.currentCreature, state.currentTitle, state.currentAura, state.currentDamageBaseline);
     renderEfficiencyLegend(recommendations);
     if (!recommendations.length) {
-      els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">현재 마부보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
+      els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">현재 세팅보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
       return;
     }
 
@@ -1044,6 +1046,8 @@ export function installEnchantView(ctx) {
         ? formatUpgradeEffect(row)
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row)
+        : row.sourceType === 'enchant'
+          ? formatEnchantTransitionEffect(row)
         : showOptionText ? formatEffects(row.effects) : '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))

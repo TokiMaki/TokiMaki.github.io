@@ -138,6 +138,35 @@ def build_final_damage(stat_by_level, level):
     }
 
 
+def build_effects_by_level(stat_by_level, weapon_attack_by_level, max_level):
+    rows = []
+    for level in range(0, max_level + 1):
+        stat = stat_by_level.get(level) or {}
+        final_damage = reinforcement_final_damage(stat_by_level, level)
+        row = {"level": level}
+        weapon = {}
+        weapon_attack = weapon_attack_by_level.get(level)
+        if weapon_attack:
+            weapon["attack"] = weapon_attack
+        if final_damage:
+            weapon["finalDamage"] = final_damage
+        if weapon:
+            row["weapon"] = weapon
+        special_equipment_stat = stat.get("specialEquipmentStat")
+        if special_equipment_stat:
+            row["specialEquipment"] = {"allStat": special_equipment_stat}
+        earring = {}
+        earring_attack = stat.get("earringAttack")
+        if earring_attack:
+            earring["attack"] = earring_attack
+        if final_damage:
+            earring["finalDamage"] = final_damage
+        if earring:
+            row["earring"] = earring
+        rows.append(row)
+    return rows
+
+
 def solve_linear_system(matrix, vector):
     size = len(vector)
     rows = [matrix[index][:] + [vector[index]] for index in range(size)]
@@ -253,6 +282,7 @@ def build_db():
     safe_weapon_rows = load_safe_weapon_rows()
     stat_by_level = load_stat_rows()
     weapon_attack_by_level = load_weapon_attack_rows()
+    max_effect_level = max(row["to"] for row in rows)
     payload_rows = []
 
     for row in rows:
@@ -275,7 +305,7 @@ def build_db():
         )
 
     return {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "sources": {
             "cost": "Docs/강화.txt",
             "safeWeaponReinforcement": "Docs/무기안전강화.json",
@@ -301,6 +331,7 @@ def build_db():
                 "bonusPercent": "실패할 때마다 다음 시도 성공률에 누적 가산",
             },
         },
+        "effectsByLevel": build_effects_by_level(stat_by_level, weapon_attack_by_level, max_effect_level),
         "reinforcement": payload_rows,
         "safeWeaponReinforcement": build_safe_weapon_reinforcement(safe_weapon_rows, stat_by_level, weapon_attack_by_level),
     }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "sources": {
     "statIncrease": "Docs/증폭별증가량.json",
     "safeAmplification": "Docs/안전증폭.json",
@@ -156,6 +156,188 @@
       "specialEquipmentStat": null,
       "earringAttack": null,
       "finalDamagePercent": 2
+    }
+  ],
+  "effectsByLevel": [
+    {
+      "level": 0,
+      "common": {
+        "allStat": 12
+      }
+    },
+    {
+      "level": 1,
+      "common": {
+        "allStat": 14
+      }
+    },
+    {
+      "level": 2,
+      "common": {
+        "allStat": 16
+      }
+    },
+    {
+      "level": 3,
+      "common": {
+        "allStat": 19
+      }
+    },
+    {
+      "level": 4,
+      "common": {
+        "allStat": 21
+      }
+    },
+    {
+      "level": 5,
+      "common": {
+        "allStat": 26
+      },
+      "specialEquipment": {
+        "allStat": 15
+      }
+    },
+    {
+      "level": 6,
+      "common": {
+        "allStat": 31
+      },
+      "specialEquipment": {
+        "allStat": 18
+      }
+    },
+    {
+      "level": 7,
+      "common": {
+        "allStat": 36
+      },
+      "specialEquipment": {
+        "allStat": 21
+      }
+    },
+    {
+      "level": 8,
+      "common": {
+        "allStat": 65
+      },
+      "specialEquipment": {
+        "allStat": 24
+      }
+    },
+    {
+      "level": 9,
+      "common": {
+        "allStat": 79
+      },
+      "specialEquipment": {
+        "allStat": 28
+      }
+    },
+    {
+      "level": 10,
+      "common": {
+        "allStat": 96,
+        "finalDamage": 0.2
+      },
+      "specialEquipment": {
+        "allStat": 31
+      },
+      "earring": {
+        "attack": 54
+      }
+    },
+    {
+      "level": 11,
+      "common": {
+        "allStat": 113,
+        "finalDamage": 0.4
+      },
+      "specialEquipment": {
+        "allStat": 59
+      },
+      "earring": {
+        "attack": 85
+      }
+    },
+    {
+      "level": 12,
+      "common": {
+        "allStat": 137,
+        "finalDamage": 0.7
+      },
+      "specialEquipment": {
+        "allStat": 88
+      },
+      "earring": {
+        "attack": 127
+      }
+    },
+    {
+      "level": 13,
+      "common": {
+        "allStat": 178,
+        "finalDamage": 1
+      },
+      "specialEquipment": {
+        "allStat": 118
+      },
+      "earring": {
+        "attack": 170
+      }
+    },
+    {
+      "level": 14,
+      "common": {
+        "allStat": 277,
+        "finalDamage": 1.2
+      },
+      "specialEquipment": {
+        "allStat": 177
+      },
+      "earring": {
+        "attack": 255
+      }
+    },
+    {
+      "level": 15,
+      "common": {
+        "allStat": 379,
+        "finalDamage": 1.4
+      },
+      "specialEquipment": {
+        "allStat": 246
+      },
+      "earring": {
+        "attack": 355
+      }
+    },
+    {
+      "level": 16,
+      "common": {
+        "allStat": 480,
+        "finalDamage": 1.6
+      },
+      "specialEquipment": {
+        "allStat": 315
+      },
+      "earring": {
+        "attack": 454
+      }
+    },
+    {
+      "level": 17,
+      "common": {
+        "allStat": 661,
+        "finalDamage": 1.8
+      }
+    },
+    {
+      "level": 18,
+      "common": {
+        "allStat": 842,
+        "finalDamage": 2
+      }
     }
   ],
   "safeAmplification": [

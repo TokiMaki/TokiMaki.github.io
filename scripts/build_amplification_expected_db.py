@@ -57,6 +57,26 @@ def diff_value(next_value, current_value):
     return round_value(next_value - current_value)
 
 
+def effect_row_by_level(stat_rows):
+    rows = []
+    for stat in stat_rows:
+        level = stat["level"]
+        row = {"level": level}
+        common = {}
+        if stat["generalStat"]:
+            common["allStat"] = stat["generalStat"]
+        if stat["finalDamagePercent"]:
+            common["finalDamage"] = stat["finalDamagePercent"]
+        if common:
+            row["common"] = common
+        if stat["specialEquipmentStat"]:
+            row["specialEquipment"] = {"allStat": stat["specialEquipmentStat"]}
+        if stat["earringAttack"]:
+            row["earring"] = {"attack": stat["earringAttack"]}
+        rows.append(row)
+    return rows
+
+
 def build_resource_cost(cost, attempts):
     return {
         "harmonyCrystal": round_value(cost["harmonyCrystal"] * attempts),
@@ -268,7 +288,7 @@ def build_db():
         )
 
     return {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "sources": {
             "statIncrease": "Docs/증폭별증가량.json",
             "safeAmplification": "Docs/안전증폭.json",
@@ -290,6 +310,7 @@ def build_db():
             },
         },
         "statByLevel": stat_rows,
+        "effectsByLevel": effect_row_by_level(stat_rows),
         "safeAmplification": safe_transitions,
         "normalAmplification": build_normal_amplification(normal_payload, stat_by_level),
     }

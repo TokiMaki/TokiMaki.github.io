@@ -8,7 +8,7 @@ export default function DnfHellToolMarkup() {
         <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
           <button type={'button'} className={'tab-button active'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'true'}>헬 계산기</button>
           <button type={'button'} className={'tab-button'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
-          <button type={'button'} className={'tab-button'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'false'}>마법부여</button>
+          <button type={'button'} className={'tab-button'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'false'}>스펙업 순서</button>
         </div>
       </section>
       <section className={'grid tab-panel'} id={'hellPanel'}>
