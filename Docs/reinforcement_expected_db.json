@@ -39,13 +39,13 @@
           "attack": null
         },
         "support": {
-          "additionalStat": 7
+          "additionalStat": null
         },
         "magicStone": {
-          "additionalStat": 7
+          "additionalStat": null
         },
         "earring": {
-          "attack": 12
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -85,13 +85,13 @@
           "attack": null
         },
         "support": {
-          "additionalStat": 5
+          "additionalStat": null
         },
         "magicStone": {
-          "additionalStat": 5
+          "additionalStat": null
         },
         "earring": {
-          "attack": 4
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -131,13 +131,13 @@
           "attack": null
         },
         "support": {
-          "additionalStat": 4
+          "additionalStat": null
         },
         "magicStone": {
-          "additionalStat": 4
+          "additionalStat": null
         },
         "earring": {
-          "attack": 6
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -177,13 +177,13 @@
           "attack": null
         },
         "support": {
-          "additionalStat": 5
+          "additionalStat": null
         },
         "magicStone": {
-          "additionalStat": 5
+          "additionalStat": null
         },
         "earring": {
-          "attack": 5
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -223,13 +223,13 @@
           "attack": null
         },
         "support": {
-          "additionalStat": 8
+          "additionalStat": null
         },
         "magicStone": {
-          "additionalStat": 8
+          "additionalStat": null
         },
         "earring": {
-          "attack": 5
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -269,13 +269,13 @@
           "attack": null
         },
         "support": {
-          "additionalStat": 7
+          "additionalStat": 3
         },
         "magicStone": {
-          "additionalStat": 7
+          "additionalStat": 3
         },
         "earring": {
-          "attack": 8
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -315,13 +315,13 @@
           "attack": 215
         },
         "support": {
-          "additionalStat": 8
+          "additionalStat": 3
         },
         "magicStone": {
-          "additionalStat": 8
+          "additionalStat": 3
         },
         "earring": {
-          "attack": 7
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -361,13 +361,13 @@
           "attack": 73
         },
         "support": {
-          "additionalStat": 31
+          "additionalStat": 3
         },
         "magicStone": {
-          "additionalStat": 31
+          "additionalStat": 3
         },
         "earring": {
-          "attack": 8
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -407,13 +407,13 @@
           "attack": 93
         },
         "support": {
-          "additionalStat": 19
+          "additionalStat": 4
         },
         "magicStone": {
-          "additionalStat": 19
+          "additionalStat": 4
         },
         "earring": {
-          "attack": 7
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -453,13 +453,13 @@
           "attack": 109
         },
         "support": {
-          "additionalStat": 20
+          "additionalStat": 3
         },
         "magicStone": {
-          "additionalStat": 20
+          "additionalStat": 3
         },
         "earring": {
-          "attack": 19
+          "attack": null
         }
       },
       "finalDamagePercent": {
@@ -499,13 +499,13 @@
           "attack": 216
         },
         "support": {
-          "additionalStat": 50
+          "additionalStat": 28
         },
         "magicStone": {
-          "additionalStat": 50
+          "additionalStat": 28
         },
         "earring": {
-          "attack": 44
+          "attack": 31
         }
       },
       "finalDamagePercent": {
@@ -545,13 +545,13 @@
           "attack": 255
         },
         "support": {
-          "additionalStat": 53
+          "additionalStat": 29
         },
         "magicStone": {
-          "additionalStat": 53
+          "additionalStat": 29
         },
         "earring": {
-          "attack": 63
+          "attack": 42
         }
       },
       "finalDamagePercent": {
@@ -591,13 +591,13 @@
           "attack": 165
         },
         "support": {
-          "additionalStat": 71
+          "additionalStat": 30
         },
         "magicStone": {
-          "additionalStat": 71
+          "additionalStat": 30
         },
         "earring": {
-          "attack": 62
+          "attack": 43
         }
       },
       "finalDamagePercent": {
@@ -637,13 +637,13 @@
           "attack": 162
         },
         "support": {
-          "additionalStat": 187
+          "additionalStat": 59
         },
         "magicStone": {
-          "additionalStat": 187
+          "additionalStat": 59
         },
         "earring": {
-          "attack": 127
+          "attack": 85
         }
       },
       "finalDamagePercent": {
@@ -683,13 +683,13 @@
           "attack": 165
         },
         "support": {
-          "additionalStat": 169
+          "additionalStat": 69
         },
         "magicStone": {
-          "additionalStat": 169
+          "additionalStat": 69
         },
         "earring": {
-          "attack": 147
+          "attack": 100
         }
       },
       "finalDamagePercent": {
@@ -729,13 +729,13 @@
           "attack": 163
         },
         "support": {
-          "additionalStat": 181
+          "additionalStat": 69
         },
         "magicStone": {
-          "additionalStat": 181
+          "additionalStat": 69
         },
         "earring": {
-          "attack": 194
+          "attack": 99
         }
       },
       "finalDamagePercent": {

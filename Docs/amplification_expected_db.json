@@ -27,127 +27,127 @@
     {
       "level": 0,
       "generalStat": 12,
-      "specialEquipmentStat": 12,
+      "specialEquipmentStat": 0,
       "earringAttack": 0,
       "finalDamagePercent": 0
     },
     {
       "level": 1,
       "generalStat": 14,
-      "specialEquipmentStat": 19,
-      "earringAttack": 12,
+      "specialEquipmentStat": null,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 2,
       "generalStat": 16,
-      "specialEquipmentStat": 24,
-      "earringAttack": 16,
+      "specialEquipmentStat": null,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 3,
       "generalStat": 19,
-      "specialEquipmentStat": 28,
-      "earringAttack": 22,
+      "specialEquipmentStat": null,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 4,
       "generalStat": 21,
-      "specialEquipmentStat": 33,
-      "earringAttack": 27,
+      "specialEquipmentStat": null,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 5,
       "generalStat": 26,
-      "specialEquipmentStat": 41,
-      "earringAttack": 32,
+      "specialEquipmentStat": 15,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 6,
       "generalStat": 31,
-      "specialEquipmentStat": 48,
-      "earringAttack": 40,
+      "specialEquipmentStat": 18,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 7,
       "generalStat": 36,
-      "specialEquipmentStat": 56,
-      "earringAttack": 47,
+      "specialEquipmentStat": 21,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 8,
       "generalStat": 65,
-      "specialEquipmentStat": 87,
-      "earringAttack": 55,
+      "specialEquipmentStat": 24,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 9,
       "generalStat": 79,
-      "specialEquipmentStat": 106,
-      "earringAttack": 62,
+      "specialEquipmentStat": 28,
+      "earringAttack": null,
       "finalDamagePercent": 0
     },
     {
       "level": 10,
       "generalStat": 96,
-      "specialEquipmentStat": 126,
-      "earringAttack": 81,
+      "specialEquipmentStat": 31,
+      "earringAttack": 54,
       "finalDamagePercent": 0.2
     },
     {
       "level": 11,
       "generalStat": 113,
-      "specialEquipmentStat": 176,
-      "earringAttack": 125,
+      "specialEquipmentStat": 59,
+      "earringAttack": 85,
       "finalDamagePercent": 0.4
     },
     {
       "level": 12,
       "generalStat": 137,
-      "specialEquipmentStat": 229,
-      "earringAttack": 188,
+      "specialEquipmentStat": 88,
+      "earringAttack": 127,
       "finalDamagePercent": 0.7
     },
     {
       "level": 13,
       "generalStat": 178,
-      "specialEquipmentStat": 300,
-      "earringAttack": 250,
+      "specialEquipmentStat": 118,
+      "earringAttack": 170,
       "finalDamagePercent": 1
     },
     {
       "level": 14,
       "generalStat": 277,
-      "specialEquipmentStat": 487,
-      "earringAttack": 377,
+      "specialEquipmentStat": 177,
+      "earringAttack": 255,
       "finalDamagePercent": 1.2
     },
     {
       "level": 15,
       "generalStat": 379,
-      "specialEquipmentStat": 656,
-      "earringAttack": 524,
+      "specialEquipmentStat": 246,
+      "earringAttack": 355,
       "finalDamagePercent": 1.4
     },
     {
       "level": 16,
       "generalStat": 480,
-      "specialEquipmentStat": 837,
-      "earringAttack": 718,
+      "specialEquipmentStat": 315,
+      "earringAttack": 454,
       "finalDamagePercent": 1.6
     },
     {
       "level": 17,
       "generalStat": 661,
       "specialEquipmentStat": null,
-      "earringAttack": 871,
+      "earringAttack": null,
       "finalDamagePercent": 1.8
     },
     {
@@ -166,8 +166,8 @@
       "expectedAttempts": 1.0,
       "gain": {
         "generalStat": 2,
-        "specialEquipmentStat": 7,
-        "earringAttack": 12
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -198,8 +198,8 @@
       "expectedAttempts": 1.0,
       "gain": {
         "generalStat": 2,
-        "specialEquipmentStat": 5,
-        "earringAttack": 4
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -230,8 +230,8 @@
       "expectedAttempts": 1.0,
       "gain": {
         "generalStat": 3,
-        "specialEquipmentStat": 4,
-        "earringAttack": 6
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -262,8 +262,8 @@
       "expectedAttempts": 1.0,
       "gain": {
         "generalStat": 2,
-        "specialEquipmentStat": 5,
-        "earringAttack": 5
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -294,8 +294,8 @@
       "expectedAttempts": 1.366,
       "gain": {
         "generalStat": 5,
-        "specialEquipmentStat": 8,
-        "earringAttack": 5
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -326,8 +326,8 @@
       "expectedAttempts": 1.5464,
       "gain": {
         "generalStat": 5,
-        "specialEquipmentStat": 7,
-        "earringAttack": 8
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -358,8 +358,8 @@
       "expectedAttempts": 1.7732,
       "gain": {
         "generalStat": 5,
-        "specialEquipmentStat": 8,
-        "earringAttack": 7
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -390,8 +390,8 @@
       "expectedAttempts": 1.858863,
       "gain": {
         "generalStat": 29,
-        "specialEquipmentStat": 31,
-        "earringAttack": 8
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -422,8 +422,8 @@
       "expectedAttempts": 2.213425,
       "gain": {
         "generalStat": 14,
-        "specialEquipmentStat": 19,
-        "earringAttack": 7
+        "specialEquipmentStat": 4,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -454,8 +454,8 @@
       "expectedAttempts": 2.707108,
       "gain": {
         "generalStat": 17,
-        "specialEquipmentStat": 20,
-        "earringAttack": 19
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0.2,
       "stepExpected": {
@@ -486,8 +486,8 @@
       "successRatePercent": 100.0,
       "gain": {
         "generalStat": 2,
-        "specialEquipmentStat": 7,
-        "earringAttack": 12
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -536,8 +536,8 @@
       "successRatePercent": 100.0,
       "gain": {
         "generalStat": 2,
-        "specialEquipmentStat": 5,
-        "earringAttack": 4
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -596,8 +596,8 @@
       "successRatePercent": 100.0,
       "gain": {
         "generalStat": 3,
-        "specialEquipmentStat": 4,
-        "earringAttack": 6
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -666,8 +666,8 @@
       "successRatePercent": 100.0,
       "gain": {
         "generalStat": 2,
-        "specialEquipmentStat": 5,
-        "earringAttack": 5
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -746,8 +746,8 @@
       "successRatePercent": 80.0,
       "gain": {
         "generalStat": 5,
-        "specialEquipmentStat": 8,
-        "earringAttack": 5
+        "specialEquipmentStat": null,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -836,8 +836,8 @@
       "successRatePercent": 70.0,
       "gain": {
         "generalStat": 5,
-        "specialEquipmentStat": 7,
-        "earringAttack": 8
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -936,8 +936,8 @@
       "successRatePercent": 60.0,
       "gain": {
         "generalStat": 5,
-        "specialEquipmentStat": 8,
-        "earringAttack": 7
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -1046,8 +1046,8 @@
       "successRatePercent": 70.0,
       "gain": {
         "generalStat": 29,
-        "specialEquipmentStat": 31,
-        "earringAttack": 8
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -1166,8 +1166,8 @@
       "successRatePercent": 60.0,
       "gain": {
         "generalStat": 14,
-        "specialEquipmentStat": 19,
-        "earringAttack": 7
+        "specialEquipmentStat": 4,
+        "earringAttack": null
       },
       "finalDamagePercent": 0,
       "stepExpected": {
@@ -1296,8 +1296,8 @@
       "successRatePercent": 50.0,
       "gain": {
         "generalStat": 17,
-        "specialEquipmentStat": 20,
-        "earringAttack": 19
+        "specialEquipmentStat": 3,
+        "earringAttack": null
       },
       "finalDamagePercent": 0.2,
       "stepExpected": {
@@ -1436,8 +1436,8 @@
       "successRatePercent": 40.0,
       "gain": {
         "generalStat": 17,
-        "specialEquipmentStat": 50,
-        "earringAttack": 44
+        "specialEquipmentStat": 28,
+        "earringAttack": 31
       },
       "finalDamagePercent": 0.2,
       "stepExpected": {
@@ -1586,8 +1586,8 @@
       "successRatePercent": 30.0,
       "gain": {
         "generalStat": 24,
-        "specialEquipmentStat": 53,
-        "earringAttack": 63
+        "specialEquipmentStat": 29,
+        "earringAttack": 42
       },
       "finalDamagePercent": 0.3,
       "stepExpected": {
@@ -1746,8 +1746,8 @@
       "successRatePercent": 20.0,
       "gain": {
         "generalStat": 41,
-        "specialEquipmentStat": 71,
-        "earringAttack": 62
+        "specialEquipmentStat": 30,
+        "earringAttack": 43
       },
       "finalDamagePercent": 0.3,
       "stepExpected": {
@@ -1916,8 +1916,8 @@
       "successRatePercent": 20.0,
       "gain": {
         "generalStat": 99,
-        "specialEquipmentStat": 187,
-        "earringAttack": 127
+        "specialEquipmentStat": 59,
+        "earringAttack": 85
       },
       "finalDamagePercent": 0.2,
       "stepExpected": {
@@ -2096,8 +2096,8 @@
       "successRatePercent": 20.0,
       "gain": {
         "generalStat": 102,
-        "specialEquipmentStat": 169,
-        "earringAttack": 147
+        "specialEquipmentStat": 69,
+        "earringAttack": 100
       },
       "finalDamagePercent": 0.2,
       "stepExpected": {
@@ -2286,8 +2286,8 @@
       "successRatePercent": 20.0,
       "gain": {
         "generalStat": 101,
-        "specialEquipmentStat": 181,
-        "earringAttack": 194
+        "specialEquipmentStat": 69,
+        "earringAttack": 99
       },
       "finalDamagePercent": 0.2,
       "stepExpected": {
@@ -2487,7 +2487,7 @@
       "gain": {
         "generalStat": 181,
         "specialEquipmentStat": null,
-        "earringAttack": 153
+        "earringAttack": null
       },
       "finalDamagePercent": 0.2,
       "stepExpected": {

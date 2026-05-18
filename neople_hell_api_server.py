@@ -942,9 +942,11 @@ def build_black_fang_recommendations(equipment_rows: list) -> list:
 
         current_detail = details_by_id.get(clean_text(equipment.get("itemId"))) or {}
         black_detail = details_by_id.get(black_item.get("itemId")) or {}
+        current_effects = normalize_enchant_status(current_detail.get("itemStatus") or [])
+        black_effects = normalize_enchant_status(black_detail.get("itemStatus") or [])
         effects = subtract_effects(
-            normalize_enchant_status(black_detail.get("itemStatus") or []),
-            normalize_enchant_status(current_detail.get("itemStatus") or []),
+            black_effects,
+            current_effects,
         )
         if not effects:
             continue
@@ -958,6 +960,8 @@ def build_black_fang_recommendations(equipment_rows: list) -> list:
             "iconUrl": get_item_icon_url(scroll_id),
             "itemExplain": f"{clean_text(equipment.get('itemName'))} -> {clean_text(black_item.get('itemName'))}",
             "effects": effects,
+            "currentEffects": current_effects,
+            "targetEffects": black_effects,
             "auction": auction,
             "expectedGold": auction.get("minUnitPrice"),
             "materialText": material_text,

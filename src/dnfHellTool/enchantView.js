@@ -165,6 +165,22 @@ function formatEffects(effects = {}) {
     .join(' / ');
 }
 
+function formatEffectTransitionValue(key, currentValue, targetValue) {
+  const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'critical'].includes(key) ? '%' : '';
+  return `${EFFECT_LABELS[key] || key} ${formatEffectNumber(currentValue)}${suffix} -> ${formatEffectNumber(targetValue)}${suffix}`;
+}
+
+function formatBlackFangEffect(row) {
+  const currentEffects = row.currentEffects || {};
+  const targetEffects = row.targetEffects || {};
+  const changedKeys = EFFECT_ORDER
+    .filter((key) => Number.isFinite(row.effects?.[key]))
+    .filter((key) => !(Number.isFinite(row.effects?.allStat) && ['str', 'int'].includes(key)));
+  const parts = changedKeys
+    .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
+  return parts.length ? parts.join(' / ') : formatEffects(row.effects);
+}
+
 function formatUpgradeEffect(row) {
   const parts = formatEffects(row.effects).split(' / ').filter(Boolean);
   const finalDamage = row.effects?.finalDamage;
@@ -195,6 +211,7 @@ function getDamageBaseline(baseline = {}) {
     baseStat,
     element: Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element,
     attack: Number(baseline.attack || 0) || ENCHANT_DAMAGE_BASELINE.attack,
+    finalDamage: Number(baseline.finalDamage || 0),
     attackIncrease: Number(baseline.attackIncrease || 0) || ENCHANT_DAMAGE_BASELINE.attackIncrease,
     attackAmplification: Number(baseline.attackAmplification || 0) || ENCHANT_DAMAGE_BASELINE.attackAmplification,
   };
@@ -224,7 +241,7 @@ function estimateDamagePercent(effects = {}, baseline = {}) {
 function estimateDamageMultiplier(effects = {}, baseline = {}) {
   effects = effects || {};
   const base = getDamageBaseline(baseline);
-  const finalDamageMultiplier = 1 + Number(effects.finalDamage || 0) / 100;
+  const finalDamageMultiplier = 1 + (base.finalDamage + Number(effects.finalDamage || 0)) / 100;
   const attackIncreaseMultiplier = 1 + (base.attackIncrease + Number(effects.attackIncrease || 0)) / 100;
   const attackAmplificationMultiplier = 1 + (base.attackAmplification + Number(effects.attackAmplification || 0)) / 100;
   const element = EQUIPMENT_BASE_ELEMENT + base.element + Number(effects.elementAll || 0);
@@ -379,6 +396,8 @@ function getBlackFangRows(recommendations = []) {
     fame: 0,
     iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
+    currentEffects: candidate.currentEffects || {},
+    targetEffects: candidate.targetEffects || {},
     itemExplain: candidate.itemExplain || '',
     auction: candidate.auction || {},
     expectedGold: candidate.expectedGold,
@@ -387,28 +406,40 @@ function getBlackFangRows(recommendations = []) {
   }));
 }
 
+function addEffects(...effectRows) {
+  const result = {};
+  effectRows.forEach((effects) => {
+    Object.entries(effects || {}).forEach(([key, value]) => {
+      result[key] = Number(result[key] || 0) + Number(value || 0);
+    });
+  });
+  return result;
+}
+
 function getUpgradeEffects(slot, level, mode, upgradeDb = {}) {
   const slotKey = UPGRADE_SLOT_LABELS[slot];
   if (!slotKey) return {};
   const reinforcementRows = upgradeDb.reinforcement?.reinforcement || [];
   const reinforcement = reinforcementRows.find((row) => Number(row.level) === Number(level));
   const effects = {};
-  if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.gain?.[slotKey]?.attack) effects.attack = reinforcement.gain[slotKey].attack;
-  if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.gain?.[slotKey]?.additionalStat) effects.allStat = reinforcement.gain[slotKey].additionalStat;
-  if (mode !== 'amplification' && REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.finalDamagePercent?.[slotKey]) {
-    effects.finalDamage = reinforcement.finalDamagePercent[slotKey];
+  const isAmplificationMode = mode === 'amplification';
+  if (!isAmplificationMode) {
+    if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.gain?.[slotKey]?.attack) effects.attack = reinforcement.gain[slotKey].attack;
+    if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.gain?.[slotKey]?.additionalStat) effects.allStat = reinforcement.gain[slotKey].additionalStat;
+    if (REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey) && reinforcement?.finalDamagePercent?.[slotKey]) {
+      effects.finalDamage = reinforcement.finalDamagePercent[slotKey];
+    }
+    return effects;
   }
-  if (mode !== 'amplification') return effects;
 
   const amplificationRows = upgradeDb.amplification?.normalAmplification || [];
   const amplification = amplificationRows.find((row) => Number(row.level) === Number(level));
   if (!amplification) return effects;
-  if (slot === '무기') {
-    effects.allStat = Number(effects.allStat || 0) + Number(amplification.gain?.generalStat || 0);
-  } else if (slot === '보조장비' || slot === '마법석' || slot === '귀걸이') {
-    effects.allStat = Number(effects.allStat || 0) + Number(amplification.gain?.specialEquipmentStat || 0);
-  } else if (slotKey === 'armor' || slotKey === 'accessory') {
-    effects.allStat = Number(effects.allStat || 0) + Number(amplification.gain?.generalStat || 0);
+  addEffectValue(effects, 'allStat', amplification.gain?.generalStat);
+  if (slot === '보조장비' || slot === '마법석') {
+    addEffectValue(effects, 'allStat', amplification.gain?.specialEquipmentStat);
+  } else if (slot === '귀걸이') {
+    addEffectValue(effects, 'attack', amplification.gain?.earringAttack);
   }
   if (Number.isFinite(amplification.finalDamagePercent) && amplification.finalDamagePercent > 0) {
     effects.finalDamage = Number(effects.finalDamage || 0) + Number(amplification.finalDamagePercent || 0);
@@ -771,9 +802,17 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     if (row.sourceType === 'creature' && current?.itemId && current.itemId === row.itemId) return;
     if (row.sourceType === 'title' && current?.itemId && current.itemId === row.itemId) return;
     if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
-    const currentDamagePercent = current?.estimatedDamagePercent || 0;
-    const currentDamageMultiplier = estimateDamageMultiplier(current?.effects || {}, baseline);
-    const candidateDamageMultiplier = estimateDamageMultiplier(row.effects, baseline);
+    const blackFangCurrentEffects = row.sourceType === 'blackFang'
+      ? row.currentEffects || {}
+      : null;
+    const blackFangTargetEffects = row.sourceType === 'blackFang'
+      ? row.targetEffects || addEffects(row.currentEffects, row.effects)
+      : null;
+    const currentDamagePercent = row.sourceType === 'blackFang'
+      ? estimateDamagePercent(blackFangCurrentEffects, baseline)
+      : current?.estimatedDamagePercent || 0;
+    const currentDamageMultiplier = estimateDamageMultiplier(blackFangCurrentEffects || current?.effects || {}, baseline);
+    const candidateDamageMultiplier = estimateDamageMultiplier(blackFangTargetEffects || row.effects, baseline);
     const incrementalDamagePercent = (candidateDamageMultiplier / currentDamageMultiplier - 1) * 100;
     if (incrementalDamagePercent <= 0.0001) return;
 
@@ -1002,6 +1041,8 @@ export function installEnchantView(ctx) {
       const showOptionText = !['creature', 'title', 'aura'].includes(row.sourceType);
       const effectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
+        : row.sourceType === 'blackFang'
+          ? formatBlackFangEffect(row)
         : showOptionText ? formatEffects(row.effects) : '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
