@@ -74,8 +74,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
 
         if parsed.path in {"/", "/index.html"}:
-            self.path = f"/{DEFAULT_HTML}"
-            return super().do_GET()
+            return self.send_json({"ok": True, "service": "dnf-hell-api"})
 
         if parsed.path == "/api/health":
             return self.send_json({"ok": True})
