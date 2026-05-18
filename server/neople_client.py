@@ -6,9 +6,15 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
-API_KEY = os.environ.get("NEOPLE_API_KEY", "1Ayz6a2QI20mISxbzHV2Ak2xLDYIvMgA")
+API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
+
+
+def require_api_key() -> str:
+    if not API_KEY:
+        raise RuntimeError("NEOPLE_API_KEY 환경변수를 설정해 주세요.")
+    return API_KEY
 
 
 def clean_text(value: Any) -> str:
@@ -26,10 +32,11 @@ def parse_int(value: Any) -> int:
 
 
 def request_json(url: str) -> dict[str, Any]:
+    api_key = require_api_key()
     request = Request(
         url,
         headers={
-            "apikey": API_KEY,
+            "apikey": api_key,
             "Accept": "application/json",
             "User-Agent": "Mozilla/5.0",
         },
