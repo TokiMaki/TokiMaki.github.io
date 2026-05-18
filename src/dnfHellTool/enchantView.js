@@ -938,12 +938,12 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     });
 }
 
-function hasHigherEnchantCandidate(row, allRows, baseline) {
+function hasHigherEnchantCandidate(row, recommendationRows) {
   if (row.sourceType !== 'enchant') return false;
-  return (allRows || []).some((candidate) => (
+  return (recommendationRows || []).some((candidate) => (
     candidate.sourceType === 'enchant' &&
     candidate.slot === row.slot &&
-    estimateDamagePercent(candidate.effects, baseline) > row.estimatedDamagePercent + 0.0001
+    candidate.incrementalDamagePercent > row.incrementalDamagePercent + 0.0001
   ));
 }
 
@@ -1104,7 +1104,7 @@ export function installEnchantView(ctx) {
       const connector = nextRow
         ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(getArrowBackground(band, nextBand))};" aria-hidden="true"></span>`
         : '';
-      const hasUpgradeWarning = hasHigherEnchantCandidate(row, allRows, state.currentDamageBaseline);
+      const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
       const showOptionText = !['creature', 'title', 'aura'].includes(row.sourceType);
       const effectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
