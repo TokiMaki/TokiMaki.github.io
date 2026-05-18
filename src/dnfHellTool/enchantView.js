@@ -923,7 +923,7 @@ function getArrowBackground(fromBand, toBand) {
 
 export function installEnchantView(ctx) {
   const { els, state } = ctx;
-  const { API_BASE } = ctx.constants;
+  const { API_BASE, parseApiJsonResponse } = ctx.constants;
   const { escapeHtml } = ctx.deps;
 
   state.enchantCards = [];
@@ -1119,10 +1119,7 @@ export function installEnchantView(ctx) {
       characterId: character.characterId,
     });
     const response = await fetch(`${API_BASE}/api/character-enchants?${query.toString()}`, { cache: 'no-store' });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || '캐릭터 마법부여 조회에 실패했습니다.');
-    }
+    const payload = await parseApiJsonResponse(response, '캐릭터 마법부여 조회에 실패했습니다.');
     state.currentEnchants = Array.isArray(payload.enchants) ? payload.enchants : [];
     state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
@@ -1150,10 +1147,7 @@ export function installEnchantView(ctx) {
       characterId: character.characterId,
     });
     const response = await fetch(`${API_BASE}/api/character-creature?${query.toString()}`, { cache: 'no-store' });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || '캐릭터 크리쳐 조회에 실패했습니다.');
-    }
+    const payload = await parseApiJsonResponse(response, '캐릭터 크리쳐 조회에 실패했습니다.');
     state.currentCreature = payload.creature || null;
     state.currentCreatureCharacterKey = characterKey;
   }
@@ -1175,10 +1169,7 @@ export function installEnchantView(ctx) {
       characterId: character.characterId,
     });
     const response = await fetch(`${API_BASE}/api/character-title?${query.toString()}`, { cache: 'no-store' });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || '캐릭터 칭호 조회에 실패했습니다.');
-    }
+    const payload = await parseApiJsonResponse(response, '캐릭터 칭호 조회에 실패했습니다.');
     state.currentTitle = payload.title || null;
     state.currentTitleCharacterKey = characterKey;
   }
@@ -1200,10 +1191,7 @@ export function installEnchantView(ctx) {
       characterId: character.characterId,
     });
     const response = await fetch(`${API_BASE}/api/character-aura?${query.toString()}`, { cache: 'no-store' });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || '캐릭터 오라 조회에 실패했습니다.');
-    }
+    const payload = await parseApiJsonResponse(response, '캐릭터 오라 조회에 실패했습니다.');
     state.currentAura = payload.aura || null;
     state.currentAuraCharacterKey = characterKey;
   }
@@ -1225,10 +1213,7 @@ export function installEnchantView(ctx) {
       characterId: character.characterId,
     });
     const response = await fetch(`${API_BASE}/api/character-avatar?${query.toString()}`, { cache: 'no-store' });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || '캐릭터 아바타 조회에 실패했습니다.');
-    }
+    const payload = await parseApiJsonResponse(response, '캐릭터 아바타 조회에 실패했습니다.');
     state.currentAvatar = payload || null;
     state.currentAvatarCharacterKey = characterKey;
   }
@@ -1246,10 +1231,7 @@ export function installEnchantView(ctx) {
     try {
       const query = new URLSearchParams({ serverId, characterName });
       const response = await fetch(`${API_BASE}/api/search?${query.toString()}`, { cache: 'no-store' });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || '캐릭터 검색에 실패했습니다.');
-      }
+      const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
       const resolved = payload.resolved || {};
       if (!resolved.characterId) {
         throw new Error('캐릭터를 찾지 못했습니다.');
@@ -1295,22 +1277,10 @@ export function installEnchantView(ctx) {
         fetch(`${API_BASE}/api/title-upgrades${query}`, { cache: 'no-store' }),
         fetch(`${API_BASE}/api/aura-upgrades${query}`, { cache: 'no-store' }),
       ]);
-      const payload = await enchantResponse.json();
-      const creaturePayload = await creatureResponse.json();
-      const titlePayload = await titleResponse.json();
-      const auraPayload = await auraResponse.json();
-      if (!enchantResponse.ok) {
-        throw new Error(payload.error || '마법부여 가격 조회에 실패했습니다.');
-      }
-      if (!creatureResponse.ok) {
-        throw new Error(creaturePayload.error || '크리쳐 가격 조회에 실패했습니다.');
-      }
-      if (!titleResponse.ok) {
-        throw new Error(titlePayload.error || '칭호 가격 조회에 실패했습니다.');
-      }
-      if (!auraResponse.ok) {
-        throw new Error(auraPayload.error || '오라 가격 조회에 실패했습니다.');
-      }
+      const payload = await parseApiJsonResponse(enchantResponse, '마법부여 가격 조회에 실패했습니다.');
+      const creaturePayload = await parseApiJsonResponse(creatureResponse, '크리쳐 가격 조회에 실패했습니다.');
+      const titlePayload = await parseApiJsonResponse(titleResponse, '칭호 가격 조회에 실패했습니다.');
+      const auraPayload = await parseApiJsonResponse(auraResponse, '오라 가격 조회에 실패했습니다.');
       state.enchantCards = Array.isArray(payload.cards) ? payload.cards : [];
       state.creatureUpgradeGroups = Array.isArray(creaturePayload.groups) ? creaturePayload.groups : [];
       state.titleUpgradeGroups = Array.isArray(titlePayload.groups) ? titlePayload.groups : [];

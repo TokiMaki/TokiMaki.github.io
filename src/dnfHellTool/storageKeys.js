@@ -16,6 +16,28 @@ function resolveApiBase() {
 }
 
 export const API_BASE = resolveApiBase();
+
+export async function parseApiJsonResponse(response, fallbackMessage = 'API 요청에 실패했습니다.') {
+  const text = await response.text();
+  let payload = null;
+
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    const trimmed = text.trim().toLowerCase();
+    if (trimmed.startsWith('<!doctype') || trimmed.startsWith('<html')) {
+      throw new Error('API 서버가 연결되지 않았습니다. GitHub Pages에서는 /api 요청을 처리할 수 없으므로 별도 API 서버 주소를 VITE_API_BASE로 설정해야 합니다.');
+    }
+    throw new Error(`${fallbackMessage} JSON 응답이 아닙니다.`);
+  }
+
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.error || payload?.message || `${fallbackMessage} (${response.status})`);
+  }
+
+  return payload;
+}
+
 export const STORAGE_NAMESPACE_KEY = 'dnf-hell-info:storage-namespace';
 export const DEV_MODE_STORAGE_KEY = 'dnf-hell-info:dev-mode';
 export const CHARACTER_CACHE_PREFIX = 'dnf-hell-info:api-character-list:';

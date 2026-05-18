@@ -45,6 +45,7 @@ export function installSupplyViewApi(ctx) {
     ACTIVE_TAB_STORAGE_KEY,
     API_BASE,
     DEV_MODE_STORAGE_KEY,
+    parseApiJsonResponse,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
     SUPPLY_CHARACTER_FATIGUE_POTIONS,
@@ -522,11 +523,7 @@ function setSupplyError(message = '') {
 async function lookupSupplyCharacter(serverId, characterName) {
   const url = `${API_BASE}/api/search?serverId=${encodeURIComponent(serverId)}&characterName=${encodeURIComponent(characterName)}`;
   const response = await fetch(url, { cache: 'no-store' });
-  const payload = await response.json();
-  
-  if (!response.ok || payload.error) {
-    throw new Error(payload.error || '캐릭터를 찾지 못했습니다.');
-  }
+  const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
   
   const resolved = payload.resolved || {};
   const resolvedServerId = String(resolved.serverId || serverId).trim().toLowerCase();
