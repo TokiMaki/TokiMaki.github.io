@@ -278,10 +278,10 @@ export default function DnfHellToolMarkup() {
             <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>
           </div>
           <div className={'loader-status'} id={'enchantCharacterStatus'}>선택 캐릭터 기준</div>
-          <div className={'loader-actions'}>
+          <div className={'loader-actions dev-only'}>
             <button type={'button'} className={'ghost-button'} id={'refreshEnchantCardsButton'}>시세 새로고침</button>
           </div>
-          <div className={'loader-status'} id={'enchantStatus'}></div>
+          <div className={'loader-status dev-only'} id={'enchantStatus'}></div>
         </aside>
         <section className={'panel enchant-include-card'}>
           <div className={'enchant-include-title'}>포함 항목</div>

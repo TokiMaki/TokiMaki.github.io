@@ -1487,7 +1487,7 @@ export function installEnchantView(ctx) {
       state.currentAvatar = null;
       state.currentAvatarCharacterKey = '';
     }
-    els.refreshEnchantCardsButton.disabled = true;
+    if (els.refreshEnchantCardsButton) els.refreshEnchantCardsButton.disabled = true;
     setEnchantPriceStatus('시세 확인 중...', '경매장 가격을 가져오는 중...');
     try {
       const query = forceRefresh ? '?refresh=1' : '';
@@ -1548,7 +1548,7 @@ export function installEnchantView(ctx) {
       setEnchantPriceStatus(error.message);
     } finally {
       state.enchantLoading = false;
-      els.refreshEnchantCardsButton.disabled = false;
+      if (els.refreshEnchantCardsButton) els.refreshEnchantCardsButton.disabled = false;
     }
   }
 
