@@ -990,36 +990,58 @@ function hasHigherEnchantCandidate(row, recommendationRows) {
 }
 
 function getEfficiencyBand(costPerPointOnePercent) {
-  if (costPerPointOnePercent <= 700000) return 'top';
-  if (costPerPointOnePercent <= 1000000) return 'high';
-  if (costPerPointOnePercent <= 1500000) return 'mid';
-  if (costPerPointOnePercent <= 2000000) return 'low';
-  return 'bottom';
+  if (costPerPointOnePercent > 10000000) return 'rainbow';
+  return 'scale';
 }
 
-function getEfficiencyBandLabel(band) {
-  return ({
-    top: '0.1%당 70만 이하',
-    high: '0.1%당 100만 이하',
-    mid: '0.1%당 150만 이하',
-    low: '0.1%당 200만 이하',
-    bottom: '0.1%당 200만 초과',
-  })[band] || band;
+const EFFICIENCY_COLOR_STOPS = [
+  { value: 700000, label: '70만', color: '#22c55e' },
+  { value: 1000000, label: '100만', color: '#a3e635' },
+  { value: 1500000, label: '150만', color: '#facc15' },
+  { value: 2000000, label: '200만', color: '#f97316' },
+  { value: 5000000, label: '500만', color: '#ef4444' },
+  { value: 10000000, label: '1000만', color: '#991b1b' },
+];
+
+function parseHexColor(color) {
+  const normalized = String(color || '').replace('#', '');
+  if (normalized.length !== 6) return [100, 116, 139];
+  return [
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16),
+  ];
 }
 
-function getEfficiencyBandColor(band) {
-  return ({
-    top: '#22c55e',
-    high: '#84cc16',
-    mid: '#facc15',
-    low: '#fb923c',
-    bottom: '#ef4444',
-  })[band] || '#64748b';
+function mixHexColor(fromColor, toColor, ratio) {
+  const from = parseHexColor(fromColor);
+  const to = parseHexColor(toColor);
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const mixed = from.map((value, index) => Math.round(value + (to[index] - value) * clamped));
+  return `#${mixed.map((value) => value.toString(16).padStart(2, '0')).join('')}`;
 }
 
-function getArrowBackground(fromBand, toBand) {
-  const fromColor = getEfficiencyBandColor(fromBand);
-  const toColor = getEfficiencyBandColor(toBand);
+function getEfficiencyColor(costPerPointOnePercent) {
+  const cost = Number(costPerPointOnePercent || 0);
+  if (!Number.isFinite(cost) || cost <= EFFICIENCY_COLOR_STOPS[0].value) {
+    return EFFICIENCY_COLOR_STOPS[0].color;
+  }
+  for (let index = 1; index < EFFICIENCY_COLOR_STOPS.length; index += 1) {
+    const previous = EFFICIENCY_COLOR_STOPS[index - 1];
+    const current = EFFICIENCY_COLOR_STOPS[index];
+    if (cost <= current.value) {
+      return mixHexColor(previous.color, current.color, (cost - previous.value) / (current.value - previous.value));
+    }
+  }
+  return EFFICIENCY_COLOR_STOPS[EFFICIENCY_COLOR_STOPS.length - 1].color;
+}
+
+function getArrowBackground(fromCost, toCost) {
+  if (Number(fromCost || 0) > 10000000 || Number(toCost || 0) > 10000000) {
+    return 'linear-gradient(90deg, #ef4444, #f97316, #facc15, #22c55e, #38bdf8, #a855f7, #ef4444)';
+  }
+  const fromColor = getEfficiencyColor(fromCost);
+  const toColor = getEfficiencyColor(toCost);
   if (fromColor === toColor) return fromColor;
   return `linear-gradient(90deg, ${fromColor} 0 50%, ${toColor} 50% 100%)`;
 }
@@ -1120,12 +1142,19 @@ export function installEnchantView(ctx) {
 
   function renderEfficiencyLegend(recommendations) {
     if (!els.enchantEfficiencyLegend) return;
-    const bands = ['top', 'high', 'mid', 'low', 'bottom'];
-    els.enchantEfficiencyLegend.innerHTML = bands
-      .map((band) => `
-        <span class="enchant-efficiency-legend-item enchant-efficiency-${band}">
+    const items = [
+      ...EFFICIENCY_COLOR_STOPS.map((stop) => ({
+        className: 'scale',
+        label: `0.1%당 ${stop.label}`,
+        color: stop.color,
+      })),
+      { className: 'rainbow', label: '0.1%당 1000만 초과', color: '' },
+    ];
+    els.enchantEfficiencyLegend.innerHTML = items
+      .map((item) => `
+        <span class="enchant-efficiency-legend-item enchant-efficiency-${item.className}"${item.color ? ` style="--enchant-band: ${escapeHtml(item.color)}"` : ''}>
           <span class="enchant-efficiency-dot"></span>
-          ${escapeHtml(getEfficiencyBandLabel(band))}
+          ${escapeHtml(item.label)}
         </span>
       `).join('');
   }
@@ -1141,10 +1170,11 @@ export function installEnchantView(ctx) {
 
     els.enchantRecommendList.innerHTML = recommendations.map((row, index) => {
       const band = getEfficiencyBand(row.costPerPointOnePercent);
+      const bandColor = band === 'rainbow' ? '' : getEfficiencyColor(row.costPerPointOnePercent);
+      const bandStyle = bandColor ? ` style="--enchant-band: ${escapeHtml(bandColor)}"` : '';
       const previousRow = recommendations[index - 1] || null;
-      const previousBand = previousRow ? getEfficiencyBand(previousRow.costPerPointOnePercent) : '';
       const connector = previousRow
-        ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(getArrowBackground(previousBand, band))};" aria-hidden="true"></span>`
+        ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
       const showOptionText = !['creature', 'title', 'aura'].includes(row.sourceType);
@@ -1193,7 +1223,7 @@ export function installEnchantView(ctx) {
       return `
         <span class="enchant-recommend-step">
           ${connector}
-          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}">
+          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}"${bandStyle}>
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
               <span class="enchant-recommend-title">${escapeHtml(row.slot)}</span>

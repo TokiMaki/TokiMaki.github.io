@@ -810,6 +810,36 @@
       font-size: 12px;
       line-height: 1.3;
     }
+    .enchant-recommend-head {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+    }
+    .enchant-recommend-head h2 {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0;
+    }
+    .enchant-efficiency-help {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--accent-2) 9%, transparent);
+      font-size: 12px;
+      line-height: 1;
+      cursor: help;
+    }
+    .enchant-efficiency-help:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
     .enchant-recommend-grid {
       display: flex;
       flex-wrap: wrap;
@@ -824,11 +854,30 @@
       min-width: 0;
     }
     .enchant-efficiency-legend {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 30;
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      width: 210px;
+      gap: 7px;
       align-items: center;
-      min-height: 22px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--panel) 98%, transparent);
+      box-shadow: var(--shadow-panel);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-3px);
+      transition: opacity 120ms ease, transform 120ms ease;
+    }
+    .enchant-recommend-head:hover .enchant-efficiency-legend,
+    .enchant-recommend-head:focus-within .enchant-efficiency-legend {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
     }
     .enchant-efficiency-legend-item {
       display: inline-flex;
@@ -847,8 +896,8 @@
     .enchant-recommend-item {
       position: relative;
       display: grid;
-      flex: 0 0 100px;
-      width: 100px;
+      flex: 0 0 110px;
+      width: 110px;
       grid-template-columns: 34px minmax(0, 1fr);
       gap: 7px;
       align-items: center;
@@ -865,31 +914,83 @@
       --enchant-band: #22c55e;
     }
     .enchant-efficiency-high {
-      --enchant-band: #84cc16;
+      --enchant-band: #a3e635;
     }
     .enchant-efficiency-mid {
       --enchant-band: #facc15;
     }
     .enchant-efficiency-low {
-      --enchant-band: #fb923c;
+      --enchant-band: #f97316;
     }
     .enchant-efficiency-bottom {
       --enchant-band: #ef4444;
+    }
+    .enchant-efficiency-taecho {
+      --enchant-band: #5eead4;
+    }
+    .enchant-efficiency-rainbow {
+      --enchant-band: #a855f7;
+    }
+    .enchant-efficiency-scale {
+      --enchant-band: #22c55e;
     }
     .enchant-efficiency-legend-item.enchant-efficiency-top,
     .enchant-efficiency-legend-item.enchant-efficiency-high,
     .enchant-efficiency-legend-item.enchant-efficiency-mid,
     .enchant-efficiency-legend-item.enchant-efficiency-low,
-    .enchant-efficiency-legend-item.enchant-efficiency-bottom {
+    .enchant-efficiency-legend-item.enchant-efficiency-bottom,
+    .enchant-efficiency-legend-item.enchant-efficiency-taecho,
+    .enchant-efficiency-legend-item.enchant-efficiency-scale,
+    .enchant-efficiency-legend-item.enchant-efficiency-rainbow {
       color: var(--enchant-band);
+    }
+    .enchant-efficiency-legend-item.enchant-efficiency-rainbow {
+      background: linear-gradient(90deg, #ef4444, #f97316, #facc15, #22c55e, #38bdf8, #a855f7, #ef4444);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: enchant-rainbow-hue 3.2s linear infinite;
+    }
+    .enchant-efficiency-legend-item.enchant-efficiency-rainbow .enchant-efficiency-dot {
+      background: linear-gradient(120deg, #ef4444, #f97316, #facc15, #22c55e, #38bdf8, #a855f7, #ef4444);
+      animation: enchant-rainbow-hue 3.2s linear infinite;
     }
     .enchant-recommend-item.enchant-efficiency-top,
     .enchant-recommend-item.enchant-efficiency-high,
     .enchant-recommend-item.enchant-efficiency-mid,
     .enchant-recommend-item.enchant-efficiency-low,
-    .enchant-recommend-item.enchant-efficiency-bottom {
+    .enchant-recommend-item.enchant-efficiency-bottom,
+    .enchant-recommend-item.enchant-efficiency-taecho,
+    .enchant-recommend-item.enchant-efficiency-scale {
       border-color: color-mix(in srgb, var(--enchant-band) 54%, var(--line));
       box-shadow: inset 3px 0 0 var(--enchant-band);
+    }
+    .enchant-recommend-item.enchant-efficiency-rainbow {
+      border-color: color-mix(in srgb, #38bdf8 58%, var(--line));
+      background: var(--surface-card);
+      box-shadow: inset 3px 0 0 #5eead4;
+    }
+    .enchant-recommend-item.enchant-efficiency-rainbow::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(120deg, #ef4444, #f97316, #facc15, #22c55e, #38bdf8, #a855f7, #ef4444) border-box;
+      animation: enchant-rainbow-hue 2.4s linear infinite;
+      pointer-events: none;
+      -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      mask-composite: exclude;
+      padding: 1px;
+    }
+    @keyframes enchant-rainbow-hue {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
     }
     .enchant-recommend-connector {
       display: inline-flex;
@@ -987,7 +1088,8 @@
       display: none;
       flex-direction: column;
       gap: 3px;
-      width: min(360px, 82vw);
+      width: max-content;
+      max-width: min(92vw, 720px);
       padding: 10px 12px;
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -1008,6 +1110,13 @@
     .enchant-popover-name {
       color: var(--text);
       font-weight: 800;
+    }
+    .enchant-popover-name,
+    .enchant-popover-muted,
+    .enchant-popover-effect {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .enchant-popover-muted,
     .enchant-popover-label {

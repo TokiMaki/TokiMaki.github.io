@@ -293,8 +293,13 @@ export default function DnfHellToolMarkup() {
         </aside>
         <main className={'stack'}>
           <section className={'panel section'}>
-            <h2>스펙업 순서 추천</h2>
-            <div className={'enchant-efficiency-legend'} id={'enchantEfficiencyLegend'}></div>
+            <div className={'enchant-recommend-head'}>
+              <h2>
+                <span>스펙업 순서 추천</span>
+                <span className={'enchant-efficiency-help'} tabIndex={0} aria-label={'효율 색상 기준'}>?</span>
+              </h2>
+              <div className={'enchant-efficiency-legend'} id={'enchantEfficiencyLegend'}></div>
+            </div>
             <div className={'enchant-recommend-grid'} id={'enchantRecommendList'}>
               <div className={'table-empty-cell'}>시세를 먼저 불러와 주세요.</div>
             </div>

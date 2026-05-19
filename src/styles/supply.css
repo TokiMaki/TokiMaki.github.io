@@ -123,7 +123,7 @@
       max-width: 720px;
     }
     #enchantPanel > .stack {
-      max-width: 770px;
+      max-width: 720px;
     }
     .enchant-filter-row {
       grid-template-columns: minmax(160px, 220px);
