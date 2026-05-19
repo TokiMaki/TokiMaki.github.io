@@ -150,6 +150,13 @@ if (els.enchantTierFilter) {
     ctx.actions.renderEnchantTable?.();
   });
 }
+if (els.enchantIncludeControls) {
+  els.enchantIncludeControls.addEventListener('change', (event) => {
+    if (event.target?.matches?.('input[data-enchant-tier]')) {
+      ctx.actions.renderEnchantTable?.();
+    }
+  });
+}
 els.percentileRange.addEventListener('input', () => syncPercentile(els.percentileRange));
 els.percentileNumber.addEventListener('input', () => syncPercentile(els.percentileNumber));
 els.selectedCharacter.addEventListener('change', () => {

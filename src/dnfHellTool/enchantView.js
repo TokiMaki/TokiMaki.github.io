@@ -51,6 +51,14 @@ const SLOT_ORDER = [
 ];
 
 const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘', '아바타', '엠블렘'];
+const ENCHANT_INCLUDE_GROUPS = [
+  { title: '마법부여', items: ['가성비', '준종결', '종결'] },
+  { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘'] },
+  { title: '아바타', items: ['아바타', '엠블렘'] },
+  { title: '강화/증폭', items: ['강화', '증폭'] },
+  { title: '흑아', items: ['흑아'] },
+];
+const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
 const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'allStat', 'str', 'int', 'critical'];
 const MATERIAL_ENCHANT_MATERIAL_ORDER = ['은화', '비단', '잔해', '소명'];
 const MATERIAL_ENCHANT_SLOT_ORDER = [
@@ -330,6 +338,23 @@ function compareMaterialEnchantOrder(a, b) {
   const slotDiff = getMaterialEnchantSlotRank(a) - getMaterialEnchantSlotRank(b);
   if (slotDiff) return slotDiff;
   return b.incrementalDamagePercent - a.incrementalDamagePercent;
+}
+
+function getEnchantIncludeGroup(row = {}) {
+  const materialLabel = row?.acquisition?.materialLabel || row?.acquisition?.materialItemName || '';
+  if (row.sourceType === 'enchant' && MATERIAL_ENCHANT_MATERIAL_ORDER.some((label) => String(materialLabel).includes(label))) {
+    return '마법부여:가성비';
+  }
+  if (row.sourceType === 'enchant') return `마법부여:${row.tier || '일반'}`;
+  if (['creature', 'title', 'aura'].includes(row.sourceType)) return `오라/칭호/크리쳐:${row.tier || '일반'}`;
+  if (row.sourceType === 'avatar') return `아바타:${row.tier || '아바타'}`;
+  if (row.sourceType === 'blackFang') return '흑아:흑아';
+  if (row.tier === '안전증폭' || row.tier === '증폭 전환') {
+    return '강화/증폭:증폭';
+  }
+  if (row.tier === '증폭') return '강화/증폭:증폭';
+  if (row.tier === '강화') return '강화/증폭:강화';
+  return `기타:${row.tier || '일반'}`;
 }
 
 function getAcquisitionLabel(acquisition = {}) {
@@ -1103,6 +1128,40 @@ export function installEnchantView(ctx) {
     }
   }
 
+  function renderEnchantIncludeControls(includeKeys = ENCHANT_INCLUDE_ORDER) {
+    if (!els.enchantIncludeControls) return;
+    const checked = new Set(
+      [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
+        .map((input) => input.value),
+    );
+    const initialRender = els.enchantIncludeControls.childElementCount === 0;
+    const includeKeySet = new Set(includeKeys);
+    els.enchantIncludeControls.innerHTML = ENCHANT_INCLUDE_GROUPS
+      .map((group) => {
+        const options = group.items
+          .map((item) => ({ item, key: `${group.title}:${item}` }))
+          .filter(({ key }) => includeKeySet.has(key));
+        if (!options.length) return '';
+        return `
+          <div class="enchant-include-group">
+            <div class="enchant-include-group-title">${escapeHtml(group.title)}</div>
+            <div class="enchant-include-group-options">
+              ${options.map(({ item, key }) => {
+                const isChecked = initialRender || checked.has(key);
+                return `
+                  <label class="enchant-include-option">
+                    <input type="checkbox" data-enchant-tier="${escapeHtml(key)}" value="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} />
+                    <span>${escapeHtml(item)}</span>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
   function renderEnchantFilters(rows) {
     const slots = [...new Set(rows.map((row) => row.slot))].sort((a, b) => {
       const indexA = SLOT_ORDER.includes(a) ? SLOT_ORDER.indexOf(a) : SLOT_ORDER.length;
@@ -1114,8 +1173,22 @@ export function installEnchantView(ctx) {
       const indexB = TIER_ORDER.includes(b) ? TIER_ORDER.indexOf(b) : TIER_ORDER.length;
       return indexA - indexB;
     });
+    const includeTiers = [...new Set([...ENCHANT_INCLUDE_ORDER, ...rows.map(getEnchantIncludeGroup)])].sort((a, b) => {
+      const indexA = ENCHANT_INCLUDE_ORDER.includes(a) ? ENCHANT_INCLUDE_ORDER.indexOf(a) : ENCHANT_INCLUDE_ORDER.length;
+      const indexB = ENCHANT_INCLUDE_ORDER.includes(b) ? ENCHANT_INCLUDE_ORDER.indexOf(b) : ENCHANT_INCLUDE_ORDER.length;
+      if (indexA !== indexB) return indexA - indexB;
+      return String(a).localeCompare(String(b), 'ko-KR');
+    });
     setOptions(els.enchantSlotFilter, slots, '전체');
     setOptions(els.enchantTierFilter, tiers, '전체');
+    renderEnchantIncludeControls(includeTiers);
+  }
+
+  function getSelectedEnchantIncludeTiers() {
+    if (!els.enchantIncludeControls) return null;
+    const checked = [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
+      .map((input) => input.value);
+    return checked.length ? new Set(checked) : new Set();
   }
 
   function renderEnchantTable() {
@@ -1132,9 +1205,11 @@ export function installEnchantView(ctx) {
 
     const slotFilter = els.enchantSlotFilter?.value || 'all';
     const tierFilter = els.enchantTierFilter?.value || 'all';
+    const includeTiers = getSelectedEnchantIncludeTiers();
     const rows = allRows
       .filter((row) => slotFilter === 'all' || row.slot === slotFilter)
       .filter((row) => tierFilter === 'all' || row.tier === tierFilter)
+      .filter((row) => !includeTiers || includeTiers.has(getEnchantIncludeGroup(row)))
       .sort(sortByPriceAsc);
 
     renderEnchantRecommendations(rows, allRows);
@@ -1488,4 +1563,7 @@ export function installEnchantView(ctx) {
     renderEnchantTable,
     renderEnchantRecommendations,
   });
+
+  renderEnchantIncludeControls();
+  renderEfficiencyLegend();
 }

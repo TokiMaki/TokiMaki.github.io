@@ -278,19 +278,15 @@ export default function DnfHellToolMarkup() {
             <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>
           </div>
           <div className={'loader-status'} id={'enchantCharacterStatus'}>선택 캐릭터 기준</div>
-          <div className={'form-grid enchant-filter-row'}>
-            <div className={'field'}>
-              <label htmlFor={'enchantTierFilter'}>단계</label>
-              <select id={'enchantTierFilter'}>
-                <option value={'all'}>전체</option>
-              </select>
-            </div>
-          </div>
           <div className={'loader-actions'}>
             <button type={'button'} className={'ghost-button'} id={'refreshEnchantCardsButton'}>시세 새로고침</button>
           </div>
           <div className={'loader-status'} id={'enchantStatus'}></div>
         </aside>
+        <section className={'panel enchant-include-card'}>
+          <div className={'enchant-include-title'}>포함 항목</div>
+          <div className={'enchant-include-controls'} id={'enchantIncludeControls'}></div>
+        </section>
         <main className={'stack'}>
           <section className={'panel section'}>
             <div className={'enchant-recommend-head'}>

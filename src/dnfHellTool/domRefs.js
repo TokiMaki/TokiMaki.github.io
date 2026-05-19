@@ -76,6 +76,7 @@ export function createToolDomRefs() {
       enchantCharacterStatus: $id('enchantCharacterStatus'),
       enchantSlotFilter: $id('enchantSlotFilter'),
       enchantTierFilter: $id('enchantTierFilter'),
+      enchantIncludeControls: $id('enchantIncludeControls'),
       refreshEnchantCardsButton: $id('refreshEnchantCardsButton'),
       enchantStatus: $id('enchantStatus'),
       enchantEfficiencyLegend: $id('enchantEfficiencyLegend'),
