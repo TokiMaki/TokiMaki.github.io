@@ -10,12 +10,12 @@ export default function DnfHellToolMarkup() {
           <img className={'site-logo-image'} src={logoImage} alt={'던파일럿'} />
         </h1>
         <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
-          <button type={'button'} className={'tab-button active'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'true'}>헬 계산기</button>
+          <button type={'button'} className={'tab-button active'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'true'}>스펙업 순서</button>
+          <button type={'button'} className={'tab-button'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'false'}>헬 계산기</button>
           <button type={'button'} className={'tab-button'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
-          <button type={'button'} className={'tab-button'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'false'}>스펙업 순서</button>
         </div>
       </section>
-      <section className={'grid tab-panel'} id={'hellPanel'}>
+      <section className={'grid tab-panel'} id={'hellPanel'} hidden>
         <aside className={'panel'}>
           <h2>입력</h2>
           <div className={'form-grid'}>
@@ -251,7 +251,7 @@ export default function DnfHellToolMarkup() {
           </section>
         </main>
       </section>
-      <section className={'grid tab-panel'} id={'enchantPanel'} hidden>
+      <section className={'grid tab-panel'} id={'enchantPanel'}>
         <aside className={'panel'}>
           <h2>스펙업 순서</h2>
           <div className={'supply-note'}>

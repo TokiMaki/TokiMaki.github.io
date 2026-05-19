@@ -73,7 +73,7 @@ export function installHellApiState(ctx) {
 
 function setActiveTab(tabId, persist = true, options = {}) {
   const validTabIds = new Set(['hellPanel', 'supplyPanel', 'enchantPanel']);
-  const normalizedTabId = validTabIds.has(tabId) ? tabId : 'hellPanel';
+  const normalizedTabId = validTabIds.has(tabId) ? tabId : 'enchantPanel';
   const runSideEffects = options.runSideEffects !== false;
   
   document.querySelectorAll('.tab-panel').forEach((panel) => {
@@ -117,9 +117,9 @@ function setActiveTab(tabId, persist = true, options = {}) {
 
 function loadActiveTab() {
   try {
-    return localStorage.getItem(ACTIVE_TAB_STORAGE_KEY) || 'hellPanel';
+    return localStorage.getItem(ACTIVE_TAB_STORAGE_KEY) || 'enchantPanel';
   } catch {
-    return 'hellPanel';
+    return 'enchantPanel';
   }
 }
 
