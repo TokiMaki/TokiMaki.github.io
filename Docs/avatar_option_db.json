@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-14",
-  "sourcePolicy": "초안 DB. 게임조선 직업 가이드의 정옵 문구에서 스킬명 사실값만 추출했으며, 문장 설명은 사용하지 않는다. 틀린 값은 수동 검수로 수정한다.",
+  "updatedAt": "2026-05-19",
+  "sourcePolicy": "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나만 보관하고, avatar.candidateCombos는 채택률 10% 이상인 상위 4개 조합을 저장해 딜 효율 비교에 사용한다.",
   "fields": {
     "avatar.topOptions": "상의 아바타 옵션 후보. 앞쪽일수록 우선 후보.",
     "avatar.platinumEmblems": "상의/하의 플래티넘 엠블렘 추천값. 후보가 여러 개 추출되면 첫 번째 후보만 사용한다.",
+    "avatar.candidateCombos": "딜 효율 비교용 상의+플래티넘 2개 후보 조합. 외부 사이트를 런타임 파싱하지 않고 검수된 후보만 보관한다.",
     "avatar.needsReview": "추출 누락 또는 형식 불확실 여부."
   },
   "entries": [
@@ -12,8 +13,8 @@
       "classGroup": "귀검사(남)",
       "guideName": "웨펀마스터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EC%9B%A8%ED%8E%80%EB%A7%88%EC%8A%A4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -24,48 +25,71 @@
           "검기상인"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "검기상인",
+            "platinumEmblems": [
+              "검기상인",
+              "검기상인"
+            ],
+            "adoptionRate": 72.93
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "검기상인"
-        ],
-        "platinumCandidatesFromTable": [
-          "검기상인"
-        ]
+        "adoptionRate": 72.93
       }
     },
     {
       "classGroup": "귀검사(남)",
       "guideName": "버서커",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EB%B2%84%EC%84%9C%EC%BB%A4/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "블러드 인카넷"
+          "혈십자"
         ],
         "platinumEmblems": [
           "혈십자"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "혈십자",
+            "platinumEmblems": [
+              "혈십자",
+              "혈십자"
+            ],
+            "adoptionRate": 44.42
+          },
+          {
+            "rank": 2,
+            "topOption": "블러드 인카넷",
+            "platinumEmblems": [
+              "혈십자",
+              "혈십자"
+            ],
+            "adoptionRate": 22.22
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "혈십자"
-        ]
+        "adoptionRate": 44.42
       }
     },
     {
       "classGroup": "귀검사(남)",
       "guideName": "소울브링어",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EC%86%8C%EC%9A%B8%EB%B8%8C%EB%A7%81%EC%96%B4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -76,23 +100,29 @@
           "달의 커튼"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "팬텀 마스터리",
+            "platinumEmblems": [
+              "달의 커튼",
+              "달의 커튼"
+            ],
+            "adoptionRate": 77.49
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "팬텀 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "달의 커튼"
-        ]
+        "adoptionRate": 77.49
       }
     },
     {
       "classGroup": "귀검사(남)",
       "guideName": "아수라",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EC%95%84%EC%88%98%EB%9D%BC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -100,24 +130,32 @@
           "뇌신의 기운"
         ],
         "platinumEmblems": [
-          "정신이 번쩍"
+          "정신이 번쩍!"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "뇌신의 기운",
+            "platinumEmblems": [
+              "정신이 번쩍!",
+              "정신이 번쩍!"
+            ],
+            "adoptionRate": 63.08
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "정신이 번쩍"
-        ]
+        "adoptionRate": 63.08
       }
     },
     {
       "classGroup": "귀검사(남)",
       "guideName": "검귀",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=1&c2=5"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EA%B2%80%EA%B7%80/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -127,47 +165,63 @@
         "platinumEmblems": [
           "검귀의 도 마스터리"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "검귀의 도 마스터리",
+            "platinumEmblems": [
+              "검귀의 도 마스터리",
+              "검귀의 도 마스터리"
+            ],
+            "adoptionRate": 56.85
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "검귀의 도 마스터리"
-        ]
+        "adoptionRate": 56.85
       }
     },
     {
       "classGroup": "귀검사(여)",
       "guideName": "소드마스터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EC%86%8C%EB%93%9C%EB%A7%88%EC%8A%A4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "무기 마스터리"
+          "무기 숙련"
         ],
         "platinumEmblems": [
-          "무기 마스터리"
+          "무기 숙련"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "무기 숙련",
+            "platinumEmblems": [
+              "무기 숙련",
+              "무기 숙련"
+            ],
+            "adoptionRate": 69.66
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "무기 마스터리"
-        ]
+        "adoptionRate": 69.66
       }
     },
     {
       "classGroup": "귀검사(여)",
       "guideName": "데몬슬레이어",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EB%8D%B0%EB%AA%AC%EC%8A%AC%EB%A0%88%EC%9D%B4%EC%96%B4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -178,24 +232,29 @@
           "마검 제어"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "마검 제어",
+            "platinumEmblems": [
+              "마검 제어",
+              "마검 제어"
+            ],
+            "adoptionRate": 81.48
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "마검 제어",
-          "마검 제어"
-        ],
-        "platinumCandidatesFromTable": [
-          "마검 제어"
-        ]
+        "adoptionRate": 81.48
       }
     },
     {
       "classGroup": "귀검사(여)",
       "guideName": "베가본드",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EB%B2%A0%EA%B0%80%EB%B3%B8%EB%93%9C/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -206,51 +265,62 @@
           "삼화취정"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "삼화취정",
+            "platinumEmblems": [
+              "삼화취정",
+              "삼화취정"
+            ],
+            "adoptionRate": 85.47
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "삼화취정",
-          "삼화취정"
-        ],
-        "platinumCandidatesFromTable": [
-          "삼화취정"
-        ]
+        "adoptionRate": 85.47
       }
     },
     {
       "classGroup": "귀검사(여)",
       "guideName": "다크템플러",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EB%8B%A4%ED%81%AC%ED%85%9C%ED%94%8C%EB%9F%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "우시르의 저주"
+          "스티그마"
         ],
         "platinumEmblems": [
-          "우시르의 저주"
+          "스티그마"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "스티그마",
+            "platinumEmblems": [
+              "스티그마",
+              "스티그마"
+            ],
+            "adoptionRate": 78.72
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "우시르의 저주"
-        ],
-        "platinumCandidatesFromTable": [
-          "우시르의 저주"
-        ]
+        "adoptionRate": 78.72
       }
     },
     {
       "classGroup": "귀검사(여)",
       "guideName": "블레이드",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=2&c2=5"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B7%80%EA%B2%80%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EB%B8%94%EB%A0%88%EC%9D%B4%EB%93%9C/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -261,24 +331,29 @@
           "빈티지"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "빈티지",
+            "platinumEmblems": [
+              "빈티지",
+              "빈티지"
+            ],
+            "adoptionRate": 83.17
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "빈티지",
-          "빈티지"
-        ],
-        "platinumCandidatesFromTable": [
-          "빈티지"
-        ]
+        "adoptionRate": 83.17
       }
     },
     {
       "classGroup": "격투가(남)",
       "guideName": "넨마스터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EB%82%A8)/%E7%9C%9E%20%EB%84%A8%EB%A7%88%EC%8A%A4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -289,24 +364,29 @@
           "나선의 넨"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "나선의 넨",
+            "platinumEmblems": [
+              "나선의 넨",
+              "나선의 넨"
+            ],
+            "adoptionRate": 76.33
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "나선의 넨",
-          "나선의 넨"
-        ],
-        "platinumCandidatesFromTable": [
-          "나선의 넨"
-        ]
+        "adoptionRate": 76.33
       }
     },
     {
       "classGroup": "격투가(남)",
       "guideName": "스트라이커",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EB%82%A8)/%E7%9C%9E%20%EC%8A%A4%ED%8A%B8%EB%9D%BC%EC%9D%B4%EC%BB%A4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -317,21 +397,29 @@
           "머슬 시프트"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "화염의 각",
+            "platinumEmblems": [
+              "머슬 시프트",
+              "머슬 시프트"
+            ],
+            "adoptionRate": 84.55
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "머슬 시프트"
-        ]
+        "adoptionRate": 84.55
       }
     },
     {
       "classGroup": "격투가(남)",
       "guideName": "스트리트파이터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EB%82%A8)/%E7%9C%9E%20%EC%8A%A4%ED%8A%B8%EB%A6%AC%ED%8A%B8%ED%8C%8C%EC%9D%B4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -342,23 +430,29 @@
           "도발"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "도발",
+            "platinumEmblems": [
+              "도발",
+              "도발"
+            ],
+            "adoptionRate": 77.97
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "도발"
-        ],
-        "platinumCandidatesFromTable": [
-          "도발"
-        ]
+        "adoptionRate": 77.97
       }
     },
     {
       "classGroup": "격투가(남)",
       "guideName": "그래플러",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=3&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EB%82%A8)/%E7%9C%9E%20%EA%B7%B8%EB%9E%98%ED%94%8C%EB%9F%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -369,46 +463,62 @@
           "강렬한 테이크 다운"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "강렬한 테이크 다운",
+            "platinumEmblems": [
+              "강렬한 테이크 다운",
+              "강렬한 테이크 다운"
+            ],
+            "adoptionRate": 86.82
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "강렬한 테이크 다운"
-        ]
+        "adoptionRate": 86.82
       }
     },
     {
       "classGroup": "격투가(여)",
       "guideName": "넨마스터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EC%97%AC)/%E7%9C%9E%20%EB%84%A8%EB%A7%88%EC%8A%A4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "나선의 넨"
+          "낙화태염성"
         ],
         "platinumEmblems": [
           "나선의 넨"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "낙화태염성",
+            "platinumEmblems": [
+              "나선의 넨",
+              "나선의 넨"
+            ],
+            "adoptionRate": 75.15
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "나선의 넨"
-        ]
+        "adoptionRate": 75.15
       }
     },
     {
       "classGroup": "격투가(여)",
       "guideName": "스트라이커",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EC%97%AC)/%E7%9C%9E%20%EC%8A%A4%ED%8A%B8%EB%9D%BC%EC%9D%B4%EC%BB%A4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -419,23 +529,29 @@
           "급소 지정"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "급소 지정",
+            "platinumEmblems": [
+              "급소 지정",
+              "급소 지정"
+            ],
+            "adoptionRate": 81.45
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "급소 지정"
-        ],
-        "platinumCandidatesFromTable": [
-          "급소 지정"
-        ]
+        "adoptionRate": 81.45
       }
     },
     {
       "classGroup": "격투가(여)",
       "guideName": "스트리트파이터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EC%97%AC)/%E7%9C%9E%20%EC%8A%A4%ED%8A%B8%EB%A6%AC%ED%8A%B8%ED%8C%8C%EC%9D%B4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -446,21 +562,29 @@
           "도발"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "독문무공",
+            "platinumEmblems": [
+              "도발",
+              "도발"
+            ],
+            "adoptionRate": 83.2
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "도발"
-        ]
+        "adoptionRate": 83.2
       }
     },
     {
       "classGroup": "격투가(여)",
       "guideName": "그래플러",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=4&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B2%A9%ED%88%AC%EA%B0%80(%EC%97%AC)/%E7%9C%9E%20%EA%B7%B8%EB%9E%98%ED%94%8C%EB%9F%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -471,24 +595,29 @@
           "강렬한 테이크 다운"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "강렬한 테이크 다운",
+            "platinumEmblems": [
+              "강렬한 테이크 다운",
+              "강렬한 테이크 다운"
+            ],
+            "adoptionRate": 81.93
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "강렬한 테이크 다운",
-          "강렬한 테이크 다운"
-        ],
-        "platinumCandidatesFromTable": [
-          "강렬한 테이크 다운"
-        ]
+        "adoptionRate": 81.93
       }
     },
     {
       "classGroup": "거너(남)",
       "guideName": "레인저",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EB%82%A8)/%E7%9C%9E%20%EB%A0%88%EC%9D%B8%EC%A0%80/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -498,25 +627,30 @@
         "platinumEmblems": [
           "스타일리쉬"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "스타일리쉬",
+            "platinumEmblems": [
+              "스타일리쉬",
+              "스타일리쉬"
+            ],
+            "adoptionRate": 81.13
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "스타일리쉬",
-          "스타일리쉬"
-        ],
-        "platinumCandidatesFromTable": [
-          "스타일리쉬 or 리볼버 강화"
-        ]
+        "adoptionRate": 81.13
       }
     },
     {
       "classGroup": "거너(남)",
       "guideName": "런처",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EB%82%A8)/%E7%9C%9E%20%EB%9F%B0%EC%B2%98/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -527,24 +661,29 @@
           "중화기 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "중화기 마스터리",
+            "platinumEmblems": [
+              "중화기 마스터리",
+              "중화기 마스터리"
+            ],
+            "adoptionRate": 83.85
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "중화기 마스터리",
-          "중화기 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "중화기 마스터리"
-        ]
+        "adoptionRate": 83.85
       }
     },
     {
       "classGroup": "거너(남)",
       "guideName": "메카닉",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EB%82%A8)/%E7%9C%9E%20%EB%A9%94%EC%B9%B4%EB%8B%89/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -555,24 +694,38 @@
           "아크리액터"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "아크리액터",
+            "platinumEmblems": [
+              "아크리액터",
+              "아크리액터"
+            ],
+            "adoptionRate": 71.29
+          },
+          {
+            "rank": 2,
+            "topOption": "HS-1 친구들",
+            "platinumEmblems": [
+              "아크리액터",
+              "아크리액터"
+            ],
+            "adoptionRate": 14.06
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "아크리액터",
-          "아크리액터"
-        ],
-        "platinumCandidatesFromTable": [
-          "아크리액터"
-        ]
+        "adoptionRate": 71.29
       }
     },
     {
       "classGroup": "거너(남)",
       "guideName": "스핏파이어",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EB%82%A8)/%E7%9C%9E%20%EC%8A%A4%ED%95%8F%ED%8C%8C%EC%9D%B4%EC%96%B4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -583,24 +736,29 @@
           "병기 숙련"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "병기 숙련",
+            "platinumEmblems": [
+              "병기 숙련",
+              "병기 숙련"
+            ],
+            "adoptionRate": 85.09
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "병기 숙련",
-          "병기 숙련"
-        ],
-        "platinumCandidatesFromTable": [
-          "병기 숙련"
-        ]
+        "adoptionRate": 85.09
       }
     },
     {
       "classGroup": "거너(남)",
       "guideName": "어썰트",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=5&c2=5"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EB%82%A8)/%E7%9C%9E%20%EC%96%B4%EC%8D%B0%ED%8A%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -611,23 +769,29 @@
           "센서빌리티"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "센서빌리티",
+            "platinumEmblems": [
+              "센서빌리티",
+              "센서빌리티"
+            ],
+            "adoptionRate": 76.96
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "센서빌리티"
-        ],
-        "platinumCandidatesFromTable": [
-          "센서빌리티"
-        ]
+        "adoptionRate": 76.96
       }
     },
     {
       "classGroup": "거너(여)",
       "guideName": "레인저",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EC%97%AC)/%E7%9C%9E%20%EB%A0%88%EC%9D%B8%EC%A0%80/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -637,25 +801,30 @@
         "platinumEmblems": [
           "스타일리쉬"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "스타일리쉬",
+            "platinumEmblems": [
+              "스타일리쉬",
+              "스타일리쉬"
+            ],
+            "adoptionRate": 80.27
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "스타일리쉬",
-          "스타일리쉬"
-        ],
-        "platinumCandidatesFromTable": [
-          "스타일리쉬 or 리볼버 강화"
-        ]
+        "adoptionRate": 80.27
       }
     },
     {
       "classGroup": "거너(여)",
       "guideName": "런처",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EC%97%AC)/%E7%9C%9E%20%EB%9F%B0%EC%B2%98/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -666,49 +835,71 @@
           "중화기 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "중화기 마스터리",
+            "platinumEmblems": [
+              "중화기 마스터리",
+              "중화기 마스터리"
+            ],
+            "adoptionRate": 85.57
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "중화기 마스터리",
-          "중화기 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "중화기 마스터리"
-        ]
+        "adoptionRate": 85.57
       }
     },
     {
       "classGroup": "거너(여)",
       "guideName": "메카닉",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EC%97%AC)/%E7%9C%9E%20%EB%A9%94%EC%B9%B4%EB%8B%89/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "트랜스포메이션"
+          "G-오퍼레이터"
         ],
         "platinumEmblems": [
-          "하이테크놀로지"
+          "트랜스포메이션"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "G-오퍼레이터",
+            "platinumEmblems": [
+              "트랜스포메이션",
+              "트랜스포메이션"
+            ],
+            "adoptionRate": 50.2
+          },
+          {
+            "rank": 2,
+            "topOption": "G-오퍼레이터",
+            "platinumEmblems": [
+              "하이테크놀로지",
+              "하이테크놀로지"
+            ],
+            "adoptionRate": 18.74
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "하이테크놀로지"
-        ]
+        "adoptionRate": 50.2
       }
     },
     {
       "classGroup": "거너(여)",
       "guideName": "스핏파이어",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=6&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EC%97%AC)/%E7%9C%9E%20%EC%8A%A4%ED%95%8F%ED%8C%8C%EC%9D%B4%EC%96%B4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -719,24 +910,29 @@
           "병기 숙련"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "병기 숙련",
+            "platinumEmblems": [
+              "병기 숙련",
+              "병기 숙련"
+            ],
+            "adoptionRate": 80.93
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "병기 숙련",
-          "병기 숙련"
-        ],
-        "platinumCandidatesFromTable": [
-          "병기 숙련"
-        ]
+        "adoptionRate": 80.93
       }
     },
     {
       "classGroup": "마법사(남)",
       "guideName": "엘레멘탈바머",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EC%97%98%EB%A0%88%EB%A9%98%ED%83%88%20%EB%B0%94%EB%A8%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -747,24 +943,29 @@
           "원소의 이해"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "원소의 이해",
+            "platinumEmblems": [
+              "원소의 이해",
+              "원소의 이해"
+            ],
+            "adoptionRate": 82.15
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "원소의 이해",
-          "원소의 이해"
-        ],
-        "platinumCandidatesFromTable": [
-          "원소의 이해"
-        ]
+        "adoptionRate": 82.15
       }
     },
     {
       "classGroup": "마법사(남)",
       "guideName": "빙결사",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EB%B9%99%EA%B2%B0%EC%82%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -772,27 +973,41 @@
           "발현"
         ],
         "platinumEmblems": [
-          "공명"
-        ],
-        "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
-      },
-      "review": {
-        "topOptionCandidatesFromSentence": [
-          "발현",
           "발현"
         ],
-        "platinumCandidatesFromTable": [
-          "공명"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "발현",
+            "platinumEmblems": [
+              "발현",
+              "발현"
+            ],
+            "adoptionRate": 74.98
+          },
+          {
+            "rank": 2,
+            "topOption": "아이스크래프트",
+            "platinumEmblems": [
+              "발현",
+              "발현"
+            ],
+            "adoptionRate": 12.06
+          }
         ]
+      },
+      "review": {
+        "adoptionRate": 74.98
       }
     },
     {
       "classGroup": "마법사(남)",
       "guideName": "블러드 메이지",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EB%B8%94%EB%9F%AC%EB%93%9C%20%EB%A9%94%EC%9D%B4%EC%A7%80/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -802,22 +1017,48 @@
         "platinumEmblems": [
           "블러드 혼"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "블러드 혼",
+            "platinumEmblems": [
+              "블러드 혼",
+              "블러드 혼"
+            ],
+            "adoptionRate": 46.11
+          },
+          {
+            "rank": 2,
+            "topOption": "블러드 혼",
+            "platinumEmblems": [
+              "블러드",
+              "블러드"
+            ],
+            "adoptionRate": 12.97
+          },
+          {
+            "rank": 3,
+            "topOption": "블러드",
+            "platinumEmblems": [
+              "블러드 혼",
+              "블러드 혼"
+            ],
+            "adoptionRate": 11.35
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "블러드 or 블러드 혼"
-        ]
+        "adoptionRate": 46.11
       }
     },
     {
       "classGroup": "마법사(남)",
       "guideName": "스위프트마스터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EC%8A%A4%EC%9C%84%ED%94%84%ED%8A%B8%20%EB%A7%88%EC%8A%A4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -828,24 +1069,29 @@
           "휘몰아치는 질풍의 봉 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "휘몰아치는 질풍의 봉 마스터리",
+            "platinumEmblems": [
+              "휘몰아치는 질풍의 봉 마스터리",
+              "휘몰아치는 질풍의 봉 마스터리"
+            ],
+            "adoptionRate": 83.3
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "휘몰아치는 질풍의 봉 마스터리",
-          "휘몰아치는 질풍의 봉 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "휘몰아치는 봉 마스터리"
-        ]
+        "adoptionRate": 83.3
       }
     },
     {
       "classGroup": "마법사(남)",
       "guideName": "디멘션워커",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=7&c2=5"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EB%94%94%EB%A9%98%EC%85%98%EC%9B%8C%EC%BB%A4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -856,24 +1102,29 @@
           "도그마 디바이스"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "도그마 디바이스",
+            "platinumEmblems": [
+              "도그마 디바이스",
+              "도그마 디바이스"
+            ],
+            "adoptionRate": 84.74
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "도그마 디바이스",
-          "도그마 디바이스"
-        ],
-        "platinumCandidatesFromTable": [
-          "도그마 디바이스"
-        ]
+        "adoptionRate": 84.74
       }
     },
     {
       "classGroup": "마법사(여)",
-      "guideName": "엘레멘탈바머",
+      "guideName": "엘레멘탈마스터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EC%97%98%EB%A0%88%EB%A9%98%ED%83%88%EB%A7%88%EC%8A%A4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -884,24 +1135,38 @@
           "속성 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "속성 마스터리",
+            "platinumEmblems": [
+              "속성 마스터리",
+              "속성 마스터리"
+            ],
+            "adoptionRate": 42.16
+          },
+          {
+            "rank": 2,
+            "topOption": "속성 마스터리",
+            "platinumEmblems": [
+              "쇼타임",
+              "쇼타임"
+            ],
+            "adoptionRate": 37.32
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "속성 마스터리",
-          "속성 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "화력 중심 : 속성 마스터리"
-        ]
+        "adoptionRate": 42.16
       }
     },
     {
       "classGroup": "마법사(여)",
       "guideName": "배틀메이지",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EB%B0%B0%ED%8B%80%EB%A9%94%EC%9D%B4%EC%A7%80/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -909,26 +1174,50 @@
           "니우의 전투술"
         ],
         "platinumEmblems": [
-          "니우의 전투술"
+          "배틀메이지의 무기 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "니우의 전투술",
+            "platinumEmblems": [
+              "배틀메이지의 무기 마스터리",
+              "배틀메이지의 무기 마스터리"
+            ],
+            "adoptionRate": 25.68
+          },
+          {
+            "rank": 2,
+            "topOption": "니우의 전투술",
+            "platinumEmblems": [
+              "니우의 전투술",
+              "니우의 전투술"
+            ],
+            "adoptionRate": 19.8
+          },
+          {
+            "rank": 3,
+            "topOption": "배틀메이지의 무기 마스터리",
+            "platinumEmblems": [
+              "니우의 전투술",
+              "니우의 전투술"
+            ],
+            "adoptionRate": 16.34
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "니우의 전투술"
-        ],
-        "platinumCandidatesFromTable": [
-          "니우의 전투술"
-        ]
+        "adoptionRate": 25.68
       }
     },
     {
       "classGroup": "마법사(여)",
       "guideName": "소환사",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EC%86%8C%ED%99%98%EC%82%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -939,21 +1228,29 @@
           "교감"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "교감",
+            "platinumEmblems": [
+              "교감",
+              "교감"
+            ],
+            "adoptionRate": 79
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "교감"
-        ]
+        "adoptionRate": 79
       }
     },
     {
       "classGroup": "마법사(여)",
       "guideName": "마도학자",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EB%A7%88%EB%8F%84%ED%95%99%EC%9E%90/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -963,22 +1260,30 @@
         "platinumEmblems": [
           "퍼밀리어와 친하게 지내기"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "퍼밀리어와 친하게 지내기",
+            "platinumEmblems": [
+              "퍼밀리어와 친하게 지내기",
+              "퍼밀리어와 친하게 지내기"
+            ],
+            "adoptionRate": 83.68
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "화력 중심 : 퍼밀리어와 친하게 지내기"
-        ]
+        "adoptionRate": 83.68
       }
     },
     {
       "classGroup": "마법사(여)",
       "guideName": "인챈트리스",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=8&c2=5"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EC%97%AC)/%E7%9C%9E%20%EC%9D%B8%EC%B1%88%ED%8A%B8%EB%A6%AC%EC%8A%A4/avatar"
       },
       "role": "buffer",
       "avatar": {
@@ -986,54 +1291,65 @@
           "마리오네트"
         ],
         "platinumEmblems": [
-          "버프 : 퍼페티어"
+          "퍼페티어"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "마리오네트",
+            "platinumEmblems": [
+              "퍼페티어",
+              "퍼페티어"
+            ],
+            "adoptionRate": 76.92
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "버프 : 퍼페티어"
-        ]
+        "adoptionRate": 76.92
       }
     },
     {
       "classGroup": "프리스트(남)",
       "guideName": "크루세이더",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EB%82%A8)/%E7%9C%9E%20%ED%81%AC%EB%A3%A8%EC%84%B8%EC%9D%B4%EB%8D%94/avatar"
       },
       "role": "buffer",
       "avatar": {
         "topOptions": [
-          "아포칼립스",
-          "용기의 은총"
+          "아포칼립스"
         ],
         "platinumEmblems": [
           "수호의 은총"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "아포칼립스",
+            "platinumEmblems": [
+              "수호의 은총",
+              "수호의 은총"
+            ],
+            "adoptionRate": 64.53
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "용기의 은총",
-          "용기의 은총"
-        ],
-        "platinumCandidatesFromTable": [
-          "수호의 은총",
-          "용기의 은총"
-        ]
+        "adoptionRate": 64.53
       }
     },
     {
       "classGroup": "프리스트(남)",
       "guideName": "인파이터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EB%82%A8)/%E7%9C%9E%20%EC%9D%B8%ED%8C%8C%EC%9D%B4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1044,24 +1360,29 @@
           "윌 드라이버"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "윌 드라이버",
+            "platinumEmblems": [
+              "윌 드라이버",
+              "윌 드라이버"
+            ],
+            "adoptionRate": 81.59
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "윌 드라이버",
-          "윌 드라이버"
-        ],
-        "platinumCandidatesFromTable": [
-          "윌 드라이버"
-        ]
+        "adoptionRate": 81.59
       }
     },
     {
       "classGroup": "프리스트(남)",
       "guideName": "퇴마사",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EB%82%A8)/%E7%9C%9E%20%ED%87%B4%EB%A7%88%EC%82%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1072,23 +1393,29 @@
           "퇴마의 서"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "신선의 경지",
+            "platinumEmblems": [
+              "퇴마의 서",
+              "퇴마의 서"
+            ],
+            "adoptionRate": 76.4
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "신선의 경지"
-        ],
-        "platinumCandidatesFromTable": [
-          "퇴마의 서"
-        ]
+        "adoptionRate": 76.4
       }
     },
     {
       "classGroup": "프리스트(남)",
       "guideName": "어벤저",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=9&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EB%82%A8)/%E7%9C%9E%20%EC%96%B4%EB%B2%A4%EC%A0%80/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1099,24 +1426,29 @@
           "환청"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "환청",
+            "platinumEmblems": [
+              "환청",
+              "환청"
+            ],
+            "adoptionRate": 87.82
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "환청",
-          "환청"
-        ],
-        "platinumCandidatesFromTable": [
-          "환청"
-        ]
+        "adoptionRate": 87.82
       }
     },
     {
       "classGroup": "프리스트(여)",
       "guideName": "크루세이더",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EC%97%AC)/%E7%9C%9E%20%ED%81%AC%EB%A3%A8%EC%84%B8%EC%9D%B4%EB%8D%94/avatar"
       },
       "role": "buffer",
       "avatar": {
@@ -1124,52 +1456,83 @@
           "크럭스 오브 빅토리아"
         ],
         "platinumEmblems": [
-          "버프 : 계시 : 아리아"
+          "계시 : 아리아"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "크럭스 오브 빅토리아",
+            "platinumEmblems": [
+              "계시 : 아리아",
+              "계시 : 아리아"
+            ],
+            "adoptionRate": 77.44
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "버프 : 계시 : 아리아"
-        ]
+        "adoptionRate": 77.44
       }
     },
     {
       "classGroup": "프리스트(여)",
       "guideName": "이단심판관",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EC%97%AC)/%E7%9C%9E%20%EC%9D%B4%EB%8B%A8%EC%8B%AC%ED%8C%90%EA%B4%80/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "성화"
+          "배틀액스 마스터리"
         ],
         "platinumEmblems": [
-          "성화"
+          "배틀액스 마스터리"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "배틀액스 마스터리",
+            "platinumEmblems": [
+              "배틀액스 마스터리",
+              "배틀액스 마스터리"
+            ],
+            "adoptionRate": 25.7
+          },
+          {
+            "rank": 2,
+            "topOption": "배틀액스 마스터리",
+            "platinumEmblems": [
+              "성화",
+              "성화"
+            ],
+            "adoptionRate": 15.59
+          },
+          {
+            "rank": 3,
+            "topOption": "성화",
+            "platinumEmblems": [
+              "배틀액스 마스터리",
+              "배틀액스 마스터리"
+            ],
+            "adoptionRate": 10.24
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "성화",
-          "성화"
-        ],
-        "platinumCandidatesFromTable": [
-          "성화 or 배틀엑스 마스터리"
-        ]
+        "adoptionRate": 25.7
       }
     },
     {
       "classGroup": "프리스트(여)",
       "guideName": "무녀",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EC%97%AC)/%E7%9C%9E%20%EB%AC%B4%EB%85%80/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1179,75 +1542,114 @@
         "platinumEmblems": [
           "법력 강화"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "법력 강화",
+            "platinumEmblems": [
+              "법력 강화",
+              "법력 강화"
+            ],
+            "adoptionRate": 39.54
+          },
+          {
+            "rank": 2,
+            "topOption": "천녀기우제",
+            "platinumEmblems": [
+              "법력 강화",
+              "법력 강화"
+            ],
+            "adoptionRate": 26.16
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "법력 강화",
-          "법력 강화"
-        ],
-        "platinumCandidatesFromTable": [
-          "법력 강화 or 천녀기우제"
-        ]
+        "adoptionRate": 39.54
       }
     },
     {
       "classGroup": "프리스트(여)",
       "guideName": "미스트리스",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=10&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%94%84%EB%A6%AC%EC%8A%A4%ED%8A%B8(%EC%97%AC)/%E7%9C%9E%20%EB%AF%B8%EC%8A%A4%ED%8A%B8%EB%A6%AC%EC%8A%A4/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "죄업에 짓눌린 육신"
+          "퍼스트 프라나 : 금단의 결정체"
         ],
         "platinumEmblems": [
           "죄업에 짓눌린 육신"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "퍼스트 프라나 : 금단의 결정체",
+            "platinumEmblems": [
+              "죄업에 짓눌린 육신",
+              "죄업에 짓눌린 육신"
+            ],
+            "adoptionRate": 41.48
+          },
+          {
+            "rank": 2,
+            "topOption": "죄업에 짓눌린 육신",
+            "platinumEmblems": [
+              "죄업에 짓눌린 육신",
+              "죄업에 짓눌린 육신"
+            ],
+            "adoptionRate": 24.17
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "죄업에 짓눌린 육신"
-        ]
+        "adoptionRate": 41.48
       }
     },
     {
       "classGroup": "도적",
       "guideName": "로그",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%8F%84%EC%A0%81/%E7%9C%9E%20%EB%A1%9C%EA%B7%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "무기 마스터리"
+          "로그의 무기 마스터리"
         ],
         "platinumEmblems": [
-          "무기 마스터리"
+          "로그의 무기 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "로그의 무기 마스터리",
+            "platinumEmblems": [
+              "로그의 무기 마스터리",
+              "로그의 무기 마스터리"
+            ],
+            "adoptionRate": 88.06
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "무기 마스터리"
-        ]
+        "adoptionRate": 88.06
       }
     },
     {
       "classGroup": "도적",
       "guideName": "사령술사",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%8F%84%EC%A0%81/%E7%9C%9E%20%EC%82%AC%EB%A0%B9%EC%88%A0%EC%82%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1258,53 +1660,71 @@
           "발라크르의 맹약"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "발라크르의 맹약",
+            "platinumEmblems": [
+              "발라크르의 맹약",
+              "발라크르의 맹약"
+            ],
+            "adoptionRate": 67.1
+          },
+          {
+            "rank": 2,
+            "topOption": "언홀리 마스터리",
+            "platinumEmblems": [
+              "발라크르의 맹약",
+              "발라크르의 맹약"
+            ],
+            "adoptionRate": 17.14
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "발라크르의 맹약",
-          "발라크르의 맹약"
-        ],
-        "platinumCandidatesFromTable": [
-          "발라크르의 맹약"
-        ]
+        "adoptionRate": 67.1
       }
     },
     {
       "classGroup": "도적",
       "guideName": "쿠노이치",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%8F%84%EC%A0%81/%E7%9C%9E%20%EC%BF%A0%EB%85%B8%EC%9D%B4%EC%B9%98/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "인법 : 잔영 남기기",
-          "인법 : 잔영남기기"
+          "인법 : 잔영 남기기"
         ],
         "platinumEmblems": [
           "인법 : 잔영 남기기"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "인법 : 잔영 남기기",
+            "platinumEmblems": [
+              "인법 : 잔영 남기기",
+              "인법 : 잔영 남기기"
+            ],
+            "adoptionRate": 88.5
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "인법 : 잔영 남기기",
-          "인법 : 잔영 남기기"
-        ],
-        "platinumCandidatesFromTable": [
-          "인법 : 잔영 남기기"
-        ]
+        "adoptionRate": 88.5
       }
     },
     {
       "classGroup": "도적",
       "guideName": "섀도우댄서",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=11&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%8F%84%EC%A0%81/%E7%9C%9E%20%EC%84%80%EB%8F%84%EC%9A%B0%EB%8C%84%EC%84%9C/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1315,24 +1735,29 @@
           "날카로운 단검"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "날카로운 단검",
+            "platinumEmblems": [
+              "날카로운 단검",
+              "날카로운 단검"
+            ],
+            "adoptionRate": 83.68
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "날카로운 단검",
-          "날카로운 단검"
-        ],
-        "platinumCandidatesFromTable": [
-          "날카로운 단검"
-        ]
+        "adoptionRate": 83.68
       }
     },
     {
       "classGroup": "나이트",
       "guideName": "엘븐나이트",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%82%98%EC%9D%B4%ED%8A%B8/%E7%9C%9E%20%EC%97%98%EB%B8%90%EB%82%98%EC%9D%B4%ED%8A%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1343,21 +1768,38 @@
           "강인한 신념"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "대자연의 가호",
+            "platinumEmblems": [
+              "강인한 신념",
+              "강인한 신념"
+            ],
+            "adoptionRate": 58.9
+          },
+          {
+            "rank": 2,
+            "topOption": "체인러쉬",
+            "platinumEmblems": [
+              "체인러쉬",
+              "체인러쉬"
+            ],
+            "adoptionRate": 10.51
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "강인한 신념 or 체인러시"
-        ]
+        "adoptionRate": 58.9
       }
     },
     {
       "classGroup": "나이트",
       "guideName": "카오스",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%82%98%EC%9D%B4%ED%8A%B8/%E7%9C%9E%20%EC%B9%B4%EC%98%A4%EC%8A%A4/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1368,24 +1810,29 @@
           "혼혈"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "혼혈",
+            "platinumEmblems": [
+              "혼혈",
+              "혼혈"
+            ],
+            "adoptionRate": 86.49
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "혼혈",
-          "혼혈"
-        ],
-        "platinumCandidatesFromTable": [
-          "혼혈"
-        ]
+        "adoptionRate": 86.49
       }
     },
     {
       "classGroup": "나이트",
       "guideName": "팔라딘",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%82%98%EC%9D%B4%ED%8A%B8/%E7%9C%9E%20%ED%8C%94%EB%9D%BC%EB%94%98/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1396,46 +1843,62 @@
           "세라픽 페더"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "세라픽 페더",
+            "platinumEmblems": [
+              "세라픽 페더",
+              "세라픽 페더"
+            ],
+            "adoptionRate": 79.09
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "세라픽 페더"
-        ]
+        "adoptionRate": 79.09
       }
     },
     {
       "classGroup": "나이트",
       "guideName": "드래곤나이트",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=12&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%82%98%EC%9D%B4%ED%8A%B8/%E7%9C%9E%20%EB%93%9C%EB%9E%98%EA%B3%A4%EB%82%98%EC%9D%B4%ED%8A%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "대식가, 아스트라 소환"
+          "대식가"
         ],
         "platinumEmblems": [
-          "대식가, 아스트라 소환"
+          "대식가"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "대식가",
+            "platinumEmblems": [
+              "대식가",
+              "대식가"
+            ],
+            "adoptionRate": 79.93
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "대식가, 아스트라 소환"
-        ]
+        "adoptionRate": 79.93
       }
     },
     {
       "classGroup": "마창사",
       "guideName": "뱅가드",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EC%B0%BD%EC%82%AC/%E7%9C%9E%20%EB%B1%85%EA%B0%80%EB%93%9C/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1446,50 +1909,62 @@
           "임팩트 스매쉬"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "임팩트 스매쉬",
+            "platinumEmblems": [
+              "임팩트 스매쉬",
+              "임팩트 스매쉬"
+            ],
+            "adoptionRate": 77.39
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "임팩트 스매쉬",
-          "임팩트 스매쉬"
-        ],
-        "platinumCandidatesFromTable": [
-          "임팩트 스매쉬"
-        ]
+        "adoptionRate": 77.39
       }
     },
     {
       "classGroup": "마창사",
       "guideName": "듀얼리스트",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EC%B0%BD%EC%82%AC/%E7%9C%9E%20%EB%93%80%EC%96%BC%EB%A6%AC%EC%8A%A4%ED%8A%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "미라지 부스트",
-          "장창 숙련"
+          "미라지 부스트"
         ],
         "platinumEmblems": [
           "미라지 부스트"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "미라지 부스트",
+            "platinumEmblems": [
+              "미라지 부스트",
+              "미라지 부스트"
+            ],
+            "adoptionRate": 74.4
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "미라지 부스트"
-        ]
+        "adoptionRate": 74.4
       }
     },
     {
       "classGroup": "마창사",
       "guideName": "드래고니안 랜서",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EC%B0%BD%EC%82%AC/%E7%9C%9E%20%EB%93%9C%EB%9E%98%EA%B3%A0%EB%8B%88%EC%95%88%20%EB%9E%9C%EC%84%9C/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1500,24 +1975,29 @@
           "광창 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "광창 마스터리",
+            "platinumEmblems": [
+              "광창 마스터리",
+              "광창 마스터리"
+            ],
+            "adoptionRate": 84.07
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "광창 마스터리",
-          "광창 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "광창 마스터리"
-        ]
+        "adoptionRate": 84.07
       }
     },
     {
       "classGroup": "마창사",
       "guideName": "다크랜서",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=13&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%A7%88%EC%B0%BD%EC%82%AC/%E7%9C%9E%20%EB%8B%A4%ED%81%AC%20%EB%9E%9C%EC%84%9C/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1528,82 +2008,104 @@
           "어둠의 투창 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "어둠의 투창 마스터리",
+            "platinumEmblems": [
+              "어둠의 투창 마스터리",
+              "어둠의 투창 마스터리"
+            ],
+            "adoptionRate": 79.53
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "어둠의 투창 마스터리",
-          "어둠의 투창 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "어둠의 투창 마스터리"
-        ]
+        "adoptionRate": 79.53
       }
     },
     {
       "classGroup": "총검사",
       "guideName": "히트맨",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%B4%9D%EA%B2%80%EC%82%AC/%E7%9C%9E%20%ED%9E%88%ED%8A%B8%EB%A7%A8/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "장도 마스터리",
           "장도 마스터리"
         ],
         "platinumEmblems": [
           "장도 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "장도 마스터리",
+            "platinumEmblems": [
+              "장도 마스터리",
+              "장도 마스터리"
+            ],
+            "adoptionRate": 44.64
+          },
+          {
+            "rank": 2,
+            "topOption": "숙련된 전문가",
+            "platinumEmblems": [
+              "숙련된 전문가",
+              "숙련된 전문가"
+            ],
+            "adoptionRate": 20.35
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "장도 마스터리",
-          "장도 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "장도 마스터리"
-        ]
+        "adoptionRate": 44.64
       }
     },
     {
       "classGroup": "총검사",
       "guideName": "요원",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%B4%9D%EA%B2%80%EC%82%AC/%E7%9C%9E%20%EC%9A%94%EC%9B%90/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "소태도 마스터리",
           "소태도 마스터리"
         ],
         "platinumEmblems": [
           "소태도 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "소태도 마스터리",
+            "platinumEmblems": [
+              "소태도 마스터리",
+              "소태도 마스터리"
+            ],
+            "adoptionRate": 76.39
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "소태도 마스터리",
-          "소태도 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "소태도 마스터리"
-        ]
+        "adoptionRate": 76.39
       }
     },
     {
       "classGroup": "총검사",
       "guideName": "트러블슈터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%B4%9D%EA%B2%80%EC%82%AC/%E7%9C%9E%20%ED%8A%B8%EB%9F%AC%EB%B8%94%20%EC%8A%88%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1614,50 +2116,62 @@
           "중검 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "중검 마스터리",
+            "platinumEmblems": [
+              "중검 마스터리",
+              "중검 마스터리"
+            ],
+            "adoptionRate": 84.12
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "중검 마스터리"
-        ]
+        "adoptionRate": 84.12
       }
     },
     {
       "classGroup": "총검사",
       "guideName": "스페셜리스트",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=14&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%B4%9D%EA%B2%80%EC%82%AC/%E7%9C%9E%20%EC%8A%A4%ED%8E%98%EC%85%9C%EB%A6%AC%EC%8A%A4%ED%8A%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "코어 블레이드 마스터리",
           "코어 블레이드 마스터리"
         ],
         "platinumEmblems": [
           "코어 블레이드 마스터리"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "코어 블레이드 마스터리",
+            "platinumEmblems": [
+              "코어 블레이드 마스터리",
+              "코어 블레이드 마스터리"
+            ],
+            "adoptionRate": 78.38
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "코어 블레이드 마스터리",
-          "코어 블레이드 마스터리"
-        ],
-        "platinumCandidatesFromTable": [
-          "코어 블레이드 마스터리, 인젝션"
-        ]
+        "adoptionRate": 78.38
       }
     },
     {
       "classGroup": "아처",
       "guideName": "뮤즈",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%95%84%EC%B2%98/%E7%9C%9E%20%EB%AE%A4%EC%A6%88/avatar"
       },
       "role": "buffer",
       "avatar": {
@@ -1668,21 +2182,29 @@
           "센세이션"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "온 더 스테이지",
+            "platinumEmblems": [
+              "센세이션",
+              "센세이션"
+            ],
+            "adoptionRate": 81.56
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": [
-          "센세이션"
-        ]
+        "adoptionRate": 81.56
       }
     },
     {
       "classGroup": "아처",
       "guideName": "트래블러",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%95%84%EC%B2%98/%E7%9C%9E%20%ED%8A%B8%EB%9E%98%EB%B8%94%EB%9F%AC/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1693,24 +2215,29 @@
           "여행자의 직감"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "여행자의 직감",
+            "platinumEmblems": [
+              "여행자의 직감",
+              "여행자의 직감"
+            ],
+            "adoptionRate": 86.74
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "여행자의 직감",
-          "여행자의 직감"
-        ],
-        "platinumCandidatesFromTable": [
-          "여행자의 직감"
-        ]
+        "adoptionRate": 86.74
       }
     },
     {
       "classGroup": "아처",
       "guideName": "헌터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=3"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%95%84%EC%B2%98/%E7%9C%9E%20%ED%97%8C%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1720,20 +2247,30 @@
         "platinumEmblems": [
           "사냥감 식별"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "사냥감 식별",
+            "platinumEmblems": [
+              "사냥감 식별",
+              "사냥감 식별"
+            ],
+            "adoptionRate": 87.75
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": []
+        "adoptionRate": 87.75
       }
     },
     {
       "classGroup": "아처",
       "guideName": "비질란테",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=15&c2=4"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%95%84%EC%B2%98/%E7%9C%9E%20%EB%B9%84%EC%A7%88%EB%9E%80%ED%85%8C/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1743,20 +2280,30 @@
         "platinumEmblems": [
           "특이체질"
         ],
-        "needsReview": true,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "특이체질",
+            "platinumEmblems": [
+              "특이체질",
+              "특이체질"
+            ],
+            "adoptionRate": 87.67
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [],
-        "platinumCandidatesFromTable": []
+        "adoptionRate": 87.67
       }
     },
     {
       "classGroup": "외전",
       "guideName": "다크나이트",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=20&c2=1"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EB%8B%A4%ED%81%AC%EB%82%98%EC%9D%B4%ED%8A%B8/%E7%9C%9E%20%EB%8B%A4%ED%81%AC%EB%82%98%EC%9D%B4%ED%8A%B8/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1764,26 +2311,32 @@
           "차원일치"
         ],
         "platinumEmblems": [
-          "무기 마스터리"
+          "어둠의 검사"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "차원일치",
+            "platinumEmblems": [
+              "어둠의 검사",
+              "어둠의 검사"
+            ],
+            "adoptionRate": 77.11
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "차원일치"
-        ],
-        "platinumCandidatesFromTable": [
-          "무기 마스터리"
-        ]
+        "adoptionRate": 77.11
       }
     },
     {
       "classGroup": "외전",
       "guideName": "크리에이터",
       "source": {
-        "site": "df.gamechosun.co.kr",
-        "url": "https://df.gamechosun.co.kr/info/character/?c1=20&c2=2"
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%ED%81%AC%EB%A6%AC%EC%97%90%EC%9D%B4%ED%84%B0/%E7%9C%9E%20%ED%81%AC%EB%A6%AC%EC%97%90%EC%9D%B4%ED%84%B0/avatar"
       },
       "role": "dealer",
       "avatar": {
@@ -1791,19 +2344,24 @@
           "계열 강화"
         ],
         "platinumEmblems": [
-          "계열 강화"
+          "계열강화"
         ],
         "needsReview": false,
-        "extractor": "gamechosun-table-and-sentence-v1"
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "계열 강화",
+            "platinumEmblems": [
+              "계열강화",
+              "계열강화"
+            ],
+            "adoptionRate": 85.65
+          }
+        ]
       },
       "review": {
-        "topOptionCandidatesFromSentence": [
-          "계열 강화",
-          "계열 강화"
-        ],
-        "platinumCandidatesFromTable": [
-          "계열 강화"
-        ]
+        "adoptionRate": 85.65
       }
     }
   ],

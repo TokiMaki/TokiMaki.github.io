@@ -179,6 +179,67 @@
   ],
   "materialEnchantItems": [
     {
+      "searchName": "딜러 무기 보주(화속성 강화 +15)",
+      "displayName": "딜러 무기 보주(각속성 강화 +15)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 상의 보주 (물리, 마법, 독립 공격력 +90, 힘, 지능 +60)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 하의 보주 (물리, 마법, 독립 공격력 +90, 힘, 지능 +60)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 머리어깨 보주 (최종 데미지 1.5%)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 벨트 보주 (최종 데미지 1.5%)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
+      "searchName": "딜러 신발 보주 (최종 데미지 1%)",
+      "acquisition": {
+        "type": "material",
+        "label": "은화 구매",
+        "materialSearchName": "상공인협의회 은화",
+        "materialLabel": "은화",
+        "amount": 5
+      }
+    },
+    {
       "searchName": "딜러 목걸이 보주 (모든 속성 강화 +33)",
       "acquisition": {
         "type": "material",
@@ -239,67 +300,6 @@
       }
     },
     {
-      "searchName": "딜러 상의 보주 (물리, 마법, 독립 공격력 +90, 힘, 지능 +60)",
-      "acquisition": {
-        "type": "material",
-        "label": "은화 구매",
-        "materialSearchName": "상공인협의회 은화",
-        "materialLabel": "은화",
-        "amount": 5
-      }
-    },
-    {
-      "searchName": "딜러 하의 보주 (물리, 마법, 독립 공격력 +90, 힘, 지능 +60)",
-      "acquisition": {
-        "type": "material",
-        "label": "은화 구매",
-        "materialSearchName": "상공인협의회 은화",
-        "materialLabel": "은화",
-        "amount": 5
-      }
-    },
-    {
-      "searchName": "딜러 머리어깨 보주 (최종 데미지 1.5%)",
-      "acquisition": {
-        "type": "material",
-        "label": "은화 구매",
-        "materialSearchName": "상공인협의회 은화",
-        "materialLabel": "은화",
-        "amount": 5
-      }
-    },
-    {
-      "searchName": "딜러 벨트 보주 (최종 데미지 1.5%)",
-      "acquisition": {
-        "type": "material",
-        "label": "은화 구매",
-        "materialSearchName": "상공인협의회 은화",
-        "materialLabel": "은화",
-        "amount": 5
-      }
-    },
-    {
-      "searchName": "딜러 신발 보주 (최종 데미지 1%)",
-      "acquisition": {
-        "type": "material",
-        "label": "은화 구매",
-        "materialSearchName": "상공인협의회 은화",
-        "materialLabel": "은화",
-        "amount": 5
-      }
-    },
-    {
-      "searchName": "딜러 무기 보주(화속성 강화 +15)",
-      "displayName": "딜러 무기 보주(각속성 강화 +15)",
-      "acquisition": {
-        "type": "material",
-        "label": "은화 구매",
-        "materialSearchName": "상공인협의회 은화",
-        "materialLabel": "은화",
-        "amount": 5
-      }
-    },
-    {
       "searchName": "베누스 딜러 상의 보주(물리, 마법, 독립 공격력 +110, 힘, 지능 +80)",
       "acquisition": {
         "type": "material",
@@ -320,7 +320,7 @@
       }
     },
     {
-      "searchName": "나벨 딜러 벨트 보주(최종 데미지 2% 증가)",
+      "searchName": "나벨 딜러 하의 보주(물리, 마법, 독립 공격력 +110, 힘, 지능 +80)",
       "acquisition": {
         "type": "material",
         "label": "나벨 재료 구매",
@@ -330,7 +330,7 @@
       }
     },
     {
-      "searchName": "나벨 딜러 하의 보주(물리, 마법, 독립 공격력 +110, 힘, 지능 +80)",
+      "searchName": "나벨 딜러 벨트 보주(최종 데미지 2% 증가)",
       "acquisition": {
         "type": "material",
         "label": "나벨 재료 구매",

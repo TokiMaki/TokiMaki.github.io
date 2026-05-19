@@ -52,6 +52,21 @@ const SLOT_ORDER = [
 
 const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘', '아바타', '엠블렘'];
 const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'allStat', 'str', 'int', 'critical'];
+const MATERIAL_ENCHANT_MATERIAL_ORDER = ['은화', '비단', '잔해', '소명'];
+const MATERIAL_ENCHANT_SLOT_ORDER = [
+  '무기',
+  '상의',
+  '하의',
+  '머리어깨',
+  '벨트',
+  '신발',
+  '목걸이',
+  '팔찌',
+  '반지',
+  '보조장비',
+  '마법석',
+  '귀걸이',
+];
 const UPGRADE_MATERIAL_LABELS = {
   harmonyCrystal: '조화의 결정체',
   contradictionCrystal: '모순의 결정체',
@@ -291,6 +306,30 @@ function getCostPerPointOnePercent(row) {
 
 function isMaterialAcquisition(row) {
   return Boolean(row?.acquisition?.label);
+}
+
+function isMaterialEnchantAcquisition(row) {
+  return row?.sourceType === 'enchant' && isMaterialAcquisition(row);
+}
+
+function getMaterialEnchantMaterialRank(row) {
+  const label = row?.acquisition?.materialLabel || row?.acquisition?.materialItemName || row?.tier || '';
+  const index = MATERIAL_ENCHANT_MATERIAL_ORDER.findIndex((material) => String(label).includes(material));
+  return index >= 0 ? index : MATERIAL_ENCHANT_MATERIAL_ORDER.length;
+}
+
+function getMaterialEnchantSlotRank(row) {
+  const slot = row?.slot === '어깨' ? '머리어깨' : row?.slot === '보조' ? '보조장비' : row?.slot;
+  const index = MATERIAL_ENCHANT_SLOT_ORDER.indexOf(slot);
+  return index >= 0 ? index : MATERIAL_ENCHANT_SLOT_ORDER.length;
+}
+
+function compareMaterialEnchantOrder(a, b) {
+  const materialDiff = getMaterialEnchantMaterialRank(a) - getMaterialEnchantMaterialRank(b);
+  if (materialDiff) return materialDiff;
+  const slotDiff = getMaterialEnchantSlotRank(a) - getMaterialEnchantSlotRank(b);
+  if (slotDiff) return slotDiff;
+  return b.incrementalDamagePercent - a.incrementalDamagePercent;
 }
 
 function getAcquisitionLabel(acquisition = {}) {
@@ -932,6 +971,9 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
       if (materialDiff) return materialDiff;
       if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) {
+        if (isMaterialEnchantAcquisition(a) && isMaterialEnchantAcquisition(b)) {
+          return compareMaterialEnchantOrder(a, b);
+        }
         return b.incrementalDamagePercent - a.incrementalDamagePercent;
       }
       return a.costPerPointOnePercent - b.costPerPointOnePercent;
@@ -1099,11 +1141,11 @@ export function installEnchantView(ctx) {
 
     els.enchantRecommendList.innerHTML = recommendations.map((row, index) => {
       const band = getEfficiencyBand(row.costPerPointOnePercent);
-      const nextRow = recommendations[index + 1] || null;
-      const nextBand = nextRow ? getEfficiencyBand(nextRow.costPerPointOnePercent) : '';
-      const connector = nextRow
-        ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(getArrowBackground(band, nextBand))};" aria-hidden="true"></span>`
-        : '';
+      const previousRow = recommendations[index - 1] || null;
+      const previousBand = previousRow ? getEfficiencyBand(previousRow.costPerPointOnePercent) : '';
+      const connector = previousRow
+        ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(getArrowBackground(previousBand, band))};" aria-hidden="true"></span>`
+        : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
       const showOptionText = !['creature', 'title', 'aura'].includes(row.sourceType);
       const effectText = row.sourceType === 'upgrade'
@@ -1149,19 +1191,21 @@ export function installEnchantView(ctx) {
         </span>
       `;
       return `
-        <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}">
-          <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
-          <span class="enchant-recommend-main">
-            <span class="enchant-recommend-title">${escapeHtml(row.slot)}</span>
-            <span class="enchant-recommend-sub">${escapeHtml(row.tier)}</span>
-          </span>
-          <span class="enchant-recommend-metric">
-            <strong>${acquisitionMarkup || escapeHtml(formatCompactGold(row.costPerPointOnePercent))}</strong>
-            ${acquisitionLabel ? '' : '<span>0.1%당</span>'}
-          </span>
-          ${popover}
-        </button>
-        ${connector}
+        <span class="enchant-recommend-step">
+          ${connector}
+          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}">
+            <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
+            <span class="enchant-recommend-main">
+              <span class="enchant-recommend-title">${escapeHtml(row.slot)}</span>
+              <span class="enchant-recommend-sub">${escapeHtml(row.tier)}</span>
+            </span>
+            <span class="enchant-recommend-metric">
+              <strong>${acquisitionMarkup || escapeHtml(formatCompactGold(row.costPerPointOnePercent))}</strong>
+              ${acquisitionLabel ? '' : '<span>0.1%당</span>'}
+            </span>
+            ${popover}
+          </button>
+        </span>
       `;
     }).join('');
   }
@@ -1361,26 +1405,6 @@ export function installEnchantView(ctx) {
       state.creaturePricedAt = creaturePayload.pricedAt || '';
       state.titlePricedAt = titlePayload.pricedAt || '';
       state.auraPricedAt = auraPayload.pricedAt || '';
-      let currentEnchantError = '';
-      try {
-        await Promise.all([loadCurrentEnchants(), loadCurrentCreature(), loadCurrentTitle(), loadCurrentAura(), loadCurrentAvatar()]);
-      } catch (error) {
-        state.currentEnchants = [];
-        state.currentEquipmentUpgrades = [];
-        state.currentBlackFangRecommendations = [];
-        state.upgradeExpectedDb = null;
-        state.currentCreature = null;
-        state.currentTitle = null;
-        state.currentAura = null;
-        state.currentAvatar = null;
-        state.currentDamageBaseline = null;
-        state.currentEnchantCharacterKey = '';
-        state.currentCreatureCharacterKey = '';
-        state.currentTitleCharacterKey = '';
-        state.currentAuraCharacterKey = '';
-        state.currentAvatarCharacterKey = '';
-        currentEnchantError = `, 현재 마부 미반영: ${error.message}`;
-      }
       renderEnchantTable();
       const errorCount = Number(payload.errors?.length || 0) + Number(creaturePayload.errors?.length || 0) + Number(titlePayload.errors?.length || 0) + Number(auraPayload.errors?.length || 0);
       const creatureCount = getCreatureRows(state.creatureUpgradeGroups).length;
@@ -1390,9 +1414,31 @@ export function installEnchantView(ctx) {
       const errorText = errorCount ? `, 실패 ${errorCount}개` : '';
       const refreshingText = payload.cache?.refreshing || creaturePayload.cache?.refreshing || titlePayload.cache?.refreshing || auraPayload.cache?.refreshing ? ', 백그라운드 갱신 중' : '';
       const pricedAtText = state.enchantPricedAt || state.creaturePricedAt || state.titlePricedAt || state.auraPricedAt || '캐시 준비 중';
-      const devStatus = `${state.enchantCards.length}개 카드 + 크리쳐 ${creatureCount}개 + 칭호 ${titleCount}개 + 오라 ${auraCount}개 + 아바타 ${avatarCount}개 가격 불러오기 완료 · ${pricedAtText}${refreshingText}${errorText}${currentEnchantError}`;
-      const userStatus = currentEnchantError ? '일부 정보를 확인하지 못했습니다.' : '시세 반영 완료';
-      setEnchantPriceStatus(userStatus, devStatus);
+      const devStatus = `${state.enchantCards.length}개 카드 + 크리쳐 ${creatureCount}개 + 칭호 ${titleCount}개 + 오라 ${auraCount}개 + 아바타 ${avatarCount}개 가격 불러오기 완료 · ${pricedAtText}${refreshingText}${errorText}`;
+      setEnchantPriceStatus('시세 반영 완료', devStatus);
+
+      Promise.all([loadCurrentEnchants(), loadCurrentCreature(), loadCurrentTitle(), loadCurrentAura(), loadCurrentAvatar()])
+        .then(() => {
+          renderEnchantTable();
+        })
+        .catch((error) => {
+          state.currentEnchants = [];
+          state.currentEquipmentUpgrades = [];
+          state.currentBlackFangRecommendations = [];
+          state.upgradeExpectedDb = null;
+          state.currentCreature = null;
+          state.currentTitle = null;
+          state.currentAura = null;
+          state.currentAvatar = null;
+          state.currentDamageBaseline = null;
+          state.currentEnchantCharacterKey = '';
+          state.currentCreatureCharacterKey = '';
+          state.currentTitleCharacterKey = '';
+          state.currentAuraCharacterKey = '';
+          state.currentAvatarCharacterKey = '';
+          setEnchantPriceStatus('일부 정보를 확인하지 못했습니다.', `${devStatus}, 현재 세팅 미반영: ${error.message}`);
+          renderEnchantTable();
+        });
     } catch (error) {
       setEnchantPriceStatus(error.message);
     } finally {

@@ -152,6 +152,10 @@
       .supply-detail-cards { grid-template-columns: 1fr; }
       .supply-total-soul-list { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
+      .search-row {
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+      }
       .hero h1 { font-size: 24px; }
     }
   

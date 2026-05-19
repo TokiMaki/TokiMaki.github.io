@@ -16,6 +16,7 @@ from server.character_equipment_service import (
     load_character_enchants,
     load_character_title,
 )
+from server.avatar_skill_optimizer import load_character_avatar_skill_efficiency
 from server.character_summary import summarize_character_by_identity
 from server.enchant_service import (
     load_aura_upgrades_with_prices,
@@ -49,6 +50,22 @@ PORT = int(os.environ.get("PORT") or 8787)
 
 def json_response(payload: dict) -> bytes:
     return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+
+
+def parse_skill_level_overrides(raw_value: str) -> dict:
+    result = {}
+    for chunk in (raw_value or "").split(","):
+        if ":" not in chunk:
+            continue
+        name, level = chunk.rsplit(":", 1)
+        name = clean_text(name)
+        try:
+            parsed_level = int(clean_text(level))
+        except ValueError:
+            continue
+        if name and parsed_level > 0:
+            result[name] = parsed_level
+    return result
 
 
 class HellApiHandler(SimpleHTTPRequestHandler):
@@ -108,6 +125,9 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/character-avatar":
             return self.handle_character_avatar(parsed)
 
+        if parsed.path == "/api/avatar-skill-efficiency":
+            return self.handle_avatar_skill_efficiency(parsed)
+
         return super().do_GET()
 
     def send_json(self, payload: dict, status: int = HTTPStatus.OK):
@@ -148,6 +168,28 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                     "rows": resolved["rows"],
                 }
             )
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_avatar_skill_efficiency(self, parsed):
+        query = parse_qs(parsed.query)
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
+        character_name = clean_text((query.get("characterName") or [""])[0])
+        skill_level_overrides = parse_skill_level_overrides((query.get("skillLevels") or [""])[0])
+        if not server_id or not (character_id or character_name):
+            return self.send_json(
+                {"error": "serverId와 characterId 또는 characterName을 입력해 주세요."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+
+        try:
+            self.send_json(load_character_avatar_skill_efficiency(
+                server_id,
+                character_id,
+                character_name,
+                skill_level_overrides=skill_level_overrides,
+            ))
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 

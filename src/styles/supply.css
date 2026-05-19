@@ -113,6 +113,24 @@
     }
     .supply-input-row {
       margin-top: 14px;
+      grid-template-columns: 96px minmax(280px, 1fr);
+    }
+    .enchant-input-row {
+      grid-template-columns: 96px minmax(280px, 1fr) auto;
+      align-items: end;
+    }
+    #enchantPanel > .panel {
+      max-width: 720px;
+    }
+    #enchantPanel > .stack {
+      max-width: 770px;
+    }
+    .enchant-filter-row {
+      grid-template-columns: minmax(160px, 220px);
+    }
+    .enchant-search-button {
+      min-width: 64px;
+      height: 40px;
     }
     .supply-input-actions {
       margin-top: 10px;

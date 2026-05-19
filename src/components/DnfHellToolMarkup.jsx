@@ -1,10 +1,14 @@
+import logoImage from '../../이미지/로고/logo.png';
+
 const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
 
 export default function DnfHellToolMarkup() {
   return (
     <div className={'wrap'}>
       <section className={'hero'}>
-        <h1>던파일럿</h1>
+        <h1 className={'site-logo-heading'}>
+          <img className={'site-logo-image'} src={logoImage} alt={'던파일럿'} />
+        </h1>
         <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
           <button type={'button'} className={'tab-button active'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'true'}>헬 계산기</button>
           <button type={'button'} className={'tab-button'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
@@ -15,6 +19,35 @@ export default function DnfHellToolMarkup() {
         <aside className={'panel'}>
           <h2>입력</h2>
           <div className={'form-grid'}>
+            <div className={'field field-wide character-search-field'}>
+              <label>캐릭터 검색</label>
+              <div className={'loader-status dev-only'}>별도 이름 없이 이 컴퓨터 저장소에 자동 저장됩니다. 같은 브라우저/컴퓨터에서 다시 열면 유지됩니다.</div>
+              <div className={'search-row'}>
+                <select id={'serverIdInput'} defaultValue={'cain'}>
+                  <option value={'cain'}>카인</option>
+                  <option value={'diregie'}>디레지에</option>
+                  <option value={'siroco'}>시로코</option>
+                  <option value={'prey'}>프레이</option>
+                  <option value={'casillas'}>카시야스</option>
+                  <option value={'hilder'}>힐더</option>
+                  <option value={'anton'}>안톤</option>
+                  <option value={'bakal'}>바칼</option>
+                </select>
+                <input id={'characterNameInput'} type={'text'} placeholder={'캐릭터명'} />
+                <button type={'button'} className={'ghost-button'} id={'addCharacterButton'}>추가</button>
+                <button type={'button'} className={'ghost-button'} id={'refreshCharactersButton'}>전체 갱신</button>
+                <button type={'button'} className={'ghost-button'} id={'clearCharactersButton'}>목록 초기화</button>
+              </div>
+              <div className={'loader-status'} id={'searchStatus'}>API 대기</div>
+              <div className={'loader-status dev-only'}>
+                파일로 열었다면
+                <span className={'monospace-inline'}>python3 neople_hell_api_server.py</span>
+                를 먼저 실행해 주세요.
+              </div>
+              <label htmlFor={'charactersJson'} className={'dev-only label-offset-top'}>자동 생성 결과 미리보기</label>
+              <textarea id={'charactersJson'} readOnly className={'dev-only'} defaultValue={'[]'}></textarea>
+              <div className={'error'} id={'error'}></div>
+            </div>
             <div className={'slider-wrap'}>
               <div className={'slider-head'}>
                 <div>
@@ -67,35 +100,6 @@ export default function DnfHellToolMarkup() {
             <div className={'field field-wide'}>
               <label htmlFor={'selectedCharacter'}>상세 보기 캐릭</label>
               <select id={'selectedCharacter'}></select>
-            </div>
-            <div className={'field field-wide'}>
-              <label>캐릭터 추가</label>
-              <div className={'loader-status dev-only'}>별도 이름 없이 이 컴퓨터 저장소에 자동 저장됩니다. 같은 브라우저/컴퓨터에서 다시 열면 유지됩니다.</div>
-              <div className={'search-row'}>
-                <select id={'serverIdInput'} defaultValue={'cain'}>
-                  <option value={'cain'}>카인</option>
-                  <option value={'diregie'}>디레지에</option>
-                  <option value={'siroco'}>시로코</option>
-                  <option value={'prey'}>프레이</option>
-                  <option value={'casillas'}>카시야스</option>
-                  <option value={'hilder'}>힐더</option>
-                  <option value={'anton'}>안톤</option>
-                  <option value={'bakal'}>바칼</option>
-                </select>
-                <input id={'characterNameInput'} type={'text'} placeholder={'캐릭터명'} />
-                <button type={'button'} className={'ghost-button'} id={'addCharacterButton'}>추가</button>
-                <button type={'button'} className={'ghost-button'} id={'refreshCharactersButton'}>전체 갱신</button>
-                <button type={'button'} className={'ghost-button'} id={'clearCharactersButton'}>목록 초기화</button>
-              </div>
-              <div className={'loader-status'} id={'searchStatus'}>API 대기</div>
-              <div className={'loader-status dev-only'}>
-                파일로 열었다면
-                <span className={'monospace-inline'}>python3 neople_hell_api_server.py</span>
-                를 먼저 실행해 주세요.
-              </div>
-              <label htmlFor={'charactersJson'} className={'dev-only label-offset-top'}>자동 생성 결과 미리보기</label>
-              <textarea id={'charactersJson'} readOnly className={'dev-only'} defaultValue={'[]'}></textarea>
-              <div className={'error'} id={'error'}></div>
             </div>
           </div>
         </aside>
@@ -253,7 +257,7 @@ export default function DnfHellToolMarkup() {
           <div className={'supply-note'}>
             모든 스펙업 요소들을 골드 대비 딜 상승 효율을 정렬합니다.
           </div>
-          <div className={'loader-row supply-input-row'}>
+          <div className={'loader-row supply-input-row enchant-input-row'}>
             <div className={'field'}>
               <label htmlFor={'enchantServerIdInput'}>서버</label>
               <select id={'enchantServerIdInput'} defaultValue={'cain'}>
@@ -271,18 +275,10 @@ export default function DnfHellToolMarkup() {
               <label htmlFor={'enchantCharacterNameInput'}>캐릭터명</label>
               <input id={'enchantCharacterNameInput'} type={'text'} placeholder={'캐릭터명'} />
             </div>
-          </div>
-          <div className={'loader-actions'}>
-            <button type={'button'} className={'ghost-button'} id={'loadEnchantCharacterButton'}>캐릭터 적용</button>
+            <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>
           </div>
           <div className={'loader-status'} id={'enchantCharacterStatus'}>선택 캐릭터 기준</div>
-          <div className={'form-grid'}>
-            <div className={'field'}>
-              <label htmlFor={'enchantSlotFilter'}>부위</label>
-              <select id={'enchantSlotFilter'}>
-                <option value={'all'}>전체</option>
-              </select>
-            </div>
+          <div className={'form-grid enchant-filter-row'}>
             <div className={'field'}>
               <label htmlFor={'enchantTierFilter'}>단계</label>
               <select id={'enchantTierFilter'}>
@@ -511,26 +507,6 @@ export default function DnfHellToolMarkup() {
                   </tr>
                 </thead>
                 <tbody id={'supplyDetailTableBody'}></tbody>
-              </table>
-            </div>
-          </section>
-          <section className={'panel section'}>
-            <h2>기준표</h2>
-            <div className={'supply-note'}>
-              콘텐츠별 계시 수급량과 장비/조율자 배율
-            </div>
-            <div className={'table-scroll table-scroll-supply-reference'}>
-              <table className={'supply-table'}>
-                <thead>
-                  <tr>
-                    <th>콘텐츠</th>
-                    <th>장비 배율</th>
-                    <th>조율자 배율</th>
-                    <th>교불 계시</th>
-                    <th>계귀 계시</th>
-                  </tr>
-                </thead>
-                <tbody id={'supplyReferenceTableBody'}></tbody>
               </table>
             </div>
           </section>
