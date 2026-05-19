@@ -297,7 +297,7 @@ export default function DnfHellToolMarkup() {
               <div className={'enchant-efficiency-legend'} id={'enchantEfficiencyLegend'}></div>
             </div>
             <div className={'enchant-recommend-grid'} id={'enchantRecommendList'}>
-              <div className={'table-empty-cell'}>시세를 먼저 불러와 주세요.</div>
+              <div className={'table-empty-cell'}>캐릭터 검색을 해주세요.</div>
             </div>
           </section>
         </main>
