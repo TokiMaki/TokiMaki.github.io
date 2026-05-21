@@ -68,6 +68,84 @@ def normalize_enchant_status(status_rows: list) -> dict:
     return order_effects(effects)
 
 
+def get_title_enchant_status_summary(status_rows: list) -> dict:
+    effects = normalize_enchant_status(status_rows)
+    element = ""
+    element_names = {
+        "화속성 강화": "fire",
+        "화속성강화": "fire",
+        "수속성 강화": "water",
+        "수속성강화": "water",
+        "명속성 강화": "light",
+        "명속성강화": "light",
+        "암속성 강화": "dark",
+        "암속성강화": "dark",
+    }
+    for status in status_rows or []:
+        name = clean_text(status.get("name"))
+        value = parse_percent_or_number(status.get("value"))
+        if not name or not value:
+            continue
+        if name in element_names:
+            element = element_names[name]
+        elif name in {"모든 속성 강화", "모속성 강화"}:
+            element = "all"
+    return {
+        "effects": effects,
+        "element": element,
+    }
+
+
+def normalize_creature_artifact_status(status_rows: list) -> dict:
+    summary = get_creature_artifact_status_summary(status_rows)
+    return summary["effects"]
+
+
+def get_creature_artifact_status_summary(status_rows: list) -> dict:
+    effects = normalize_enchant_status(status_rows)
+    all_element = 0
+    single_element = 0
+    element = ""
+    element_names = {
+        "화속성 강화": "fire",
+        "화속성강화": "fire",
+        "수속성 강화": "water",
+        "수속성강화": "water",
+        "명속성 강화": "light",
+        "명속성강화": "light",
+        "암속성 강화": "dark",
+        "암속성강화": "dark",
+    }
+    attack_element_names = {
+        "화": "fire",
+        "수": "water",
+        "명": "light",
+        "암": "dark",
+    }
+    for status in status_rows or []:
+        name = clean_text(status.get("name"))
+        raw_value = clean_text(status.get("value"))
+        if name == "공격속성" and raw_value in attack_element_names:
+            element = attack_element_names[raw_value]
+            continue
+        value = parse_percent_or_number(status.get("value"))
+        if not name or not value:
+            continue
+        if name in {"모든 속성 강화", "모속성 강화"}:
+            all_element = max(all_element, value)
+        elif name in element_names:
+            single_element = max(single_element, value)
+            element = element_names[name]
+    if all_element or single_element:
+        effects["elementAll"] = all_element + single_element
+    return {
+        "effects": order_effects(effects),
+        "element": element or ("all" if all_element else ""),
+        "artifactAllElement": all_element,
+        "artifactSingleElement": single_element,
+    }
+
+
 def subtract_effects(next_effects: dict, current_effects: dict) -> dict:
     result = {}
     for key in set((next_effects or {}).keys()) | set((current_effects or {}).keys()):

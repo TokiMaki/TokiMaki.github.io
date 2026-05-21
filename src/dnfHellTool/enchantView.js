@@ -4,6 +4,10 @@ const EFFECT_LABELS = {
   attackIncrease: '공격력 증가',
   attackAmplification: '공증',
   elementAll: '모속강',
+  elementFire: '화속강',
+  elementWater: '수속강',
+  elementLight: '명속강',
+  elementDark: '암속강',
   allStat: '올스탯',
   str: '힘',
   int: '지능',
@@ -53,13 +57,26 @@ const SLOT_ORDER = [
 const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘', '아바타', '엠블렘'];
 const ENCHANT_INCLUDE_GROUPS = [
   { title: '마법부여', items: ['가성비', '준종결', '종결'] },
-  { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘'] },
+  { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '아티팩트'] },
   { title: '아바타', items: ['아바타', '엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'allStat', 'str', 'int', 'critical'];
+const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'str', 'int', 'critical'];
+const ELEMENT_EFFECT_KEY_BY_NAME = {
+  fire: 'elementFire',
+  water: 'elementWater',
+  light: 'elementLight',
+  dark: 'elementDark',
+};
+const ELEMENT_LABEL_BY_NAME = {
+  fire: '화속성',
+  water: '수속성',
+  light: '명속성',
+  dark: '암속성',
+  all: '모든속성',
+};
 const MATERIAL_ENCHANT_MATERIAL_ORDER = ['은화', '비단', '잔해', '소명'];
 const MATERIAL_ENCHANT_SLOT_ORDER = [
   '무기',
@@ -169,6 +186,17 @@ function getUpgradeMaterialParts(materials = [], upgradeMode = '') {
     .filter(Boolean);
 }
 
+function getBlackFangMaterialParts(materials = []) {
+  return (materials || [])
+    .map((material) => {
+      const amount = formatMaterialAmount(Number(material.amount || 0));
+      const label = material.itemName || material.label || '';
+      const iconUrl = material.iconUrl || (material.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(material.itemId)}` : '');
+      return label ? { label, amount, iconUrl } : null;
+    })
+    .filter(Boolean);
+}
+
 function formatEffectNumber(value) {
   if (!Number.isFinite(value)) return value;
   const roundedInteger = Math.round(value);
@@ -207,8 +235,8 @@ function formatBlackFangEffect(row) {
 }
 
 function formatEnchantTransitionEffect(row) {
-  const currentEffects = row.currentEnchant?.effects || {};
-  const targetEffects = row.effects || {};
+  const currentEffects = row.currentEnchant?.displayEffects || row.currentEnchant?.effects || {};
+  const targetEffects = row.displayEffects || row.effects || {};
   const changedKeys = EFFECT_ORDER
     .filter((key) => Number.isFinite(currentEffects[key]) || Number.isFinite(targetEffects[key]))
     .filter((key) => Number(currentEffects[key] || 0) !== Number(targetEffects[key] || 0))
@@ -243,11 +271,16 @@ function getDamageBaseline(baseline = {}) {
   baseline = baseline || {};
   const stat = Number(baseline.stat || 0) || ENCHANT_DAMAGE_BASELINE.stat;
   const baseStat = Number(baseline.baseStat || 0) || ENCHANT_DAMAGE_BASELINE.baseStat;
+  const elementNames = Array.isArray(baseline.elementNames)
+    ? baseline.elementNames.filter(Boolean)
+    : (baseline.elementName ? [baseline.elementName] : []);
   return {
     stat,
     statName: baseline.statName === '지능' ? '지능' : '힘',
     baseStat,
     element: Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element,
+    elementName: elementNames[0] || '',
+    elementNames,
     elementDamage: Number.isFinite(Number(baseline.elementDamage))
       ? Number(baseline.elementDamage)
       : ELEMENT_BASE_DAMAGE_PERCENT + (Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element) * ELEMENT_DAMAGE_PER_ELEMENT,
@@ -346,6 +379,7 @@ function getEnchantIncludeGroup(row = {}) {
     return '마법부여:가성비';
   }
   if (row.sourceType === 'enchant') return `마법부여:${row.tier || '일반'}`;
+  if (row.sourceType === 'creatureArtifact') return '오라/칭호/크리쳐:아티팩트';
   if (['creature', 'title', 'aura'].includes(row.sourceType)) return `오라/칭호/크리쳐:${row.tier || '일반'}`;
   if (row.sourceType === 'avatar') return `아바타:${row.tier || '아바타'}`;
   if (row.sourceType === 'blackFang') return '흑아:흑아';
@@ -411,6 +445,28 @@ function getCreatureRows(groups) {
   })));
 }
 
+function getCreatureArtifactRows(groups) {
+  return (groups || []).flatMap((group) => (group.candidates || []).map((candidate) => ({
+    sourceType: 'creatureArtifact',
+    slot: candidate.slot || group.slot || '크리쳐 아티팩트',
+    tier: '아티팩트',
+    itemId: candidate.itemId,
+    itemName: candidate.itemName,
+    itemRarity: candidate.itemRarity || '유니크',
+    fame: candidate.fame,
+    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+    effects: candidate.effects || {},
+    element: candidate.element || '',
+    artifactAllElement: Number(candidate.artifactAllElement || 0),
+    artifactSingleElement: Number(candidate.artifactSingleElement || 0),
+    itemExplain: candidate.itemExplain || '',
+    auction: candidate.auction || {},
+    candidateName: candidate.itemName,
+    groupName: group.groupName,
+    slotColor: candidate.slotColor || group.slotColor,
+  })));
+}
+
 function getTitleRows(groups, currentTitle) {
   const currentLevelTag = Number(currentTitle?.levelTag || 0);
   return (groups || []).flatMap((group) => (group.candidates || [])
@@ -432,6 +488,11 @@ function getTitleRows(groups, currentTitle) {
       levelTag: candidate.levelTag,
       skillDamagePercent: candidate.skillDamagePercent,
       priceItem: candidate.priceItem || null,
+      titleEnchantElement: candidate.titleEnchantElement || '',
+      enchantEffects: candidate.enchantEffects || {},
+      purchaseRoute: candidate.purchaseRoute || '',
+      purchaseRouteLabel: candidate.purchaseRouteLabel || '',
+      titleBead: candidate.titleBead || null,
     })));
 }
 
@@ -492,6 +553,7 @@ function getBlackFangRows(recommendations = []) {
     itemExplain: candidate.itemExplain || '',
     auction: candidate.auction || {},
     expectedGold: candidate.expectedGold,
+    materials: Array.isArray(candidate.materials) ? candidate.materials : [],
     materialText: candidate.materialText || '',
     targetItemName: candidate.targetItemName || '',
   }));
@@ -896,10 +958,115 @@ function getReplacementIncrementalDamagePercent(row, current, baseline) {
   return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier - 1) * 100;
 }
 
+function getCurrentCreatureArtifactBySlot(currentCreature) {
+  return new Map((currentCreature?.artifacts || [])
+    .filter((artifact) => artifact?.slotColor)
+    .map((artifact) => [artifact.slotColor, artifact]));
+}
+
+function getPreferredElementForElementalUpgrades(rows, baseline) {
+  const base = getDamageBaseline(baseline);
+  const topElements = base.elementNames || [];
+  if (topElements.length <= 1) return topElements[0] || '';
+  const artifactCandidates = (rows || []).filter((row) => (
+    row?.sourceType === 'creatureArtifact' &&
+    ['RED', 'BLUE'].includes(row.slotColor) &&
+    topElements.includes(row.element) &&
+    Number.isFinite(row?.auction?.minUnitPrice) &&
+    row.auction.minUnitPrice > 0
+  ));
+  const titleCandidates = (rows || []).filter((row) => (
+    row?.sourceType === 'title' &&
+    topElements.includes(row.titleEnchantElement) &&
+    Number.isFinite(row?.auction?.minUnitPrice) &&
+    row.auction.minUnitPrice > 0
+  ));
+  const ranked = topElements.map((element) => {
+    const artifactPrice = ['RED', 'BLUE'].reduce((sum, slotColor) => {
+      const slotPrices = artifactCandidates
+        .filter((row) => row.element === element && row.slotColor === slotColor)
+        .map((row) => row.auction.minUnitPrice);
+      return sum + Math.min(...slotPrices, Number.POSITIVE_INFINITY);
+    }, 0);
+    const titlePrice = Math.min(
+      ...titleCandidates
+        .filter((row) => row.titleEnchantElement === element)
+        .map((row) => row.auction.minUnitPrice),
+      Number.POSITIVE_INFINITY,
+    );
+    const prices = [artifactPrice, titlePrice].filter(Number.isFinite);
+    return {
+      element,
+      totalPrice: prices.length ? prices.reduce((sum, price) => sum + price, 0) : Number.POSITIVE_INFINITY,
+    };
+  }).filter((row) => Number.isFinite(row.totalPrice));
+  ranked.sort((a, b) => a.totalPrice - b.totalPrice);
+  return ranked[0]?.element || topElements[0] || '';
+}
+
+function isPreferredCreatureArtifactElement(row, baseline, preferredElement = '') {
+  if (row?.sourceType !== 'creatureArtifact') return true;
+  if (!['RED', 'BLUE'].includes(row.slotColor)) return true;
+  const base = getDamageBaseline(baseline);
+  const element = preferredElement || base.elementName;
+  if (!element) return true;
+  return row.element === element;
+}
+
+function isPreferredTitleEnchantElement(row, baseline, preferredElement = '') {
+  if (row?.sourceType !== 'title') return true;
+  if (!row.titleEnchantElement || row.titleEnchantElement === 'all') return true;
+  const base = getDamageBaseline(baseline);
+  const element = preferredElement || base.elementName;
+  if (!element) return true;
+  return row.titleEnchantElement === element;
+}
+
+function getCreatureArtifactEffectiveEffects(row, baseline, preferredElement = '') {
+  const effects = { ...(row?.effects || {}) };
+  if (row?.sourceType !== 'creatureArtifact') return effects;
+  const base = getDamageBaseline(baseline);
+  const element = preferredElement || base.elementName;
+  const allElement = Number(row.artifactAllElement || 0);
+  const singleElement = Number(row.artifactSingleElement || 0);
+  if (allElement || singleElement) {
+    effects.elementAll = allElement + (row.element === element ? singleElement : 0);
+  }
+  return effects;
+}
+
+function getCreatureArtifactDisplayEffects(row, baseline, preferredElement = '') {
+  const effects = { ...(row?.effects || {}) };
+  if (row?.sourceType !== 'creatureArtifact') return effects;
+  const base = getDamageBaseline(baseline);
+  const element = preferredElement || base.elementName;
+  const elementKey = ELEMENT_EFFECT_KEY_BY_NAME[row.element];
+  const allElement = Number(row.artifactAllElement || 0);
+  const singleElement = Number(row.artifactSingleElement || 0);
+  if (allElement || singleElement) {
+    effects.elementAll = allElement;
+    if (singleElement && row.element === element && elementKey) {
+      effects[elementKey] = singleElement;
+    }
+  }
+  return effects;
+}
+
 function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreature, currentTitle, currentAura, baseline) {
   const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
+  const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
+  const preferredArtifactElement = getPreferredElementForElementalUpgrades(rows, baseline);
   const bySlotTier = new Map();
   rows.forEach((row) => {
+    if (!isPreferredCreatureArtifactElement(row, baseline, preferredArtifactElement)) return;
+    if (!isPreferredTitleEnchantElement(row, baseline, preferredArtifactElement)) return;
+    row = row.sourceType === 'creatureArtifact'
+      ? {
+        ...row,
+        effects: getCreatureArtifactEffectiveEffects(row, baseline, preferredArtifactElement),
+        displayEffects: getCreatureArtifactDisplayEffects(row, baseline, preferredArtifactElement),
+      }
+      : row;
     if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     const current = row.sourceType === 'upgrade'
       ? { effects: {} }
@@ -912,6 +1079,17 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         ...currentCreature,
         estimatedDamagePercent: estimateDamagePercent(currentCreature?.effects || {}, baseline),
       }
+      : row.sourceType === 'creatureArtifact'
+        ? (() => {
+          const artifact = currentArtifactBySlot.get(row.slotColor) || {};
+          const effectiveEffects = getCreatureArtifactEffectiveEffects({ sourceType: 'creatureArtifact', ...artifact }, baseline, preferredArtifactElement);
+          return {
+            ...artifact,
+            effects: effectiveEffects,
+            displayEffects: getCreatureArtifactDisplayEffects({ sourceType: 'creatureArtifact', ...artifact }, baseline, preferredArtifactElement),
+            estimatedDamagePercent: estimateDamagePercent(effectiveEffects, baseline),
+          };
+        })()
       : row.sourceType === 'title'
         ? {
           ...currentTitle,
@@ -924,7 +1102,13 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
           }
         : currentBySlot.get(row.slot);
     if (row.sourceType === 'creature' && current?.itemId && current.itemId === row.itemId) return;
-    if (row.sourceType === 'title' && current?.itemId && current.itemId === row.itemId) return;
+    if (row.sourceType === 'creatureArtifact' && current?.itemId && current.itemId === row.itemId) return;
+    if (
+      row.sourceType === 'title' &&
+      current?.itemId &&
+      current.itemId === row.itemId &&
+      getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
+    ) return;
     if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
     const isReplacement = !['upgrade', 'avatar'].includes(row.sourceType);
     const damageEffects = getRecommendationDamageEffects(row, current);
@@ -942,7 +1126,9 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     if (incrementalDamagePercent <= 0.0001) return;
 
     const titleLevelKey = row.sourceType === 'title' && currentTitle?.levelTag ? row.levelTag || 0 : 0;
-    const key = ['creature', 'title', 'aura'].includes(row.sourceType)
+    const key = row.sourceType === 'creatureArtifact'
+      ? `${row.sourceType}:${row.slot}:${row.tier}`
+      : ['creature', 'title', 'aura'].includes(row.sourceType)
       ? `${row.sourceType}:${row.slot}:${row.tier}:${titleLevelKey}:${getEffectSignature(row.effects)}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
@@ -950,7 +1136,13 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
       : `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`;
     const previous = bySlotTier.get(key);
-    const shouldReplace = !previous ||
+    const shouldReplace = row.sourceType === 'creatureArtifact'
+      ? (
+        !previous ||
+        Math.abs(incrementalDamagePercent - previous.incrementalDamagePercent) <= 0.0001 &&
+          (row?.auction?.minUnitPrice || 0) < (previous?.auction?.minUnitPrice || 0)
+      )
+      : !previous ||
       (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
       (
         isMaterialAcquisition(row) === isMaterialAcquisition(previous) &&
@@ -1078,6 +1270,7 @@ export function installEnchantView(ctx) {
 
   state.enchantCards = [];
   state.creatureUpgradeGroups = [];
+  state.creatureArtifactGroups = [];
   state.titleUpgradeGroups = [];
   state.auraUpgradeGroups = [];
   state.enchantPriceLoaded = false;
@@ -1134,6 +1327,10 @@ export function installEnchantView(ctx) {
       [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
         .map((input) => input.value),
     );
+    const existingKeys = new Set(
+      [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]')]
+        .map((input) => input.value),
+    );
     const initialRender = els.enchantIncludeControls.childElementCount === 0;
     const includeKeySet = new Set(includeKeys);
     els.enchantIncludeControls.innerHTML = ENCHANT_INCLUDE_GROUPS
@@ -1147,7 +1344,7 @@ export function installEnchantView(ctx) {
             <div class="enchant-include-group-title">${escapeHtml(group.title)}</div>
             <div class="enchant-include-group-options">
               ${options.map(({ item, key }) => {
-                const isChecked = initialRender || checked.has(key);
+                const isChecked = initialRender || !existingKeys.has(key) || checked.has(key);
                 return `
                   <label class="enchant-include-option">
                     <input type="checkbox" data-enchant-tier="${escapeHtml(key)}" value="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} />
@@ -1195,6 +1392,7 @@ export function installEnchantView(ctx) {
     const allRows = [
       ...getCardRows(state.enchantCards),
       ...getCreatureRows(state.creatureUpgradeGroups),
+      ...getCreatureArtifactRows(state.creatureArtifactGroups),
       ...getTitleRows(state.titleUpgradeGroups, state.currentTitle),
       ...getAuraRows(state.auraUpgradeGroups),
       ...getAvatarRows(state.currentAvatar),
@@ -1252,18 +1450,28 @@ export function installEnchantView(ctx) {
         ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
-      const showOptionText = !['creature', 'title', 'aura'].includes(row.sourceType);
+      const showOptionText = !['creature', 'title', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const effectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row)
         : row.sourceType === 'enchant'
           ? formatEnchantTransitionEffect(row)
+        : row.sourceType === 'creatureArtifact'
+          ? formatEnchantTransitionEffect(row)
         : showOptionText ? formatEffects(row.effects) : '';
+      const titleElementLabel = row.sourceType === 'title' && row.titleEnchantElement
+        ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement
+        : '';
+      const titleRouteLabel = row.sourceType === 'title'
+        ? [titleElementLabel, row.purchaseRouteLabel].filter(Boolean).join(' · ')
+        : '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
         : row.sourceType === 'creature'
           ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, row.tier === '플래티넘')
+          : row.sourceType === 'creatureArtifact'
+            ? row.candidateName || row.itemName
           : row.sourceType === 'aura'
             ? row.priceItem?.itemName || row.candidateName || row.itemName
             : row.sourceType === 'avatar'
@@ -1271,21 +1479,27 @@ export function installEnchantView(ctx) {
             : row.itemName;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
       const acquisitionMarkup = getAcquisitionMarkup(row.acquisition, escapeHtml);
-      const upgradeMaterialParts = row.sourceType === 'upgrade' ? getUpgradeMaterialParts(row.expectedMaterials, row.upgradeMode) : [];
-      const upgradeMaterialsMarkup = upgradeMaterialParts.length
-        ? `<span class="enchant-popover-material-label">예상 재료</span>${upgradeMaterialParts
+      const materialParts = row.sourceType === 'upgrade'
+        ? getUpgradeMaterialParts(row.expectedMaterials, row.upgradeMode)
+        : row.sourceType === 'blackFang'
+          ? getBlackFangMaterialParts(row.materials)
+          : [];
+      const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
+      const materialPartsMarkup = materialParts.length
+        ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
           .map((part) => `<span class="enchant-popover-material-part" title="${escapeHtml(part.label)}">${part.iconUrl ? `<img src="${escapeHtml(part.iconUrl)}" alt="${escapeHtml(part.label)}" loading="lazy" />` : ''}<span>${escapeHtml(part.amount)}</span></span>`)
           .join('')}`
         : '';
       const tooltipRows = [
         { text: displayName, className: 'enchant-popover-name' },
+        { text: titleRouteLabel, className: 'enchant-popover-muted' },
         { text: showOptionText ? row.itemExplain : '', className: 'enchant-popover-muted' },
         { text: effectText, className: 'enchant-popover-effect' },
         { text: acquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
         { text: acquisitionLabel, className: 'enchant-popover-material' },
         { text: acquisitionLabel ? '' : `${['upgrade', 'blackFang'].includes(row.sourceType) ? '예상 골드' : '최저가'} ${formatGold(row?.auction?.minUnitPrice)}`, className: 'enchant-popover-price' },
-        { html: upgradeMaterialsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
-        { text: row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
+        { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
+        { text: !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
         { text: `교체 상승 ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
         { text: acquisitionLabel ? '' : `0.1%당 ${formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
       ].filter((item) => item.text || item.html);
@@ -1302,7 +1516,7 @@ export function installEnchantView(ctx) {
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
               <span class="enchant-recommend-title">${escapeHtml(row.slot)}</span>
-              <span class="enchant-recommend-sub">${escapeHtml(row.tier)}</span>
+              <span class="enchant-recommend-sub">${escapeHtml(row.sourceType === 'title' && titleElementLabel ? `${row.tier} · ${titleElementLabel}` : row.tier)}</span>
             </span>
             <span class="enchant-recommend-metric">
               <strong>${acquisitionMarkup || escapeHtml(formatCompactGold(row.costPerPointOnePercent))}</strong>
@@ -1503,6 +1717,7 @@ export function installEnchantView(ctx) {
       const auraPayload = await parseApiJsonResponse(auraResponse, '오라 가격 조회에 실패했습니다.');
       state.enchantCards = Array.isArray(payload.cards) ? payload.cards : [];
       state.creatureUpgradeGroups = Array.isArray(creaturePayload.groups) ? creaturePayload.groups : [];
+      state.creatureArtifactGroups = Array.isArray(creaturePayload.artifactGroups) ? creaturePayload.artifactGroups : [];
       state.titleUpgradeGroups = Array.isArray(titlePayload.groups) ? titlePayload.groups : [];
       state.auraUpgradeGroups = Array.isArray(auraPayload.groups) ? auraPayload.groups : [];
       state.enchantPriceLoaded = true;
@@ -1513,13 +1728,14 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       const errorCount = Number(payload.errors?.length || 0) + Number(creaturePayload.errors?.length || 0) + Number(titlePayload.errors?.length || 0) + Number(auraPayload.errors?.length || 0);
       const creatureCount = getCreatureRows(state.creatureUpgradeGroups).length;
+      const artifactCount = getCreatureArtifactRows(state.creatureArtifactGroups).length;
       const titleCount = getTitleRows(state.titleUpgradeGroups, state.currentTitle).length;
       const auraCount = getAuraRows(state.auraUpgradeGroups).length;
       const avatarCount = getAvatarRows(state.currentAvatar).length;
       const errorText = errorCount ? `, 실패 ${errorCount}개` : '';
       const refreshingText = payload.cache?.refreshing || creaturePayload.cache?.refreshing || titlePayload.cache?.refreshing || auraPayload.cache?.refreshing ? ', 백그라운드 갱신 중' : '';
       const pricedAtText = state.enchantPricedAt || state.creaturePricedAt || state.titlePricedAt || state.auraPricedAt || '캐시 준비 중';
-      const devStatus = `${state.enchantCards.length}개 카드 + 크리쳐 ${creatureCount}개 + 칭호 ${titleCount}개 + 오라 ${auraCount}개 + 아바타 ${avatarCount}개 가격 불러오기 완료 · ${pricedAtText}${refreshingText}${errorText}`;
+      const devStatus = `${state.enchantCards.length}개 카드 + 크리쳐 ${creatureCount}개 + 아티팩트 ${artifactCount}개 + 칭호 ${titleCount}개 + 오라 ${auraCount}개 + 아바타 ${avatarCount}개 가격 불러오기 완료 · ${pricedAtText}${refreshingText}${errorText}`;
       setEnchantPriceStatus('시세 반영 완료', devStatus);
 
       Promise.all([loadCurrentEnchants(), loadCurrentCreature(), loadCurrentTitle(), loadCurrentAura(), loadCurrentAvatar()])

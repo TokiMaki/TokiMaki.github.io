@@ -96,6 +96,16 @@ export const EVENT_REVELATION_SOURCES = [
     dailyRevelation: 0,
     note: '',
   },
+  {
+    id: 'quiz-quiz',
+    name: '10일 완성 퀴즈퀴즈',
+    enabled: true,
+    startDate: '2026-05-21T06:00:00+09:00',
+    endDate: '2026-06-04T05:59:59+09:00',
+    weeklyRevelation: 0,
+    dailyRevelation: 250,
+    note: '최대 10번',
+  },
 ];
 
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ENCHANT_DB_PATH = ROOT / "Docs" / "enchant_card_db.json"
 CREATURE_DB_PATH = ROOT / "Docs" / "creature_upgrade_db.json"
+CREATURE_ARTIFACT_DB_PATH = ROOT / "Docs" / "creature_artifact_db.json"
 TITLE_DB_PATH = ROOT / "Docs" / "title_upgrade_db.json"
 AURA_DB_PATH = ROOT / "Docs" / "aura_upgrade_db.json"
 AVATAR_OPTION_DB_PATH = ROOT / "Docs" / "avatar_option_db.json"

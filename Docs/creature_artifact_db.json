@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-05-21",
+  "source": {
+    "type": "manual_seed_from_neople_item_search",
+    "note": "크리쳐 아티팩트는 캐릭터의 현재 artifact slotColor와 비교한다. 딜 영향이 확실한 유니크 아티팩트만 포함한다."
+  },
+  "groups": [
+    {
+      "groupName": "레드 아티팩트",
+      "slotColor": "RED",
+      "slot": "크리쳐 레드",
+      "candidates": [
+        {
+          "itemId": "d177153624615be06174659f9ecc2a71",
+          "itemName": "타오르는 황혼의 공명",
+          "variant": "유니크"
+        },
+        {
+          "itemId": "f0955af1d5e9224b23d4335cf2c2a554",
+          "itemName": "얼어붙은 황혼의 공명",
+          "variant": "유니크"
+        },
+        {
+          "itemId": "4b7acf6d4db44654be24f043fe01ea61",
+          "itemName": "눈부신 황혼의 공명",
+          "variant": "유니크"
+        },
+        {
+          "itemId": "381bd7dac3f470bc8a379cb354c4044e",
+          "itemName": "칠흑같은 황혼의 공명",
+          "variant": "유니크"
+        },
+        {
+          "itemId": "1e9ebef1ca9fd69fe4351e08be3cabb7",
+          "itemName": "황금빛 황혼의 공명",
+          "variant": "유니크"
+        }
+      ]
+    },
+    {
+      "groupName": "블루 아티팩트",
+      "slotColor": "BLUE",
+      "slot": "크리쳐 블루",
+      "candidates": [
+        {
+          "itemId": "a8e7dc7196e8872f89e710468f28e016",
+          "itemName": "타오르는 영원의 달빛",
+          "variant": "유니크"
+        },
+        {
+          "itemId": "1f22d2f3f0229c3eb670b7902f623a6f",
+          "itemName": "얼어붙은 영원의 달빛",
+          "variant": "유니크"
+        },
+        {
+          "itemId": "09ac85e704f47563e80b3d791cc9c4d7",
+          "itemName": "눈부신 영원의 달빛",
+          "variant": "유니크"
+        },
+        {
+          "itemId": "5330f82cecd788125b7ff1db008a0ed3",
+          "itemName": "칠흑같은 영원의 달빛",
+          "variant": "유니크"
+        }
+      ]
+    },
+    {
+      "groupName": "그린 아티팩트",
+      "slotColor": "GREEN",
+      "slot": "크리쳐 그린",
+      "candidates": [
+        {
+          "itemId": "aecfe66a42894ce37646ebf629f616f9",
+          "itemName": "빛을 머금은 이슬",
+          "variant": "유니크"
+        }
+      ]
+    }
+  ]
+}

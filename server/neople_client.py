@@ -60,15 +60,20 @@ def request_json(url: str) -> dict[str, Any]:
     raise RuntimeError(f"API 요청 실패: {url}\n{last_error}")
 
 
-def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
+def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 100) -> list:
     params = {"itemId": item_id, "limit": 100, "apikey": API_KEY}
+    if limit:
+        params["limit"] = limit
     if min_fame is not None:
         params["minFame"] = min_fame
     if max_fame is not None:
         params["maxFame"] = max_fame
     url = f"https://api.neople.co.kr/df/auction?{urlencode(params)}"
-    payload = request_json(url)
-    rows = payload.get("rows") or []
+    return request_json(url).get("rows") or []
+
+
+def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
+    rows = get_auction_rows(item_id, min_fame=min_fame, max_fame=max_fame)
     priced_rows = [
         row for row in rows
         if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0

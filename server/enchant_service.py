@@ -2,14 +2,15 @@ import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .data_store import AURA_DB_PATH, CREATURE_DB_PATH, ENCHANT_DB_PATH, TITLE_DB_PATH
-from .effects import normalize_enchant_status, order_effects
+from .data_store import AURA_DB_PATH, CREATURE_ARTIFACT_DB_PATH, CREATURE_DB_PATH, ENCHANT_DB_PATH, TITLE_DB_PATH
+from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects
 from .neople_client import (
     clean_item_display_name,
     clean_text,
     fetch_item_details,
     get_item_explain,
     get_item_icon_url,
+    get_auction_rows,
     get_lowest_auction_price,
     resolve_exact_item_by_name,
     search_items_by_name,
@@ -65,6 +66,177 @@ def find_enchant_bead_item(card: dict):
         except Exception:
             continue
     return None
+
+
+def combine_effects(*effect_rows: dict) -> dict:
+    result = {}
+    for effects in effect_rows:
+        for key, value in (effects or {}).items():
+            result[key] = result.get(key, 0) + value
+    return order_effects(result)
+
+
+def auction_row_to_price(row: dict) -> dict:
+    return {
+        "listingCount": int(row.get("regCount") or row.get("count") or 1),
+        "minUnitPrice": row.get("unitPrice"),
+        "averagePrice": row.get("averagePrice") if row.get("averagePrice", 0) > 0 else None,
+        "auctionNo": row.get("auctionNo"),
+        "fame": row.get("fame"),
+    }
+
+
+def add_auction_prices(*auctions: dict) -> dict:
+    valid_auctions = [auction for auction in auctions if auction is not None]
+    prices = [
+        auction.get("minUnitPrice")
+        for auction in valid_auctions
+        if isinstance(auction.get("minUnitPrice"), (int, float)) and auction.get("minUnitPrice") > 0
+    ]
+    if len(prices) != len(valid_auctions):
+        return {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+    return {
+        "listingCount": sum(int(auction.get("listingCount") or 0) for auction in valid_auctions),
+        "minUnitPrice": sum(prices),
+        "averagePrice": None,
+        "auctionNo": None,
+    }
+
+
+def lowest_auction_from_rows(rows: list) -> dict:
+    priced_rows = [
+        row for row in rows or []
+        if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0
+    ]
+    lowest = min(priced_rows, key=lambda row: row.get("unitPrice"), default=None)
+    return auction_row_to_price(lowest) if lowest else {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+
+
+def get_title_bead_element_from_name(item_name: str) -> str:
+    name = clean_text(item_name)
+    if "화속성" in name:
+        return "fire"
+    if "수속성" in name:
+        return "water"
+    if "명속성" in name:
+        return "light"
+    if "암속성" in name:
+        return "dark"
+    if "모든속성" in name or "모든 속성" in name:
+        return "all"
+    return ""
+
+
+def load_title_bead_options(get_cached_auction, errors: list) -> list:
+    element_keywords = {
+        "fire": "화속성",
+        "water": "수속성",
+        "light": "명속성",
+        "dark": "암속성",
+    }
+    options = []
+    for element, label in element_keywords.items():
+        try:
+            matched_rows = [
+                row for row in search_items_by_name(f"칭호 보주[{label} & 모든스탯]")
+                if clean_text(row.get("itemTypeDetail")) == "보주"
+                and "칭호 보주" in clean_text(row.get("itemName"))
+                and f"[{label} & 모든스탯]" in clean_text(row.get("itemName"))
+            ]
+        except Exception as exc:
+            errors.append({"keyword": f"칭호 보주[{label} & 모든스탯]", "error": str(exc)})
+            continue
+
+        element_options = []
+        for row in matched_rows:
+            item_id = row.get("itemId")
+            try:
+                auction = get_cached_auction(item_id)
+            except Exception as exc:
+                auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                errors.append({"itemId": item_id, "itemName": row.get("itemName"), "error": str(exc)})
+            element_options.append({
+                "itemId": item_id,
+                "itemName": clean_text(row.get("itemName")),
+                "iconUrl": get_item_icon_url(item_id),
+                "element": element,
+                "effects": {"elementAll": 6, "allStat": 25},
+                "auction": auction,
+            })
+        priced_options = [
+            option for option in element_options
+            if isinstance(option.get("auction", {}).get("minUnitPrice"), (int, float))
+            and option["auction"]["minUnitPrice"] > 0
+        ]
+        if priced_options:
+            options.append(min(priced_options, key=lambda option: option["auction"]["minUnitPrice"]))
+    return options
+
+
+def load_creature_artifact_groups_with_prices(errors: list) -> list:
+    try:
+        with CREATURE_ARTIFACT_DB_PATH.open("r", encoding="utf-8") as fp:
+            artifact_db = json.load(fp)
+    except FileNotFoundError:
+        return []
+
+    item_ids = [
+        clean_text(candidate.get("itemId"))
+        for group in artifact_db.get("groups") or []
+        for candidate in group.get("candidates") or []
+        if clean_text(candidate.get("itemId"))
+    ]
+    details_by_id = {
+        detail.get("itemId"): detail
+        for detail in fetch_item_details(item_ids)
+    }
+
+    auction_cache = {}
+
+    def get_cached_auction(item_id):
+        if item_id not in auction_cache:
+            auction_cache[item_id] = get_lowest_auction_price(item_id)
+        return auction_cache[item_id]
+
+    groups = []
+    for group in artifact_db.get("groups") or []:
+        candidates = []
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {
+                executor.submit(get_cached_auction, candidate.get("itemId")): candidate
+                for candidate in group.get("candidates") or []
+                if clean_text(candidate.get("itemId"))
+            }
+            for future in as_completed(futures):
+                candidate = futures[future]
+                item_id = clean_text(candidate.get("itemId"))
+                detail = details_by_id.get(item_id) or {}
+                try:
+                    auction = future.result()
+                except Exception as exc:
+                    auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                    errors.append({"itemId": item_id, "itemName": candidate.get("itemName"), "error": str(exc)})
+                artifact_summary = get_creature_artifact_status_summary(detail.get("itemStatus") or [])
+                candidates.append({
+                    "slotColor": clean_text(group.get("slotColor")),
+                    "slot": clean_text(group.get("slot")) or "크리쳐 아티팩트",
+                    "variant": clean_text(candidate.get("variant")) or "유니크",
+                    "itemId": item_id,
+                    "itemName": clean_item_display_name(detail.get("itemName") or candidate.get("itemName")),
+                    "itemRarity": clean_text(detail.get("itemRarity") or candidate.get("itemRarity")),
+                    "fame": detail.get("fame", candidate.get("fame")),
+                    "iconUrl": get_item_icon_url(item_id),
+                    "itemExplain": get_item_explain(detail),
+                    **artifact_summary,
+                    "auction": auction,
+                })
+        group_payload = {key: group.get(key) for key in ("groupName", "slotColor", "slot")}
+        group_payload["candidates"] = sorted(
+            candidates,
+            key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
+        )
+        groups.append(group_payload)
+    return groups
 
 
 def build_material_enchant_sources(item: dict, detail: dict) -> list:
@@ -137,6 +309,10 @@ def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale:
     with _CACHE_LOCK:
         payload = _CREATURE_PRICE_CACHE["payload"]
         expires_at = _CREATURE_PRICE_CACHE["expires_at"]
+        if payload is not None and "artifactGroups" not in payload:
+            payload = None
+            _CREATURE_PRICE_CACHE["payload"] = None
+            _CREATURE_PRICE_CACHE["expires_at"] = 0
 
     if allow_stale and payload is not None:
         if not force_refresh and expires_at > now:
@@ -256,11 +432,13 @@ def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale:
         group_payload["candidates"] = candidates
         groups.append(group_payload)
 
+    artifact_groups = load_creature_artifact_groups_with_prices(errors)
     payload = {
         "updatedAt": creature_db.get("updatedAt"),
         "pricedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)),
         "source": creature_db.get("source"),
         "groups": groups,
+        "artifactGroups": artifact_groups,
         "errors": errors,
     }
     expires_at = now + PRICE_REFRESH_INTERVAL_SECONDS
@@ -417,6 +595,10 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
     with _CACHE_LOCK:
         payload = _TITLE_PRICE_CACHE["payload"]
         expires_at = _TITLE_PRICE_CACHE["expires_at"]
+        if payload is not None and payload.get("schemaVersion") != 3:
+            payload = None
+            _TITLE_PRICE_CACHE["payload"] = None
+            _TITLE_PRICE_CACHE["expires_at"] = 0
 
     if allow_stale and payload is not None:
         if not force_refresh and expires_at > now:
@@ -459,6 +641,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
             auction_cache[item_id] = get_lowest_auction_price(item_id)
         return auction_cache[item_id]
 
+    title_bead_options = load_title_bead_options(get_cached_auction, errors)
     for keyword in title_db.get("keywords") or []:
         keyword = clean_text(keyword)
         matched = {}
@@ -527,33 +710,97 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
                         and "액티브 스킬 공격력" not in box.get("itemExplain", "")
                     )
                 ]
-                price_options = [{
-                    "auction": auction,
+                try:
+                    auction_rows = get_auction_rows(item_id, limit=100)
+                except Exception as exc:
+                    auction_rows = []
+                    errors.append({"itemId": item_id, "itemName": detail.get("itemName"), "error": str(exc)})
+                clean_auction = lowest_auction_from_rows([
+                    row for row in auction_rows
+                    if not ((row.get("enchant") or {}).get("status") or [])
+                ])
+                has_direct_clean_price = isinstance(clean_auction.get("minUnitPrice"), (int, float)) and clean_auction.get("minUnitPrice") > 0
+                direct_clean_price = clean_auction if has_direct_clean_price else auction
+                direct_price_option = {
+                    "auction": direct_clean_price,
                     "itemId": item_id,
                     "itemName": clean_text(detail.get("itemName")),
                     "iconUrl": get_item_icon_url(item_id),
-                }]
-                price_options.extend(applicable_boxes)
+                }
+                clean_price_options = ([direct_price_option] if has_direct_clean_price else []) + applicable_boxes
+                price_options = clean_price_options or [direct_price_option]
                 priced_options = [
                     item for item in price_options
                     if isinstance(item.get("auction", {}).get("minUnitPrice"), (int, float))
                     and item["auction"]["minUnitPrice"] > 0
                 ]
                 price_item = min(priced_options, key=lambda item: item["auction"]["minUnitPrice"], default=None)
+                title_payload = build_title_payload(
+                    item_id,
+                    detail,
+                    auction=(price_item or {}).get("auction", auction),
+                    price_item={
+                        "itemId": (price_item or {}).get("itemId"),
+                        "itemName": (price_item or {}).get("itemName"),
+                        "iconUrl": (price_item or {}).get("iconUrl"),
+                    } if price_item and price_item.get("itemId") != item_id else None,
+                )
                 candidates.append({
-                    **build_title_payload(
-                        item_id,
-                        detail,
-                        auction=(price_item or {}).get("auction", auction),
-                        price_item={
-                            "itemId": (price_item or {}).get("itemId"),
-                            "itemName": (price_item or {}).get("itemName"),
-                            "iconUrl": (price_item or {}).get("iconUrl"),
-                        } if price_item and price_item.get("itemId") != item_id else None,
-                    ),
+                    **title_payload,
                     "name": clean_text(detail.get("itemName")),
                     "variant": variant,
+                    "purchaseRoute": "cleanTitle",
+                    "purchaseRouteLabel": "무보주 칭호",
                 })
+                clean_price_item = min(priced_options, key=lambda item: item["auction"]["minUnitPrice"], default=None)
+                if clean_price_item:
+                    for bead in title_bead_options:
+                        total_auction = add_auction_prices(clean_price_item.get("auction"), bead.get("auction"))
+                        if not isinstance(total_auction.get("minUnitPrice"), (int, float)) or total_auction.get("minUnitPrice") <= 0:
+                            continue
+                        bead_effects = bead.get("effects") or {}
+                        candidates.append({
+                            **title_payload,
+                            "effects": combine_effects(title_payload.get("effects") or {}, bead_effects),
+                            "enchantEffects": bead_effects,
+                            "titleEnchantElement": bead.get("element") or "",
+                            "auction": total_auction,
+                            "priceItem": {
+                                "itemId": bead.get("itemId"),
+                                "itemName": f"{clean_price_item.get('itemName')} + {bead.get('itemName')}",
+                                "iconUrl": bead.get("iconUrl"),
+                            },
+                            "titleBead": bead,
+                            "name": clean_text(detail.get("itemName")),
+                            "variant": variant,
+                            "purchaseRoute": "cleanTitlePlusBead",
+                            "purchaseRouteLabel": "무보주 칭호 + 칭호 보주",
+                        })
+                seen_title_enchants = set()
+                for row in auction_rows:
+                    if not isinstance(row.get("unitPrice"), (int, float)) or row.get("unitPrice") <= 0:
+                        continue
+                    enchant_summary = get_title_enchant_status_summary((row.get("enchant") or {}).get("status") or [])
+                    enchant_effects = enchant_summary.get("effects") or {}
+                    if not enchant_effects:
+                        continue
+                    signature = json.dumps(enchant_effects, ensure_ascii=False, sort_keys=True)
+                    if signature in seen_title_enchants:
+                        continue
+                    seen_title_enchants.add(signature)
+                    candidates.append({
+                        **title_payload,
+                        "fame": row.get("fame", title_payload.get("fame")),
+                        "effects": combine_effects(title_payload.get("effects") or {}, enchant_effects),
+                        "enchantEffects": enchant_effects,
+                        "titleEnchantElement": enchant_summary.get("element") or "",
+                        "auction": auction_row_to_price(row),
+                        "priceItem": None,
+                        "name": clean_text(detail.get("itemName")),
+                        "variant": variant,
+                        "purchaseRoute": "attachedBead",
+                        "purchaseRouteLabel": "보주 발린 칭호",
+                    })
 
         candidates.sort(key=lambda item: (
             item.get("levelTag") or 0,
@@ -569,6 +816,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         })
 
     payload = {
+        "schemaVersion": 3,
         "updatedAt": title_db.get("updatedAt"),
         "pricedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)),
         "source": title_db.get("source"),

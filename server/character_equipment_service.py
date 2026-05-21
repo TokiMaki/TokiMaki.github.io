@@ -1,7 +1,7 @@
 import re
 
 from .data_store import load_avatar_option_db, load_job_base_stats, load_upgrade_expected_db
-from .effects import normalize_enchant_status, parse_percent_or_number, subtract_effects
+from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
 from .neople_client import (
     API_KEY,
     clean_item_display_name,
@@ -32,6 +32,14 @@ AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "JACKET", "slot": "상의 아바타", "color": "녹색빛", "kind": "dual", "targetStat": AVATAR_BRILLIANT_DUAL_STAT},
     {"slotId": "PANTS", "slot": "하의 아바타", "color": "녹색빛", "kind": "dual", "targetStat": AVATAR_BRILLIANT_DUAL_STAT},
 ]
+
+
+def combine_effects(*effect_rows: dict) -> dict:
+    result = {}
+    for effects in effect_rows:
+        for key, value in (effects or {}).items():
+            result[key] = result.get(key, 0) + value
+    return order_effects(result)
 
 
 def status_rows_to_map(status_rows: list) -> dict:
@@ -73,12 +81,15 @@ def load_character_damage_baseline(server_id: str, character_id: str, equipment_
     job_grow_name = clean_text(payload.get("jobGrowName"))
     base_stats = load_job_base_stats().get(job_grow_name) or {}
     selected_stat_name = "힘" if status.get("힘", 0) >= status.get("지능", 0) else "지능"
-    element_strength = max(
-        status.get("화속성 강화", 0),
-        status.get("수속성 강화", 0),
-        status.get("명속성 강화", 0),
-        status.get("암속성 강화", 0),
-    ) + equipment_base_element
+    element_values = {
+        "fire": status.get("화속성 강화", 0),
+        "water": status.get("수속성 강화", 0),
+        "light": status.get("명속성 강화", 0),
+        "dark": status.get("암속성 강화", 0),
+    }
+    max_element = max(element_values.values() or [0])
+    top_elements = [key for key, value in element_values.items() if value == max_element and value > 0]
+    element_strength = max_element + equipment_base_element
     status_element_damage = max(
         value
         for key, value in status.items()
@@ -97,6 +108,8 @@ def load_character_damage_baseline(server_id: str, character_id: str, equipment_
         "jobGrowName": job_grow_name,
         "attack": attack_value,
         "element": element_strength,
+        "elementName": top_elements[0] if top_elements else "",
+        "elementNames": top_elements,
         "elementDamage": element_damage,
         "equipmentBaseElement": equipment_base_element,
         "attackIncrease": status.get("공격력 증가", 0),
@@ -158,7 +171,28 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
     payload = request_json(url)
     creature = payload.get("creature") or {}
     item_id = clean_text(creature.get("itemId"))
-    detail = (fetch_item_details([item_id]) or [{}])[0] if item_id else {}
+    artifact_rows = creature.get("artifact") or []
+    artifact_ids = [clean_text(artifact.get("itemId")) for artifact in artifact_rows if clean_text(artifact.get("itemId"))]
+    details = {
+        detail.get("itemId"): detail
+        for detail in fetch_item_details([item_id, *artifact_ids])
+    } if item_id or artifact_ids else {}
+    detail = details.get(item_id) or {}
+    artifacts = []
+    for artifact in artifact_rows:
+        artifact_id = clean_text(artifact.get("itemId"))
+        artifact_detail = details.get(artifact_id) or {}
+        artifact_summary = get_creature_artifact_status_summary(artifact_detail.get("itemStatus") or [])
+        artifacts.append({
+            "slotColor": clean_text(artifact.get("slotColor")),
+            "itemId": artifact_id,
+            "itemName": clean_text(artifact.get("itemName")),
+            "itemRarity": clean_text(artifact.get("itemRarity")),
+            "fame": artifact_detail.get("fame", artifact.get("fame")),
+            "iconUrl": get_item_icon_url(artifact_id),
+            "itemExplain": get_item_explain(artifact_detail),
+            **artifact_summary,
+        })
     return {
         "serverId": payload.get("serverId"),
         "characterId": payload.get("characterId"),
@@ -172,6 +206,7 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
             "iconUrl": get_item_icon_url(item_id),
             "itemExplain": get_item_explain(detail),
             "effects": normalize_enchant_status(detail.get("itemStatus") or []),
+            "artifacts": artifacts,
         } if item_id else None,
     }
 
@@ -185,12 +220,19 @@ def load_character_title(server_id: str, character_id: str) -> dict:
     ), None)
     item_id = clean_text((title or {}).get("itemId"))
     detail = (fetch_item_details([item_id]) or [{}])[0] if item_id else {}
+    enchant_summary = get_title_enchant_status_summary(((title or {}).get("enchant") or {}).get("status") or [])
+    enchant_effects = enchant_summary.get("effects") or {}
+    title_payload = build_title_payload(item_id, detail) if item_id else None
+    if title_payload:
+        title_payload["enchantEffects"] = enchant_effects
+        title_payload["titleEnchantElement"] = enchant_summary.get("element") or ""
+        title_payload["effects"] = combine_effects(title_payload.get("effects") or {}, enchant_effects)
     return {
         "serverId": payload.get("serverId"),
         "characterId": payload.get("characterId"),
         "characterName": payload.get("characterName"),
         "fame": payload.get("fame"),
-        "title": build_title_payload(item_id, detail) if item_id else None,
+        "title": title_payload,
     }
 
 
@@ -470,6 +512,24 @@ def format_materials_text(materials: list) -> str:
     return " / ".join(parts)
 
 
+def enrich_black_fang_materials(materials: list) -> list:
+    enriched = []
+    for material in materials or []:
+        label = clean_text(material.get("label"))
+        if not label:
+            continue
+        item = find_exact_item_by_name(label)
+        item_id = clean_text(item.get("itemId"))
+        enriched.append({
+            "label": label,
+            "amount": material.get("amount"),
+            "itemId": item_id,
+            "itemName": clean_text(item.get("itemName")) or label,
+            "iconUrl": get_item_icon_url(item_id),
+        })
+    return enriched
+
+
 def get_black_fang_scroll_name(set_item_name: str) -> str:
     set_name = re.sub(r"\s*세트$", "", clean_text(set_item_name)).strip()
     return f"흑아 태초 변환서 - {set_name}" if set_name else ""
@@ -538,7 +598,8 @@ def build_black_fang_recommendations(equipment_rows: list) -> list:
         )
         if not effects:
             continue
-        material_text = format_materials_text(scroll_cost.get("materials") or [])
+        materials = enrich_black_fang_materials(scroll_cost.get("materials") or [])
+        material_text = format_materials_text(materials)
         recommendations.append({
             "slot": clean_text(equipment.get("slotName")),
             "tier": "흑아",
@@ -552,6 +613,7 @@ def build_black_fang_recommendations(equipment_rows: list) -> list:
             "targetEffects": black_effects,
             "auction": auction,
             "expectedGold": auction.get("minUnitPrice"),
+            "materials": materials,
             "materialText": material_text,
             "targetItemName": clean_text(black_item.get("itemName")),
         })
