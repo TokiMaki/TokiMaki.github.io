@@ -1854,7 +1854,7 @@ export function installEnchantView(ctx) {
   }
 
   async function loadEnchantCards(forceRefresh = false) {
-    if (!els.enchantStatus || state.enchantLoading) return;
+    if (state.enchantLoading) return;
     state.enchantLoading = true;
     if (forceRefresh) {
       state.currentAvatar = null;
