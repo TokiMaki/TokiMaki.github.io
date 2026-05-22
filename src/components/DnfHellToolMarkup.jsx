@@ -252,11 +252,7 @@ export default function DnfHellToolMarkup() {
         </main>
       </section>
       <section className={'grid tab-panel'} id={'enchantPanel'}>
-        <aside className={'panel'}>
-          <h2>스펙업 순서</h2>
-          <div className={'supply-note'}>
-            모든 스펙업 요소들을 골드 대비 딜 상승 효율을 정렬합니다.
-          </div>
+        <aside className={'panel enchant-search-panel'}>
           <div className={'loader-row supply-input-row enchant-input-row'}>
             <div className={'field'}>
               <label htmlFor={'enchantServerIdInput'}>서버</label>
@@ -277,18 +273,16 @@ export default function DnfHellToolMarkup() {
             </div>
             <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>
           </div>
-          <div className={'loader-status'} id={'enchantCharacterStatus'}>선택 캐릭터 기준</div>
-          <div className={'loader-actions dev-only'}>
-            <button type={'button'} className={'ghost-button'} id={'refreshEnchantCardsButton'}>시세 새로고침</button>
-          </div>
-          <div className={'loader-status dev-only'} id={'enchantStatus'}></div>
         </aside>
         <section className={'panel enchant-include-card'}>
           <div className={'enchant-include-title'}>포함 항목</div>
           <div className={'enchant-include-controls'} id={'enchantIncludeControls'}></div>
         </section>
-        <main className={'stack'}>
-          <section className={'panel section'}>
+        <main className={'enchant-recommend-layout'}>
+          <div className={'card supply-detail-portrait-card enchant-character-portrait-card'} id={'enchantCharacterPortrait'}>
+            <div className={'table-empty-cell'}>캐릭터 검색을 해주세요.</div>
+          </div>
+          <section className={'panel section enchant-recommend-stack'}>
             <div className={'enchant-recommend-head'}>
               <h2>
                 <span>스펙업 순서 추천</span>

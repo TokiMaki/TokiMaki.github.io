@@ -119,11 +119,17 @@
       grid-template-columns: 96px minmax(280px, 1fr) auto;
       align-items: end;
     }
+    .enchant-search-panel {
+      padding: 12px 14px;
+    }
+    .enchant-search-panel .supply-input-row {
+      margin-top: 0;
+    }
     #enchantPanel > .panel {
       max-width: 720px;
     }
-    #enchantPanel > .stack {
-      max-width: 720px;
+    #enchantPanel > .enchant-recommend-layout {
+      max-width: 1516px;
     }
     .enchant-filter-row {
       grid-template-columns: minmax(160px, 220px);
@@ -195,8 +201,175 @@
       min-width: 64px;
       height: 40px;
     }
+    .enchant-recommend-layout {
+      width: max-content;
+      display: grid;
+      grid-template-columns: 304px 720px 304px;
+      gap: 14px;
+      align-items: start;
+      justify-content: center;
+      justify-self: center;
+    }
+    .enchant-recommend-layout::after {
+      content: '';
+      display: block;
+      min-height: 1px;
+    }
+    .enchant-recommend-stack {
+      width: 100%;
+      max-width: 720px;
+    }
+    .enchant-recommend-layout > .enchant-character-portrait-card {
+      --supply-detail-card-width: 304px;
+      --supply-detail-card-min-height: 0;
+      --supply-detail-card-justify-self: center;
+      height: auto;
+      align-content: start;
+      align-self: start;
+    }
+    .enchant-character-portrait {
+      width: 100%;
+      --supply-detail-portrait-transform: none;
+    }
+    .enchant-character-portrait .supply-detail-portrait-crop {
+      --supply-detail-portrait-crop-position: relative;
+      --supply-detail-portrait-crop-overflow: visible;
+      --supply-detail-portrait-crop-width: 254px;
+      --supply-detail-portrait-crop-min-height: 178px;
+      --supply-detail-portrait-crop-margin: 0 auto;
+      --supply-detail-portrait-crop-padding: 6px;
+      --supply-detail-portrait-crop-border: 1px solid var(--line);
+      --supply-detail-portrait-crop-radius: 20px;
+      --supply-detail-portrait-crop-background: color-mix(in srgb, var(--surface-card) 94%, var(--bg-deep));
+      --supply-detail-portrait-crop-shadow: var(--shadow-card);
+    }
+    .enchant-character-portrait .character-name {
+      width: 100%;
+    }
+    .enchant-character-portrait .character-portrait-slot-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+    }
+    .enchant-character-portrait .supply-detail-portrait-frame {
+      --supply-detail-portrait-frame-position: absolute;
+      --supply-detail-portrait-frame-top: -18px;
+      --supply-detail-portrait-frame-left: 50%;
+      --supply-detail-portrait-frame-width: 150px;
+      --supply-detail-portrait-frame-height: 186px;
+      --supply-detail-portrait-frame-margin: 0;
+      --supply-detail-portrait-frame-transform: translateX(-50%);
+      --supply-detail-portrait-frame-border: 0;
+      --supply-detail-portrait-frame-background: transparent;
+      --supply-detail-portrait-frame-shadow: none;
+      --supply-detail-portrait-frame-z: 1;
+    }
+    .enchant-character-slot-wrap {
+      position: absolute;
+      pointer-events: auto;
+    }
+    .enchant-character-slot {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+      background: color-mix(in srgb, var(--surface-card) 92%, var(--bg-deep));
+      box-shadow: var(--shadow-card);
+      cursor: default;
+      outline: none;
+    }
+    .enchant-character-slot img,
+    .enchant-character-slot-placeholder {
+      display: block;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+    }
+    .enchant-character-slot img {
+      object-fit: cover;
+      background: color-mix(in srgb, var(--panel-3) 88%, transparent);
+    }
+    .enchant-character-slot-placeholder {
+      border: 1px dashed color-mix(in srgb, var(--line) 76%, transparent);
+      background: color-mix(in srgb, var(--bg-deep) 48%, transparent);
+    }
+    .enchant-character-slot.is-empty {
+      opacity: 0.68;
+    }
+    .enchant-character-slot-tooltip {
+      position: absolute;
+      top: 50%;
+      left: calc(100% + 10px);
+      transform: translateY(-50%);
+      z-index: 40;
+      display: none;
+      width: max-content;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--panel-2) 98%, var(--bg-deep));
+      box-shadow: 0 12px 30px rgb(0 0 0 / 0.42);
+      color: var(--text);
+      text-align: left;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .enchant-character-slot-wrap-right .enchant-character-slot-tooltip {
+      right: calc(100% + 10px);
+      left: auto;
+    }
+    .enchant-character-slot:hover .enchant-character-slot-tooltip,
+    .enchant-character-slot:focus-visible .enchant-character-slot-tooltip {
+      display: grid;
+      gap: 3px;
+    }
+    .enchant-character-slot-tooltip-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .enchant-character-slot-tooltip-line {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .enchant-character-slot-wrap-shoulder { top: 6px; left: 6px; }
+    .enchant-character-slot-wrap-top { top: 6px; left: 44px; }
+    .enchant-character-slot-wrap-pants { top: 44px; left: 6px; }
+    .enchant-character-slot-wrap-belt { top: 44px; left: 44px; }
+    .enchant-character-slot-wrap-shoes { top: 82px; left: 6px; }
+    .enchant-character-slot-wrap-aura { top: 120px; left: 6px; }
+    .enchant-character-slot-wrap-creature { top: 120px; left: 44px; }
+    .enchant-character-slot-wrap-weapon { top: 6px; right: 44px; }
+    .enchant-character-slot-wrap-title { top: 6px; right: 6px; }
+    .enchant-character-slot-wrap-bracelet { top: 44px; right: 44px; }
+    .enchant-character-slot-wrap-necklace { top: 44px; right: 6px; }
+    .enchant-character-slot-wrap-support { top: 82px; right: 44px; }
+    .enchant-character-slot-wrap-ring { top: 82px; right: 6px; }
+    .enchant-character-slot-wrap-earring { top: 120px; right: 44px; }
+    .enchant-character-slot-wrap-magic-stone { top: 120px; right: 6px; }
     .supply-input-actions {
       margin-top: 10px;
+    }
+    @media (max-width: 1400px) {
+      #enchantPanel > .enchant-recommend-layout {
+        max-width: 720px;
+      }
+      .enchant-recommend-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .enchant-recommend-layout::after {
+        content: none;
+      }
+      .enchant-character-portrait-card,
+      .enchant-recommend-stack {
+        justify-self: center;
+      }
     }
     .supply-roster-block {
       margin-bottom: 14px;

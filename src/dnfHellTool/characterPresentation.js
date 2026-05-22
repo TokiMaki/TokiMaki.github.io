@@ -63,10 +63,12 @@ export function getCharacterPortraitMarkup(character, options = {}) {
   const fameLabel = fmtInt(Number(character?.fame || 0));
   const nameLabel = getCharacterNameOnly(character) || label;
   const serverJobLabel = getCharacterServerJobLabel(character);
+  const slotItemsHtml = String(options.slotItemsHtml || '').trim();
 
   return `
     <span class="character-name">
       <span class="supply-detail-portrait-crop">
+        ${slotItemsHtml ? `<span class="character-portrait-slot-layer">${slotItemsHtml}</span>` : ''}
         <span class="supply-detail-portrait-frame">
           <img class="supply-detail-portrait-img" data-character-avatar src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(label)}" loading="lazy" decoding="async" />
         </span>

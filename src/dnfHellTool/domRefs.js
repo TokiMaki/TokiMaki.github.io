@@ -73,6 +73,7 @@ export function createToolDomRefs() {
       enchantServerIdInput: $id('enchantServerIdInput'),
       enchantCharacterNameInput: $id('enchantCharacterNameInput'),
       loadEnchantCharacterButton: $id('loadEnchantCharacterButton'),
+      enchantCharacterPortrait: $id('enchantCharacterPortrait'),
       enchantCharacterStatus: $id('enchantCharacterStatus'),
       enchantSlotFilter: $id('enchantSlotFilter'),
       enchantTierFilter: $id('enchantTierFilter'),
