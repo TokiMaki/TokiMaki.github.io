@@ -63,7 +63,7 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'str', 'int', 'critical'];
+const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'str', 'int'];
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '머리어깨', key: 'shoulder', side: 'left' },
   { slot: '상의', key: 'top', side: 'left' },
@@ -235,6 +235,69 @@ function formatEffects(effects = {}) {
     .join(' / ');
 }
 
+function extractActiveSkillOptionText(text = '') {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  const match = normalized.match(/(\d+)(?:\s*~\s*\d+)?\s*(?:Lv|레벨)[^%]*?액티브\s*스킬[^%]*?(\d+(?:\.\d+)?)%\s*증가/i);
+  if (!match) return '';
+  return `${match[1]}레벨 액티브 스킬 공격력 ${formatEffectNumber(Number(match[2]))}% 증가`;
+}
+
+function getFilteredExplainSegments(text = '') {
+  const normalized = String(text || '')
+    .replace(/\s+/g, ' ')
+    .replace(/[•●]/g, '·')
+    .trim();
+  if (!normalized) return [];
+  return normalized
+    .split(/\s*[·|/]\s*/)
+    .map((part) => part
+      .replace(/\d+(?:\s*~\s*\d+)?\s*(?:Lv|레벨)[^%]*?액티브\s*스킬[^%]*?\d+(?:\.\d+)?%\s*증가/ig, '')
+      .replace(/최종\s*데미지\s*\d+(?:\.\d+)?%\s*증가/ig, '')
+      .replace(/물리크리티컬|마법크리티컬|크리티컬/ig, '')
+      .replace(/^[,:·/\s]+|[,:·/\s]+$/g, '')
+      .trim())
+    .filter(Boolean)
+    .filter((part) => part !== '% 증가');
+}
+
+function getExplainDetailText(text = '') {
+  return getFilteredExplainSegments(text).join(' / ');
+}
+
+function subtractDetailEffects(base = {}, removed = {}) {
+  const result = {};
+  [...new Set([...Object.keys(base || {}), ...Object.keys(removed || {})])].forEach((key) => {
+    const value = Number(base?.[key] || 0) - Number(removed?.[key] || 0);
+    if (Number.isFinite(value) && Math.abs(value) > 0.000001) {
+      result[key] = value;
+    }
+  });
+  return result;
+}
+
+function formatTitleDetailMainOption(title = {}) {
+  const explainText = extractActiveSkillOptionText(title.itemExplain || '');
+  if (explainText) return explainText;
+  const levelTag = Number(title.levelTag || 0);
+  const skillDamagePercent = Number(title.skillDamagePercent || 0);
+  if (levelTag > 0 && skillDamagePercent > 0) {
+    return `${levelTag}레벨 액티브 스킬 공격력 ${formatEffectNumber(skillDamagePercent)}% 증가`;
+  }
+  return '';
+}
+
+function formatCreatureDetailMainOption(creature = {}) {
+  const explainText = extractActiveSkillOptionText(creature.itemExplain || '');
+  if (explainText) return explainText;
+  const levelTag = Number(creature.levelTag || 0);
+  const skillDamagePercent = Number(creature.skillDamagePercent || 0);
+  if (levelTag > 0 && skillDamagePercent > 0) {
+    return `${levelTag}레벨 액티브 스킬 공격력 ${formatEffectNumber(skillDamagePercent)}% 증가`;
+  }
+  return '';
+}
+
 function formatEffectSummary(prefix, effects = {}) {
   const text = formatEffects(effects);
   return `${prefix}: ${text || '없음'}`;
@@ -246,6 +309,48 @@ function formatUpgradeState(equipment = {}) {
     return `증폭: ${level > 0 ? `${level}증폭` : '없음'}`;
   }
   return `강화: ${level > 0 ? `${level}강화` : '없음'}`;
+}
+
+function getUpgradeDetailLine(equipment = {}) {
+  const level = Number(equipment.reinforce || 0);
+  if (!Number.isFinite(level) || level <= 0) return null;
+  if (equipment.isAmplified) {
+    return {
+      text: `+${level} ${String(equipment.amplificationName || '').trim() || '증폭'}`,
+      className: 'enchant-portrait-detail-line-amplify',
+    };
+  }
+  return {
+    text: `+${level} 강화`,
+    className: 'enchant-portrait-detail-line-reinforce',
+  };
+}
+
+function getUpgradeBadge(equipment = {}) {
+  const level = Number(equipment.reinforce || 0);
+  if (!Number.isFinite(level) || level <= 0) return null;
+  if (equipment.isAmplified) {
+    return { text: `+${level}`, kind: 'amplify' };
+  }
+  return { text: `+${level}`, kind: 'reinforce' };
+}
+
+function getEnchantBadge(effects = {}) {
+  const parts = [];
+  const attackAmplification = Number(effects.attackAmplification || 0);
+  const finalDamage = Number(effects.finalDamage || 0);
+  const elementAll = Number(effects.elementAll || 0);
+  if (Number.isFinite(attackAmplification) && attackAmplification > 0) {
+    parts.push(`${attackAmplification}%`);
+  }
+  if (Number.isFinite(finalDamage) && finalDamage > 0) {
+    parts.push(`${finalDamage}%`);
+  }
+  if (Number.isFinite(elementAll) && elementAll > 0) {
+    parts.push(`${elementAll}`);
+  }
+  if (!parts.length) return null;
+  return { text: parts.join('/') };
 }
 
 function formatEffectTransitionValue(key, currentValue, targetValue) {
@@ -1045,7 +1150,8 @@ function isPreferredCreatureArtifactElement(row, baseline, preferredElement = ''
 
 function isPreferredTitleEnchantElement(row, baseline, preferredElement = '') {
   if (row?.sourceType !== 'title') return true;
-  if (!row.titleEnchantElement || row.titleEnchantElement === 'all') return true;
+  if (!row.titleEnchantElement) return true;
+  if (row.titleEnchantElement === 'all') return false;
   const base = getDamageBaseline(baseline);
   const element = preferredElement || base.elementName;
   if (!element) return true;
@@ -1195,8 +1301,22 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       costPerPointOnePercent: getCostPerPointOnePercent(row),
     }));
   const bestUpgradeBySlot = new Map();
+  let bestTitleRow = null;
   const nonUpgradeRows = [];
   representativeRows.forEach((row) => {
+    if (row.sourceType === 'title') {
+      if (
+        !bestTitleRow
+        || row.costPerPointOnePercent < bestTitleRow.costPerPointOnePercent
+        || (
+          Math.abs(row.costPerPointOnePercent - bestTitleRow.costPerPointOnePercent) <= 0.0001
+          && row.incrementalDamagePercent > bestTitleRow.incrementalDamagePercent
+        )
+      ) {
+        bestTitleRow = row;
+      }
+      return;
+    }
     if (row.sourceType !== 'upgrade') {
       nonUpgradeRows.push(row);
       return;
@@ -1206,7 +1326,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       bestUpgradeBySlot.set(row.slot, row);
     }
   });
-  return [...nonUpgradeRows, ...bestUpgradeBySlot.values()]
+  return [...nonUpgradeRows, ...(bestTitleRow ? [bestTitleRow] : []), ...bestUpgradeBySlot.values()]
     .sort((a, b) => {
       const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
       if (priorityDiff) return priorityDiff;
@@ -1293,6 +1413,19 @@ function getArrowBackground(fromCost, toCost) {
   return `linear-gradient(90deg, ${fromColor} 0 50%, ${toColor} 50% 100%)`;
 }
 
+function formatTitlePurchaseRouteLabel(row) {
+  const elementLabel = row?.titleEnchantElement
+    ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement
+    : '';
+  if (row?.purchaseRoute === 'cleanTitlePlusBead') {
+    return elementLabel ? `무보주 칭호 + ${elementLabel} 칭호 보주` : '무보주 칭호 + 칭호 보주';
+  }
+  if (row?.purchaseRoute === 'attachedBead') {
+    return elementLabel ? `보주 발린 칭호 · ${elementLabel}` : '보주 발린 칭호';
+  }
+  return row?.purchaseRouteLabel || '';
+}
+
 export function installEnchantView(ctx) {
   const { els, state } = ctx;
   const { API_BASE, parseApiJsonResponse } = ctx.constants;
@@ -1324,6 +1457,8 @@ export function installEnchantView(ctx) {
   state.titlePricedAt = '';
   state.auraPricedAt = '';
   state.enchantLoading = false;
+  state.enchantTiming = null;
+  state.enchantRequestId = 0;
 
   function buildEnchantPortraitSlotData() {
     const equipmentBySlot = new Map(
@@ -1347,33 +1482,35 @@ export function installEnchantView(ctx) {
           label: slot,
           iconUrl: equipment.iconUrl || '',
           itemName: equipment.itemName || slot,
+          enchantBadge: getEnchantBadge(enchant.effects || {}),
+          upgradeBadge: getUpgradeBadge(equipment),
           hoverLines: [
-            formatEffectSummary('마부', enchant.effects || {}),
-            formatUpgradeState(equipment),
+            { text: formatEffects(enchant.effects || {}) || '없음', className: 'enchant-portrait-detail-line-effect' },
+            getUpgradeDetailLine(equipment),
           ],
         };
       }
     });
 
     const title = state.currentTitle || {};
+    const titleMainOption = formatTitleDetailMainOption(title);
     slotData.칭호 = {
       label: '칭호',
       iconUrl: title.iconUrl || '',
       itemName: title.itemName || '칭호',
       hoverLines: [
-        formatEffectSummary('효과', title.effects || {}),
-        formatEffectSummary('보주', title.enchantEffects || {}),
+        titleMainOption ? { text: titleMainOption, className: 'enchant-portrait-detail-line-effect' } : null,
       ],
     };
 
     const creature = state.currentCreature || {};
+    const creatureMainOption = formatCreatureDetailMainOption(creature);
     slotData.크리쳐 = {
       label: '크리쳐',
       iconUrl: creature.iconUrl || '',
       itemName: creature.itemName || '크리쳐',
       hoverLines: [
-        formatEffectSummary('효과', creature.effects || {}),
-        `아티팩트: ${Array.isArray(creature.artifacts) && creature.artifacts.length ? `${creature.artifacts.length}개 장착` : '없음'}`,
+        creatureMainOption ? { text: creatureMainOption, className: 'enchant-portrait-detail-line-effect' } : null,
       ],
     };
 
@@ -1383,7 +1520,7 @@ export function installEnchantView(ctx) {
       iconUrl: aura.iconUrl || '',
       itemName: aura.itemName || '오라',
       hoverLines: [
-        formatEffectSummary('효과', aura.effects || {}),
+        { text: formatEffects(aura.effects || {}) || '없음', className: 'enchant-portrait-detail-line-effect' },
       ],
     };
 
@@ -1397,19 +1534,21 @@ export function installEnchantView(ctx) {
     const title = data?.itemName || slot;
     const hoverLines = [title, ...((data?.hoverLines || []).filter(Boolean))];
     if (isEmpty) {
-      hoverLines.splice(1, hoverLines.length - 1, '장착 정보 없음');
+      hoverLines.splice(1, hoverLines.length - 1, { text: '장착 정보 없음', className: 'enchant-portrait-detail-line-sub' });
     }
+    const detailLines = hoverLines.slice(1).map((line) => (typeof line === 'string' ? { text: line, className: '' } : line));
     return `
       <span class="enchant-character-slot-wrap enchant-character-slot-wrap-${escapeHtml(key)} enchant-character-slot-wrap-${escapeHtml(side)}">
-        <span class="enchant-character-slot${isEmpty ? ' is-empty' : ''}" tabindex="0" aria-label="${escapeHtml(title)}">
+        <span class="enchant-character-slot${isEmpty ? ' is-empty' : ''}" tabindex="0" aria-label="${escapeHtml(title)}" data-detail-title="${escapeHtml(title)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
           ${data?.iconUrl
             ? `<img src="${escapeHtml(data.iconUrl)}" alt="" loading="lazy" decoding="async" />`
             : `<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>`}
-          <span class="enchant-character-slot-tooltip">
-            ${hoverLines.map((line, index) => `
-              <span class="${index === 0 ? 'enchant-character-slot-tooltip-title' : 'enchant-character-slot-tooltip-line'}">${escapeHtml(line)}</span>
-            `).join('')}
-          </span>
+          ${data?.enchantBadge
+            ? `<span class="enchant-character-slot-enchant-badges"><span class="enchant-character-slot-enchant-badge">${escapeHtml(data.enchantBadge.text)}</span></span>`
+            : ''}
+          ${data?.upgradeBadge
+            ? `<span class="enchant-character-slot-badge enchant-character-slot-badge-${escapeHtml(data.upgradeBadge.kind)}">${escapeHtml(data.upgradeBadge.text)}</span>`
+            : ''}
         </span>
       </span>
     `;
@@ -1418,6 +1557,57 @@ export function installEnchantView(ctx) {
   function buildEnchantPortraitSlotMarkup() {
     const slotData = buildEnchantPortraitSlotData();
     return ENCHANT_PORTRAIT_SLOT_LAYOUT.map((layout) => renderEnchantPortraitSlotMarkup(layout, slotData)).join('');
+  }
+
+  function resetEnchantPortraitDetailPanel() {
+    const portraitRoot = els.enchantCharacterPortrait?.querySelector('.enchant-character-portrait');
+    const panel = els.enchantCharacterPortrait?.querySelector('[data-enchant-portrait-detail]');
+    if (!panel) return;
+    if (portraitRoot) portraitRoot.classList.remove('is-detail-active');
+    const titleEl = panel.querySelector('[data-enchant-portrait-detail-title]');
+    const bodyEl = panel.querySelector('[data-enchant-portrait-detail-body]');
+    if (titleEl) titleEl.textContent = '장비 상세';
+    if (bodyEl) bodyEl.textContent = '장비에 마우스를 올리면 상세 정보가 표시됩니다.';
+  }
+
+  function setEnchantPortraitDetailPanel(title, lines = []) {
+    const portraitRoot = els.enchantCharacterPortrait?.querySelector('.enchant-character-portrait');
+    const panel = els.enchantCharacterPortrait?.querySelector('[data-enchant-portrait-detail]');
+    if (!panel) return;
+    if (portraitRoot) portraitRoot.classList.add('is-detail-active');
+    const titleEl = panel.querySelector('[data-enchant-portrait-detail-title]');
+    const bodyEl = panel.querySelector('[data-enchant-portrait-detail-body]');
+    if (titleEl) titleEl.textContent = title || '장비 상세';
+    if (bodyEl) {
+      bodyEl.innerHTML = (lines || [])
+        .filter(Boolean)
+        .map((line) => {
+          const text = typeof line === 'string' ? line : line?.text;
+          const className = typeof line === 'string' ? '' : line?.className || '';
+          return `<span class="enchant-portrait-detail-line ${escapeHtml(className)}">${escapeHtml(text || '')}</span>`;
+        })
+        .join('') || '<span class="enchant-portrait-detail-line enchant-portrait-detail-line-sub">표시할 정보가 없습니다.</span>';
+    }
+  }
+
+  function bindEnchantPortraitDetailPanel() {
+    if (!els.enchantCharacterPortrait) return;
+    const slots = [...els.enchantCharacterPortrait.querySelectorAll('.enchant-character-slot')];
+    slots.forEach((slot) => {
+      const title = String(slot.dataset.detailTitle || '').trim();
+      let lines = [];
+      try {
+        lines = JSON.parse(slot.dataset.detailLines || '[]');
+      } catch {
+        lines = [];
+      }
+      const activate = () => setEnchantPortraitDetailPanel(title, lines);
+      slot.addEventListener('mouseenter', activate);
+      slot.addEventListener('focus', activate);
+      slot.addEventListener('mouseleave', resetEnchantPortraitDetailPanel);
+      slot.addEventListener('blur', resetEnchantPortraitDetailPanel);
+    });
+    resetEnchantPortraitDetailPanel();
   }
 
   function renderEnchantCharacterPortrait() {
@@ -1436,7 +1626,17 @@ export function installEnchantView(ctx) {
         })}
       </div>
     `;
+    const characterName = els.enchantCharacterPortrait.querySelector('.enchant-character-portrait .character-name');
+    if (characterName) {
+      characterName.insertAdjacentHTML('beforeend', `
+        <div class="enchant-portrait-detail-panel" data-enchant-portrait-detail>
+          <div class="enchant-portrait-detail-title" data-enchant-portrait-detail-title>장비 상세</div>
+          <div class="enchant-portrait-detail-body" data-enchant-portrait-detail-body>장비에 마우스를 올리면 상세 정보가 표시됩니다.</div>
+        </div>
+      `);
+    }
     bindCharacterAvatars(els.enchantCharacterPortrait);
+    bindEnchantPortraitDetailPanel();
   }
 
   function getSelectedEnchantCharacter() {
@@ -1463,6 +1663,67 @@ export function installEnchantView(ctx) {
     if (els.enchantStatus) {
       els.enchantStatus.textContent = state.isDevMode ? devText : text;
     }
+  }
+
+  function renderEnchantRecommendLoading(text = '스펙업 순서 추천을 불러오는 중입니다...') {
+    if (!els.enchantRecommendList) return;
+    els.enchantRecommendList.innerHTML = `<div class="table-empty-cell">${escapeHtml(text)}</div>`;
+  }
+
+  function resetCurrentEnchantCharacterState() {
+    state.currentEnchants = [];
+    state.currentEquipmentUpgrades = [];
+    state.currentBlackFangRecommendations = [];
+    state.upgradeExpectedDb = null;
+    state.currentDamageBaseline = null;
+    state.currentCreature = null;
+    state.currentTitle = null;
+    state.currentAura = null;
+    state.currentAvatar = null;
+    state.currentEnchantCharacterKey = '';
+    state.currentCreatureCharacterKey = '';
+    state.currentTitleCharacterKey = '';
+    state.currentAuraCharacterKey = '';
+    state.currentAvatarCharacterKey = '';
+  }
+
+  function getEnchantNowMs() {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+      return performance.now();
+    }
+    return Date.now();
+  }
+
+  function beginEnchantTiming(label) {
+    if (!state.isDevMode) return false;
+    state.enchantTiming = {
+      label,
+      startedAt: getEnchantNowMs(),
+      steps: [],
+    };
+    return true;
+  }
+
+  function recordEnchantTimingStep(name, startedAt, extra = {}) {
+    if (!state.isDevMode || !state.enchantTiming || !Number.isFinite(startedAt)) return;
+    state.enchantTiming.steps.push({
+      name,
+      ms: Math.round((getEnchantNowMs() - startedAt) * 10) / 10,
+      ...extra,
+    });
+  }
+
+  function flushEnchantTiming(status = 'done') {
+    if (!state.isDevMode || !state.enchantTiming) return;
+    const summary = {
+      label: state.enchantTiming.label,
+      status,
+      totalMs: Math.round((getEnchantNowMs() - state.enchantTiming.startedAt) * 10) / 10,
+      steps: state.enchantTiming.steps,
+    };
+    globalThis.__enchantTimingLast = summary;
+    console.info(`[enchant-timing] ${summary.label} · ${status}`, summary);
+    state.enchantTiming = null;
   }
 
   function renderEnchantIncludeControls(includeKeys = ENCHANT_INCLUDE_ORDER) {
@@ -1533,6 +1794,7 @@ export function installEnchantView(ctx) {
   }
 
   function renderEnchantTable() {
+    const renderStartedAt = getEnchantNowMs();
     const allRows = [
       ...getCardRows(state.enchantCards),
       ...getCreatureRows(state.creatureUpgradeGroups),
@@ -1555,6 +1817,10 @@ export function installEnchantView(ctx) {
       .sort(sortByPriceAsc);
 
     renderEnchantRecommendations(rows, allRows);
+    recordEnchantTimingStep('renderEnchantTable', renderStartedAt, {
+      rows: rows.length,
+      allRows: allRows.length,
+    });
   }
 
   function renderEfficiencyLegend(recommendations) {
@@ -1608,7 +1874,7 @@ export function installEnchantView(ctx) {
         ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement
         : '';
       const titleRouteLabel = row.sourceType === 'title'
-        ? [titleElementLabel, row.purchaseRouteLabel].filter(Boolean).join(' · ')
+        ? formatTitlePurchaseRouteLabel(row)
         : '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
@@ -1808,6 +2074,115 @@ export function installEnchantView(ctx) {
     state.currentAvatarCharacterKey = characterKey;
   }
 
+  async function loadCurrentCharacterPreview(requestId = state.enchantRequestId) {
+    const character = getSelectedEnchantCharacter();
+    if (!character?.serverId || !character?.characterId) return;
+    const characterKey = character.key || `${character.serverId}:${character.characterId}`;
+    const query = new URLSearchParams({
+      serverId: character.serverId,
+      characterId: character.characterId,
+    });
+    const response = await fetch(`${API_BASE}/api/character-preview?${query.toString()}`, { cache: 'no-store' });
+    const payload = await parseApiJsonResponse(response, '캐릭터 장비 조회에 실패했습니다.');
+    if (requestId !== state.enchantRequestId) return;
+    state.currentEnchants = Array.isArray(payload.enchants) ? payload.enchants : [];
+    state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
+    state.currentCreature = payload.creature || null;
+    state.currentTitle = payload.title || null;
+    state.currentAura = payload.aura || null;
+    state.currentEnchantCharacterKey = characterKey;
+    state.currentCreatureCharacterKey = characterKey;
+    state.currentTitleCharacterKey = characterKey;
+    state.currentAuraCharacterKey = characterKey;
+    state.enchantTargetCharacter = {
+      ...state.enchantTargetCharacter,
+      serverId: payload.serverId || character.serverId,
+      characterId: payload.characterId || character.characterId,
+      name: payload.characterName || character.name || character.characterName || '',
+      adventureName: payload.adventureName || state.enchantTargetCharacter?.adventureName || '',
+      fame: Number(payload.fame || state.enchantTargetCharacter?.fame || 0),
+    };
+    renderEnchantCharacterPortrait();
+  }
+
+  async function loadCurrentCharacterLoadout() {
+    const character = getSelectedEnchantCharacter();
+    if (!character?.serverId || !character?.characterId) {
+      resetCurrentEnchantCharacterState();
+      setEnchantCharacterStatus('캐릭터를 검색해 주세요.');
+      return;
+    }
+    const characterKey = character.key || `${character.serverId}:${character.characterId}`;
+    if (
+      state.currentEnchantCharacterKey === characterKey
+      && state.currentCreatureCharacterKey === characterKey
+      && state.currentTitleCharacterKey === characterKey
+      && state.currentAuraCharacterKey === characterKey
+      && state.currentAvatarCharacterKey === characterKey
+      && state.currentEnchants.length
+    ) {
+      return;
+    }
+
+    const query = new URLSearchParams({
+      serverId: character.serverId,
+      characterId: character.characterId,
+    });
+    const startedAt = getEnchantNowMs();
+    const response = await fetch(`${API_BASE}/api/character-loadout?${query.toString()}`, { cache: 'no-store' });
+    const payload = await parseApiJsonResponse(response, '캐릭터 세팅 조회에 실패했습니다.');
+    state.currentEnchants = Array.isArray(payload.enchants) ? payload.enchants : [];
+    state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
+    state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
+    state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
+    state.currentDamageBaseline = payload.damageBaseline || null;
+    state.currentCreature = payload.creature || null;
+    state.currentTitle = payload.title || null;
+    state.currentAura = payload.aura || null;
+    state.currentAvatar = payload.avatar || null;
+    state.currentEnchantCharacterKey = characterKey;
+    state.currentCreatureCharacterKey = characterKey;
+    state.currentTitleCharacterKey = characterKey;
+    state.currentAuraCharacterKey = characterKey;
+    state.currentAvatarCharacterKey = characterKey;
+    state.enchantTargetCharacter = {
+      ...state.enchantTargetCharacter,
+      serverId: payload.serverId || character.serverId,
+      characterId: payload.characterId || character.characterId,
+      name: payload.characterName || character.name || character.characterName || '',
+      adventureName: payload.adventureName || state.enchantTargetCharacter?.adventureName || '',
+      fame: Number(payload.fame || state.enchantTargetCharacter?.fame || 0),
+      jobGrowName: payload.damageBaseline?.jobGrowName || state.enchantTargetCharacter?.jobGrowName || '',
+    };
+    renderEnchantCharacterPortrait();
+    const label = payload.characterName || character.name || character.characterName || character.characterId;
+    setEnchantCharacterStatus(state.isDevMode
+      ? `${label} 기준 · 현재 마부 ${state.currentEnchants.length}부위 · 강화/증폭 ${state.currentEquipmentUpgrades.length}부위 · 흑아 ${state.currentBlackFangRecommendations.length}부위`
+      : `${label} 기준`);
+    recordEnchantTimingStep('character-loadout', startedAt, {
+      enchants: state.currentEnchants.length,
+      upgrades: state.currentEquipmentUpgrades.length,
+      serverTiming: payload.debugTimings || null,
+    });
+  }
+
+  async function loadEnchantRecommendationsAsync(requestId) {
+    try {
+      const tasks = [loadCurrentCharacterLoadout()];
+      if (!state.enchantPriceLoaded) {
+        tasks.push(loadEnchantCards(false, { refreshCurrentCharacter: false, skipImmediateRender: true }));
+      }
+      await Promise.all(tasks);
+      if (requestId !== state.enchantRequestId) return;
+      renderEnchantTable();
+      flushEnchantTiming('complete');
+    } catch (error) {
+      if (requestId !== state.enchantRequestId) return;
+      renderEnchantRecommendLoading(error.message || '스펙업 순서 추천을 불러오지 못했습니다.');
+      flushEnchantTiming('error');
+    }
+  }
+
   async function searchEnchantCharacter() {
     const serverId = String(els.enchantServerIdInput?.value || '').trim().toLowerCase();
     const characterName = String(els.enchantCharacterNameInput?.value || '').trim();
@@ -1818,10 +2193,15 @@ export function installEnchantView(ctx) {
 
     if (els.loadEnchantCharacterButton) els.loadEnchantCharacterButton.disabled = true;
     setEnchantCharacterStatus(`${characterName} 검색 중...`);
+    beginEnchantTiming(`${serverId}:${characterName}`);
     try {
       const query = new URLSearchParams({ serverId, characterName });
+      const searchStartedAt = getEnchantNowMs();
       const response = await fetch(`${API_BASE}/api/search?${query.toString()}`, { cache: 'no-store' });
       const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
+      recordEnchantTimingStep('search', searchStartedAt, {
+        matchCount: Number(payload.matchCount || 0),
+      });
       const resolved = payload.resolved || {};
       if (!resolved.characterId) {
         throw new Error('캐릭터를 찾지 못했습니다.');
@@ -1831,31 +2211,33 @@ export function installEnchantView(ctx) {
         serverId: resolved.serverId || serverId,
         characterId: resolved.characterId,
         name: resolved.characterName || characterName,
+        adventureName: resolved.adventureName || '',
         fame: Number(resolved.fame || 0),
         jobGrowName: resolved.jobGrowName || '',
       };
+      resetCurrentEnchantCharacterState();
       renderEnchantCharacterPortrait();
-      state.currentEnchantCharacterKey = '';
-      state.currentCreatureCharacterKey = '';
-      state.currentTitleCharacterKey = '';
-      state.currentAuraCharacterKey = '';
-      state.currentAvatarCharacterKey = '';
-      await Promise.all([loadCurrentEnchants(), loadCurrentCreature(), loadCurrentTitle(), loadCurrentAura(), loadCurrentAvatar()]);
-      if (!state.enchantPriceLoaded) {
-        await loadEnchantCards(false);
-      } else {
-        renderEnchantTable();
-      }
+      renderEnchantRecommendLoading();
+      const requestId = state.enchantRequestId + 1;
+      state.enchantRequestId = requestId;
+      void loadCurrentCharacterPreview(requestId).catch((error) => {
+        if (requestId !== state.enchantRequestId) return;
+        setEnchantCharacterStatus(error.message);
+      });
+      void loadEnchantRecommendationsAsync(requestId);
     } catch (error) {
       setEnchantCharacterStatus(error.message);
+      flushEnchantTiming('error');
     } finally {
       if (els.loadEnchantCharacterButton) els.loadEnchantCharacterButton.disabled = false;
     }
   }
 
-  async function loadEnchantCards(forceRefresh = false) {
+  async function loadEnchantCards(forceRefresh = false, options = {}) {
     if (state.enchantLoading) return;
+    const { refreshCurrentCharacter = true, skipImmediateRender = false } = options;
     state.enchantLoading = true;
+    const ownsTiming = !state.enchantTiming && beginEnchantTiming(forceRefresh ? 'price-refresh' : 'price-load');
     if (forceRefresh) {
       state.currentAvatar = null;
       state.currentAvatarCharacterKey = '';
@@ -1864,6 +2246,7 @@ export function installEnchantView(ctx) {
     setEnchantPriceStatus('시세 확인 중...', '경매장 가격을 가져오는 중...');
     try {
       const query = forceRefresh ? '?refresh=1' : '';
+      const priceStartedAt = getEnchantNowMs();
       const [enchantResponse, creatureResponse, titleResponse, auraResponse] = await Promise.all([
         fetch(`${API_BASE}/api/enchant-cards${query}`, { cache: 'no-store' }),
         fetch(`${API_BASE}/api/creature-upgrades${query}`, { cache: 'no-store' }),
@@ -1884,7 +2267,15 @@ export function installEnchantView(ctx) {
       state.creaturePricedAt = creaturePayload.pricedAt || '';
       state.titlePricedAt = titlePayload.pricedAt || '';
       state.auraPricedAt = auraPayload.pricedAt || '';
-      renderEnchantTable();
+      recordEnchantTimingStep('price-load', priceStartedAt, {
+        enchantCards: state.enchantCards.length,
+        creatureGroups: state.creatureUpgradeGroups.length,
+        titleGroups: state.titleUpgradeGroups.length,
+        auraGroups: state.auraUpgradeGroups.length,
+      });
+      if (!skipImmediateRender) {
+        renderEnchantTable();
+      }
       const errorCount = Number(payload.errors?.length || 0) + Number(creaturePayload.errors?.length || 0) + Number(titlePayload.errors?.length || 0) + Number(auraPayload.errors?.length || 0);
       const creatureCount = getCreatureRows(state.creatureUpgradeGroups).length;
       const artifactCount = getCreatureArtifactRows(state.creatureArtifactGroups).length;
@@ -1897,33 +2288,24 @@ export function installEnchantView(ctx) {
       const devStatus = `${state.enchantCards.length}개 카드 + 크리쳐 ${creatureCount}개 + 아티팩트 ${artifactCount}개 + 칭호 ${titleCount}개 + 오라 ${auraCount}개 + 아바타 ${avatarCount}개 가격 불러오기 완료 · ${pricedAtText}${refreshingText}${errorText}`;
       setEnchantPriceStatus('시세 반영 완료', devStatus);
 
-      Promise.all([loadCurrentEnchants(), loadCurrentCreature(), loadCurrentTitle(), loadCurrentAura(), loadCurrentAvatar()])
-        .then(() => {
+      if (refreshCurrentCharacter) {
+        loadCurrentCharacterLoadout()
+          .then(() => {
           renderEnchantTable();
         })
         .catch((error) => {
-          state.currentEnchants = [];
-          state.currentEquipmentUpgrades = [];
-          state.currentBlackFangRecommendations = [];
-          state.upgradeExpectedDb = null;
-          state.currentCreature = null;
-          state.currentTitle = null;
-          state.currentAura = null;
-          state.currentAvatar = null;
-          state.currentDamageBaseline = null;
-          state.currentEnchantCharacterKey = '';
-          state.currentCreatureCharacterKey = '';
-          state.currentTitleCharacterKey = '';
-          state.currentAuraCharacterKey = '';
-          state.currentAvatarCharacterKey = '';
-          setEnchantPriceStatus('일부 정보를 확인하지 못했습니다.', `${devStatus}, 현재 세팅 미반영: ${error.message}`);
-          renderEnchantTable();
-        });
+            resetCurrentEnchantCharacterState();
+            setEnchantPriceStatus('일부 정보를 확인하지 못했습니다.', `${devStatus}, 현재 세팅 미반영: ${error.message}`);
+            renderEnchantTable();
+          });
+      }
     } catch (error) {
       setEnchantPriceStatus(error.message);
+      if (ownsTiming) flushEnchantTiming('error');
     } finally {
       state.enchantLoading = false;
       if (els.refreshEnchantCardsButton) els.refreshEnchantCardsButton.disabled = false;
+      if (ownsTiming) flushEnchantTiming('complete');
     }
   }
 
@@ -1934,6 +2316,8 @@ export function installEnchantView(ctx) {
     loadCurrentTitle,
     loadCurrentAura,
     loadCurrentAvatar,
+    loadCurrentCharacterPreview,
+    loadCurrentCharacterLoadout,
     searchEnchantCharacter,
     renderEnchantTable,
     renderEnchantRecommendations,

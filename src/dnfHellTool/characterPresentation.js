@@ -1,6 +1,8 @@
 import { CHARACTER_AVATAR_CLASS_BY_JOB } from '../data/supplyConstants.js';
 import { escapeHtml, fmtInt, getServerLabel } from '../logic/formatters.js';
 
+const CHARACTER_PORTRAIT_BG_URL = new URL('../../이미지/bg3.jpg', import.meta.url).href;
+
 export function getCharacterAvatarClass(character) {
   const jobName = String(character?.jobName ?? '').trim();
   return CHARACTER_AVATAR_CLASS_BY_JOB[jobName] || '';
@@ -61,21 +63,24 @@ export function getCharacterPortraitMarkup(character, options = {}) {
   const zoom = Number(options.zoom || 4) || 4;
   const avatarUrl = getCharacterAvatarUrl(character, zoom);
   const fameLabel = fmtInt(Number(character?.fame || 0));
+  const adventureName = String(character?.adventureName || '').trim();
   const nameLabel = getCharacterNameOnly(character) || label;
   const serverJobLabel = getCharacterServerJobLabel(character);
   const slotItemsHtml = String(options.slotItemsHtml || '').trim();
 
   return `
-    <span class="character-name">
+      <span class="character-name">
       <span class="supply-detail-portrait-crop">
         ${slotItemsHtml ? `<span class="character-portrait-slot-layer">${slotItemsHtml}</span>` : ''}
         <span class="supply-detail-portrait-frame">
+          <img class="supply-detail-portrait-bg" src="${escapeHtml(CHARACTER_PORTRAIT_BG_URL)}" alt="" loading="lazy" decoding="async" aria-hidden="true" />
           <img class="supply-detail-portrait-img" data-character-avatar src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(label)}" loading="lazy" decoding="async" />
         </span>
       </span>
       ${showName ? `
         <span class="supply-detail-portrait-meta">
           <span class="supply-detail-portrait-fame">명성 ${escapeHtml(fameLabel)}</span>
+          ${adventureName ? `<span class="supply-detail-portrait-adventure">${escapeHtml(adventureName)}</span>` : ''}
           <span class="supply-detail-portrait-name">${escapeHtml(nameLabel)}</span>
           ${serverJobLabel ? `<span class="supply-detail-portrait-sub">${escapeHtml(serverJobLabel)}</span>` : ''}
         </span>

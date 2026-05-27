@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -9,6 +10,10 @@ from urllib.request import Request, urlopen
 API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
+_ITEM_SEARCH_CACHE_LOCK = threading.Lock()
+_ITEM_SEARCH_CACHE: dict[str, list] = {}
+_ITEM_DETAIL_CACHE_LOCK = threading.Lock()
+_ITEM_DETAIL_CACHE: dict[str, dict] = {}
 
 
 def require_api_key() -> str:
@@ -116,11 +121,19 @@ def get_item_explain(detail: dict) -> str:
 
 
 def search_items_by_name(item_name: str) -> list:
+    cache_key = clean_text(item_name)
+    with _ITEM_SEARCH_CACHE_LOCK:
+        cached = _ITEM_SEARCH_CACHE.get(cache_key)
+        if cached is not None:
+            return [dict(row) for row in cached]
     url = (
         "https://api.neople.co.kr/df/items"
         f"?itemName={quote(item_name)}&wordType=full&limit=100&apikey={API_KEY}"
     )
-    return request_json(url).get("rows") or []
+    rows = request_json(url).get("rows") or []
+    with _ITEM_SEARCH_CACHE_LOCK:
+        _ITEM_SEARCH_CACHE[cache_key] = [dict(row) for row in rows]
+    return rows
 
 
 def fetch_item_details(item_ids: list) -> list:
@@ -133,12 +146,27 @@ def fetch_item_details(item_ids: list) -> list:
     if not unique_ids:
         return []
 
-    rows = []
-    for index in range(0, len(unique_ids), 20):
-        chunk = unique_ids[index:index + 20]
+    rows_by_id = {}
+    missing_ids = []
+    with _ITEM_DETAIL_CACHE_LOCK:
+        for item_id in unique_ids:
+            cached = _ITEM_DETAIL_CACHE.get(item_id)
+            if cached is not None:
+                rows_by_id[item_id] = dict(cached)
+            else:
+                missing_ids.append(item_id)
+
+    for index in range(0, len(missing_ids), 20):
+        chunk = missing_ids[index:index + 20]
         url = f"https://api.neople.co.kr/df/multi/items?itemIds={','.join(chunk)}&apikey={API_KEY}"
-        rows.extend(request_json(url).get("rows") or [])
-    return rows
+        fetched_rows = request_json(url).get("rows") or []
+        with _ITEM_DETAIL_CACHE_LOCK:
+            for row in fetched_rows:
+                item_id = row.get("itemId")
+                if item_id:
+                    _ITEM_DETAIL_CACHE[item_id] = dict(row)
+                    rows_by_id[item_id] = dict(row)
+    return [rows_by_id[item_id] for item_id in unique_ids if item_id in rows_by_id]
 
 
 def resolve_exact_item_by_name(item_name: str, item_type_detail: str = "") -> dict:
@@ -256,6 +284,7 @@ def search_character(
         "server_id": server_id,
         "character_id": resolved_character_id,
         "character_name": resolved_character_name,
+        "adventure_name": clean_text(chosen.get("adventureName")),
         "job_id": resolved_job_id,
         "job_name": resolved_job_name,
         "job_grow_id": resolved_job_grow_id,

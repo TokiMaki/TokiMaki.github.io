@@ -14,6 +14,8 @@ from server.character_equipment_service import (
     load_character_avatar,
     load_character_creature,
     load_character_enchants,
+    load_character_loadout,
+    load_character_preview,
     load_character_title,
 )
 from server.avatar_skill_optimizer import load_character_avatar_skill_efficiency
@@ -104,6 +106,12 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/character-enchants":
             return self.handle_character_enchants(parsed)
 
+        if parsed.path == "/api/character-loadout":
+            return self.handle_character_loadout(parsed)
+
+        if parsed.path == "/api/character-preview":
+            return self.handle_character_preview(parsed)
+
         if parsed.path == "/api/creature-upgrades":
             return self.handle_creature_upgrades(parsed)
 
@@ -159,6 +167,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                         "serverId": resolved["server_id"],
                         "characterId": resolved["character_id"],
                         "characterName": resolved["character_name"],
+                        "adventureName": resolved.get("adventure_name", ""),
                         "fame": resolved.get("fame", 0),
                         "jobId": resolved.get("job_id", ""),
                         "jobName": resolved.get("job_name", ""),
@@ -215,6 +224,38 @@ class HellApiHandler(SimpleHTTPRequestHandler):
 
         try:
             self.send_json(load_character_enchants(server_id, character_id))
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_character_loadout(self, parsed):
+        query = parse_qs(parsed.query)
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
+        if not server_id or not character_id:
+            return self.send_json(
+                {"error": "serverId와 characterId를 입력해 주세요."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+
+        try:
+            self.send_json(load_character_loadout(server_id, character_id))
+        except FileNotFoundError:
+            self.send_json({"error": "캐릭터 세팅 DB를 찾을 수 없습니다."}, status=HTTPStatus.NOT_FOUND)
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_character_preview(self, parsed):
+        query = parse_qs(parsed.query)
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
+        if not server_id or not character_id:
+            return self.send_json(
+                {"error": "serverId와 characterId를 입력해 주세요."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+
+        try:
+            self.send_json(load_character_preview(server_id, character_id))
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 
