@@ -312,8 +312,14 @@ class HellApiHandler(SimpleHTTPRequestHandler):
     def handle_aura_upgrades(self, parsed):
         query = parse_qs(parsed.query)
         force_refresh = (query.get("refresh") or [""])[0] == "1"
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
         try:
-            self.send_json(load_aura_upgrades_with_prices(force_refresh=force_refresh))
+            self.send_json(load_aura_upgrades_with_prices(
+                force_refresh=force_refresh,
+                server_id=server_id,
+                character_id=character_id,
+            ))
         except FileNotFoundError:
             self.send_json({"error": "오라 후보 DB를 찾을 수 없습니다."}, status=HTTPStatus.NOT_FOUND)
         except Exception as exc:

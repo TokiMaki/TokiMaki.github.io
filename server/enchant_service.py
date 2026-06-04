@@ -1,10 +1,14 @@
 import json
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 from .data_store import AURA_DB_PATH, CREATURE_ARTIFACT_DB_PATH, CREATURE_DB_PATH, ENCHANT_DB_PATH, TITLE_DB_PATH
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects
+from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect
 from .neople_client import (
+    API_KEY,
     clean_item_display_name,
     clean_text,
     fetch_item_details,
@@ -12,6 +16,7 @@ from .neople_client import (
     get_item_icon_url,
     get_auction_rows,
     get_lowest_auction_price,
+    request_json,
     resolve_exact_item_by_name,
     search_items_by_name,
 )
@@ -40,6 +45,13 @@ from .upgrade_payloads import (
     get_title_variant,
     title_item_matches,
 )
+
+_AURA_DISCOVERY_SERVER_IDS = ("cain", "diregie", "siroco", "prey", "casillas", "hilder", "anton", "bakal")
+_AURA_DISCOVERY_MIN_FAME = 90000
+_AURA_DISCOVERY_LIMIT = 30
+_AURA_DISCOVERY_CACHE_TTL_SECONDS = 21600
+_AURA_DISCOVERY_CACHE_LOCK = Lock()
+_AURA_DISCOVERY_CACHE = {}
 
 
 def get_enchant_bead_search_names(card: dict) -> list:
@@ -125,6 +137,103 @@ def get_title_bead_element_from_name(item_name: str) -> str:
     if "모든속성" in name or "모든 속성" in name:
         return "all"
     return ""
+
+
+def extract_aura_names_from_box_explain(text: str) -> list[str]:
+    matches = re.findall(r"사용 시\s+(.+?)\s+를 획득할 수 있습니다", clean_text(text))
+    names = []
+    for name in matches:
+        clean_name = clean_text(name)
+        if not clean_name:
+            continue
+        names.append(clean_name)
+        for suffix in (" 오라 아바타", " 아바타", " 오라"):
+            if clean_name.endswith(suffix):
+                names.append(clean_text(clean_name[:-len(suffix)]))
+    return list(dict.fromkeys(name for name in names if name))
+
+
+def build_aura_avatar_search_names(keyword: str, box_details: list[dict]) -> list[str]:
+    names = [clean_text(keyword)]
+    for detail in box_details or []:
+        names.extend(extract_aura_names_from_box_explain(get_item_explain(detail)))
+    return list(dict.fromkeys(name for name in names if name))
+
+
+def find_aura_item_id_from_equipped_avatars(search_names: list[str]) -> str:
+    normalized_names = tuple(sorted({clean_text(name) for name in search_names if clean_text(name)}))
+    if not normalized_names:
+        return ""
+
+    now = time.time()
+    with _AURA_DISCOVERY_CACHE_LOCK:
+        cached = _AURA_DISCOVERY_CACHE.get(normalized_names)
+        if cached and float(cached.get("expires_at") or 0) > now:
+            return clean_text(cached.get("item_id"))
+
+    found_item_id = ""
+    target_names = set(normalized_names)
+    for server_id in _AURA_DISCOVERY_SERVER_IDS:
+        fame_url = (
+            f"https://api.neople.co.kr/df/servers/{server_id}/characters-fame"
+            f"?minFame={_AURA_DISCOVERY_MIN_FAME}&limit={_AURA_DISCOVERY_LIMIT}&apikey={API_KEY}"
+        )
+        rows = (request_json(fame_url).get("rows") or [])[:_AURA_DISCOVERY_LIMIT]
+        for row in rows:
+            character_id = clean_text(row.get("characterId"))
+            if not character_id:
+                continue
+            avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
+            avatar_rows = request_json(avatar_url).get("avatar") or []
+            for avatar in avatar_rows:
+                slot_name = clean_text(avatar.get("slotName"))
+                item_type_detail = clean_text(avatar.get("itemTypeDetail"))
+                item_name = clean_text(avatar.get("itemName"))
+                if "오라" not in slot_name and "오라" not in item_type_detail and "오라" not in item_name:
+                    continue
+                if item_name in target_names:
+                    found_item_id = clean_text(avatar.get("itemId"))
+                    break
+            if found_item_id:
+                break
+        if found_item_id:
+            break
+
+    with _AURA_DISCOVERY_CACHE_LOCK:
+        _AURA_DISCOVERY_CACHE[normalized_names] = {
+            "item_id": found_item_id,
+            "expires_at": now + _AURA_DISCOVERY_CACHE_TTL_SECONDS,
+        }
+    return found_item_id
+
+
+def enrich_aura_groups_for_character(groups: list, server_id: str, character_id: str) -> list:
+    skill_context = get_character_skill_context(server_id, character_id)
+    candidate_ids = [
+        clean_text(candidate.get("itemId"))
+        for group in groups or []
+        for candidate in group.get("candidates") or []
+        if clean_text(candidate.get("itemId"))
+    ]
+    detail_map = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(candidate_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    enriched_groups = []
+    for group in groups or []:
+        candidates = []
+        for candidate in group.get("candidates") or []:
+            detail = detail_map.get(clean_text(candidate.get("itemId"))) or {}
+            candidates.append({
+                **candidate,
+                **get_item_reinforce_skill_effect(detail, skill_context),
+            })
+        enriched_groups.append({
+            **group,
+            "candidates": candidates,
+        })
+    return enriched_groups
 
 
 def load_title_bead_options(get_cached_auction, errors: list) -> list:
@@ -449,7 +558,19 @@ def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale:
     return add_cache_status(payload, _CREATURE_PRICE_CACHE)
 
 
-def load_aura_upgrades_with_prices(force_refresh: bool = False, allow_stale: bool = True) -> dict:
+def load_aura_upgrades_with_prices(
+    force_refresh: bool = False,
+    allow_stale: bool = True,
+    server_id: str = "",
+    character_id: str = "",
+) -> dict:
+    if server_id and character_id:
+        payload = load_aura_upgrades_with_prices(force_refresh=force_refresh, allow_stale=allow_stale)
+        return {
+            **payload,
+            "groups": enrich_aura_groups_for_character(payload.get("groups") or [], server_id, character_id),
+        }
+
     now = time.time()
     if allow_stale:
         load_price_cache_from_disk(_AURA_PRICE_CACHE, AURA_PRICE_CACHE_PATH)
@@ -518,6 +639,15 @@ def load_aura_upgrades_with_prices(force_refresh: bool = False, allow_stale: boo
             detail for detail in details
             if "상자" in clean_text(detail.get("itemName"))
         ]
+        if not aura_details and box_details:
+            fallback_item_id = find_aura_item_id_from_equipped_avatars(build_aura_avatar_search_names(keyword, box_details))
+            if fallback_item_id:
+                details = [*details, *fetch_item_details([fallback_item_id])]
+                aura_details = [
+                    detail for detail in details
+                    if keyword in clean_text(detail.get("itemName"))
+                    and "상자" not in clean_text(detail.get("itemName"))
+                ]
 
         price_items = []
         for detail in [*aura_details, *box_details]:

@@ -4,6 +4,7 @@ import time
 
 from .data_store import load_avatar_option_db, load_job_base_stats, load_upgrade_expected_db
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
+from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect
 from .neople_client import (
     API_KEY,
     build_character_detail_url,
@@ -350,12 +351,20 @@ def load_character_aura(server_id: str, character_id: str) -> dict:
         "fetch_item_details",
         lambda: (fetch_item_details([item_id]) or [{}])[0] if item_id else {},
     )
+    skill_effect = _measure_step(
+        steps,
+        "get_item_reinforce_skill_effect",
+        lambda: get_item_reinforce_skill_effect(detail, get_character_skill_context(server_id, character_id)) if item_id else {},
+    )
     return {
         "serverId": payload.get("serverId"),
         "characterId": payload.get("characterId"),
         "characterName": payload.get("characterName"),
         "fame": payload.get("fame"),
-        "aura": build_aura_payload(item_id, detail) if item_id else None,
+        "aura": ({
+            **build_aura_payload(item_id, detail),
+            **skill_effect,
+        } if item_id else None),
         "debugTimings": {
             "steps": steps,
         },

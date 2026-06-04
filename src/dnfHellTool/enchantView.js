@@ -647,6 +647,10 @@ function getAuraRows(groups) {
     candidateName: candidate.name,
     groupName: group.groupName,
     priceItem: candidate.priceItem || null,
+    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
+    skillDamagePercent: Number(candidate.skillDamagePercent || 0),
+    reinforceSkillName: candidate.reinforceSkillName || '',
+    reinforceSkillLevel: Number(candidate.reinforceSkillLevel || 0),
   })));
 }
 
@@ -1090,7 +1094,10 @@ function getReplacementIncrementalDamagePercent(row, current, baseline) {
   const currentEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + currentStatValue, base.baseStat);
   const targetEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + targetStatValue, base.baseStat);
   const statMultiplier = (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
-  return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier - 1) * 100;
+  const currentSkillDamageMultiplier = Number(current?.skillDamageMultiplier || 1);
+  const targetSkillDamageMultiplier = Number(row?.skillDamageMultiplier || 1);
+  const skillDamageMultiplier = targetSkillDamageMultiplier / currentSkillDamageMultiplier;
+  return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier - 1) * 100;
 }
 
 function getCurrentCreatureArtifactBySlot(currentCreature) {
@@ -1262,13 +1269,16 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     if (incrementalDamagePercent <= 0.0001) return;
 
     const titleLevelKey = row.sourceType === 'title' && currentTitle?.levelTag ? row.levelTag || 0 : 0;
+    const auraSkillKey = row.sourceType === 'aura'
+      ? `${row.reinforceSkillName || ''}:${Number(row.reinforceSkillLevel || 0)}:${Number(row.skillDamageMultiplier || 1).toFixed(8)}`
+      : '';
     const key = row.sourceType === 'creatureArtifact'
       ? `${row.sourceType}:${row.slot}:${row.tier}`
       : ['creature', 'title', 'aura'].includes(row.sourceType)
-      ? `${row.sourceType}:${row.slot}:${row.tier}:${titleLevelKey}:${getEffectSignature(row.effects)}`
+      ? `${row.sourceType}:${row.slot}:${row.tier}:${titleLevelKey}:${getEffectSignature(row.effects)}:${auraSkillKey}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
-      : row.sourceType === 'upgrade'
+        : row.sourceType === 'upgrade'
         ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
       : `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`;
     const previous = bySlotTier.get(key);
@@ -2245,7 +2255,14 @@ export function installEnchantView(ctx) {
     if (els.refreshEnchantCardsButton) els.refreshEnchantCardsButton.disabled = true;
     setEnchantPriceStatus('시세 확인 중...', '경매장 가격을 가져오는 중...');
     try {
-      const query = forceRefresh ? '?refresh=1' : '';
+      const queryParams = new URLSearchParams();
+      if (forceRefresh) queryParams.set('refresh', '1');
+      const currentCharacter = state.enchantTargetCharacter || {};
+      if (currentCharacter.serverId && currentCharacter.characterId) {
+        queryParams.set('serverId', currentCharacter.serverId);
+        queryParams.set('characterId', currentCharacter.characterId);
+      }
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const priceStartedAt = getEnchantNowMs();
       const [enchantResponse, creatureResponse, titleResponse, auraResponse] = await Promise.all([
         fetch(`${API_BASE}/api/enchant-cards${query}`, { cache: 'no-store' }),

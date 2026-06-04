@@ -9,6 +9,10 @@ SKILL_ATTACK_PATTERNS = [
     re.compile(r"스킬\s*공격력[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"스킬\s*데미지[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
 ]
+SKILL_ATTACK_OPTION_VALUE_PATTERNS = [
+    re.compile(r"스킬\s*공격력[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
+    re.compile(r"스킬\s*데미지[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
+]
 
 
 def normalize_skill_key(value: str) -> str:
@@ -19,14 +23,25 @@ def normalize_skill_key(value: str) -> str:
 
 
 def flatten_skill_rows(payload: dict) -> list[dict]:
-    skill = payload.get("skill") if isinstance(payload.get("skill"), dict) else payload
     rows = []
-    for key in ("active", "passive", "evolution", "enhancement"):
-        value = skill.get(key) if isinstance(skill, dict) else None
-        if isinstance(value, list):
-            for row in value:
-                if isinstance(row, dict):
-                    rows.append({**row, "_skillType": key})
+    containers = []
+    if isinstance(payload, dict):
+        containers.append(payload)
+    skill = payload.get("skill") if isinstance(payload.get("skill"), dict) else None
+    if isinstance(skill, dict):
+        containers.append(skill)
+        for nested in ("style", "buff"):
+            nested_value = skill.get(nested)
+            if isinstance(nested_value, dict):
+                containers.append(nested_value)
+
+    for container in containers:
+        for key in ("active", "passive", "evolution", "enhancement"):
+            value = container.get(key) if isinstance(container, dict) else None
+            if isinstance(value, list):
+                for row in value:
+                    if isinstance(row, dict):
+                        rows.append({**row, "_skillType": key})
     for key in ("rows", "skills"):
         value = payload.get(key)
         if isinstance(value, list):
@@ -71,10 +86,20 @@ def parse_skill_attack_percent(text: str) -> float | None:
     return None
 
 
+def find_skill_attack_option_value_key(option_desc: str) -> str:
+    clean = clean_text(option_desc)
+    for pattern in SKILL_ATTACK_OPTION_VALUE_PATTERNS:
+        match = pattern.search(clean)
+        if match:
+            return match.group(1)
+    return ""
+
+
 def get_level_attack_percent(skill_detail: dict, level: int) -> float | None:
     level_info = skill_detail.get("levelInfo")
     if not isinstance(level_info, dict):
         return None
+    option_value_key = find_skill_attack_option_value_key(level_info.get("optionDesc") or "")
 
     for key in ("rows", "option", "levels"):
         rows = level_info.get(key)
@@ -93,6 +118,15 @@ def get_level_attack_percent(skill_detail: dict, level: int) -> float | None:
                 parsed = parse_skill_attack_percent(text)
                 if parsed is not None:
                     return parsed
+            if option_value_key and isinstance(row.get("optionValue"), dict):
+                parsed = parse_skill_attack_percent(row.get("optionDesc") or "")
+                if parsed is not None:
+                    return parsed
+                value = row.get("optionValue", {}).get(option_value_key)
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    pass
 
     return None
 
