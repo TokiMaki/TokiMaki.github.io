@@ -3,6 +3,7 @@ const EFFECT_LABELS = {
   attack: '공격력',
   attackIncrease: '공격력 증가',
   attackAmplification: '공증',
+  buffAmplification: '버프력 증폭',
   elementAll: '모속강',
   elementFire: '화속강',
   elementWater: '수속강',
@@ -68,7 +69,7 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
+const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '머리어깨', key: 'shoulder', side: 'left' },
   { slot: '상의', key: 'top', side: 'left' },
@@ -370,7 +371,15 @@ function getUpgradeBadge(equipment = {}) {
   return { text: `+${level}`, kind: 'reinforce' };
 }
 
-function getEnchantBadge(effects = {}) {
+function getEnchantBadge(effects = {}, reinforceSkill = [], bufferBaseline = null) {
+  if (bufferBaseline?.isBuffer) {
+    const parts = [];
+    const allStat = Number(effects.allStat || 0);
+    const skillLevels = getReinforceSkillLevel(reinforceSkill, bufferBaseline.jobName || '');
+    if (Number.isFinite(allStat) && allStat > 0) parts.push(formatEffectNumber(allStat));
+    if (Number.isFinite(skillLevels) && skillLevels > 0) parts.push(`${formatEffectNumber(skillLevels)}Lv`);
+    return parts.length ? { text: parts.join('/') } : null;
+  }
   const parts = [];
   const attackAmplification = Number(effects.attackAmplification || 0);
   const finalDamage = Number(effects.finalDamage || 0);
@@ -600,12 +609,21 @@ function getCardRows(cards) {
 
 function getReinforceSkillLevel(reinforceSkill = [], jobName = '', skillNames = null) {
   return (reinforceSkill || []).reduce((total, job) => {
-    if (jobName && job?.jobName && job.jobName !== jobName) return total;
+    if (jobName && job?.jobName && !['공통', jobName].includes(job.jobName)) return total;
     return total + (job?.skills || []).reduce((sum, skill) => {
       if (skillNames && !skillNames.includes(skill?.name)) return sum;
       return sum + Number(skill?.value || 0);
     }, 0);
   }, 0);
+}
+
+function formatReinforceSkills(reinforceSkill = [], jobName = '') {
+  return (reinforceSkill || []).flatMap((job) => {
+    if (jobName && job?.jobName && !['공통', jobName].includes(job.jobName)) return [];
+    return (job?.skills || [])
+      .filter((skill) => skill?.name && Number(skill?.value || 0) > 0)
+      .map((skill) => `${skill.name} Lv +${formatEffectNumber(Number(skill.value))}`);
+  }).join(' / ');
 }
 
 function getBufferEnchantSkillDelta(row, current, baseline, config) {
@@ -620,6 +638,60 @@ function getBufferEnchantSkillDelta(row, current, baseline, config) {
   return {
     primaryLevels: (candidateTotal - candidateAura) - (currentTotal - currentAura),
     auraLevels: candidateAura - currentAura,
+  };
+}
+
+function getItemSkillLevelBonus(item, baseline, skillName, requiredLevel) {
+  const jobName = baseline?.jobName || '';
+  const namedBonus = getReinforceSkillLevel(item?.itemReinforceSkill || [], jobName, [skillName]);
+  const rangeBonus = (item?.itemBuff?.reinforceSkill || []).reduce((total, job) => {
+    if (job?.jobName && !['공통', jobName].includes(job.jobName)) return total;
+    return total + (job?.levelRange || []).reduce((sum, range) => {
+      const minimum = Number(range?.minLevel || 0);
+      const maximum = Number(range?.maxLevel || 0);
+      return minimum <= requiredLevel && requiredLevel <= maximum
+        ? sum + Number(range?.value || 0)
+        : sum;
+    }, 0);
+  }, 0);
+  if (requiredLevel !== 50) return namedBonus + rangeBonus;
+  const explain = String(item?.itemBuff?.explain || '');
+  const explicitBonus = [...explain.matchAll(/50\s*(?:레벨|Lv)\s*액티브\s*스킬\s*Lv\s*\+\s*(\d+)/gi)]
+    .reduce((total, match) => total + Number(match[1] || 0), 0);
+  return namedBonus + rangeBonus + explicitBonus;
+}
+
+function getSelfStatSkillDelta(info, levelDelta) {
+  if (!levelDelta) return 0;
+  const current = Number(info?.currentStat || 0);
+  if (levelDelta > 0) return (Number(info?.nextStat || current) - current) * levelDelta;
+  return (current - Number(info?.previousStat || current)) * levelDelta;
+}
+
+function getBufferItemSkillChanges(row, current, baseline) {
+  if (!['creature', 'title', 'aura'].includes(row.sourceType)) return {};
+  const buffSkillLevelDelta = getItemSkillLevelBonus(row, baseline, baseline.buffSkillName, 30)
+    - getItemSkillLevelBonus(current, baseline, baseline.buffSkillName, 30);
+  const awakeningSkillLevelDelta = getItemSkillLevelBonus(row, baseline, baseline.awakeningSkillName, 50)
+    - getItemSkillLevelBonus(current, baseline, baseline.awakeningSkillName, 50);
+  const passiveStatDelta = Object.entries(baseline.currentSelfStatSkills || {}).reduce(
+    (total, [skillName, info]) => total + getSelfStatSkillDelta(
+      info,
+      getItemSkillLevelBonus(row, baseline, skillName, Number(info?.requiredLevel || 0))
+        - getItemSkillLevelBonus(current, baseline, skillName, Number(info?.requiredLevel || 0)),
+    ),
+    0,
+  );
+  if (row.sourceType === 'title') {
+    return {
+      currentStatDelta: passiveStatDelta,
+      awakeningSkillLevelDelta,
+    };
+  }
+  return {
+    statDelta: passiveStatDelta,
+    buffSkillLevelDelta,
+    awakeningSkillLevelDelta,
   };
 }
 
@@ -641,11 +713,13 @@ function calculateBufferScore(baseline = {}, changes = {}) {
     + commonStatDelta
     + switchingStatDelta;
   const buffPower = Number(baseline.buffPower || 0);
-  const currentAmp = Number(baseline.buffAmplification || 0) / 100;
-  const switchingAmp = Math.max(0, Number(baseline.buffAmplification || 0) - 2) / 100;
+  const currentBuffAmplificationDelta = Number(changes.currentBuffAmplificationDelta || 0);
+  const switchingBuffAmplificationDelta = Number(changes.switchingBuffAmplificationDelta || 0);
+  const currentAmp = (Number(baseline.buffAmplification || 0) + currentBuffAmplificationDelta) / 100;
+  const switchingAmp = Math.max(0, Number(baseline.buffAmplification || 0) - 2 + switchingBuffAmplificationDelta) / 100;
   const buffFactor = (1 + switchingStat / 2993) * (2 + buffPower * (1 + switchingAmp) / 4800);
-  const buffSkillLevel = Number(baseline.buffSkillLevel || 0);
-  const awakeningSkillLevel = Number(baseline.awakeningSkillLevel || 0);
+  const buffSkillLevel = Number(baseline.buffSkillLevel || 0) + Number(changes.buffSkillLevelDelta || 0);
+  const awakeningSkillLevel = Number(baseline.awakeningSkillLevel || 0) + Number(changes.awakeningSkillLevelDelta || 0);
   if (!buffSkillLevel || !awakeningSkillLevel) return 0;
   const buffStatBase = 150 + 11 * buffSkillLevel;
   const buffAttackBase = 36 + 1.8 * buffSkillLevel;
@@ -678,7 +752,8 @@ function getBufferRecommendationRows(
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
     if (!['enchant', 'creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade'].includes(row.sourceType)) return;
-    if (row.sourceType === 'avatar' && row.kind !== 'brilliantEmblem') return;
+    if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
+    if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
       ? {
         ...row,
@@ -708,6 +783,18 @@ function getBufferRecommendationRows(
     const statDelta = row.sourceType === 'upgrade'
       ? Number(row.effects?.allStat || 0)
       : Number(row.effects?.allStat || 0) - Number(current.effects?.allStat || 0);
+    const replacementStatChanges = row.sourceType === 'title'
+      ? { currentStatDelta: statDelta }
+      : { statDelta };
+    const buffAmplificationDelta = row.sourceType === 'upgrade'
+      ? 0
+      : Number(row.effects?.buffAmplification || 0) - Number(current.effects?.buffAmplification || 0);
+    const buffAmplificationChanges = row.sourceType === 'title'
+      ? { currentBuffAmplificationDelta: buffAmplificationDelta }
+      : {
+        currentBuffAmplificationDelta: buffAmplificationDelta,
+        switchingBuffAmplificationDelta: buffAmplificationDelta,
+      };
     const bufferStatGain = row.sourceType === 'avatar'
       ? Number(row.effects?.bufferStat || 0)
       : 0;
@@ -727,10 +814,28 @@ function getBufferRecommendationRows(
         BUFFER_SCORE_CONFIG[baseline.bufferKey],
       )
       : { primaryLevels: 0, auraLevels: 0 };
+    const avatarSkillLevelChanges = row.sourceType === 'avatar'
+      ? {
+        buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
+        awakeningSkillLevelDelta: Number(row.bufferAwakeningSkillLevelDelta || 0),
+      }
+      : {};
+    const itemSkillChanges = getBufferItemSkillChanges(row, current, baseline);
     const candidateScore = calculateBufferScore(baseline, {
-      statDelta,
-      ...avatarStatChanges,
+      statDelta: Number(replacementStatChanges.statDelta || 0)
+        + Number(avatarStatChanges.statDelta || 0)
+        + Number(itemSkillChanges.statDelta || 0),
+      ...buffAmplificationChanges,
+      currentStatDelta: Number(replacementStatChanges.currentStatDelta || 0)
+        + Number(avatarStatChanges.currentStatDelta || 0)
+        + Number(itemSkillChanges.currentStatDelta || 0),
+      switchingStatDelta: Number(avatarStatChanges.switchingStatDelta || 0)
+        + Number(itemSkillChanges.switchingStatDelta || 0),
       ...skillDelta,
+      buffSkillLevelDelta: Number(avatarSkillLevelChanges.buffSkillLevelDelta || 0)
+        + Number(itemSkillChanges.buffSkillLevelDelta || 0),
+      awakeningSkillLevelDelta: Number(avatarSkillLevelChanges.awakeningSkillLevelDelta || 0)
+        + Number(itemSkillChanges.awakeningSkillLevelDelta || 0),
     });
     const incrementalBuffScore = candidateScore - currentScore;
     const incrementalBuffPercent = currentScore > 0 ? (candidateScore / currentScore - 1) * 100 : 0;
@@ -741,7 +846,7 @@ function getBufferRecommendationRows(
       : 0;
     const key = row.sourceType === 'upgrade'
       ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
-      : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${skillDelta.primaryLevels}:${skillDelta.auraLevels}`;
+      : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${skillDelta.primaryLevels}:${skillDelta.auraLevels}:${JSON.stringify(itemSkillChanges)}`;
     const previous = bySlotTier.get(key);
     if (
       !previous ||
@@ -796,6 +901,8 @@ function getCreatureRows(groups) {
     fame: candidate.targetFame || group.targetFame,
     iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
+    itemReinforceSkill: candidate.itemReinforceSkill || [],
+    itemBuff: candidate.itemBuff || {},
     itemExplain: candidate.itemExplain || '',
     auction: candidate.auction || {},
     candidateName: candidate.name,
@@ -837,6 +944,8 @@ function getTitleRows(groups, currentTitle) {
       fame: candidate.fame,
       iconUrl: candidate.priceItem?.iconUrl || candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
       effects: candidate.effects || {},
+      itemReinforceSkill: candidate.itemReinforceSkill || [],
+      itemBuff: candidate.itemBuff || {},
       itemExplain: candidate.itemExplain || '',
       auction: candidate.auction || {},
       candidateName: candidate.name,
@@ -863,6 +972,8 @@ function getAuraRows(groups) {
     fame: candidate.fame,
     iconUrl: candidate.priceItem?.iconUrl || candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
+    itemReinforceSkill: candidate.itemReinforceSkill || [],
+    itemBuff: candidate.itemBuff || {},
     itemExplain: candidate.itemExplain || '',
     auction: candidate.auction || {},
     candidateName: candidate.name,
@@ -894,6 +1005,11 @@ function getAvatarRows(currentAvatar) {
     unitPrice: candidate.unitPrice,
     targetSkill: candidate.targetSkill || '',
     bufferStatScope: candidate.bufferStatScope || '',
+    bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
+    bufferAwakeningSkillLevelDelta: Number(candidate.bufferAwakeningSkillLevelDelta || 0),
+    bufferSkillStatDeltas: candidate.bufferSkillStatDeltas || {},
+    bufferSkillLevels: candidate.bufferSkillLevels || {},
+    currentPlatinumSkill: candidate.currentPlatinumSkill || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
 }
@@ -1758,14 +1874,26 @@ export function installEnchantView(ctx) {
       if (equipmentBySlot.has(slot)) {
         const equipment = equipmentBySlot.get(slot) || {};
         const enchant = enchantBySlot.get(slot) || {};
+        const reinforceSkillText = formatReinforceSkills(
+          enchant.reinforceSkill || [],
+          state.currentBufferBaseline?.jobName || '',
+        );
+        const enchantDetailText = [
+          formatEffects(enchant.effects || {}),
+          reinforceSkillText,
+        ].filter(Boolean).join(' / ') || '없음';
         slotData[slot] = {
           label: slot,
           iconUrl: equipment.iconUrl || '',
           itemName: equipment.itemName || slot,
-          enchantBadge: getEnchantBadge(enchant.effects || {}),
+          enchantBadge: getEnchantBadge(
+            enchant.effects || {},
+            enchant.reinforceSkill || [],
+            state.currentBufferBaseline,
+          ),
           upgradeBadge: getUpgradeBadge(equipment),
           hoverLines: [
-            { text: formatEffects(enchant.effects || {}) || '없음', className: 'enchant-portrait-detail-line-effect' },
+            { text: enchantDetailText, className: 'enchant-portrait-detail-line-effect' },
             getUpgradeDetailLine(equipment),
           ],
         };

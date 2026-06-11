@@ -43,6 +43,8 @@ def build_title_payload(item_id: str, detail: dict, auction: dict = None, price_
         "iconUrl": get_item_icon_url(item_id),
         "itemExplain": explain,
         "effects": normalize_enchant_status(detail.get("itemStatus") or []),
+        "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
+        "itemBuff": detail.get("itemBuff") or {},
         "variant": get_title_variant(detail.get("itemName")),
         "levelTag": parse_title_level_tag(detail.get("itemName")),
         "skillDamagePercent": parse_skill_damage_percent(explain),
@@ -95,6 +97,8 @@ def build_aura_payload(item_id: str, detail: dict, auction: dict = None, price_i
         "iconUrl": get_item_icon_url(item_id),
         "itemExplain": get_item_explain(detail),
         "effects": normalize_enchant_status(detail.get("itemStatus") or []),
+        "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
+        "itemBuff": detail.get("itemBuff") or {},
         "auction": auction or {},
         "priceItem": price_item,
     }

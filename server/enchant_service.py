@@ -52,6 +52,9 @@ _AURA_DISCOVERY_LIMIT = 30
 _AURA_DISCOVERY_CACHE_TTL_SECONDS = 21600
 _AURA_DISCOVERY_CACHE_LOCK = Lock()
 _AURA_DISCOVERY_CACHE = {}
+CREATURE_PRICE_CACHE_SCHEMA_VERSION = 2
+AURA_PRICE_CACHE_SCHEMA_VERSION = 2
+TITLE_PRICE_CACHE_SCHEMA_VERSION = 8
 
 
 def get_enchant_bead_search_names(card: dict) -> list:
@@ -430,7 +433,7 @@ def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale:
     with _CACHE_LOCK:
         payload = _CREATURE_PRICE_CACHE["payload"]
         expires_at = _CREATURE_PRICE_CACHE["expires_at"]
-        if payload is not None and "artifactGroups" not in payload:
+        if payload is not None and payload.get("schemaVersion") != CREATURE_PRICE_CACHE_SCHEMA_VERSION:
             payload = None
             _CREATURE_PRICE_CACHE["payload"] = None
             _CREATURE_PRICE_CACHE["expires_at"] = 0
@@ -509,6 +512,8 @@ def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale:
                     "iconUrl": get_item_icon_url(item_id),
                     "itemExplain": get_item_explain(detail),
                     "effects": normalize_enchant_status(detail.get("itemStatus") or []),
+                    "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
+                    "itemBuff": detail.get("itemBuff") or {},
                 }))
 
             items = []
@@ -543,6 +548,8 @@ def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale:
                 "iconUrl": lowest_item.get("iconUrl") if lowest_item else (effect_source or {}).get("iconUrl", ""),
                 "itemExplain": (effect_source or {}).get("itemExplain", ""),
                 "effects": (effect_source or {}).get("effects", {}),
+                "itemReinforceSkill": (effect_source or {}).get("itemReinforceSkill", []),
+                "itemBuff": (effect_source or {}).get("itemBuff", {}),
                 "auction": lowest_item.get("auction") if lowest_item else {
                     "listingCount": 0,
                     "minUnitPrice": None,
@@ -555,6 +562,7 @@ def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale:
 
     artifact_groups = load_creature_artifact_groups_with_prices(errors)
     payload = {
+        "schemaVersion": CREATURE_PRICE_CACHE_SCHEMA_VERSION,
         "updatedAt": creature_db.get("updatedAt"),
         "pricedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)),
         "source": creature_db.get("source"),
@@ -589,6 +597,10 @@ def load_aura_upgrades_with_prices(
     with _CACHE_LOCK:
         payload = _AURA_PRICE_CACHE["payload"]
         expires_at = _AURA_PRICE_CACHE["expires_at"]
+        if payload is not None and payload.get("schemaVersion") != AURA_PRICE_CACHE_SCHEMA_VERSION:
+            payload = None
+            _AURA_PRICE_CACHE["payload"] = None
+            _AURA_PRICE_CACHE["expires_at"] = 0
 
     if allow_stale and payload is not None:
         if not force_refresh and expires_at > now:
@@ -716,6 +728,7 @@ def load_aura_upgrades_with_prices(
         })
 
     payload = {
+        "schemaVersion": AURA_PRICE_CACHE_SCHEMA_VERSION,
         "updatedAt": aura_db.get("updatedAt"),
         "pricedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)),
         "source": aura_db.get("source"),
@@ -737,7 +750,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
     with _CACHE_LOCK:
         payload = _TITLE_PRICE_CACHE["payload"]
         expires_at = _TITLE_PRICE_CACHE["expires_at"]
-        if payload is not None and payload.get("schemaVersion") != 7:
+        if payload is not None and payload.get("schemaVersion") != TITLE_PRICE_CACHE_SCHEMA_VERSION:
             payload = None
             _TITLE_PRICE_CACHE["payload"] = None
             _TITLE_PRICE_CACHE["expires_at"] = 0
@@ -960,7 +973,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         })
 
     payload = {
-        "schemaVersion": 7,
+        "schemaVersion": TITLE_PRICE_CACHE_SCHEMA_VERSION,
         "updatedAt": title_db.get("updatedAt"),
         "pricedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)),
         "source": title_db.get("source"),

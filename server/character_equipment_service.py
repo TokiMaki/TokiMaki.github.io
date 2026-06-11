@@ -463,6 +463,8 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
             "iconUrl": get_item_icon_url(item_id),
             "itemExplain": explain,
             "effects": normalize_enchant_status(detail.get("itemStatus") or []),
+            "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
+            "itemBuff": detail.get("itemBuff") or {},
             "variant": get_level_option_variant(detail.get("itemName")),
             "levelTag": level_tag,
             "skillDamagePercent": skill_damage_percent,
@@ -577,6 +579,7 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
                 "slot": slot_name,
                 "itemName": clean_text(equipment.get("itemName")),
                 "effects": normalize_enchant_status(status_rows),
+                "reinforceSkill": enchant.get("reinforceSkill") or [],
                 "rawStatus": status_rows,
             })
         if slot_id == "TITLE" or slot_name == "칭호":
@@ -635,6 +638,8 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
         "itemRarity": clean_text(creature_row.get("itemRarity")),
         "iconUrl": get_item_icon_url(creature_item_id),
         "effects": normalize_enchant_status(creature_detail.get("itemStatus") or []),
+        "itemReinforceSkill": creature_detail.get("itemReinforceSkill") or [],
+        "itemBuff": creature_detail.get("itemBuff") or {},
         "artifacts": [
             {
                 "slotColor": clean_text(artifact.get("slotColor")),
@@ -671,7 +676,11 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
     creature_payload = _measure_step(steps, "load_character_creature", lambda: load_character_creature(server_id, character_id))
     title_payload = _measure_step(steps, "load_character_title", lambda: load_character_title(server_id, character_id))
     aura_payload = _measure_step(steps, "load_character_aura", lambda: load_character_aura(server_id, character_id))
-    avatar_payload = _measure_step(steps, "load_character_avatar", lambda: load_character_avatar(server_id, character_id))
+    avatar_payload = _measure_step(
+        steps,
+        "load_character_avatar",
+        lambda: load_character_avatar(server_id, character_id, enchant_payload.get("bufferBaseline")),
+    )
     return {
         "serverId": enchant_payload.get("serverId"),
         "characterId": enchant_payload.get("characterId"),
@@ -924,6 +933,51 @@ def get_skill_level_stat_value(skill_detail: dict, level: int, stat_name: str) -
     return sum(parse_percent_or_number(option_value.get(key)) for key in value_keys)
 
 
+def get_buffer_platinum_stat_deltas(
+    buffer_baseline: dict,
+    avatar_rows: list,
+    target_skill: str,
+    slot_ids: list,
+) -> dict:
+    self_stat_skills = buffer_baseline.get("currentSelfStatSkills") or {}
+    result = {}
+    for slot_id in slot_ids:
+        row = get_avatar_slot(avatar_rows, slot_id)
+        current_skill = next((
+            extract_platinum_skill_name(emblem.get("itemName"))
+            for emblem in get_platinum_emblems(row)
+            if extract_platinum_skill_name(emblem.get("itemName"))
+        ), "")
+        skill_deltas = {}
+        skill_levels = {}
+        current_info = self_stat_skills.get(current_skill) or {}
+        if current_info:
+            skill_levels[current_skill] = {
+                "current": current_info.get("level", 0),
+                "candidate": current_info.get("level", 0) - 1,
+            }
+            delta = float(current_info.get("previousStat") or 0) - float(current_info.get("currentStat") or 0)
+            if delta:
+                skill_deltas[current_skill] = delta
+        target_info = self_stat_skills.get(target_skill) or {}
+        if target_info:
+            skill_levels[target_skill] = {
+                "current": target_info.get("level", 0),
+                "candidate": target_info.get("level", 0) + 1,
+            }
+            delta = float(target_info.get("nextStat") or 0) - float(target_info.get("currentStat") or 0)
+            if delta:
+                skill_deltas[target_skill] = skill_deltas.get(target_skill, 0) + delta
+        result[slot_id] = {
+            "statDelta": sum(skill_deltas.values()),
+            "skillDeltas": skill_deltas,
+            "skillLevels": skill_levels,
+            "currentSkill": current_skill,
+            "targetSkill": target_skill,
+        }
+    return result
+
+
 def get_buffer_switching_stat_delta(
     server_id: str,
     character_id: str,
@@ -987,6 +1041,7 @@ def get_buffer_switching_stat_delta(
     relevant_skills = BUFFER_SWITCHING_SELF_STAT_SKILLS.get(clean_text(buff_skill_name), set())
     skill_delta = 0
     skill_deltas = {}
+    skill_detail_by_name = {}
     for name in set(current_bonuses) | set(switching_bonuses):
         if name not in relevant_skills or current_bonuses.get(name, 0) == switching_bonuses.get(name, 0):
             continue
@@ -996,17 +1051,39 @@ def get_buffer_switching_stat_delta(
         if not skill_id or base_level <= 0:
             continue
         skill_detail = request_json(f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}")
+        skill_detail_by_name[name] = skill_detail
         current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
         switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
         delta = switching_value - current_value
         if delta:
             skill_delta += delta
             skill_deltas[name] = delta
+    current_self_stat_skills = {}
+    for name in relevant_skills:
+        style_row = style_by_name.get(name) or {}
+        skill_id = clean_text(style_row.get("skillId"))
+        base_level = int(style_row.get("level") or 0)
+        if not skill_id or base_level <= 0:
+            continue
+        skill_detail = skill_detail_by_name.get(name)
+        if not skill_detail:
+            skill_detail = request_json(
+                f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}"
+            )
+        current_level = base_level + current_bonuses.get(name, 0)
+        current_self_stat_skills[name] = {
+            "level": current_level,
+            "requiredLevel": int(style_row.get("requiredLevel") or 0),
+            "previousStat": get_skill_level_stat_value(skill_detail, current_level - 1, stat_name),
+            "currentStat": get_skill_level_stat_value(skill_detail, current_level, stat_name),
+            "nextStat": get_skill_level_stat_value(skill_detail, current_level + 1, stat_name),
+        }
     return {
         "switchingStatDelta": direct_delta + skill_delta,
         "switchingDirectStatDelta": direct_delta,
         "switchingSkillStatDelta": skill_delta,
         "switchingSkillStatDeltas": skill_deltas,
+        "currentSelfStatSkills": current_self_stat_skills,
     }
 
 
@@ -1503,7 +1580,7 @@ def choose_avatar_platinum_price_item(skill_name: str) -> dict:
     }
 
 
-def load_character_avatar(server_id: str, character_id: str) -> dict:
+def load_character_avatar(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> dict:
     steps = []
     payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
     avatar_rows = payload.get("avatar") or []
@@ -1516,6 +1593,20 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
     top_option = clean_text((option_db.get("topOptions") or [""])[0])
     platinum_skill = clean_text((option_db.get("platinumEmblems") or [""])[0])
     top_option_matched = skill_name_matches(jacket.get("optionAbility"), top_option)
+    switching_rows = []
+    if buffer_stat_name:
+        switching_payload = _get_character_cached_payload(
+            server_id,
+            character_id,
+            "buff_avatar",
+            "skill/buff/equip/avatar",
+        )
+        switching_rows = ((switching_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+    switching_rare_slot_ids = {
+        slot_id
+        for slot_id in ("JACKET", "PANTS")
+        if clean_text(get_avatar_slot(switching_rows, slot_id).get("itemRarity")) == "레어"
+    }
 
     platinum_slots = []
     missing_or_wrong_slots = []
@@ -1553,34 +1644,73 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
         if is_rare_clone_avatar(row)
     ]
     recommendations = []
+    buffer_platinum_deltas = {}
+    buffer_skill_levels = {}
+    if buffer_stat_name and platinum_skill and missing_or_wrong_slots:
+        if not buffer_baseline:
+            buffer_baseline = load_character_buffer_baseline(server_id, character_id) or {}
+        buffer_skill_levels = buffer_baseline
+        buffer_platinum_deltas = _measure_step(
+            steps,
+            "get_buffer_platinum_stat_deltas",
+            lambda: get_buffer_platinum_stat_deltas(
+                buffer_baseline,
+                avatar_rows,
+                platinum_skill,
+                ["JACKET" if slot == "상의 아바타" else "PANTS" for slot in missing_or_wrong_slots],
+            ),
+        )
     if platinum_skill and missing_or_wrong_slots:
         item = _measure_step(steps, "choose_avatar_platinum_price_item", lambda: choose_avatar_platinum_price_item(platinum_skill))
         for slot_label in missing_or_wrong_slots:
+            slot_id = "JACKET" if slot_label == "상의 아바타" else "PANTS"
+            platinum_delta = buffer_platinum_deltas.get(slot_id) or {}
+            buffer_stat_scope = (
+                "current"
+                if buffer_stat_name and slot_id in switching_rare_slot_ids
+                else "common" if buffer_stat_name else ""
+            )
+            current_platinum_skill = clean_text(platinum_delta.get("currentSkill"))
+            buff_skill_name = clean_text(buffer_skill_levels.get("buffSkillName"))
+            awakening_skill_name = clean_text(buffer_skill_levels.get("awakeningSkillName"))
             recommendations.append({
                 "kind": "platinumEmblem",
-                "slot": "상의 아바타" if slot_label == "상의 아바타" else "하의 아바타",
+                "slot": slot_label,
                 "tier": "플래티넘",
                 "itemId": item.get("itemId"),
                 "itemName": item.get("itemName") or f"플래티넘 엠블렘[{platinum_skill}]",
                 "itemRarity": item.get("itemRarity"),
                 "iconUrl": item.get("iconUrl"),
                 "itemExplain": f"{slot_label} 플래티넘 교체 필요 · {item.get('priceCompareText')}",
-                "effects": {"finalDamage": get_avatar_platinum_damage_percent(slot_label)},
+                "effects": (
+                    {"bufferStat": platinum_delta.get("statDelta", 0)}
+                    if buffer_stat_name
+                    else {"finalDamage": get_avatar_platinum_damage_percent(slot_label)}
+                ),
                 "auction": item.get("auction") or {},
                 "needCount": 1,
                 "targetSkill": platinum_skill,
+                "bufferSkillStatDeltas": platinum_delta.get("skillDeltas") or {},
+                "bufferSkillLevels": platinum_delta.get("skillLevels") or {},
+                "currentPlatinumSkill": current_platinum_skill,
+                "bufferBuffSkillLevelDelta": (
+                    (1 if platinum_skill == buff_skill_name else 0)
+                    - (1 if current_platinum_skill == buff_skill_name else 0)
+                    if buffer_stat_scope == "common"
+                    else 0
+                ),
+                "bufferAwakeningSkillLevelDelta": (
+                    (1 if platinum_skill == awakening_skill_name else 0)
+                    - (1 if current_platinum_skill == awakening_skill_name else 0)
+                    if buffer_stat_name
+                    else 0
+                ),
                 "missingSlots": [slot_label],
                 "priceSource": item.get("priceSource"),
+                "bufferStatScope": buffer_stat_scope,
                 "recommendationPriority": 0,
             })
     if buffer_stat_name:
-        switching_payload = _get_character_cached_payload(
-            server_id,
-            character_id,
-            "buff_avatar",
-            "skill/buff/equip/avatar",
-        )
-        switching_rows = ((switching_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
         current_buffer_configs, switching_buffer_configs = get_buffer_avatar_emblem_configs(switching_rows)
         recommendations.extend(_measure_step(
             steps,

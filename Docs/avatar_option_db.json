@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-19",
+  "updatedAt": "2026-06-11",
   "sourcePolicy": "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나만 보관하고, avatar.candidateCombos는 채택률 10% 이상인 상위 4개 조합을 저장해 딜 효율 비교에 사용한다.",
   "fields": {
     "avatar.topOptions": "상의 아바타 옵션 후보. 앞쪽일수록 우선 후보.",
@@ -925,6 +925,39 @@
       },
       "review": {
         "adoptionRate": 80.93
+      }
+    },
+    {
+      "classGroup": "거너(여)",
+      "guideName": "패러메딕",
+      "source": {
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EA%B1%B0%EB%84%88(%EC%97%AC)/%E7%9C%9E%20%ED%8C%A8%EB%9F%AC%EB%A9%94%EB%94%95/avatar"
+      },
+      "role": "buffer",
+      "avatar": {
+        "topOptions": [
+          "tactics::지역거부();"
+        ],
+        "platinumEmblems": [
+          "apius::전장정보();"
+        ],
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "tactics::지역거부();",
+            "platinumEmblems": [
+              "apius::전장정보();",
+              "apius::전장정보();"
+            ],
+            "adoptionRate": 89.99
+          }
+        ]
+      },
+      "review": {
+        "adoptionRate": 89.99
       }
     },
     {
