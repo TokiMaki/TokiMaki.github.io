@@ -117,3 +117,20 @@ def get_item_reinforce_skill_effect(detail: dict, skill_context: dict) -> dict:
             "reinforceSkillLevel": added_level,
         }
     return best
+
+
+def get_item_reinforce_skill_matches(detail: dict, skill_context: dict) -> list:
+    entries = detail.get("itemReinforceSkill") or []
+    job_id = clean_text(skill_context.get("jobId"))
+    skill_by_name = skill_context.get("skillByName") or {}
+    matches = []
+    for entry in entries:
+        entry_job_id = clean_text(entry.get("jobId"))
+        if entry_job_id and job_id and entry_job_id != job_id:
+            continue
+        for skill in entry.get("skills") or []:
+            name = clean_text(skill.get("name"))
+            value = int(skill.get("value") or 0)
+            if name and value > 0 and normalize_skill_key(name) in skill_by_name:
+                matches.append({"name": name, "value": value})
+    return matches

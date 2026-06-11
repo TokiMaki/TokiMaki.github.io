@@ -3,7 +3,7 @@ const EFFECT_LABELS = {
   attack: '공격력',
   attackIncrease: '공격력 증가',
   attackAmplification: '공증',
-  buffAmplification: '버프력 증폭',
+  buffAmplification: '벞증',
   elementAll: '모속강',
   elementFire: '화속강',
   elementWater: '수속강',
@@ -258,7 +258,7 @@ function formatEffectNumber(value) {
 }
 
 function formatEffectValue(key, value) {
-  const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'critical'].includes(key) ? '%' : '';
+  const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffAmplification', 'critical'].includes(key) ? '%' : '';
   const sign = Number(value) < 0 ? '' : '+';
   return `${EFFECT_LABELS[key] || key} ${sign}${formatEffectNumber(value)}${suffix}`;
 }
@@ -268,6 +268,41 @@ function formatEffects(effects = {}) {
     .filter(([key]) => !(Number.isFinite(effects.allStat) && ['str', 'int'].includes(key)))
     .filter(([, value]) => Number.isFinite(value))
     .map(([key, value]) => formatEffectValue(key, value))
+    .join(' / ');
+}
+
+function formatRoleRelevantEquipmentEffects(effects = {}, isBuffer = false) {
+  const hiddenKeys = new Set(isBuffer
+    ? ['finalDamage', 'attackAmplification', 'attack', 'elementAll']
+    : ['buffAmplification']);
+  return formatEffects(Object.fromEntries(
+    Object.entries(effects || {}).filter(([key]) => !hiddenKeys.has(key)),
+  ));
+}
+
+function formatItemBuffLevelRanges(itemBuff = {}) {
+  return (itemBuff?.reinforceSkill || []).flatMap((job) => (job?.levelRange || [])
+    .filter((range) => Number(range?.value || 0) > 0)
+    .map((range) => {
+      const minimum = Number(range.minLevel || 0);
+      const maximum = Number(range.maxLevel || 0);
+      const levelText = minimum === maximum ? `${minimum}Lv` : `${minimum}~${maximum}Lv`;
+      return `${levelText} 모든 스킬 Lv +${formatEffectNumber(Number(range.value))}`;
+    }))
+    .join(' / ');
+}
+
+function formatTitleMajorEffects(effects = {}, isBuffer = false, hasSingleElement = false) {
+  const keys = isBuffer
+    ? ['buffAmplification', 'allStat']
+    : ['attackAmplification', 'elementAll', 'allStat'];
+  return keys
+    .filter((key) => Number.isFinite(effects?.[key]))
+    .map((key) => (
+      key === 'elementAll' && hasSingleElement
+        ? `속강 +${formatEffectNumber(effects[key])}`
+        : formatEffectValue(key, effects[key])
+    ))
     .join(' / ');
 }
 
@@ -395,6 +430,28 @@ function getEnchantBadge(effects = {}, reinforceSkill = [], bufferBaseline = nul
   }
   if (!parts.length) return null;
   return { text: parts.join('/') };
+}
+
+function getRoleEquipmentBadge(effects = {}, isBuffer = false) {
+  const parts = isBuffer
+    ? [
+      Number.isFinite(effects.buffAmplification) && Number(effects.buffAmplification) > 0
+        ? `${formatEffectNumber(Number(effects.buffAmplification))}%`
+        : '',
+      Number.isFinite(effects.allStat) && Number(effects.allStat) > 0
+        ? formatEffectNumber(Number(effects.allStat))
+        : '',
+    ]
+    : [
+      Number.isFinite(effects.attackAmplification) && Number(effects.attackAmplification) > 0
+        ? `${formatEffectNumber(Number(effects.attackAmplification))}%`
+        : '',
+      Number.isFinite(effects.elementAll) && Number(effects.elementAll) > 0
+        ? formatEffectNumber(Number(effects.elementAll))
+        : '',
+    ];
+  const text = parts.filter(Boolean).join('/');
+  return text ? { text } : null;
 }
 
 function formatEffectTransitionValue(key, currentValue, targetValue) {
@@ -624,6 +681,13 @@ function formatReinforceSkills(reinforceSkill = [], jobName = '') {
       .filter((skill) => skill?.name && Number(skill?.value || 0) > 0)
       .map((skill) => `${skill.name} Lv +${formatEffectNumber(Number(skill.value))}`);
   }).join(' / ');
+}
+
+function formatMatchedReinforceSkills(skills = []) {
+  return (skills || [])
+    .filter((skill) => skill?.name && Number(skill?.value || 0) > 0)
+    .map((skill) => `${skill.name} Lv +${formatEffectNumber(Number(skill.value))}`)
+    .join(' / ');
 }
 
 function getBufferEnchantSkillDelta(row, current, baseline, config) {
@@ -1902,34 +1966,69 @@ export function installEnchantView(ctx) {
 
     const title = state.currentTitle || {};
     const titleMainOption = formatTitleDetailMainOption(title);
+    const titleBufferOption = state.currentBufferBaseline?.isBuffer
+      ? String(title.itemBuff?.explain || '').replace(/\s+/g, ' ').trim()
+      : '';
+    const titleAllSkillOption = formatItemBuffLevelRanges(title.itemBuff || {});
+    const titleStatOption = formatTitleMajorEffects(
+      title.effects || {},
+      state.currentBufferBaseline?.isBuffer,
+      Boolean(title.titleEnchantElement),
+    );
     slotData.칭호 = {
       label: '칭호',
       iconUrl: title.iconUrl || '',
       itemName: title.itemName || '칭호',
+      enchantBadge: getRoleEquipmentBadge(title.effects || {}, state.currentBufferBaseline?.isBuffer),
       hoverLines: [
         titleMainOption ? { text: titleMainOption, className: 'enchant-portrait-detail-line-effect' } : null,
+        titleBufferOption ? { text: titleBufferOption, className: 'enchant-portrait-detail-line-effect' } : null,
+        titleAllSkillOption ? { text: titleAllSkillOption, className: 'enchant-portrait-detail-line-effect' } : null,
+        { text: titleStatOption || '없음', className: 'enchant-portrait-detail-line-effect' },
       ],
     };
 
     const creature = state.currentCreature || {};
     const creatureMainOption = formatCreatureDetailMainOption(creature);
+    const creatureNamedSkillOption = formatMatchedReinforceSkills(creature.reinforceSkills || []);
+    const creatureBufferOption = state.currentBufferBaseline?.isBuffer
+      ? String(creature.itemBuff?.explain || '').replace(/\s+/g, ' ').trim()
+      : '';
+    const creatureAllSkillOption = formatItemBuffLevelRanges(creature.itemBuff || {});
+    const creatureStatOption = formatTitleMajorEffects(
+      creature.effects || {},
+      state.currentBufferBaseline?.isBuffer,
+    );
+    const creatureHoverLines = [
+      creatureMainOption,
+      creatureBufferOption,
+      creatureAllSkillOption,
+      creatureNamedSkillOption,
+      creatureStatOption,
+    ].filter(Boolean);
     slotData.크리쳐 = {
       label: '크리쳐',
       iconUrl: creature.iconUrl || '',
       itemName: creature.itemName || '크리쳐',
-      hoverLines: [
-        creatureMainOption ? { text: creatureMainOption, className: 'enchant-portrait-detail-line-effect' } : null,
-      ],
+      enchantBadge: getRoleEquipmentBadge(creature.effects || {}, state.currentBufferBaseline?.isBuffer),
+      hoverLines: (creatureHoverLines.length ? creatureHoverLines : ['없음'])
+        .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
     };
 
     const aura = state.currentAura || {};
+    const auraNamedSkillOption = formatMatchedReinforceSkills(aura.reinforceSkills || []);
+    const auraStatOption = formatTitleMajorEffects(
+      aura.effects || {},
+      state.currentBufferBaseline?.isBuffer,
+    );
+    const auraHoverLines = [auraNamedSkillOption, auraStatOption].filter(Boolean);
     slotData.오라 = {
       label: '오라',
       iconUrl: aura.iconUrl || '',
       itemName: aura.itemName || '오라',
-      hoverLines: [
-        { text: formatEffects(aura.effects || {}) || '없음', className: 'enchant-portrait-detail-line-effect' },
-      ],
+      enchantBadge: getRoleEquipmentBadge(aura.effects || {}, state.currentBufferBaseline?.isBuffer),
+      hoverLines: (auraHoverLines.length ? auraHoverLines : ['없음'])
+        .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
     };
 
     return slotData;

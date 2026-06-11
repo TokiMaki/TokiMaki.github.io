@@ -5,7 +5,7 @@ import time
 from .data_store import load_avatar_option_db, load_job_base_stats, load_upgrade_expected_db
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
 from .avatar_skill_optimizer import flatten_skill_rows
-from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect
+from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect, get_item_reinforce_skill_matches
 from .neople_client import (
     API_KEY,
     build_character_detail_url,
@@ -428,6 +428,11 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
         } if item_id or artifact_ids else {},
     )
     detail = details.get(item_id) or {}
+    reinforce_skills = _measure_step(
+        steps,
+        "get_item_reinforce_skill_matches",
+        lambda: get_item_reinforce_skill_matches(detail, get_character_skill_context(server_id, character_id)) if item_id else [],
+    )
     explain = get_item_explain(detail)
     level_tag = parse_title_level_tag(detail.get("itemName"))
     skill_damage_percent = parse_skill_damage_percent(explain)
@@ -464,6 +469,7 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
             "itemExplain": explain,
             "effects": normalize_enchant_status(detail.get("itemStatus") or []),
             "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
+            "reinforceSkills": reinforce_skills,
             "itemBuff": detail.get("itemBuff") or {},
             "variant": get_level_option_variant(detail.get("itemName")),
             "levelTag": level_tag,
@@ -527,6 +533,11 @@ def load_character_aura(server_id: str, character_id: str) -> dict:
         "get_item_reinforce_skill_effect",
         lambda: get_item_reinforce_skill_effect(detail, get_character_skill_context(server_id, character_id)) if item_id else {},
     )
+    reinforce_skills = _measure_step(
+        steps,
+        "get_item_reinforce_skill_matches",
+        lambda: get_item_reinforce_skill_matches(detail, get_character_skill_context(server_id, character_id)) if item_id else [],
+    )
     return {
         "serverId": payload.get("serverId"),
         "characterId": payload.get("characterId"),
@@ -535,6 +546,7 @@ def load_character_aura(server_id: str, character_id: str) -> dict:
         "aura": ({
             **build_aura_payload(item_id, detail),
             **skill_effect,
+            "reinforceSkills": reinforce_skills,
         } if item_id else None),
         "debugTimings": {
             "steps": steps,
