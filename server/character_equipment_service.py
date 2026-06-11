@@ -4,6 +4,7 @@ import time
 
 from .data_store import load_avatar_option_db, load_job_base_stats, load_upgrade_expected_db
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
+from .avatar_skill_optimizer import flatten_skill_rows
 from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect
 from .neople_client import (
     API_KEY,
@@ -27,10 +28,10 @@ from .upgrade_payloads import (
 )
 
 
-AVATAR_TOP_OPTION_FINAL_DAMAGE_PERCENT = 1.62
 AVATAR_PLATINUM_FINAL_DAMAGE_PERCENT = 1.62
 AVATAR_BRILLIANT_RED_STAT = 25
 AVATAR_BRILLIANT_YELLOW_STAT = 15
+AVATAR_BRILLIANT_GREEN_STAT = 15
 AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
 BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}
@@ -46,6 +47,28 @@ AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "JACKET", "slot": "상의 아바타", "color": "녹색빛", "kind": "dual", "targetStat": AVATAR_BRILLIANT_DUAL_STAT},
     {"slotId": "PANTS", "slot": "하의 아바타", "color": "녹색빛", "kind": "dual", "targetStat": AVATAR_BRILLIANT_DUAL_STAT},
 ]
+BUFFER_AVATAR_EMBLEM_RECOMMENDATIONS = [
+    {"slotId": "HEADGEAR", "slot": "모자 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT, "bufferStatScope": "common"},
+    {"slotId": "HAIR", "slot": "머리 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT, "bufferStatScope": "common"},
+    {"slotId": "FACE", "slot": "얼굴 아바타", "color": "노란빛", "kind": "yellow", "targetStat": AVATAR_BRILLIANT_YELLOW_STAT, "bufferStatScope": "common"},
+    {"slotId": "BREAST", "slot": "목가슴 아바타", "color": "노란빛", "kind": "yellow", "targetStat": AVATAR_BRILLIANT_YELLOW_STAT, "bufferStatScope": "common"},
+    {"slotId": "WEAPON", "slot": "무기 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT, "bufferStatScope": "common"},
+    {"slotId": "AURORA", "slot": "오라 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT, "bufferStatScope": "common"},
+    {"slotId": "SKIN", "slot": "피부 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT, "bufferStatScope": "common"},
+    {"slotId": "JACKET", "slot": "상의 아바타", "color": "녹색빛", "kind": "green", "targetStat": AVATAR_BRILLIANT_GREEN_STAT, "bufferStatScope": "current"},
+    {"slotId": "PANTS", "slot": "하의 아바타", "color": "녹색빛", "kind": "green", "targetStat": AVATAR_BRILLIANT_GREEN_STAT, "bufferStatScope": "current"},
+]
+BUFFER_SWITCHING_AVATAR_EMBLEM_RECOMMENDATIONS = [
+    {"slotId": "JACKET", "slot": "벞강 상의", "color": "녹색빛", "kind": "green", "targetStat": AVATAR_BRILLIANT_GREEN_STAT, "bufferStatScope": "switching"},
+    {"slotId": "PANTS", "slot": "벞강 하의", "color": "녹색빛", "kind": "green", "targetStat": AVATAR_BRILLIANT_GREEN_STAT, "bufferStatScope": "switching"},
+]
+BUFFER_SWITCHING_SELF_STAT_SKILLS = {
+    "영광의 축복": {"수호의 은총", "보호의 징표", "신념의 오라", "신의 대행자", "디바인 플래쉬"},
+    "용맹의 축복": {"계시 : 아리아", "신실한 열정", "라파엘의 축복", "루클렌티스 엔젤"},
+    "금단의 저주": {"퍼페티어", "소악마", "어둠에 피는 장미", "불길한 눈웃음"},
+    "러블리 템포": {"센세이션", "유명세", "오늘의 주인공", "브랜드 뉴", "에피소드 오브 하모니"},
+    "squad::무기강화();": {"apius::전장정보();", "apius::대응체계();", "apius::제한해제();", "apius::하드코딩();", "squad::장갑강화();"},
+}
 
 
 def combine_effects(*effect_rows: dict) -> dict:
@@ -173,6 +196,151 @@ def load_character_damage_baseline(server_id: str, character_id: str, equipment_
     }
 
 
+def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | None:
+    payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+    status = status_rows_to_map(payload.get("status") or [])
+    job_name = clean_text(payload.get("jobName"))
+    job_grow_name = clean_text(payload.get("jobGrowName"))
+    buffer_key = {
+        ("프리스트(남)", "眞 크루세이더"): "maleCrusader",
+        ("프리스트(여)", "眞 크루세이더"): "femaleCrusader",
+        ("마법사(여)", "眞 인챈트리스"): "enchantress",
+        ("아처", "眞 뮤즈"): "muse",
+        ("거너(여)", "眞 패러메딕"): "paramedic",
+    }.get((job_name, job_grow_name))
+    if not buffer_key:
+        return None
+
+    stat_name = {
+        "maleCrusader": "체력" if status.get("체력", 0) >= status.get("정신력", 0) else "정신력",
+        "femaleCrusader": "지능",
+        "enchantress": "지능",
+        "muse": "정신력",
+        "paramedic": "정신력",
+    }[buffer_key]
+    skill_levels = load_character_buffer_skill_levels(server_id, character_id, job_name)
+    switching_stat = get_buffer_switching_stat_delta(
+        server_id,
+        character_id,
+        job_name,
+        stat_name,
+        skill_levels.get("buffSkillName") or "",
+        skill_levels.get("awakeningSkillName") or "",
+    )
+    return {
+        "isBuffer": True,
+        "bufferKey": buffer_key,
+        "jobName": job_name,
+        "jobGrowName": job_grow_name,
+        "statName": stat_name,
+        "stat": status.get(stat_name, 0),
+        "buffPower": status.get("버프력", 0),
+        "buffAmplification": status.get("버프력 증폭", 0),
+        **switching_stat,
+        **skill_levels,
+    }
+
+
+def get_named_skill_level_bonus(reinforce_skill: list, job_name: str, skill_name: str) -> int:
+    return sum(
+        int(skill.get("value") or 0)
+        for job in reinforce_skill or []
+        if not clean_text(job.get("jobName")) or clean_text(job.get("jobName")) in {"공통", job_name}
+        for skill in job.get("skills") or []
+        if clean_text(skill.get("name")) == skill_name
+    )
+
+
+def get_item_awakening_level_bonus(detail: dict, job_name: str, skill_name: str) -> int:
+    item_buff = detail.get("itemBuff") or {}
+    explain = clean_text(item_buff.get("explain"))
+    explicit_bonus = sum(
+        int(match.group(1))
+        for match in re.finditer(r"50\s*(?:레벨|Lv)\s*액티브\s*스킬\s*Lv\s*\+\s*(\d+)", explain, re.IGNORECASE)
+    )
+    range_bonus = sum(
+        int(level_range.get("value") or 0)
+        for job in item_buff.get("reinforceSkill") or []
+        if not clean_text(job.get("jobName")) or clean_text(job.get("jobName")) in {"공통", job_name}
+        for level_range in job.get("levelRange") or []
+        if int(level_range.get("minLevel") or 0) <= 50 <= int(level_range.get("maxLevel") or 0)
+    )
+    direct_bonus = get_named_skill_level_bonus(detail.get("itemReinforceSkill") or [], job_name, skill_name)
+    return explicit_bonus + range_bonus + direct_bonus
+
+
+def get_avatar_awakening_level_bonus(avatar_rows: list, skill_name: str) -> int:
+    pattern = re.compile(rf"{re.escape(skill_name)}\s*스킬\s*Lv\s*\+\s*(\d+)", re.IGNORECASE)
+    total = 0
+    for avatar in avatar_rows or []:
+        option_match = pattern.search(clean_text(avatar.get("optionAbility")))
+        if option_match:
+            total += int(option_match.group(1))
+        for emblem in avatar.get("emblems") or []:
+            emblem_match = pattern.search(clean_text(emblem.get("itemName")))
+            if emblem_match:
+                total += int(emblem_match.group(1))
+    return total
+
+
+def load_character_buffer_skill_levels(server_id: str, character_id: str, job_name: str) -> dict:
+    buff_payload = _get_character_cached_payload(
+        server_id,
+        character_id,
+        "buff_equipment",
+        "skill/buff/equip/equipment",
+    )
+    skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+    buff_skill_level = int(((skill_info.get("option") or {}).get("level")) or 0)
+
+    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    awakening_row = next(
+        (
+            row for row in flatten_skill_rows(style_payload)
+            if row.get("_skillType") == "active" and int(row.get("requiredLevel") or 0) == 50
+        ),
+        {},
+    )
+    awakening_skill_name = clean_text(awakening_row.get("name"))
+    awakening_base_level = max(15, int(awakening_row.get("level") or 0)) if awakening_skill_name else 0
+
+    equipment_payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+    avatar_payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
+    creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    equipment_rows = equipment_payload.get("equipment") or []
+    avatar_rows = avatar_payload.get("avatar") or []
+    creature = creature_payload.get("creature") or {}
+    item_ids = [
+        clean_text(row.get("itemId"))
+        for row in [*equipment_rows, *avatar_rows, creature]
+        if clean_text(row.get("itemId"))
+    ]
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    item_bonus = sum(
+        get_item_awakening_level_bonus(detail_by_id.get(item_id) or {}, job_name, awakening_skill_name)
+        for item_id in item_ids
+    )
+    enchant_bonus = sum(
+        get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, awakening_skill_name)
+        for row in equipment_rows
+    )
+    avatar_option_bonus = get_avatar_awakening_level_bonus(avatar_rows, awakening_skill_name)
+    return {
+        "buffSkillName": clean_text(skill_info.get("name")),
+        "buffSkillLevel": buff_skill_level,
+        "awakeningSkillName": awakening_skill_name,
+        "awakeningBaseLevel": awakening_base_level,
+        "awakeningItemLevelBonus": item_bonus,
+        "awakeningEnchantLevelBonus": enchant_bonus,
+        "awakeningAvatarLevelBonus": avatar_option_bonus,
+        "awakeningSkillLevel": awakening_base_level + item_bonus + enchant_bonus + avatar_option_bonus,
+    }
+
+
 def load_character_enchants(server_id: str, character_id: str) -> dict:
     steps = []
     payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
@@ -203,6 +371,7 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
             "slot": slot_name,
             "itemName": clean_text(equipment.get("itemName")),
             "effects": normalize_enchant_status(status_rows),
+            "reinforceSkill": enchant.get("reinforceSkill") or [],
             "rawStatus": status_rows,
         })
     equipment_base_element_debug = _measure_step(
@@ -228,6 +397,7 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "characterName": payload.get("characterName"),
         "fame": payload.get("fame"),
         "damageBaseline": damage_baseline,
+        "bufferBaseline": load_character_buffer_baseline(server_id, character_id),
         "enchants": rows,
         "equipmentUpgrades": equipment_upgrades,
         "blackFangRecommendations": black_fang_recommendations,
@@ -334,7 +504,6 @@ def load_character_title(server_id: str, character_id: str) -> dict:
             "steps": steps,
         },
     }
-
 
 def load_character_aura(server_id: str, character_id: str) -> dict:
     steps = []
@@ -447,7 +616,17 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
     if title and title_item_id:
         title_detail = detail_map.get(title_item_id) or {}
         title_payload = build_title_payload(title_item_id, title_detail) or {}
-        title["effects"] = combine_effects(title_payload.get("effects") or {}, title.get("enchantEffects") or {})
+        enchant_effects = title.get("enchantEffects") or {}
+        title = {
+            **title,
+            **title_payload,
+            "itemName": title_payload.get("itemName") or title.get("itemName"),
+            "itemRarity": title_payload.get("itemRarity") or title.get("itemRarity"),
+            "iconUrl": title_payload.get("iconUrl") or title.get("iconUrl"),
+            "enchantEffects": enchant_effects,
+            "titleEnchantElement": title.get("titleEnchantElement") or "",
+            "effects": combine_effects(title_payload.get("effects") or {}, enchant_effects),
+        }
 
     creature_detail = detail_map.get(creature_item_id) or {}
     creature = {
@@ -499,6 +678,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         "characterName": enchant_payload.get("characterName"),
         "fame": enchant_payload.get("fame"),
         "damageBaseline": enchant_payload.get("damageBaseline"),
+        "bufferBaseline": enchant_payload.get("bufferBaseline"),
         "enchants": enchant_payload.get("enchants") or [],
         "equipmentUpgrades": enchant_payload.get("equipmentUpgrades") or [],
         "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
@@ -555,6 +735,21 @@ def get_character_primary_stat_name(payload: dict) -> str:
     return "지능" if parse_percent_or_number(base_stats.get("지능")) > parse_percent_or_number(base_stats.get("힘")) else "힘"
 
 
+def get_character_buffer_stat_name(payload: dict, server_id: str, character_id: str) -> str:
+    job_key = (clean_text(payload.get("jobName")), clean_text(payload.get("jobGrowName")))
+    stat_name = {
+        ("프리스트(여)", "眞 크루세이더"): "지능",
+        ("마법사(여)", "眞 인챈트리스"): "지능",
+        ("아처", "眞 뮤즈"): "정신력",
+        ("거너(여)", "眞 패러메딕"): "정신력",
+    }.get(job_key)
+    if stat_name or job_key != ("프리스트(남)", "眞 크루세이더"):
+        return stat_name or ""
+    status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+    status = status_rows_to_map(status_payload.get("status") or [])
+    return "체력" if status.get("체력", 0) >= status.get("정신력", 0) else "정신력"
+
+
 def is_rare_clone_avatar(row: dict) -> bool:
     item_name = clean_text(row.get("itemName"))
     clone = row.get("clone") or {}
@@ -592,6 +787,8 @@ def get_emblem_stat_value(item_name: str, stat_name: str, kind: str) -> float:
             return AVATAR_BRILLIANT_RED_STAT
         if kind == "yellow":
             return AVATAR_BRILLIANT_YELLOW_STAT
+        if kind == "green":
+            return AVATAR_BRILLIANT_GREEN_STAT
         if kind == "dual":
             return AVATAR_BRILLIANT_DUAL_STAT
     if "화려한" in item_name:
@@ -619,6 +816,198 @@ def get_avatar_damage_emblems(row: dict, config: dict) -> list:
             and "플래티넘" not in clean_text(emblem.get("itemName"))
         ]
     return get_emblems_by_color(row, config.get("color"))
+
+
+def get_avatar_green_stat_total(row: dict, stat_name: str) -> float:
+    return sum(
+        get_emblem_stat_value(emblem.get("itemName"), stat_name, "green")
+        for emblem in get_emblems_by_color(row, "녹색빛")
+    )
+
+
+def get_status_stat_value(status_rows: list, stat_name: str) -> float:
+    return sum(
+        parse_percent_or_number(row.get("value"))
+        for row in status_rows or []
+        if clean_text(row.get("name")) == stat_name
+    )
+
+
+def get_emblem_primary_stat_value(item_name: str, stat_name: str) -> float:
+    item_name = clean_text(item_name)
+    if stat_name not in extract_emblem_option_text(item_name):
+        return 0
+    if "찬란한" in item_name:
+        return AVATAR_BRILLIANT_RED_STAT if "붉은빛" in item_name else AVATAR_BRILLIANT_GREEN_STAT
+    if "화려한" in item_name:
+        return 17 if "붉은빛" in item_name else 10
+    if "빛나는" in item_name:
+        return 10 if "붉은빛" in item_name else 6
+    if "듀얼" in item_name:
+        return 10
+    return 0
+
+
+def get_row_direct_stat(row: dict, detail: dict, stat_name: str) -> float:
+    total = get_status_stat_value(detail.get("itemStatus") or [], stat_name)
+    total += get_status_stat_value((row.get("enchant") or {}).get("status") or [], stat_name)
+    option_match = re.search(rf"{re.escape(stat_name)}\s*(\d+(?:\.\d+)?)\s*증가", clean_text(row.get("optionAbility")))
+    if option_match:
+        total += float(option_match.group(1))
+    total += sum(
+        get_emblem_primary_stat_value(emblem.get("itemName"), stat_name)
+        for emblem in row.get("emblems") or []
+    )
+    return total
+
+
+def add_named_skill_bonuses(result: dict, reinforce_skill: list, job_name: str) -> None:
+    for job in reinforce_skill or []:
+        if clean_text(job.get("jobName")) not in {"", "공통", job_name}:
+            continue
+        for skill in job.get("skills") or []:
+            name = clean_text(skill.get("name"))
+            if name:
+                result[name] = result.get(name, 0) + int(skill.get("value") or 0)
+
+
+def get_setup_skill_bonuses(rows: list, detail_by_id: dict, style_rows: list, job_name: str) -> dict:
+    result = {}
+    for row in rows or []:
+        detail = detail_by_id.get(clean_text(row.get("itemId"))) or {}
+        add_named_skill_bonuses(result, detail.get("itemReinforceSkill") or [], job_name)
+        add_named_skill_bonuses(result, (row.get("enchant") or {}).get("reinforceSkill") or [], job_name)
+        for job in (detail.get("itemBuff") or {}).get("reinforceSkill") or []:
+            if clean_text(job.get("jobName")) not in {"", "공통", job_name}:
+                continue
+            for level_range in job.get("levelRange") or []:
+                minimum = int(level_range.get("minLevel") or 0)
+                maximum = int(level_range.get("maxLevel") or 0)
+                value = int(level_range.get("value") or 0)
+                for skill in style_rows:
+                    if minimum <= int(skill.get("requiredLevel") or 0) <= maximum:
+                        name = clean_text(skill.get("name"))
+                        if name:
+                            result[name] = result.get(name, 0) + value
+        for text in [
+            clean_text(row.get("optionAbility")),
+            *(clean_text(emblem.get("itemName")) for emblem in row.get("emblems") or []),
+        ]:
+            match = re.search(r"\[?(.+?)\]?\s*스킬\s*Lv\s*\+\s*(\d+)", text, re.IGNORECASE)
+            if match:
+                name = clean_text(match.group(1)).strip("[]")
+                result[name] = result.get(name, 0) + int(match.group(2))
+                continue
+            platinum_match = re.search(r"플래티넘\s*엠블렘\s*\[([^\]]+)\]", text)
+            if platinum_match:
+                name = clean_text(platinum_match.group(1))
+                result[name] = result.get(name, 0) + 1
+    return result
+
+
+def get_skill_level_stat_value(skill_detail: dict, level: int, stat_name: str) -> float:
+    level_info = skill_detail.get("levelInfo") or {}
+    option_desc = str(level_info.get("optionDesc") or "")
+    value_keys = {
+        key
+        for line in option_desc.splitlines()
+        if stat_name in line
+        for key in re.findall(r"\{(value\d+)\}", line)
+    }
+    if not value_keys:
+        return 0
+    row = next((
+        row for row in level_info.get("rows") or []
+        if int(row.get("level") or 0) == int(level)
+    ), {})
+    option_value = row.get("optionValue") or {}
+    return sum(parse_percent_or_number(option_value.get(key)) for key in value_keys)
+
+
+def get_buffer_switching_stat_delta(
+    server_id: str,
+    character_id: str,
+    job_name: str,
+    stat_name: str,
+    buff_skill_name: str,
+    awakening_skill_name: str,
+) -> dict:
+    current_equipment = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment") or []
+    current_avatar = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar") or []
+    current_creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    current_creature = current_creature_payload.get("creature") or {}
+    buff_equipment_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    buff_avatar_payload = _get_character_cached_payload(server_id, character_id, "buff_avatar", "skill/buff/equip/avatar")
+    buff_creature_payload = _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+    switching_equipment = ((buff_equipment_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
+    switching_avatar = ((buff_avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+    switching_creature_rows = ((buff_creature_payload.get("skill") or {}).get("buff") or {}).get("creature") or []
+    switching_creature = switching_creature_rows[0] if isinstance(switching_creature_rows, list) and switching_creature_rows else switching_creature_rows
+
+    switching_equipment_by_slot = {
+        clean_text(row.get("slotId")): row
+        for row in switching_equipment
+        if clean_text(row.get("slotId"))
+    }
+    switching_avatar_by_slot = {
+        clean_text(row.get("slotId")): row
+        for row in switching_avatar
+        if clean_text(row.get("slotId"))
+    }
+    current_rows = [*current_equipment, *current_avatar, current_creature]
+    switching_rows = [
+        switching_equipment_by_slot.get(clean_text(row.get("slotId")), row)
+        for row in current_equipment
+    ] + [
+        switching_avatar_by_slot.get(clean_text(row.get("slotId")), row)
+        for row in current_avatar
+    ]
+    switching_rows.append(switching_creature if isinstance(switching_creature, dict) and switching_creature else current_creature)
+
+    item_ids = [
+        clean_text(row.get("itemId"))
+        for row in [*current_rows, *switching_rows]
+        if clean_text(row.get("itemId"))
+    ]
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    direct_delta = (
+        sum(get_row_direct_stat(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}, stat_name) for row in switching_rows)
+        - sum(get_row_direct_stat(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}, stat_name) for row in current_rows)
+    )
+
+    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    style_rows = flatten_skill_rows(style_payload)
+    style_by_name = {clean_text(row.get("name")): row for row in style_rows if clean_text(row.get("name"))}
+    current_bonuses = get_setup_skill_bonuses(current_rows, detail_by_id, style_rows, job_name)
+    switching_bonuses = get_setup_skill_bonuses(switching_rows, detail_by_id, style_rows, job_name)
+    relevant_skills = BUFFER_SWITCHING_SELF_STAT_SKILLS.get(clean_text(buff_skill_name), set())
+    skill_delta = 0
+    skill_deltas = {}
+    for name in set(current_bonuses) | set(switching_bonuses):
+        if name not in relevant_skills or current_bonuses.get(name, 0) == switching_bonuses.get(name, 0):
+            continue
+        style_row = style_by_name.get(name) or {}
+        skill_id = clean_text(style_row.get("skillId"))
+        base_level = int(style_row.get("level") or 0)
+        if not skill_id or base_level <= 0:
+            continue
+        skill_detail = request_json(f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}")
+        current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
+        switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
+        delta = switching_value - current_value
+        if delta:
+            skill_delta += delta
+            skill_deltas[name] = delta
+    return {
+        "switchingStatDelta": direct_delta + skill_delta,
+        "switchingDirectStatDelta": direct_delta,
+        "switchingSkillStatDelta": skill_delta,
+        "switchingSkillStatDeltas": skill_deltas,
+    }
 
 
 def get_avatar_platinum_damage_percent(slot_label: str) -> float:
@@ -674,18 +1063,51 @@ def get_avatar_emblem_item_name(stat_name: str, kind: str) -> str:
         return f"찬란한 붉은빛 엠블렘[{stat_name}]"
     if kind == "yellow":
         return f"찬란한 옐로우 엠블렘[{stat_name}]"
+    if kind == "green":
+        return f"찬란한 그린 엠블렘[{stat_name}]"
     critical_name = "마법크리티컬" if stat_name == "지능" else "물리크리티컬"
     return f"찬란한 듀얼 엠블렘[{stat_name} + {critical_name}]"
 
 
-def build_avatar_emblem_recommendations(avatar_rows: list, primary_stat_name: str) -> list:
+def find_lowest_buffer_emblem_item(stat_name: str, kind: str) -> dict:
+    exact_name = get_avatar_emblem_item_name(stat_name, kind)
+    candidates = [find_lowest_exact_item_by_name(exact_name)]
+    if kind == "green" and stat_name == "지능":
+        seen_names = {exact_name}
+        for row in search_items_by_name("찬란한 듀얼 엠블렘[지능"):
+            item_name = clean_text(row.get("itemName"))
+            if item_name.startswith("찬란한 듀얼 엠블렘[지능 +") and item_name not in seen_names:
+                seen_names.add(item_name)
+                candidates.append(find_lowest_exact_item_by_name(item_name))
+    priced = [
+        item for item in candidates
+        if isinstance((item.get("auction") or {}).get("minUnitPrice"), (int, float))
+        and (item.get("auction") or {}).get("minUnitPrice") > 0
+    ]
+    return min(
+        priced or candidates,
+        key=lambda item: (item.get("auction") or {}).get("minUnitPrice") or 10**30,
+        default={"itemName": exact_name, "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}},
+    )
+
+
+def build_avatar_emblem_recommendations(
+    avatar_rows: list,
+    primary_stat_name: str,
+    configs: list | None = None,
+    buffer_mode: bool = False,
+) -> list:
     recommendations = []
     item_cache = {}
-    for config in AVATAR_EMBLEM_RECOMMENDATIONS:
+    for config in configs or AVATAR_EMBLEM_RECOMMENDATIONS:
         row = get_avatar_slot(avatar_rows, config.get("slotId"))
         if not row:
             continue
-        if clean_text(row.get("itemRarity")) != "레어" and clean_text(config.get("slotId")) not in {"AURORA", "SKIN"}:
+        if (
+            not buffer_mode
+            and clean_text(row.get("itemRarity")) != "레어"
+            and clean_text(config.get("slotId")) not in {"AURORA", "SKIN"}
+        ):
             continue
         emblems = get_avatar_damage_emblems(row, config)
         socket_count = max(len(emblems), 2)
@@ -698,15 +1120,19 @@ def build_avatar_emblem_recommendations(avatar_rows: list, primary_stat_name: st
         if need_count <= 0:
             continue
         item_name = get_avatar_emblem_item_name(primary_stat_name, config.get("kind"))
-        if item_name not in item_cache:
-            item_cache[item_name] = find_lowest_exact_item_by_name(item_name)
-        item = item_cache[item_name]
+        item_cache_key = (primary_stat_name, config.get("kind"))
+        if item_cache_key not in item_cache:
+            item_cache[item_cache_key] = (
+                find_lowest_buffer_emblem_item(primary_stat_name, config.get("kind"))
+                if buffer_mode
+                else find_lowest_exact_item_by_name(item_name)
+            )
+        item = item_cache[item_cache_key]
         auction = dict(item.get("auction") or {})
         unit_price = auction.get("minUnitPrice")
         if isinstance(unit_price, (int, float)) and unit_price > 0:
             auction["minUnitPrice"] = unit_price * need_count
             auction["unitPrice"] = unit_price
-        effects_key = "int" if primary_stat_name == "지능" else "str"
         stat_gain = sum(config.get("targetStat", 0) - value for value in current_values if value < config.get("targetStat", 0))
         recommendations.append({
             "kind": "brilliantEmblem",
@@ -720,14 +1146,45 @@ def build_avatar_emblem_recommendations(avatar_rows: list, primary_stat_name: st
                 f"{clean_text(row.get('slotName')) or config.get('slot')} "
                 f"{config.get('color')} {primary_stat_name} 찬란한 엠블렘 교체"
             ),
-            "effects": {effects_key: stat_gain},
+            "effects": (
+                {"bufferStat": stat_gain}
+                if buffer_mode
+                else {"int" if primary_stat_name == "지능" else "str": stat_gain}
+            ),
             "auction": auction,
             "needCount": need_count,
             "unitPrice": unit_price,
             "targetStat": primary_stat_name,
+            "bufferStatScope": clean_text(config.get("bufferStatScope")),
             "recommendationPriority": 0,
         })
     return recommendations
+
+
+def get_buffer_avatar_emblem_configs(switching_rows: list) -> tuple[list, list]:
+    switching_rare_slot_ids = {
+        slot_id
+        for slot_id in ("JACKET", "PANTS")
+        if clean_text(get_avatar_slot(switching_rows, slot_id).get("itemRarity")) == "레어"
+    }
+    current_configs = [
+        {
+            **config,
+            "bufferStatScope": (
+                "common"
+                if clean_text(config.get("slotId")) in {"JACKET", "PANTS"}
+                and clean_text(config.get("slotId")) not in switching_rare_slot_ids
+                else config.get("bufferStatScope")
+            ),
+        }
+        for config in BUFFER_AVATAR_EMBLEM_RECOMMENDATIONS
+    ]
+    switching_configs = [
+        config
+        for config in BUFFER_SWITCHING_AVATAR_EMBLEM_RECOMMENDATIONS
+        if clean_text(config.get("slotId")) in switching_rare_slot_ids
+    ]
+    return current_configs, switching_configs
 
 
 def parse_black_fang_scroll_cost(detail: dict) -> dict:
@@ -1020,42 +1477,6 @@ def find_avatar_platinum_selection_box() -> dict:
     )
 
 
-def find_clone_rare_avatar_full_set_box() -> dict:
-    candidates = []
-    seen_ids = set()
-    for search_name in ["클론 레어 아바타 풀세트 상자", "클론 레어 아바타"]:
-        try:
-            rows = search_items_by_name(search_name)
-        except Exception:
-            continue
-        for row in rows:
-            row_name = clean_text(row.get("itemName"))
-            if "클론 레어 아바타" not in row_name or "풀세트 상자" not in row_name:
-                continue
-            if "무기" in row_name:
-                continue
-            item_id = clean_text(row.get("itemId"))
-            if not item_id or item_id in seen_ids:
-                continue
-            seen_ids.add(item_id)
-            try:
-                auction = get_lowest_auction_price(item_id)
-            except Exception:
-                auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
-            candidates.append({
-                "itemId": item_id,
-                "itemName": clean_item_display_name(row.get("itemName")),
-                "itemRarity": clean_text(row.get("itemRarity")),
-                "iconUrl": get_item_icon_url(item_id),
-                "auction": auction,
-            })
-    return min(
-        candidates,
-        key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
-        default={},
-    )
-
-
 def choose_avatar_platinum_price_item(skill_name: str) -> dict:
     direct = find_avatar_platinum_item(skill_name)
     selection_box = find_avatar_platinum_selection_box()
@@ -1090,7 +1511,8 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
     pants = get_avatar_slot(avatar_rows, "PANTS")
     entry = _measure_step(steps, "find_avatar_option_entry", lambda: find_avatar_option_entry(payload))
     option_db = entry.get("avatar") or {}
-    primary_stat_name = get_character_primary_stat_name(payload)
+    buffer_stat_name = get_character_buffer_stat_name(payload, server_id, character_id)
+    primary_stat_name = buffer_stat_name or get_character_primary_stat_name(payload)
     top_option = clean_text((option_db.get("topOptions") or [""])[0])
     platinum_skill = clean_text((option_db.get("platinumEmblems") or [""])[0])
     top_option_matched = skill_name_matches(jacket.get("optionAbility"), top_option)
@@ -1101,6 +1523,8 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
         ("JACKET", "상의 아바타", jacket),
         ("PANTS", "하의 아바타", pants),
     ]:
+        if clean_text(row.get("itemRarity")) != "레어":
+            continue
         emblems = get_platinum_emblems(row)
         matched = any(
             skill_name_matches(extract_platinum_skill_name(emblem.get("itemName")), platinum_skill)
@@ -1129,40 +1553,6 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
         if is_rare_clone_avatar(row)
     ]
     recommendations = []
-    rare_avatar_box = {}
-    rare_avatar_set_purchasable = False
-    if needs_rare_avatar_set:
-        rare_avatar_box = _measure_step(steps, "find_clone_rare_avatar_full_set_box", find_clone_rare_avatar_full_set_box)
-        box_auction = rare_avatar_box.get("auction") or {}
-        if not (isinstance(box_auction.get("minUnitPrice"), (int, float)) and box_auction.get("minUnitPrice") > 0):
-            missing_or_wrong_slots = []
-        else:
-            rare_avatar_set_purchasable = True
-            recommendations.append({
-                "kind": "rareAvatarSet",
-                "slot": "아바타",
-                "tier": "클론 레어",
-                "itemId": rare_avatar_box.get("itemId"),
-                "itemName": rare_avatar_box.get("itemName") or "클론 레어 아바타 풀세트 상자",
-                "itemRarity": rare_avatar_box.get("itemRarity"),
-                "iconUrl": rare_avatar_box.get("iconUrl"),
-                "itemExplain": f"기본 레어 아바타 부족: {', '.join(missing_base_rare_slots)} · 구매 후 상의 옵션 {top_option or '직업 옵션'} 선택",
-                "effects": {"finalDamage": AVATAR_TOP_OPTION_FINAL_DAMAGE_PERCENT},
-                "auction": box_auction,
-                "recommendationPriority": -100,
-                "missingSlots": missing_base_rare_slots,
-            })
-    can_recommend_avatar_details = (not needs_rare_avatar_set) or rare_avatar_set_purchasable
-    if not needs_rare_avatar_set and top_option and not top_option_matched:
-        recommendations.append({
-            "kind": "topOption",
-            "slot": "상의 아바타",
-            "tier": "아바타",
-            "itemName": f"상의 옵션: {top_option}",
-            "itemExplain": f"현재: {clean_text(jacket.get('optionAbility')) or '없음'}",
-            "effects": {"finalDamage": AVATAR_TOP_OPTION_FINAL_DAMAGE_PERCENT},
-            "acquisition": {"label": "상의 옵션 변경 필요"},
-        })
     if platinum_skill and missing_or_wrong_slots:
         item = _measure_step(steps, "choose_avatar_platinum_price_item", lambda: choose_avatar_platinum_price_item(platinum_skill))
         for slot_label in missing_or_wrong_slots:
@@ -1181,9 +1571,38 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
                 "targetSkill": platinum_skill,
                 "missingSlots": [slot_label],
                 "priceSource": item.get("priceSource"),
-                "recommendationPriority": -90 if needs_rare_avatar_set else 0,
+                "recommendationPriority": 0,
             })
-    if can_recommend_avatar_details:
+    if buffer_stat_name:
+        switching_payload = _get_character_cached_payload(
+            server_id,
+            character_id,
+            "buff_avatar",
+            "skill/buff/equip/avatar",
+        )
+        switching_rows = ((switching_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+        current_buffer_configs, switching_buffer_configs = get_buffer_avatar_emblem_configs(switching_rows)
+        recommendations.extend(_measure_step(
+            steps,
+            "build_buffer_avatar_emblem_recommendations",
+            lambda: build_avatar_emblem_recommendations(
+                avatar_rows,
+                primary_stat_name,
+                current_buffer_configs,
+                True,
+            ),
+        ))
+        recommendations.extend(_measure_step(
+            steps,
+            "build_buffer_switching_avatar_emblem_recommendations",
+            lambda: build_avatar_emblem_recommendations(
+                switching_rows,
+                primary_stat_name,
+                switching_buffer_configs,
+                True,
+            ),
+        ))
+    else:
         recommendations.extend(_measure_step(
             steps,
             "build_avatar_emblem_recommendations",
@@ -1224,7 +1643,7 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
             "missingOrWrongPlatinumSlots": missing_or_wrong_slots,
             "needsRareAvatarSet": needs_rare_avatar_set,
             "missingBaseRareAvatarSlots": missing_base_rare_slots,
-            "rareAvatarSetPurchasable": rare_avatar_set_purchasable,
+            "rareAvatarSetPurchasable": False,
             "needsReview": bool(option_db.get("needsReview")),
         },
         "recommendations": recommendations,
@@ -1232,5 +1651,3 @@ def load_character_avatar(server_id: str, character_id: str) -> dict:
             "steps": steps,
         },
     }
-
-

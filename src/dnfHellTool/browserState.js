@@ -110,6 +110,9 @@ function setDevMode(enabled) {
   }
   state.isDevMode = Boolean(enabled);
   document.body.classList.toggle('dev-mode', state.isDevMode);
+  if (!state.isDevMode && document.querySelector('.tab-panel.dev-only:not([hidden])')) {
+    els.enchantTabButton?.click();
+  }
   writeDevModePreference(state.isDevMode);
   refreshModeLabels();
   if (state.lastResults.length) {

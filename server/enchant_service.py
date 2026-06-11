@@ -351,7 +351,11 @@ def load_creature_artifact_groups_with_prices(errors: list) -> list:
 def build_material_enchant_sources(item: dict, detail: dict) -> list:
     search_name = clean_text(item.get("searchName") or item.get("itemName") or detail.get("itemName"))
     fallback_sources = [
-        {**source, "effects": order_effects(source.get("effects") or {})}
+        {
+            **source,
+            "role": clean_text(source.get("role") or item.get("role")) or "dealer",
+            "effects": order_effects(source.get("effects") or {}),
+        }
         for source in item.get("sources") or []
     ]
     card_info = detail.get("cardInfo") or {}
@@ -374,7 +378,9 @@ def build_material_enchant_sources(item: dict, detail: dict) -> list:
             sources.append({
                 "slot": slot,
                 "tier": tier,
+                "role": clean_text(item.get("role")) or "dealer",
                 "effects": effects,
+                "reinforceSkill": enchant.get("reinforceSkill") or [],
                 "searchName": search_name,
             })
     return sources or fallback_sources
@@ -382,7 +388,11 @@ def build_material_enchant_sources(item: dict, detail: dict) -> list:
 
 def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
     fallback_sources = [
-        {**source, "effects": order_effects(source.get("effects") or {})}
+        {
+            **source,
+            "role": clean_text(source.get("role") or card.get("role")) or "dealer",
+            "effects": order_effects(source.get("effects") or {}),
+        }
         for source in card.get("sources") or []
     ]
     card_info = detail.get("cardInfo") or {}
@@ -405,7 +415,9 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
         sources.append({
             "slot": slot,
             "tier": tier,
+            "role": clean_text(card.get("role")) or "dealer",
             "effects": effects,
+            "reinforceSkill": max_enchant.get("reinforceSkill") or [],
             "searchName": search_name,
         })
     return sources or fallback_sources
@@ -725,7 +737,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
     with _CACHE_LOCK:
         payload = _TITLE_PRICE_CACHE["payload"]
         expires_at = _TITLE_PRICE_CACHE["expires_at"]
-        if payload is not None and payload.get("schemaVersion") != 3:
+        if payload is not None and payload.get("schemaVersion") != 7:
             payload = None
             _TITLE_PRICE_CACHE["payload"] = None
             _TITLE_PRICE_CACHE["expires_at"] = 0
@@ -914,6 +926,8 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
                     enchant_effects = enchant_summary.get("effects") or {}
                     if not enchant_effects:
                         continue
+                    if float(enchant_effects.get("elementAll") or 0) < 6:
+                        continue
                     signature = json.dumps(enchant_effects, ensure_ascii=False, sort_keys=True)
                     if signature in seen_title_enchants:
                         continue
@@ -946,7 +960,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         })
 
     payload = {
-        "schemaVersion": 3,
+        "schemaVersion": 7,
         "updatedAt": title_db.get("updatedAt"),
         "pricedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)),
         "source": title_db.get("source"),
@@ -1007,7 +1021,14 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
 
     cards = []
     errors = []
-    for card in card_db.get("cards") or []:
+    card_rows = [
+        {**card, "role": clean_text(card.get("role")) or "dealer"}
+        for card in card_db.get("cards") or []
+    ] + [
+        {**card, "role": clean_text(card.get("role")) or "buffer"}
+        for card in card_db.get("bufferCards") or []
+    ]
+    for card in card_rows:
         card_with_price = dict(card)
         search_name = clean_text(card.get("searchName") or card.get("itemName") or (card.get("sources") or [{}])[0].get("searchName"))
         resolved_card = {"itemId": card.get("itemId")} if card.get("itemId") else resolve_exact_item_by_name(search_name, "")
@@ -1040,7 +1061,14 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
             ]
         cards.append(card_with_price)
 
-    for item in card_db.get("materialEnchantItems") or []:
+    material_enchant_rows = [
+        {**item, "role": clean_text(item.get("role")) or "dealer"}
+        for item in card_db.get("materialEnchantItems") or []
+    ] + [
+        {**item, "role": clean_text(item.get("role")) or "buffer"}
+        for item in card_db.get("bufferMaterialEnchantItems") or []
+    ]
+    for item in material_enchant_rows:
         item_with_source = dict(item)
         search_name = clean_text(item.get("searchName") or item.get("itemName"))
         resolved_item = {"itemId": item.get("itemId")} if item.get("itemId") else resolve_exact_item_by_name(search_name, "보주")
@@ -1152,5 +1180,3 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
         _ENCHANT_PRICE_CACHE["expires_at"] = expires_at
     save_price_cache_to_disk(ENCHANT_PRICE_CACHE_PATH, payload, expires_at)
     return add_cache_status(payload, _ENCHANT_PRICE_CACHE)
-
-

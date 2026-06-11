@@ -197,6 +197,11 @@
       margin: 0;
       accent-color: var(--accent-2);
     }
+    .enchant-route-option {
+      justify-self: start;
+      width: fit-content;
+      background: color-mix(in srgb, var(--accent-2) 14%, var(--bg-deep));
+    }
     .enchant-search-button {
       min-width: 64px;
       height: 40px;

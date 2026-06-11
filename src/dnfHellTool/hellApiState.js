@@ -73,7 +73,10 @@ export function installHellApiState(ctx) {
 
 function setActiveTab(tabId, persist = true, options = {}) {
   const validTabIds = new Set(['hellPanel', 'supplyPanel', 'enchantPanel']);
-  const normalizedTabId = validTabIds.has(tabId) ? tabId : 'enchantPanel';
+  const requestedTabId = validTabIds.has(tabId) ? tabId : 'enchantPanel';
+  const normalizedTabId = !state.isDevMode && requestedTabId !== 'enchantPanel'
+    ? 'enchantPanel'
+    : requestedTabId;
   const runSideEffects = options.runSideEffects !== false;
   
   document.querySelectorAll('.tab-panel').forEach((panel) => {

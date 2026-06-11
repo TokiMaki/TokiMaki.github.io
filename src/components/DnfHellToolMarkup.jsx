@@ -11,11 +11,11 @@ export default function DnfHellToolMarkup() {
         </h1>
         <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
           <button type={'button'} className={'tab-button active'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'true'}>스펙업 순서</button>
-          <button type={'button'} className={'tab-button'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'false'}>헬 계산기</button>
-          <button type={'button'} className={'tab-button'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
+          <button type={'button'} className={'tab-button dev-only'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'false'}>헬 계산기</button>
+          <button type={'button'} className={'tab-button dev-only'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
         </div>
       </section>
-      <section className={'grid tab-panel'} id={'hellPanel'} hidden>
+      <section className={'grid tab-panel dev-only'} id={'hellPanel'} hidden>
         <aside className={'panel'}>
           <h2>입력</h2>
           <div className={'form-grid'}>
@@ -277,6 +277,10 @@ export default function DnfHellToolMarkup() {
         <section className={'panel enchant-include-card'}>
           <div className={'enchant-include-title'}>포함 항목</div>
           <div className={'enchant-include-controls'} id={'enchantIncludeControls'}></div>
+          <label className={'enchant-include-option enchant-route-option'}>
+            <input id={'enchantTitleBeadOnlyToggle'} type={'checkbox'} defaultChecked />
+            칭호 보주 포함 추천
+          </label>
         </section>
         <main className={'enchant-recommend-layout'}>
           <div className={'card supply-detail-portrait-card enchant-character-portrait-card'} id={'enchantCharacterPortrait'}>
@@ -296,7 +300,7 @@ export default function DnfHellToolMarkup() {
           </section>
         </main>
       </section>
-      <section className={'grid tab-panel'} id={'supplyPanel'} hidden>
+      <section className={'grid tab-panel dev-only'} id={'supplyPanel'} hidden>
         <aside className={'panel'}>
           <h2>계시 관리 입력</h2>
           <div className={'supply-note'}>

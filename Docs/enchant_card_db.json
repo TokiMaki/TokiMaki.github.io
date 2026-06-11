@@ -1,11 +1,17 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-05-12",
+  "schemaVersion": 2,
+  "updatedAt": "2026-06-09",
   "source": {
     "type": "arca_article",
     "url": "https://arca.live/b/dunfa/169495645",
     "title": "마법부여 정리 - 딜러편 (아포 레기온 갱신)",
     "note": "경매장 매물이 아니라 /df/items 아이템 검색으로 카드 itemId를 수집했고, 효과 수치는 글 본문을 기준으로 수동 구조화함."
+  },
+  "bufferSource": {
+    "type": "arca_article",
+    "url": "https://arca.live/b/dunfa/169522983",
+    "title": "마법부여 정리 - 버퍼편 (아포 레기온 갱신)",
+    "note": "딜러용과 동일하게 /df/items 아이템 검색으로 카드와 보주 효과를 불러온다."
   },
   "cards": [
     {
@@ -176,6 +182,48 @@
       "searchName": "큰 어른 루톤 카드",
       "tier": "가성비"
     }
+  ],
+  "bufferCards": [
+    { "searchName": "뒤쫓는 자 제논 카드", "tier": "종결" },
+    { "searchName": "안개신의 무의식 카드", "tier": "종결" },
+    { "searchName": "미의 여신 베누스 카드", "tier": "준종결" },
+    { "searchName": "욕망과 미의 여신 베누스 카드", "tier": "준종결" },
+    { "searchName": "눈물짓는 블리스 카드", "tier": "준종결" },
+    { "searchName": "신실한 소코르스 카드", "tier": "종결" },
+    { "searchName": "천해천 버퍼 상의 카드 (힘, 지능, 체력, 정신력 +210)", "tier": "종결" },
+    { "searchName": "지혜를 간직한 그레이슨 카드", "tier": "가성비" },
+    { "searchName": "안개의 감시자 브림 카드", "tier": "준종결" },
+    { "searchName": "배낭지기 배니부 카드", "tier": "종결" },
+    { "searchName": "코드네임 게이볼그 카드", "tier": "준종결" },
+    { "searchName": "일각수 크라켄 카드", "tier": "종결" },
+    { "searchName": "부패하는 사룡 스피라찌 카드", "tier": "준종결" },
+    { "searchName": "땅지기 카메린 카드", "tier": "준종결" },
+    { "searchName": "최후의 테아나 카드", "tier": "종결" },
+    { "searchName": "재앙을 일으키는 육신 카드", "tier": "종결" },
+    { "searchName": "안개의 사제 클라디스 카드", "tier": "준종결" },
+    { "searchName": "오만한 위신, 셀게이퍼 카드", "tier": "준종결" },
+    { "searchName": "천해천 버퍼 신발 카드 (힘, 지능, 체력, 정신력 +170)", "tier": "종결" },
+    { "searchName": "평온한 로절린드 카드", "tier": "준종결" },
+    { "searchName": "고귀한 빌리스 카드", "tier": "준종결" },
+    { "searchName": "광포의 마흐나발 카드", "tier": "종결" },
+    { "searchName": "무경계의 테르미누스 카드", "tier": "준종결" },
+    { "searchName": "과학자 모리 카드", "tier": "준종결" },
+    { "searchName": "더러운 피를 흘리는 자 카드", "tier": "종결" },
+    { "searchName": "빛나는 다이앤 카드", "tier": "준종결" },
+    { "searchName": "제어할 수 없는 파비아 카드", "tier": "준종결" },
+    { "searchName": "인공신 2호 아니마 카드", "tier": "종결" },
+    { "searchName": "3대대 부관 철편자 카르케오 카드", "tier": "종결" },
+    { "searchName": "기억의 도서관지기 카드", "tier": "준종결" },
+    { "searchName": "자유로운 이카 카드", "tier": "종결" },
+    { "searchName": "연합 사령관 이리네 카드", "tier": "준종결" },
+    { "searchName": "부조화의 로페즈 카드", "tier": "준종결" },
+    { "searchName": "파고드는 스펀저 카드", "tier": "준종결" },
+    { "searchName": "오만의 악 아니마 카드", "tier": "종결" },
+    { "searchName": "만개한 불신, 라르고 카드", "tier": "종결" },
+    { "searchName": "베누스의 보석함 카드", "tier": "가성비" },
+    { "searchName": "흰 구름 감시자 라르고 카드", "tier": "준종결" },
+    { "searchName": "다정한 죽음 세니르 카드", "tier": "준종결" },
+    { "searchName": "해방된 비올렌티아 카드", "tier": "종결" }
   ],
   "materialEnchantItems": [
     {
@@ -349,6 +397,76 @@
         "materialLabel": "소명",
         "amount": 120
       }
+    }
+  ],
+  "bufferMaterialEnchantItems": [
+    {
+      "searchName": "버퍼 무기 보주(힘, 지능, 체력, 정신력 +100)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 상의 보주(힘, 지능, 체력, 정신력 +100)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 하의 보주(힘, 지능, 체력, 정신력 +100)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 머리어깨 보주(힘, 지능, 체력, 정신력 +110)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 벨트 보주(힘, 지능, 체력, 정신력 +110)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 신발 보주 (힘, 지능, 체력, 정신력 +100, 버퍼 전직 패시브 스킬 Lv +1)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 목걸이 보주(힘, 지능, 체력, 정신력 +90)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 팔찌 보주(힘, 지능, 체력, 정신력 +90)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 반지 보주(힘, 지능, 체력, 정신력 +90)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 보조장비 보주(힘, 지능, 체력, 정신력 +100)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 귀걸이 보주(힘, 지능, 체력, 정신력 +175)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "버퍼 마법석 보주(힘, 지능, 체력, 정신력 +100)",
+      "acquisition": { "type": "material", "label": "은화 구매", "materialSearchName": "상공인협의회 은화", "materialLabel": "은화", "amount": 5 }
+    },
+    {
+      "searchName": "베누스 버퍼 상의 보주(힘, 지능, 체력, 정신력 +100, 버퍼 전직 패시브 스킬 Lv +3)",
+      "acquisition": { "type": "material", "label": "베누스 재료 구매", "materialSearchName": "흩어지는 찬사의 비단", "materialLabel": "비단", "amount": 135 }
+    },
+    {
+      "searchName": "베누스 버퍼 머리어깨 보주(힘, 지능, 체력, 정신력 +100, 버퍼 전직 패시브 스킬 Lv +3)",
+      "acquisition": { "type": "material", "label": "베누스 재료 구매", "materialSearchName": "흩어지는 찬사의 비단", "materialLabel": "비단", "amount": 135 }
+    },
+    {
+      "searchName": "나벨 버퍼 하의 보주 (힘, 지능, 체력, 정신력 +100, 버퍼 전직 패시브 스킬 Lv +3)",
+      "acquisition": { "type": "material", "label": "나벨 재료 구매", "materialSearchName": "깨진 악몽의 잔해", "materialLabel": "잔해", "amount": 135 }
+    },
+    {
+      "searchName": "나벨 버퍼 벨트 보주 (힘, 지능, 체력, 정신력 +100, 버퍼 1차 각성 패시브 스킬 Lv +2)",
+      "acquisition": { "type": "material", "label": "나벨 재료 구매", "materialSearchName": "깨진 악몽의 잔해", "materialLabel": "잔해", "amount": 135 }
+    },
+    {
+      "searchName": "아포칼립스 버퍼 상의 보주(힘, 지능, 체력, 정신력 +120, 버퍼 전직 패시브 스킬 Lv +3)",
+      "acquisition": { "type": "material", "label": "아포칼립스 재료 구매", "materialSearchName": "안개의 소명", "materialLabel": "소명", "amount": 120 }
     }
   ],
   "unresolved": []

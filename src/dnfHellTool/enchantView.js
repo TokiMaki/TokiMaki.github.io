@@ -9,6 +9,7 @@ const EFFECT_LABELS = {
   elementLight: '명속강',
   elementDark: '암속강',
   allStat: '올스탯',
+  bufferStat: '버퍼 주스탯',
   str: '힘',
   int: '지능',
   critical: '크리',
@@ -47,8 +48,12 @@ const SLOT_ORDER = [
   '아바타',
   '모자 아바타',
   '머리 아바타',
+  '얼굴 아바타',
+  '목가슴 아바타',
   '상의 아바타',
   '하의 아바타',
+  '벞강 상의 압',
+  '벞강 하의 압',
   '무기 아바타',
   '오라 아바타',
   '피부 아바타',
@@ -63,7 +68,7 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'str', 'int'];
+const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '머리어깨', key: 'shoulder', side: 'left' },
   { slot: '상의', key: 'top', side: 'left' },
@@ -109,6 +114,36 @@ const MATERIAL_ENCHANT_SLOT_ORDER = [
   '마법석',
   '귀걸이',
 ];
+const BUFFER_SCORE_CONFIG = {
+  maleCrusader: {
+    jobCoefficient: 1.0188, buffMultiplier: 1.12,
+    activeSelfStat: 732,
+    auraStat: 456, auraAttack: 53, auraSkills: ['신념의 오라'],
+  },
+  femaleCrusader: {
+    jobCoefficient: 1.016, buffMultiplier: 1.12,
+    activeSelfStat: 622,
+    auraStat: 622 + 318, auraAttack: 0, auraSkills: ['신실한 열정'],
+  },
+  enchantress: {
+    jobCoefficient: 0.9765, buffMultiplier: 1.155,
+    activeSelfStat: 667,
+    auraStat: 667, auraAttack: 0, auraSkills: ['소악마'],
+  },
+  muse: {
+    jobCoefficient: 1.0177, buffMultiplier: 1.10,
+    activeSelfStat: 683,
+    auraStat: 622, auraAttack: 0, auraSkills: ['유명세'],
+  },
+  paramedic: {
+    jobCoefficient: 1.025, buffMultiplier: 1.12,
+    activeSelfStat: 687,
+    auraStat: 416, auraAttack: 0, auraSkills: ['대응체계'],
+  },
+};
+const BUFFER_PRIMARY_STAT_PER_LEVEL = 16;
+const BUFFER_AURA_SELF_STAT_PER_LEVEL = 23;
+const BUFFER_AURA_PARTY_STAT_PER_LEVEL = 23;
 const UPGRADE_MATERIAL_LABELS = {
   harmonyCrystal: '조화의 결정체',
   contradictionCrystal: '모순의 결정체',
@@ -551,6 +586,7 @@ function getCardRows(cards) {
   return cards.flatMap((card) => (card.sources || []).map((source) => ({
     sourceType: 'enchant',
     ...source,
+    role: source.role || card.role || 'dealer',
     itemId: card.itemId,
     itemName: card.priceItem?.itemName || card.displayName || card.itemName,
     itemRarity: card.itemRarity,
@@ -560,6 +596,193 @@ function getCardRows(cards) {
     priceItem: card.priceItem || null,
     acquisition: card.acquisition || null,
   })));
+}
+
+function getReinforceSkillLevel(reinforceSkill = [], jobName = '', skillNames = null) {
+  return (reinforceSkill || []).reduce((total, job) => {
+    if (jobName && job?.jobName && job.jobName !== jobName) return total;
+    return total + (job?.skills || []).reduce((sum, skill) => {
+      if (skillNames && !skillNames.includes(skill?.name)) return sum;
+      return sum + Number(skill?.value || 0);
+    }, 0);
+  }, 0);
+}
+
+function getBufferEnchantSkillDelta(row, current, baseline, config) {
+  const jobName = baseline?.jobName || '';
+  const candidateSkills = row?.reinforceSkill || [];
+  const currentSkills = current?.reinforceSkill || [];
+  const auraSkillNames = config?.auraSkills || [];
+  const candidateTotal = getReinforceSkillLevel(candidateSkills, jobName);
+  const currentTotal = getReinforceSkillLevel(currentSkills, jobName);
+  const candidateAura = getReinforceSkillLevel(candidateSkills, jobName, auraSkillNames);
+  const currentAura = getReinforceSkillLevel(currentSkills, jobName, auraSkillNames);
+  return {
+    primaryLevels: (candidateTotal - candidateAura) - (currentTotal - currentAura),
+    auraLevels: candidateAura - currentAura,
+  };
+}
+
+function calculateBufferScore(baseline = {}, changes = {}) {
+  const config = BUFFER_SCORE_CONFIG[baseline.bufferKey];
+  if (!config) return 0;
+  const commonStatDelta = Number(changes.statDelta || 0);
+  const currentStatDelta = Number(changes.currentStatDelta || 0);
+  const switchingStatDelta = Number(changes.switchingStatDelta || 0);
+  const primaryLevels = Number(changes.primaryLevels || 0);
+  const auraLevels = Number(changes.auraLevels || 0);
+  const passiveStatDelta =
+    primaryLevels * BUFFER_PRIMARY_STAT_PER_LEVEL +
+    auraLevels * BUFFER_AURA_SELF_STAT_PER_LEVEL;
+  const baseAppliedStat = Number(baseline.stat || 0) + config.activeSelfStat + passiveStatDelta;
+  const appliedStat = baseAppliedStat + commonStatDelta + currentStatDelta;
+  const switchingStat = baseAppliedStat
+    + Number(baseline.switchingStatDelta || 0)
+    + commonStatDelta
+    + switchingStatDelta;
+  const buffPower = Number(baseline.buffPower || 0);
+  const currentAmp = Number(baseline.buffAmplification || 0) / 100;
+  const switchingAmp = Math.max(0, Number(baseline.buffAmplification || 0) - 2) / 100;
+  const buffFactor = (1 + switchingStat / 2993) * (2 + buffPower * (1 + switchingAmp) / 4800);
+  const buffSkillLevel = Number(baseline.buffSkillLevel || 0);
+  const awakeningSkillLevel = Number(baseline.awakeningSkillLevel || 0);
+  if (!buffSkillLevel || !awakeningSkillLevel) return 0;
+  const buffStatBase = 150 + 11 * buffSkillLevel;
+  const buffAttackBase = 36 + 1.8 * buffSkillLevel;
+  const buffMultiplier = config.jobCoefficient * config.buffMultiplier;
+  const buffStat = buffStatBase * buffFactor * buffMultiplier;
+  const buffAttack = buffAttackBase * buffFactor * buffMultiplier;
+  const awakeningStatBase = 986 + 92 * (awakeningSkillLevel - 30);
+  const awakeStat = awakeningStatBase
+    * (20 * (1 + appliedStat / 15000) * (1 + buffPower * (1 + currentAmp) / 85000) - 1)
+    * 1.15;
+  const auraStat = config.auraStat + auraLevels * BUFFER_AURA_PARTY_STAT_PER_LEVEL;
+  const totalStat = buffStat + awakeStat + auraStat;
+  const totalAttack = buffAttack + config.auraAttack;
+  return (25000 + totalStat) / 25000 * (3300 + totalAttack) / 3300 * 333 * 1.165;
+}
+
+function getBufferRecommendationRows(
+  rows,
+  currentEnchants,
+  currentCreature,
+  currentTitle,
+  currentAura,
+  baseline,
+) {
+  if (!baseline?.isBuffer) return [];
+  const currentBySlot = new Map((currentEnchants || []).map((enchant) => [enchant.slot, enchant]));
+  const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
+  const currentScore = calculateBufferScore(baseline);
+  const bySlotTier = new Map();
+  (rows || []).forEach((row) => {
+    if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
+    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade'].includes(row.sourceType)) return;
+    if (row.sourceType === 'avatar' && row.kind !== 'brilliantEmblem') return;
+    row = row.sourceType === 'upgrade'
+      ? {
+        ...row,
+        effects: {
+          allStat: Number(row.effects?.allStat || 0),
+        },
+      }
+      : row;
+    if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
+    const current = row.sourceType === 'upgrade'
+      ? {}
+      : row.sourceType === 'creature'
+        ? currentCreature || {}
+        : row.sourceType === 'creatureArtifact'
+          ? currentArtifactBySlot.get(row.slotColor) || {}
+          : row.sourceType === 'title'
+            ? currentTitle || {}
+            : row.sourceType === 'aura'
+              ? currentAura || {}
+              : currentBySlot.get(row.slot) || {};
+    if (
+      row.sourceType !== 'upgrade' &&
+      current?.itemId &&
+      current.itemId === row.itemId &&
+      getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
+    ) return;
+    const statDelta = row.sourceType === 'upgrade'
+      ? Number(row.effects?.allStat || 0)
+      : Number(row.effects?.allStat || 0) - Number(current.effects?.allStat || 0);
+    const bufferStatGain = row.sourceType === 'avatar'
+      ? Number(row.effects?.bufferStat || 0)
+      : 0;
+    const bufferStatScope = row.sourceType === 'avatar' ? row.bufferStatScope || 'common' : '';
+    const avatarStatChanges = row.sourceType !== 'avatar'
+      ? {}
+      : bufferStatScope === 'current'
+        ? { currentStatDelta: bufferStatGain }
+        : bufferStatScope === 'switching'
+          ? { switchingStatDelta: bufferStatGain }
+          : { statDelta: bufferStatGain };
+    const skillDelta = row.sourceType === 'enchant'
+      ? getBufferEnchantSkillDelta(
+        row,
+        current,
+        baseline,
+        BUFFER_SCORE_CONFIG[baseline.bufferKey],
+      )
+      : { primaryLevels: 0, auraLevels: 0 };
+    const candidateScore = calculateBufferScore(baseline, {
+      statDelta,
+      ...avatarStatChanges,
+      ...skillDelta,
+    });
+    const incrementalBuffScore = candidateScore - currentScore;
+    const incrementalBuffPercent = currentScore > 0 ? (candidateScore / currentScore - 1) * 100 : 0;
+    if (incrementalBuffScore <= 0.0001) return;
+    const price = row?.auction?.minUnitPrice;
+    const buffCostPerHundredPoints = Number.isFinite(price) && price > 0
+      ? price * 100 / incrementalBuffScore
+      : 0;
+    const key = row.sourceType === 'upgrade'
+      ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
+      : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${skillDelta.primaryLevels}:${skillDelta.auraLevels}`;
+    const previous = bySlotTier.get(key);
+    if (
+      !previous ||
+      (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
+      (
+        isMaterialAcquisition(row) === isMaterialAcquisition(previous) &&
+        Number(row?.auction?.minUnitPrice || 0) < Number(previous?.auction?.minUnitPrice || 0)
+      )
+    ) {
+      bySlotTier.set(key, {
+        ...row,
+        currentEnchant: current,
+        metricType: 'buffer',
+        currentBufferScore: currentScore,
+        candidateBufferScore: candidateScore,
+        incrementalBuffScore,
+        incrementalBuffPercent,
+        buffCostPerHundredPoints,
+        bufferSkillDelta: skillDelta,
+        incrementalDamagePercent: incrementalBuffPercent,
+      });
+    }
+  });
+  const bestUpgradeBySlot = new Map();
+  const nonUpgradeRows = [];
+  [...bySlotTier.values()].forEach((row) => {
+    if (row.sourceType !== 'upgrade') {
+      nonUpgradeRows.push(row);
+      return;
+    }
+    const previous = bestUpgradeBySlot.get(row.slot);
+    if (!previous || row.buffCostPerHundredPoints < previous.buffCostPerHundredPoints) {
+      bestUpgradeBySlot.set(row.slot, row);
+    }
+  });
+  return [...nonUpgradeRows, ...bestUpgradeBySlot.values()].sort((a, b) => {
+    const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
+    if (materialDiff) return materialDiff;
+    if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) return compareMaterialEnchantOrder(a, b);
+    return a.buffCostPerHundredPoints - b.buffCostPerHundredPoints;
+  });
 }
 
 function getCreatureRows(groups) {
@@ -603,9 +826,7 @@ function getCreatureArtifactRows(groups) {
 }
 
 function getTitleRows(groups, currentTitle) {
-  const currentLevelTag = Number(currentTitle?.levelTag || 0);
   return (groups || []).flatMap((group) => (group.candidates || [])
-    .filter((candidate) => !currentLevelTag || !candidate.levelTag || Number(candidate.levelTag) === currentLevelTag)
     .map((candidate) => ({
       sourceType: 'title',
       slot: '칭호',
@@ -672,6 +893,7 @@ function getAvatarRows(currentAvatar) {
     needCount: candidate.needCount || 0,
     unitPrice: candidate.unitPrice,
     targetSkill: candidate.targetSkill || '',
+    bufferStatScope: candidate.bufferStatScope || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
 }
@@ -914,9 +1136,18 @@ function getReinforcementRowForNextLevel(equipment, targetLevel, upgradeDb, rein
   return reinforcementRows.find((row) => Number(row.level) === targetLevel) || null;
 }
 
-function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, baseline) {
+function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, baseline, isBuffer = false) {
   const amplificationRows = upgradeDb.amplification?.normalAmplification || [];
   const currentEffects = getCumulativeUpgradeEffects(equipment.slot, currentLevel, 'reinforcement', upgradeDb);
+  if (isBuffer) {
+    return amplificationRows
+      .slice()
+      .sort((a, b) => Number(a.level) - Number(b.level))
+      .find((row) => {
+        const conversionEffects = getCumulativeUpgradeEffects(equipment.slot, Number(row.level), 'amplification', upgradeDb);
+        return Number(conversionEffects.allStat || 0) > Number(currentEffects.allStat || 0);
+      }) || null;
+  }
   const currentMultiplier = estimateDamageMultiplier(currentEffects, baseline);
   return amplificationRows
     .slice()
@@ -927,7 +1158,7 @@ function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, basel
     }) || null;
 }
 
-function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline = {}) {
+function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline = {}, bufferBaseline = null) {
   upgradeDb = upgradeDb || {};
   const reinforcementRows = upgradeDb.reinforcement?.reinforcement || [];
   const amplificationRows = upgradeDb.amplification?.normalAmplification || [];
@@ -983,7 +1214,7 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
     if (!treatAsAmplified && !isSafeReinforcement) {
       const currentEffects = getCumulativeUpgradeEffects(equipment.slot, currentLevel, 'reinforcement', upgradeDb);
       const conversionRow = currentLevel > 0
-        ? findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, baseline)
+        ? findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, baseline, Boolean(bufferBaseline?.isBuffer))
         : null;
       if (conversionRow) {
         const conversionLevel = Number(conversionRow.level);
@@ -1069,6 +1300,12 @@ function getElementDeltaEffects(targetEffects = {}, currentEffects = {}) {
   return elementDelta ? { elementAll: elementDelta } : {};
 }
 
+function getSkillDamageMultiplier(row = {}) {
+  const explicitMultiplier = Number(row?.skillDamageMultiplier || 0);
+  if (Number.isFinite(explicitMultiplier) && explicitMultiplier > 0) return explicitMultiplier;
+  return 1;
+}
+
 function getReplacementIncrementalDamagePercent(row, current, baseline) {
   const currentEffects = current?.effects || {};
   const targetEffects = row.effects || {};
@@ -1094,8 +1331,8 @@ function getReplacementIncrementalDamagePercent(row, current, baseline) {
   const currentEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + currentStatValue, base.baseStat);
   const targetEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + targetStatValue, base.baseStat);
   const statMultiplier = (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
-  const currentSkillDamageMultiplier = Number(current?.skillDamageMultiplier || 1);
-  const targetSkillDamageMultiplier = Number(row?.skillDamageMultiplier || 1);
+  const currentSkillDamageMultiplier = getSkillDamageMultiplier(current);
+  const targetSkillDamageMultiplier = getSkillDamageMultiplier(row);
   const skillDamageMultiplier = targetSkillDamageMultiplier / currentSkillDamageMultiplier;
   return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier - 1) * 100;
 }
@@ -1268,14 +1505,16 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     const incrementalDamagePercent = estimatedDamagePercent;
     if (incrementalDamagePercent <= 0.0001) return;
 
-    const titleLevelKey = row.sourceType === 'title' && currentTitle?.levelTag ? row.levelTag || 0 : 0;
+    const titleSkillKey = row.sourceType === 'title'
+      ? getSkillDamageMultiplier(row).toFixed(8)
+      : '';
     const auraSkillKey = row.sourceType === 'aura'
       ? `${row.reinforceSkillName || ''}:${Number(row.reinforceSkillLevel || 0)}:${Number(row.skillDamageMultiplier || 1).toFixed(8)}`
       : '';
     const key = row.sourceType === 'creatureArtifact'
       ? `${row.sourceType}:${row.slot}:${row.tier}`
       : ['creature', 'title', 'aura'].includes(row.sourceType)
-      ? `${row.sourceType}:${row.slot}:${row.tier}:${titleLevelKey}:${getEffectSignature(row.effects)}:${auraSkillKey}`
+      ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${auraSkillKey}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
         : row.sourceType === 'upgrade'
@@ -1311,22 +1550,8 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       costPerPointOnePercent: getCostPerPointOnePercent(row),
     }));
   const bestUpgradeBySlot = new Map();
-  let bestTitleRow = null;
   const nonUpgradeRows = [];
   representativeRows.forEach((row) => {
-    if (row.sourceType === 'title') {
-      if (
-        !bestTitleRow
-        || row.costPerPointOnePercent < bestTitleRow.costPerPointOnePercent
-        || (
-          Math.abs(row.costPerPointOnePercent - bestTitleRow.costPerPointOnePercent) <= 0.0001
-          && row.incrementalDamagePercent > bestTitleRow.incrementalDamagePercent
-        )
-      ) {
-        bestTitleRow = row;
-      }
-      return;
-    }
     if (row.sourceType !== 'upgrade') {
       nonUpgradeRows.push(row);
       return;
@@ -1336,7 +1561,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       bestUpgradeBySlot.set(row.slot, row);
     }
   });
-  return [...nonUpgradeRows, ...(bestTitleRow ? [bestTitleRow] : []), ...bestUpgradeBySlot.values()]
+  return [...nonUpgradeRows, ...bestUpgradeBySlot.values()]
     .sort((a, b) => {
       const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
       if (priorityDiff) return priorityDiff;
@@ -1367,17 +1592,25 @@ function hasHigherEnchantCandidate(row, recommendationRows) {
 }
 
 function getEfficiencyBand(costPerPointOnePercent) {
-  if (costPerPointOnePercent > 10000000) return 'rainbow';
+  if (Number(costPerPointOnePercent || 0) > DAMAGE_EFFICIENCY_COLOR_STOPS.at(-1).value) return 'rainbow';
   return 'scale';
 }
 
-const EFFICIENCY_COLOR_STOPS = [
+const DAMAGE_EFFICIENCY_COLOR_STOPS = [
   { value: 700000, label: '70만', color: '#22c55e' },
   { value: 1000000, label: '100만', color: '#a3e635' },
   { value: 1500000, label: '150만', color: '#facc15' },
   { value: 2000000, label: '200만', color: '#f97316' },
   { value: 5000000, label: '500만', color: '#ef4444' },
   { value: 10000000, label: '1000만', color: '#991b1b' },
+];
+const BUFFER_EFFICIENCY_COLOR_STOPS = [
+  { value: 1000000, label: '100만', color: '#22c55e' },
+  { value: 2000000, label: '200만', color: '#a3e635' },
+  { value: 4000000, label: '400만', color: '#facc15' },
+  { value: 10000000, label: '1000만', color: '#f97316' },
+  { value: 20000000, label: '2000만', color: '#ef4444' },
+  { value: 33333333, label: '3333만', color: '#991b1b' },
 ];
 
 function parseHexColor(color) {
@@ -1400,25 +1633,61 @@ function mixHexColor(fromColor, toColor, ratio) {
 
 function getEfficiencyColor(costPerPointOnePercent) {
   const cost = Number(costPerPointOnePercent || 0);
-  if (!Number.isFinite(cost) || cost <= EFFICIENCY_COLOR_STOPS[0].value) {
-    return EFFICIENCY_COLOR_STOPS[0].color;
+  if (!Number.isFinite(cost) || cost <= DAMAGE_EFFICIENCY_COLOR_STOPS[0].value) {
+    return DAMAGE_EFFICIENCY_COLOR_STOPS[0].color;
   }
-  for (let index = 1; index < EFFICIENCY_COLOR_STOPS.length; index += 1) {
-    const previous = EFFICIENCY_COLOR_STOPS[index - 1];
-    const current = EFFICIENCY_COLOR_STOPS[index];
+  for (let index = 1; index < DAMAGE_EFFICIENCY_COLOR_STOPS.length; index += 1) {
+    const previous = DAMAGE_EFFICIENCY_COLOR_STOPS[index - 1];
+    const current = DAMAGE_EFFICIENCY_COLOR_STOPS[index];
     if (cost <= current.value) {
       return mixHexColor(previous.color, current.color, (cost - previous.value) / (current.value - previous.value));
     }
   }
-  return EFFICIENCY_COLOR_STOPS[EFFICIENCY_COLOR_STOPS.length - 1].color;
+  return DAMAGE_EFFICIENCY_COLOR_STOPS.at(-1).color;
 }
 
 function getArrowBackground(fromCost, toCost) {
-  if (Number(fromCost || 0) > 10000000 || Number(toCost || 0) > 10000000) {
+  if (
+    Number(fromCost || 0) > DAMAGE_EFFICIENCY_COLOR_STOPS.at(-1).value ||
+    Number(toCost || 0) > DAMAGE_EFFICIENCY_COLOR_STOPS.at(-1).value
+  ) {
     return 'linear-gradient(90deg, #ef4444, #f97316, #facc15, #22c55e, #38bdf8, #a855f7, #ef4444)';
   }
   const fromColor = getEfficiencyColor(fromCost);
   const toColor = getEfficiencyColor(toCost);
+  if (fromColor === toColor) return fromColor;
+  return `linear-gradient(90deg, ${fromColor} 0 50%, ${toColor} 50% 100%)`;
+}
+
+function getBufferEfficiencyBand(costPerHundredPoints) {
+  if (Number(costPerHundredPoints || 0) > BUFFER_EFFICIENCY_COLOR_STOPS.at(-1).value) return 'rainbow';
+  return 'scale';
+}
+
+function getBufferEfficiencyColor(costPerHundredPoints) {
+  const cost = Number(costPerHundredPoints || 0);
+  if (!Number.isFinite(cost) || cost <= BUFFER_EFFICIENCY_COLOR_STOPS[0].value) {
+    return BUFFER_EFFICIENCY_COLOR_STOPS[0].color;
+  }
+  for (let index = 1; index < BUFFER_EFFICIENCY_COLOR_STOPS.length; index += 1) {
+    const previous = BUFFER_EFFICIENCY_COLOR_STOPS[index - 1];
+    const current = BUFFER_EFFICIENCY_COLOR_STOPS[index];
+    if (cost <= current.value) {
+      return mixHexColor(previous.color, current.color, (cost - previous.value) / (current.value - previous.value));
+    }
+  }
+  return BUFFER_EFFICIENCY_COLOR_STOPS.at(-1).color;
+}
+
+function getBufferArrowBackground(fromCost, toCost) {
+  if (
+    Number(fromCost || 0) > BUFFER_EFFICIENCY_COLOR_STOPS.at(-1).value ||
+    Number(toCost || 0) > BUFFER_EFFICIENCY_COLOR_STOPS.at(-1).value
+  ) {
+    return 'linear-gradient(90deg, #ef4444, #f97316, #facc15, #22c55e, #38bdf8, #a855f7, #ef4444)';
+  }
+  const fromColor = getBufferEfficiencyColor(fromCost);
+  const toColor = getBufferEfficiencyColor(toCost);
   if (fromColor === toColor) return fromColor;
   return `linear-gradient(90deg, ${fromColor} 0 50%, ${toColor} 50% 100%)`;
 }
@@ -1456,6 +1725,7 @@ export function installEnchantView(ctx) {
   state.currentBlackFangRecommendations = [];
   state.upgradeExpectedDb = null;
   state.currentDamageBaseline = null;
+  state.currentBufferBaseline = null;
   state.currentEnchantCharacterKey = '';
   state.currentCreatureCharacterKey = '';
   state.currentTitleCharacterKey = '';
@@ -1686,6 +1956,7 @@ export function installEnchantView(ctx) {
     state.currentBlackFangRecommendations = [];
     state.upgradeExpectedDb = null;
     state.currentDamageBaseline = null;
+    state.currentBufferBaseline = null;
     state.currentCreature = null;
     state.currentTitle = null;
     state.currentAura = null;
@@ -1695,6 +1966,28 @@ export function installEnchantView(ctx) {
     state.currentTitleCharacterKey = '';
     state.currentAuraCharacterKey = '';
     state.currentAvatarCharacterKey = '';
+  }
+
+  function resetEnchantRecommendationFilters() {
+    if (els.enchantSlotFilter) els.enchantSlotFilter.value = 'all';
+    if (els.enchantTierFilter) els.enchantTierFilter.value = 'all';
+    if (els.enchantIncludeControls) {
+      els.enchantIncludeControls
+        .querySelectorAll('input[data-enchant-tier]')
+        .forEach((input) => {
+          input.checked = true;
+        });
+    }
+  }
+
+  function hasEnchantPriceRecommendationData() {
+    return (
+      state.enchantCards.length > 0
+      || state.creatureUpgradeGroups.length > 0
+      || state.creatureArtifactGroups.length > 0
+      || state.titleUpgradeGroups.length > 0
+      || state.auraUpgradeGroups.length > 0
+    );
   }
 
   function getEnchantNowMs() {
@@ -1803,6 +2096,13 @@ export function installEnchantView(ctx) {
     return checked.length ? new Set(checked) : new Set();
   }
 
+  function isTitleRouteAllowed(row) {
+    if (row?.sourceType !== 'title') return true;
+    const beadIncluded = els.enchantTitleBeadOnlyToggle?.checked !== false;
+    if (beadIncluded) return row.purchaseRoute !== 'cleanTitle';
+    return row.purchaseRoute === 'cleanTitle';
+  }
+
   function renderEnchantTable() {
     const renderStartedAt = getEnchantNowMs();
     const allRows = [
@@ -1812,7 +2112,7 @@ export function installEnchantView(ctx) {
       ...getTitleRows(state.titleUpgradeGroups, state.currentTitle),
       ...getAuraRows(state.auraUpgradeGroups),
       ...getAvatarRows(state.currentAvatar),
-      ...getUpgradeRows(state.currentEquipmentUpgrades, state.upgradeExpectedDb, state.currentDamageBaseline),
+      ...getUpgradeRows(state.currentEquipmentUpgrades, state.upgradeExpectedDb, state.currentDamageBaseline, state.currentBufferBaseline),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
     ];
     renderEnchantFilters(allRows);
@@ -1820,10 +2120,20 @@ export function installEnchantView(ctx) {
     const slotFilter = els.enchantSlotFilter?.value || 'all';
     const tierFilter = els.enchantTierFilter?.value || 'all';
     const includeTiers = getSelectedEnchantIncludeTiers();
+    const isBuffer = Boolean(state.currentBufferBaseline?.isBuffer);
     const rows = allRows
+      .filter((row) => (
+        isBuffer
+          ? (
+            (row.sourceType === 'enchant' && row.role === 'buffer') ||
+            ['creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade'].includes(row.sourceType)
+          )
+          : row.sourceType !== 'enchant' || row.role !== 'buffer'
+      ))
       .filter((row) => slotFilter === 'all' || row.slot === slotFilter)
       .filter((row) => tierFilter === 'all' || row.tier === tierFilter)
       .filter((row) => !includeTiers || includeTiers.has(getEnchantIncludeGroup(row)))
+      .filter(isTitleRouteAllowed)
       .sort(sortByPriceAsc);
 
     renderEnchantRecommendations(rows, allRows);
@@ -1835,8 +2145,26 @@ export function installEnchantView(ctx) {
 
   function renderEfficiencyLegend(recommendations) {
     if (!els.enchantEfficiencyLegend) return;
+    if (state.currentBufferBaseline?.isBuffer) {
+      const items = [
+        ...BUFFER_EFFICIENCY_COLOR_STOPS.map((stop) => ({
+          className: 'scale',
+          label: `100점당 ${stop.label}`,
+          color: stop.color,
+        })),
+        { className: 'rainbow', label: '100점당 3333만 초과', color: '' },
+      ];
+      els.enchantEfficiencyLegend.innerHTML = items
+        .map((item) => `
+          <span class="enchant-efficiency-legend-item enchant-efficiency-${item.className}"${item.color ? ` style="--enchant-band: ${escapeHtml(item.color)}"` : ''}>
+            <span class="enchant-efficiency-dot"></span>
+            ${escapeHtml(item.label)}
+          </span>
+        `).join('');
+      return;
+    }
     const items = [
-      ...EFFICIENCY_COLOR_STOPS.map((stop) => ({
+      ...DAMAGE_EFFICIENCY_COLOR_STOPS.map((stop) => ({
         className: 'scale',
         label: `0.1%당 ${stop.label}`,
         color: stop.color,
@@ -1854,7 +2182,16 @@ export function installEnchantView(ctx) {
 
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows) {
     if (!els.enchantRecommendList) return;
-    const recommendations = getRepresentativeRecommendationRows(rows, state.currentEnchants, state.currentCreature, state.currentTitle, state.currentAura, state.currentDamageBaseline);
+    const recommendations = state.currentBufferBaseline?.isBuffer
+      ? getBufferRecommendationRows(
+        rows,
+        state.currentEnchants,
+        state.currentCreature,
+        state.currentTitle,
+        state.currentAura,
+        state.currentBufferBaseline,
+      )
+      : getRepresentativeRecommendationRows(rows, state.currentEnchants, state.currentCreature, state.currentTitle, state.currentAura, state.currentDamageBaseline);
     renderEfficiencyLegend(recommendations);
     if (!recommendations.length) {
       els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">현재 세팅보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
@@ -1862,16 +2199,28 @@ export function installEnchantView(ctx) {
     }
 
     els.enchantRecommendList.innerHTML = recommendations.map((row, index) => {
-      const band = getEfficiencyBand(row.costPerPointOnePercent);
-      const bandColor = band === 'rainbow' ? '' : getEfficiencyColor(row.costPerPointOnePercent);
+      const isBufferMetric = row.metricType === 'buffer';
+      const materialAcquisition = isMaterialAcquisition(row);
+      const band = materialAcquisition
+        ? 'scale'
+        : isBufferMetric
+        ? getBufferEfficiencyBand(row.buffCostPerHundredPoints)
+        : getEfficiencyBand(row.costPerPointOnePercent);
+      const bandColor = band === 'rainbow'
+        ? ''
+        : materialAcquisition
+          ? (isBufferMetric ? BUFFER_EFFICIENCY_COLOR_STOPS : DAMAGE_EFFICIENCY_COLOR_STOPS)[0].color
+        : isBufferMetric
+          ? getBufferEfficiencyColor(row.buffCostPerHundredPoints)
+          : getEfficiencyColor(row.costPerPointOnePercent);
       const bandStyle = bandColor ? ` style="--enchant-band: ${escapeHtml(bandColor)}"` : '';
       const previousRow = recommendations[index - 1] || null;
       const connector = previousRow
-        ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
+        ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(materialAcquisition || isMaterialAcquisition(previousRow) ? (isBufferMetric ? BUFFER_EFFICIENCY_COLOR_STOPS : DAMAGE_EFFICIENCY_COLOR_STOPS)[0].color : isBufferMetric ? getBufferArrowBackground(previousRow.buffCostPerHundredPoints, row.buffCostPerHundredPoints) : getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
       const showOptionText = !['creature', 'title', 'aura', 'creatureArtifact'].includes(row.sourceType);
-      const effectText = row.sourceType === 'upgrade'
+      const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row)
@@ -1880,6 +2229,17 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'creatureArtifact'
           ? formatEnchantTransitionEffect(row)
         : showOptionText ? formatEffects(row.effects) : '';
+      const bufferSkillEffectText = isBufferMetric
+        ? [
+          row.bufferSkillDelta?.primaryLevels
+            ? `패시브 ${row.bufferSkillDelta.primaryLevels > 0 ? '+' : ''}${row.bufferSkillDelta.primaryLevels}Lv`
+            : '',
+          row.bufferSkillDelta?.auraLevels
+            ? `오라 패시브 ${row.bufferSkillDelta.auraLevels > 0 ? '+' : ''}${row.bufferSkillDelta.auraLevels}Lv`
+            : '',
+        ].filter(Boolean).join(' / ')
+        : '';
+      const effectText = [baseEffectText, bufferSkillEffectText].filter(Boolean).join(' / ');
       const titleElementLabel = row.sourceType === 'title' && row.titleEnchantElement
         ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement
         : '';
@@ -1920,8 +2280,9 @@ export function installEnchantView(ctx) {
         { text: acquisitionLabel ? '' : `${['upgrade', 'blackFang'].includes(row.sourceType) ? '예상 골드' : '최저가'} ${formatGold(row?.auction?.minUnitPrice)}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
         { text: !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
-        { text: `교체 상승 ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
-        { text: acquisitionLabel ? '' : `0.1%당 ${formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { text: isBufferMetric ? `교체 시 버프점수 +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `교체 상승 ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
+        { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
+        { text: acquisitionLabel ? '' : isBufferMetric ? `버프점수 100점당 ${formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
       ].filter((item) => item.text || item.html);
       const popover = `
         <span class="enchant-recommend-popover" role="tooltip">
@@ -1939,8 +2300,8 @@ export function installEnchantView(ctx) {
               <span class="enchant-recommend-sub">${escapeHtml(row.sourceType === 'title' && titleElementLabel ? `${row.tier} · ${titleElementLabel}` : row.tier)}</span>
             </span>
             <span class="enchant-recommend-metric">
-              <strong>${acquisitionMarkup || escapeHtml(formatCompactGold(row.costPerPointOnePercent))}</strong>
-              ${acquisitionLabel ? '' : '<span>0.1%당</span>'}
+              <strong>${acquisitionMarkup || escapeHtml(formatCompactGold(isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent))}</strong>
+              ${acquisitionLabel ? '' : `<span>${isBufferMetric ? '100점당' : '0.1%당'}</span>`}
             </span>
             ${popover}
           </button>
@@ -1957,6 +2318,7 @@ export function installEnchantView(ctx) {
       state.currentBlackFangRecommendations = [];
       state.upgradeExpectedDb = null;
       state.currentDamageBaseline = null;
+      state.currentBufferBaseline = null;
       state.currentEnchantCharacterKey = '';
       setEnchantCharacterStatus('캐릭터를 검색해 주세요.');
       return;
@@ -1977,6 +2339,7 @@ export function installEnchantView(ctx) {
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
     state.currentDamageBaseline = payload.damageBaseline || null;
+    state.currentBufferBaseline = payload.bufferBaseline || null;
     state.currentEnchantCharacterKey = characterKey;
     state.enchantTargetCharacter = {
       ...state.enchantTargetCharacter,
@@ -2146,6 +2509,7 @@ export function installEnchantView(ctx) {
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
     state.currentDamageBaseline = payload.damageBaseline || null;
+    state.currentBufferBaseline = payload.bufferBaseline || null;
     state.currentCreature = payload.creature || null;
     state.currentTitle = payload.title || null;
     state.currentAura = payload.aura || null;
@@ -2179,7 +2543,7 @@ export function installEnchantView(ctx) {
   async function loadEnchantRecommendationsAsync(requestId) {
     try {
       const tasks = [loadCurrentCharacterLoadout()];
-      if (!state.enchantPriceLoaded) {
+      if (!state.enchantPriceLoaded || !hasEnchantPriceRecommendationData()) {
         tasks.push(loadEnchantCards(false, { refreshCurrentCharacter: false, skipImmediateRender: true }));
       }
       await Promise.all(tasks);
@@ -2226,6 +2590,7 @@ export function installEnchantView(ctx) {
         jobGrowName: resolved.jobGrowName || '',
       };
       resetCurrentEnchantCharacterState();
+      resetEnchantRecommendationFilters();
       renderEnchantCharacterPortrait();
       renderEnchantRecommendLoading();
       const requestId = state.enchantRequestId + 1;
@@ -2279,7 +2644,7 @@ export function installEnchantView(ctx) {
       state.creatureArtifactGroups = Array.isArray(creaturePayload.artifactGroups) ? creaturePayload.artifactGroups : [];
       state.titleUpgradeGroups = Array.isArray(titlePayload.groups) ? titlePayload.groups : [];
       state.auraUpgradeGroups = Array.isArray(auraPayload.groups) ? auraPayload.groups : [];
-      state.enchantPriceLoaded = true;
+      state.enchantPriceLoaded = hasEnchantPriceRecommendationData();
       state.enchantPricedAt = payload.pricedAt || '';
       state.creaturePricedAt = creaturePayload.pricedAt || '';
       state.titlePricedAt = titlePayload.pricedAt || '';

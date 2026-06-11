@@ -157,6 +157,11 @@ if (els.enchantIncludeControls) {
     }
   });
 }
+if (els.enchantTitleBeadOnlyToggle) {
+  els.enchantTitleBeadOnlyToggle.addEventListener('change', () => {
+    ctx.actions.renderEnchantTable?.();
+  });
+}
 els.percentileRange.addEventListener('input', () => syncPercentile(els.percentileRange));
 els.percentileNumber.addEventListener('input', () => syncPercentile(els.percentileNumber));
 els.selectedCharacter.addEventListener('change', () => {
