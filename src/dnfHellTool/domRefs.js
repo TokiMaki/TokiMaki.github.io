@@ -15,6 +15,8 @@ export function createToolDomRefs() {
       landingSearchStatus: $id('landingSearchStatus'),
       landingRecentSearches: $id('landingRecentSearches'),
       landingRecentSearchList: $id('landingRecentSearchList'),
+      resultRecentSearches: $id('resultRecentSearches'),
+      resultRecentSearchList: $id('resultRecentSearchList'),
       siteLogoHomeButton: $id('siteLogoHomeButton'),
       devModeToggle: $id('devModeToggle'),
       hellTabButton: $id('hellTabButton'),

@@ -245,6 +245,11 @@
       margin-top: 6px;
       text-align: left;
     }
+    .result-recent {
+      margin-top: 12px;
+      padding-top: 11px;
+      border-top: 1px solid var(--line-white-soft);
+    }
     .landing-recent[hidden] {
       display: none;
     }
@@ -259,19 +264,41 @@
       flex-wrap: wrap;
       gap: 7px;
     }
-    .landing-recent-button {
+    .landing-recent-item {
+      display: inline-flex;
+      align-items: center;
+      overflow: hidden;
       border: 1px solid var(--line-white-soft);
       border-radius: 999px;
-      padding: 7px 11px;
       background: color-mix(in srgb, var(--accent-2) 7%, transparent);
+    }
+    .landing-recent-item:hover {
+      border-color: var(--accent-2);
+      background: color-mix(in srgb, var(--accent-2) 14%, transparent);
+    }
+    .landing-recent-button {
+      border: 0;
+      padding: 7px 6px 7px 11px;
+      background: transparent;
       color: var(--muted);
       font-size: 12px;
       cursor: pointer;
     }
     .landing-recent-button:hover {
-      border-color: var(--accent-2);
       color: var(--text);
-      background: color-mix(in srgb, var(--accent-2) 14%, transparent);
+    }
+    .landing-recent-remove {
+      width: 25px;
+      align-self: stretch;
+      border: 0;
+      padding: 0 7px 1px 3px;
+      background: transparent;
+      color: color-mix(in srgb, var(--muted) 58%, transparent);
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .landing-recent-remove:hover {
+      color: var(--text-bad);
     }
     .landing-notice {
       margin-top: 16px;

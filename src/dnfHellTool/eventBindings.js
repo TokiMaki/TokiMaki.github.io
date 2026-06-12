@@ -127,18 +127,37 @@ export function bindToolEvents(ctx) {
     }
   };
   const renderRecentSearches = () => {
-    if (!els.landingRecentSearches || !els.landingRecentSearchList) return;
     const rows = loadRecentSearches().slice(0, RECENT_SEARCH_LIMIT);
-    els.landingRecentSearches.hidden = rows.length === 0;
-    els.landingRecentSearchList.replaceChildren(...rows.map((row) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'landing-recent-button';
-      button.dataset.serverId = row.serverId;
-      button.dataset.characterName = row.characterName;
-      button.textContent = `${getServerLabel(row.serverId)} / ${row.characterName}`;
-      return button;
-    }));
+    const createRecentSearchItems = () => rows.map((row) => {
+      const item = document.createElement('span');
+      item.className = 'landing-recent-item';
+
+      const searchButton = document.createElement('button');
+      searchButton.type = 'button';
+      searchButton.className = 'landing-recent-button';
+      searchButton.dataset.serverId = row.serverId;
+      searchButton.dataset.characterName = row.characterName;
+      searchButton.textContent = `${getServerLabel(row.serverId)} / ${row.characterName}`;
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'landing-recent-remove';
+      removeButton.dataset.removeServerId = row.serverId;
+      removeButton.dataset.removeCharacterName = row.characterName;
+      removeButton.setAttribute('aria-label', `${row.characterName} 최근 검색 삭제`);
+      removeButton.textContent = '×';
+
+      item.append(searchButton, removeButton);
+      return item;
+    });
+    [
+      [els.landingRecentSearches, els.landingRecentSearchList],
+      [els.resultRecentSearches, els.resultRecentSearchList],
+    ].forEach(([section, list]) => {
+      if (!section || !list) return;
+      section.hidden = rows.length === 0;
+      list.replaceChildren(...createRecentSearchItems());
+    });
   };
   const saveRecentSearch = (serverId, characterName) => {
     const nextRows = [
@@ -149,6 +168,17 @@ export function bindToolEvents(ctx) {
       localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextRows));
     } catch {
       // 최근 검색 저장이 막혀도 캐릭터 조회는 계속한다.
+    }
+    renderRecentSearches();
+  };
+  const removeRecentSearch = (serverId, characterName) => {
+    const nextRows = loadRecentSearches().filter((row) => (
+      row.serverId !== serverId || row.characterName !== characterName
+    ));
+    try {
+      localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextRows));
+    } catch {
+      return;
     }
     renderRecentSearches();
   };
@@ -242,8 +272,14 @@ if (els.landingCharacterNameInput) {
 if (els.siteLogoHomeButton) {
   els.siteLogoHomeButton.addEventListener('click', () => showLanding(true));
 }
-if (els.landingRecentSearchList) {
-  els.landingRecentSearchList.addEventListener('click', (event) => {
+const bindRecentSearchList = (list) => {
+  if (!list) return;
+  list.addEventListener('click', (event) => {
+    const removeButton = event.target.closest('button[data-remove-server-id][data-remove-character-name]');
+    if (removeButton) {
+      removeRecentSearch(removeButton.dataset.removeServerId, removeButton.dataset.removeCharacterName);
+      return;
+    }
     const button = event.target.closest('button[data-server-id][data-character-name]');
     if (!button) return;
     runEnchantSearch({
@@ -251,7 +287,9 @@ if (els.landingRecentSearchList) {
       characterName: button.dataset.characterName,
     });
   });
-}
+};
+bindRecentSearchList(els.landingRecentSearchList);
+bindRecentSearchList(els.resultRecentSearchList);
 window.addEventListener('popstate', applyLocation);
 renderRecentSearches();
 window.setTimeout(applyLocation, 0);
