@@ -213,6 +213,21 @@
       width: fit-content;
       background: color-mix(in srgb, var(--accent-2) 14%, var(--bg-deep));
     }
+    .enchant-amplification-mode {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .enchant-amplification-mode select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: var(--surface-field);
+      color: var(--text);
+      font-size: 12px;
+    }
     .enchant-search-button {
       min-width: 64px;
       height: 40px;

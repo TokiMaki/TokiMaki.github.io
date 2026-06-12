@@ -1220,14 +1220,17 @@ function getUpgradeStepCost(row, equipment, currentLevel, isAmplified) {
   return row.stepExpected?.[costKey] || null;
 }
 
-function getSafeAmplificationTargetCost(row, equipment, currentLevel, upgradeDb) {
+function getSafeAmplificationExpectedFromZero(level, costKey, safeAmplificationRows = []) {
+  const targetLevel = Number(level || 0);
+  if (targetLevel <= 0) return {};
+  return safeAmplificationRows
+    .find((row) => Number(row.level) === targetLevel)?.expectedFromZero?.[costKey] || {};
+}
+
+function getSafeAmplificationTargetCost(row, equipment, currentLevel, safeAmplificationRows) {
   const costKey = getAmplificationCostKey(equipment.slot);
-  const targetCost = row?.expectedFromZero?.[costKey];
-  if (!targetCost) return null;
-  const currentCost = currentLevel > 0
-    ? (upgradeDb.amplification?.safeAmplification || [])
-      .find((safeRow) => Number(safeRow.level) === currentLevel)?.expectedFromZero?.[costKey] || {}
-    : {};
+  const targetCost = getSafeAmplificationExpectedFromZero(Number(row?.level || 0), costKey, safeAmplificationRows);
+  const currentCost = getSafeAmplificationExpectedFromZero(currentLevel, costKey, safeAmplificationRows);
   return subtractCost(targetCost, currentCost);
 }
 
@@ -1276,31 +1279,30 @@ function getAmplificationAttemptCost(row, costKey, upgradeDb) {
   };
 }
 
-function getHybridAmplificationExpectedFromZero(level, costKey, upgradeDb) {
+function getHybridAmplificationExpectedFromZero(level, costKey, upgradeDb, safeAmplificationRows) {
   const targetLevel = Number(level || 0);
   if (targetLevel <= 0) return {};
   if (targetLevel <= 10) {
-    return (upgradeDb.amplification?.safeAmplification || [])
-      .find((row) => Number(row.level) === targetLevel)?.expectedFromZero?.[costKey] || {};
+    return getSafeAmplificationExpectedFromZero(targetLevel, costKey, safeAmplificationRows);
   }
 
   const normalRows = upgradeDb.amplification?.normalAmplification || [];
-  let total = getHybridAmplificationExpectedFromZero(10, costKey, upgradeDb);
+  let total = getHybridAmplificationExpectedFromZero(10, costKey, upgradeDb, safeAmplificationRows);
   for (let nextLevel = 11; nextLevel <= targetLevel; nextLevel += 1) {
     const row = normalRows.find((normalRow) => Number(normalRow.level) === nextLevel);
-    const stepCost = getHybridAmplificationStepCost(row, nextLevel - 1, costKey, upgradeDb);
+    const stepCost = getHybridAmplificationStepCost(row, nextLevel - 1, costKey, upgradeDb, safeAmplificationRows);
     total = addCosts(total, stepCost);
   }
   return total;
 }
 
-function getHybridAmplificationStepCost(row, currentLevel, costKey, upgradeDb) {
+function getHybridAmplificationStepCost(row, currentLevel, costKey, upgradeDb, safeAmplificationRows) {
   const successRate = Number(row?.successRatePercent || 0) / 100;
   if (!row || !Number.isFinite(successRate) || successRate <= 0) return row?.stepExpected?.[costKey] || null;
   const failureRate = Math.max(0, 1 - successRate);
   const directExpected = multiplyCost(getAmplificationAttemptCost(row, costKey, upgradeDb), 1 / successRate);
   const rebuildExpected = multiplyCost(
-    getHybridAmplificationExpectedFromZero(currentLevel, costKey, upgradeDb),
+    getHybridAmplificationExpectedFromZero(currentLevel, costKey, upgradeDb, safeAmplificationRows),
     failureRate / successRate,
   );
   return addCosts(directExpected, rebuildExpected, { protectionTicket: failureRate / successRate });
@@ -1346,11 +1348,13 @@ function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, basel
     }) || null;
 }
 
-function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline = {}, bufferBaseline = null) {
+function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline = {}, bufferBaseline = null, safeAmplificationEventEnabled = false) {
   upgradeDb = upgradeDb || {};
   const reinforcementRows = upgradeDb.reinforcement?.reinforcement || [];
   const amplificationRows = upgradeDb.amplification?.normalAmplification || [];
-  const safeAmplificationRows = upgradeDb.amplification?.safeAmplification || [];
+  const safeAmplificationRows = safeAmplificationEventEnabled
+    ? upgradeDb.amplification?.safeAmplificationEvent || upgradeDb.amplification?.safeAmplification || []
+    : upgradeDb.amplification?.safeAmplification || [];
   return (currentEquipmentUpgrades || []).flatMap((equipment) => {
     const slotKey = UPGRADE_SLOT_LABELS[equipment.slot];
     if (!slotKey) return [];
@@ -1373,9 +1377,9 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
       const stepCost = isSafeReinforcement
         ? getSafeWeaponTargetCost(dbRow, currentLevel, upgradeDb)
         : isSafeAmplification
-          ? getSafeAmplificationTargetCost(dbRow, equipment, currentLevel, upgradeDb)
+          ? getSafeAmplificationTargetCost(dbRow, equipment, currentLevel, safeAmplificationRows)
           : treatAsAmplified
-            ? getHybridAmplificationStepCost(dbRow, currentLevel, getAmplificationCostKey(equipment.slot), upgradeDb)
+            ? getHybridAmplificationStepCost(dbRow, currentLevel, getAmplificationCostKey(equipment.slot), upgradeDb, safeAmplificationRows)
         : getUpgradeStepCost(dbRow, equipment, currentLevel, treatAsAmplified);
       nextUpgradeRow = buildUpgradeRow({
         equipment,
@@ -1411,8 +1415,8 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
           ? safeAmplificationRows.find((row) => Number(row.level) === conversionLevel)
           : null;
         const expectedFromZero = safeConversionRow
-          ? safeConversionRow.expectedFromZero?.[costKey]
-          : getHybridAmplificationExpectedFromZero(conversionLevel, costKey, upgradeDb);
+          ? getSafeAmplificationExpectedFromZero(conversionLevel, costKey, safeAmplificationRows)
+          : getHybridAmplificationExpectedFromZero(conversionLevel, costKey, upgradeDb, safeAmplificationRows);
         if (expectedFromZero) {
           const conversionEffects = getCumulativeUpgradeEffects(equipment.slot, conversionLevel, 'amplification', upgradeDb);
           const incrementalEffects = subtractEffects(conversionEffects, currentEffects);
@@ -2360,7 +2364,13 @@ export function installEnchantView(ctx) {
       ...getTitleRows(state.titleUpgradeGroups, state.currentTitle),
       ...getAuraRows(state.auraUpgradeGroups),
       ...getAvatarRows(state.currentAvatar),
-      ...getUpgradeRows(state.currentEquipmentUpgrades, state.upgradeExpectedDb, state.currentDamageBaseline, state.currentBufferBaseline),
+      ...getUpgradeRows(
+        state.currentEquipmentUpgrades,
+        state.upgradeExpectedDb,
+        state.currentDamageBaseline,
+        state.currentBufferBaseline,
+        els.safeAmplificationModeSelect?.value === 'event',
+      ),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
     ];
     renderEnchantFilters(allRows);

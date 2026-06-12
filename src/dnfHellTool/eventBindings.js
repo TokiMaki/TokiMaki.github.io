@@ -102,6 +102,7 @@ export function bindToolEvents(ctx) {
   const recalcCharacterOnly = (...args) => ctx.actions.recalcCharacterOnly(...args);
   const RECENT_SEARCHES_STORAGE_KEY = 'dnf-pilot-recent-searches';
   const RECENT_SEARCH_LIMIT = 5;
+  const SAFE_AMPLIFICATION_MODE_STORAGE_KEY = 'dnf-pilot-safe-amplification-mode';
 
   const setScreen = (screen) => {
     const isLanding = screen === 'landing';
@@ -312,6 +313,23 @@ if (els.enchantIncludeControls) {
 }
 if (els.enchantTitleBeadOnlyToggle) {
   els.enchantTitleBeadOnlyToggle.addEventListener('change', () => {
+    ctx.actions.renderEnchantTable?.();
+  });
+}
+if (els.safeAmplificationModeSelect) {
+  try {
+    els.safeAmplificationModeSelect.value = localStorage.getItem(SAFE_AMPLIFICATION_MODE_STORAGE_KEY) === 'event'
+      ? 'event'
+      : 'normal';
+  } catch {
+    els.safeAmplificationModeSelect.value = 'normal';
+  }
+  els.safeAmplificationModeSelect.addEventListener('change', () => {
+    try {
+      localStorage.setItem(SAFE_AMPLIFICATION_MODE_STORAGE_KEY, els.safeAmplificationModeSelect.value);
+    } catch {
+      // 설정 저장이 막혀도 현재 선택값으로 계산한다.
+    }
     ctx.actions.renderEnchantTable?.();
   });
 }

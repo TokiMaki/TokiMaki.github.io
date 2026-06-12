@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "sources": {
     "statIncrease": "Docs/증폭별증가량.json",
     "safeAmplification": "Docs/안전증폭.json",
+    "safeAmplificationEvent": "Docs/안전증폭지원이벤트.json",
     "normalAmplification": "Docs/일반증폭.json"
   },
   "rules": {
@@ -344,6 +345,7 @@
     {
       "level": 1,
       "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
       "bonusPercent": 0,
       "expectedAttempts": 1.0,
       "gain": {
@@ -376,6 +378,7 @@
     {
       "level": 2,
       "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
       "bonusPercent": 0,
       "expectedAttempts": 1.0,
       "gain": {
@@ -408,6 +411,7 @@
     {
       "level": 3,
       "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
       "bonusPercent": 0,
       "expectedAttempts": 1.0,
       "gain": {
@@ -440,6 +444,7 @@
     {
       "level": 4,
       "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
       "bonusPercent": 0,
       "expectedAttempts": 1.0,
       "gain": {
@@ -472,6 +477,7 @@
     {
       "level": 5,
       "successRatePercent": 70,
+      "baseSuccessRatePercent": 70,
       "bonusPercent": 10,
       "expectedAttempts": 1.366,
       "gain": {
@@ -504,6 +510,7 @@
     {
       "level": 6,
       "successRatePercent": 60,
+      "baseSuccessRatePercent": 60,
       "bonusPercent": 10,
       "expectedAttempts": 1.5464,
       "gain": {
@@ -536,6 +543,7 @@
     {
       "level": 7,
       "successRatePercent": 50,
+      "baseSuccessRatePercent": 50,
       "bonusPercent": 10,
       "expectedAttempts": 1.7732,
       "gain": {
@@ -568,6 +576,7 @@
     {
       "level": 8,
       "successRatePercent": 50,
+      "baseSuccessRatePercent": 50,
       "bonusPercent": 5,
       "expectedAttempts": 1.858863,
       "gain": {
@@ -600,6 +609,7 @@
     {
       "level": 9,
       "successRatePercent": 40,
+      "baseSuccessRatePercent": 40,
       "bonusPercent": 5,
       "expectedAttempts": 2.213425,
       "gain": {
@@ -632,6 +642,7 @@
     {
       "level": 10,
       "successRatePercent": 30,
+      "baseSuccessRatePercent": 30,
       "bonusPercent": 5,
       "expectedAttempts": 2.707108,
       "gain": {
@@ -658,6 +669,338 @@
         "nonWeapon": {
           "harmonyCrystal": 1842.031883,
           "gold": 19669211.150149
+        }
+      }
+    }
+  ],
+  "safeAmplificationEvent": [
+    {
+      "level": 1,
+      "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": null,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 36.0,
+          "gold": 430100.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 16.0,
+          "gold": 189860.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 36.0,
+          "gold": 430100.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 16.0,
+          "gold": 189860.0
+        }
+      }
+    },
+    {
+      "level": 2,
+      "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": null,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 41.0,
+          "gold": 490600.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 21.0,
+          "gold": 250360.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 77.0,
+          "gold": 920700.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 37.0,
+          "gold": 440220.0
+        }
+      }
+    },
+    {
+      "level": 3,
+      "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 3,
+        "specialEquipmentStat": null,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 46.0,
+          "gold": 551100.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 26.0,
+          "gold": 310860.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 123.0,
+          "gold": 1471800.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 63.0,
+          "gold": 751080.0
+        }
+      }
+    },
+    {
+      "level": 4,
+      "successRatePercent": 100,
+      "baseSuccessRatePercent": 100,
+      "bonusPercent": 0,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 2,
+        "specialEquipmentStat": null,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 51.0,
+          "gold": 611600.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 31.0,
+          "gold": 371360.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 174.0,
+          "gold": 2083400.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 94.0,
+          "gold": 1122440.0
+        }
+      }
+    },
+    {
+      "level": 5,
+      "successRatePercent": 100,
+      "baseSuccessRatePercent": 70,
+      "bonusPercent": 10,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": null,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 55.0,
+          "gold": 876652.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 46.0,
+          "gold": 490750.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 229.0,
+          "gold": 2960052.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 140.0,
+          "gold": 1613190.0
+        }
+      }
+    },
+    {
+      "level": 6,
+      "successRatePercent": 100,
+      "baseSuccessRatePercent": 60,
+      "bonusPercent": 10,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 3,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 67.0,
+          "gold": 1072098.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 58.0,
+          "gold": 615450.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 296.0,
+          "gold": 4032150.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 198.0,
+          "gold": 2228640.0
+        }
+      }
+    },
+    {
+      "level": 7,
+      "successRatePercent": 100,
+      "baseSuccessRatePercent": 50,
+      "bonusPercent": 10,
+      "expectedAttempts": 1.0,
+      "gain": {
+        "generalStat": 5,
+        "specialEquipmentStat": 3,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 109.0,
+          "gold": 1730400.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 98.0,
+          "gold": 1043132.0
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 405.0,
+          "gold": 5762550.0
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 296.0,
+          "gold": 3271772.0
+        }
+      }
+    },
+    {
+      "level": 8,
+      "successRatePercent": 60,
+      "baseSuccessRatePercent": 50,
+      "bonusPercent": 5,
+      "expectedAttempts": 1.594948,
+      "gain": {
+        "generalStat": 29,
+        "specialEquipmentStat": 3,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 194.583656,
+          "gold": 3082522.505692
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 173.849332,
+          "gold": 1845806.206284
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 599.583656,
+          "gold": 8845072.505692
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 469.849332,
+          "gold": 5117578.206284
+        }
+      }
+    },
+    {
+      "level": 9,
+      "successRatePercent": 50,
+      "baseSuccessRatePercent": 40,
+      "bonusPercent": 5,
+      "expectedAttempts": 1.858863,
+      "gain": {
+        "generalStat": 14,
+        "specialEquipmentStat": 4,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 427.53849,
+          "gold": 6796746.6732
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 394.078956,
+          "gold": 4175378.0706
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 1027.122146,
+          "gold": 15641819.178892
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 863.928288,
+          "gold": 9292956.276884
+        }
+      }
+    },
+    {
+      "level": 10,
+      "successRatePercent": 40,
+      "baseSuccessRatePercent": 30,
+      "bonusPercent": 5,
+      "expectedAttempts": 2.213425,
+      "gain": {
+        "generalStat": 17,
+        "specialEquipmentStat": 3,
+        "earringAttack": null
+      },
+      "finalDamagePercent": 0.2,
+      "stepExpected": {
+        "weapon": {
+          "harmonyCrystal": 708.296,
+          "gold": 11077904.37975
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 613.118725,
+          "gold": 6501803.132
+        }
+      },
+      "expectedFromZero": {
+        "weapon": {
+          "harmonyCrystal": 1735.418146,
+          "gold": 26719723.558642
+        },
+        "nonWeapon": {
+          "harmonyCrystal": 1477.047013,
+          "gold": 15794759.408884
         }
       }
     }

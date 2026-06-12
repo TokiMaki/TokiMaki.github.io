@@ -90,6 +90,7 @@ export function createToolDomRefs() {
       enchantTierFilter: $id('enchantTierFilter'),
       enchantIncludeControls: $id('enchantIncludeControls'),
       enchantTitleBeadOnlyToggle: $id('enchantTitleBeadOnlyToggle'),
+      safeAmplificationModeSelect: $id('safeAmplificationModeSelect'),
       refreshEnchantCardsButton: $id('refreshEnchantCardsButton'),
       enchantStatus: $id('enchantStatus'),
       enchantEfficiencyLegend: $id('enchantEfficiencyLegend'),

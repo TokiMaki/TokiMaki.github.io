@@ -330,6 +330,13 @@ export default function DnfHellToolMarkup() {
             <input id={'enchantTitleBeadOnlyToggle'} type={'checkbox'} defaultChecked />
             칭호 보주 포함 추천
           </label>
+          <label className={'enchant-amplification-mode'}>
+            <span>안전 증폭</span>
+            <select id={'safeAmplificationModeSelect'} defaultValue={'normal'}>
+              <option value={'normal'}>일반 안전 증폭</option>
+              <option value={'event'}>안전 증폭 지원 이벤트</option>
+            </select>
+          </label>
         </section>
         <main className={'enchant-recommend-layout'}>
           <div className={'card supply-detail-portrait-card enchant-character-portrait-card'} id={'enchantCharacterPortrait'}>

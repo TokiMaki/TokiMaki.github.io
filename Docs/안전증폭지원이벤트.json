@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "safeAmplificationSupportEvent",
+  "rules": {
+    "guaranteedSuccessTransitions": [
+      "4->5",
+      "5->6",
+      "6->7"
+    ],
+    "baseSuccessRateBonusPercentPointTransitions": {
+      "7->8": 10,
+      "8->9": 10,
+      "9->10": 10
+    },
+    "costs": "일반 안전 증폭과 동일",
+    "failureBonusPercent": "일반 안전 증폭과 동일"
+  }
+}
