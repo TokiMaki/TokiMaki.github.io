@@ -50,7 +50,9 @@ RARITY_HINTS = [
     ("희미한", "유니크"),
 ]
 
-API_KEY = os.environ.get("NEOPLE_API_KEY", "1Ayz6a2QI20mISxbzHV2Ak2xLDYIvMgA")
+API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
+if not API_KEY:
+    raise RuntimeError("NEOPLE_API_KEY 환경변수를 설정해 주세요.")
 TIMELINE_CODES = "550,551,552,553,554,555,556,557"
 TIMELINE_START_DATE = "2026-03-26 00:00"
 REQUEST_TIMEOUT = 30

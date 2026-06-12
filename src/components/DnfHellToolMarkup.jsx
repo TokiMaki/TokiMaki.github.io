@@ -5,14 +5,59 @@ const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_M
 export default function DnfHellToolMarkup() {
   return (
     <div className={'wrap'}>
+      <section className={'landing-page'} id={'landingPage'}>
+        <div className={'landing-orbit landing-orbit-one'} aria-hidden={'true'}></div>
+        <div className={'landing-orbit landing-orbit-two'} aria-hidden={'true'}></div>
+        <main className={'landing-card'}>
+          <div className={'landing-kicker'}>DUNGEON &amp; FIGHTER SPEC GUIDE</div>
+          <h1 className={'landing-logo-heading'}>
+            <img className={'landing-logo-image'} src={logoImage} alt={'던파일럿'} />
+          </h1>
+          <p className={'landing-copy'}>현재 장비를 분석해 가장 효율적인 스펙업 순서를 안내합니다.</p>
+          <div className={'landing-search-row'}>
+            <label className={'landing-field'}>
+              <span>서버</span>
+              <select id={'landingServerIdInput'} defaultValue={'cain'}>
+                <option value={'cain'}>카인</option>
+                <option value={'diregie'}>디레지에</option>
+                <option value={'siroco'}>시로코</option>
+                <option value={'prey'}>프레이</option>
+                <option value={'casillas'}>카시야스</option>
+                <option value={'hilder'}>힐더</option>
+                <option value={'anton'}>안톤</option>
+                <option value={'bakal'}>바칼</option>
+              </select>
+            </label>
+            <label className={'landing-field landing-name-field'}>
+              <span>캐릭터명</span>
+              <input id={'landingCharacterNameInput'} type={'text'} placeholder={'캐릭터명을 입력하세요'} autoComplete={'off'} />
+            </label>
+            <button type={'button'} className={'landing-search-button'} id={'landingSearchButton'}>스펙업 분석</button>
+          </div>
+          <div className={'landing-search-status'} id={'landingSearchStatus'}></div>
+          <section className={'landing-recent'} id={'landingRecentSearches'} hidden>
+            <div className={'landing-recent-title'}>최근 검색</div>
+            <div className={'landing-recent-list'} id={'landingRecentSearchList'}></div>
+          </section>
+          <aside className={'landing-notice'}>
+            <span>NOTICE</span>
+            <p>공지사항 영역은 준비 중입니다.</p>
+          </aside>
+        </main>
+      </section>
+      <div className={'tool-shell'} id={'toolShell'} hidden>
       <section className={'hero'}>
         <h1 className={'site-logo-heading'}>
-          <img className={'site-logo-image'} src={logoImage} alt={'던파일럿'} />
+          <button type={'button'} className={'site-logo-home-button'} id={'siteLogoHomeButton'} aria-label={'메인으로'}>
+            <img className={'site-logo-image'} src={logoImage} alt={'던파일럿'} />
+          </button>
         </h1>
-        <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
-          <button type={'button'} className={'tab-button active'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'true'}>스펙업 순서</button>
-          <button type={'button'} className={'tab-button dev-only'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'false'}>헬 계산기</button>
-          <button type={'button'} className={'tab-button dev-only'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
+        <div className={'hero-actions'}>
+          <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
+            <button type={'button'} className={'tab-button active'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'true'}>스펙업 순서</button>
+            <button type={'button'} className={'tab-button dev-only'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'false'}>헬 계산기</button>
+            <button type={'button'} className={'tab-button dev-only'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
+          </div>
         </div>
       </section>
       <section className={'grid tab-panel dev-only'} id={'hellPanel'} hidden>
@@ -516,6 +561,7 @@ export default function DnfHellToolMarkup() {
           <button type={'button'} className={'ghost-button footer-dev-toggle'} id={'devModeToggle'} aria-pressed={'false'}>개발자 모드</button>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

@@ -100,7 +100,95 @@ export function bindToolEvents(ctx) {
   const updateDetailOnly = (...args) => ctx.actions.updateDetailOnly(...args);
   const scheduleRecalc = (...args) => ctx.actions.scheduleRecalc(...args);
   const recalcCharacterOnly = (...args) => ctx.actions.recalcCharacterOnly(...args);
+  const RECENT_SEARCHES_STORAGE_KEY = 'dnf-pilot-recent-searches';
+  const RECENT_SEARCH_LIMIT = 5;
 
+  const setScreen = (screen) => {
+    const isLanding = screen === 'landing';
+    if (els.landingPage) els.landingPage.hidden = !isLanding;
+    if (els.toolShell) els.toolShell.hidden = isLanding;
+  };
+  const updateResultUrl = (serverId, characterName, replace = false) => {
+    const params = new URLSearchParams({ server: serverId, name: characterName });
+    const url = `${window.location.pathname}?${params.toString()}`;
+    window.history[replace ? 'replaceState' : 'pushState']({}, '', url);
+  };
+  const showLanding = (updateHistory = false) => {
+    setScreen('landing');
+    if (updateHistory) window.history.pushState({}, '', window.location.pathname);
+    window.setTimeout(() => els.landingCharacterNameInput?.focus(), 0);
+  };
+  const loadRecentSearches = () => {
+    try {
+      const rows = JSON.parse(localStorage.getItem(RECENT_SEARCHES_STORAGE_KEY) || '[]');
+      return Array.isArray(rows) ? rows.filter((row) => row?.serverId && row?.characterName) : [];
+    } catch {
+      return [];
+    }
+  };
+  const renderRecentSearches = () => {
+    if (!els.landingRecentSearches || !els.landingRecentSearchList) return;
+    const rows = loadRecentSearches().slice(0, RECENT_SEARCH_LIMIT);
+    els.landingRecentSearches.hidden = rows.length === 0;
+    els.landingRecentSearchList.replaceChildren(...rows.map((row) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'landing-recent-button';
+      button.dataset.serverId = row.serverId;
+      button.dataset.characterName = row.characterName;
+      button.textContent = `${getServerLabel(row.serverId)} / ${row.characterName}`;
+      return button;
+    }));
+  };
+  const saveRecentSearch = (serverId, characterName) => {
+    const nextRows = [
+      { serverId, characterName },
+      ...loadRecentSearches().filter((row) => row.serverId !== serverId || row.characterName !== characterName),
+    ].slice(0, RECENT_SEARCH_LIMIT);
+    try {
+      localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(nextRows));
+    } catch {
+      // 최근 검색 저장이 막혀도 캐릭터 조회는 계속한다.
+    }
+    renderRecentSearches();
+  };
+  const runEnchantSearch = ({ serverId, characterName, updateHistory = true, saveRecent = true } = {}) => {
+    const normalizedServerId = String(serverId || els.enchantServerIdInput?.value || 'cain').trim();
+    const normalizedName = String(characterName || els.enchantCharacterNameInput?.value || '').trim();
+    if (!normalizedName) {
+      if (els.landingSearchStatus) els.landingSearchStatus.textContent = '캐릭터명을 입력해 주세요.';
+      els.landingCharacterNameInput?.focus();
+      return;
+    }
+    if (els.enchantServerIdInput) els.enchantServerIdInput.value = normalizedServerId;
+    if (els.enchantCharacterNameInput) els.enchantCharacterNameInput.value = normalizedName;
+    if (els.landingServerIdInput) els.landingServerIdInput.value = normalizedServerId;
+    if (els.landingCharacterNameInput) els.landingCharacterNameInput.value = normalizedName;
+    if (els.landingSearchStatus) els.landingSearchStatus.textContent = '';
+    setScreen('results');
+    setActiveTab('enchantPanel');
+    if (updateHistory) updateResultUrl(normalizedServerId, normalizedName);
+    if (saveRecent) saveRecentSearch(normalizedServerId, normalizedName);
+    ctx.actions.searchEnchantCharacter?.();
+  };
+  const runLandingSearch = () => runEnchantSearch({
+    serverId: els.landingServerIdInput?.value,
+    characterName: els.landingCharacterNameInput?.value,
+  });
+  const applyLocation = () => {
+    const params = new URLSearchParams(window.location.search);
+    const characterName = String(params.get('name') || '').trim();
+    if (!characterName) {
+      showLanding(false);
+      return;
+    }
+    runEnchantSearch({
+      serverId: params.get('server') || 'cain',
+      characterName,
+      updateHistory: false,
+      saveRecent: false,
+    });
+  };
 
 // -------------------------------------------------------------------------
 // Event bindings and bootstrap
@@ -129,17 +217,44 @@ if (els.refreshEnchantCardsButton) {
 }
 if (els.loadEnchantCharacterButton) {
   els.loadEnchantCharacterButton.addEventListener('click', () => {
-    ctx.actions.searchEnchantCharacter?.();
+    runEnchantSearch();
   });
 }
 if (els.enchantCharacterNameInput) {
   els.enchantCharacterNameInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      ctx.actions.searchEnchantCharacter?.();
+      runEnchantSearch();
     }
   });
 }
+if (els.landingSearchButton) {
+  els.landingSearchButton.addEventListener('click', runLandingSearch);
+}
+if (els.landingCharacterNameInput) {
+  els.landingCharacterNameInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      runLandingSearch();
+    }
+  });
+}
+if (els.siteLogoHomeButton) {
+  els.siteLogoHomeButton.addEventListener('click', () => showLanding(true));
+}
+if (els.landingRecentSearchList) {
+  els.landingRecentSearchList.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-server-id][data-character-name]');
+    if (!button) return;
+    runEnchantSearch({
+      serverId: button.dataset.serverId,
+      characterName: button.dataset.characterName,
+    });
+  });
+}
+window.addEventListener('popstate', applyLocation);
+renderRecentSearches();
+window.setTimeout(applyLocation, 0);
 if (els.enchantSlotFilter) {
   els.enchantSlotFilter.addEventListener('change', () => {
     ctx.actions.renderEnchantTable?.();

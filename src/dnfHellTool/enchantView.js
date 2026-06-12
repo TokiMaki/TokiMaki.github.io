@@ -63,8 +63,8 @@ const SLOT_ORDER = [
 const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘', '아바타', '엠블렘'];
 const ENCHANT_INCLUDE_GROUPS = [
   { title: '마법부여', items: ['가성비', '준종결', '종결'] },
-  { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '아티팩트'] },
-  { title: '아바타', items: ['아바타', '엠블렘'] },
+  { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '오라', '칭호', '크리쳐', '아티팩트'], splitAfter: '플래티넘', breakBefore: true },
+  { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'], breakBefore: true },
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '흑아', items: ['흑아'] },
 ];
@@ -609,22 +609,30 @@ function compareMaterialEnchantOrder(a, b) {
   return b.incrementalDamagePercent - a.incrementalDamagePercent;
 }
 
-function getEnchantIncludeGroup(row = {}) {
+function getEnchantIncludeGroups(row = {}) {
   const materialLabel = row?.acquisition?.materialLabel || row?.acquisition?.materialItemName || '';
   if (row.sourceType === 'enchant' && MATERIAL_ENCHANT_MATERIAL_ORDER.some((label) => String(materialLabel).includes(label))) {
-    return '마법부여:가성비';
+    return ['마법부여:가성비'];
   }
-  if (row.sourceType === 'enchant') return `마법부여:${row.tier || '일반'}`;
-  if (row.sourceType === 'creatureArtifact') return '오라/칭호/크리쳐:아티팩트';
-  if (['creature', 'title', 'aura'].includes(row.sourceType)) return `오라/칭호/크리쳐:${row.tier || '일반'}`;
-  if (row.sourceType === 'avatar') return `아바타:${row.tier || '아바타'}`;
-  if (row.sourceType === 'blackFang') return '흑아:흑아';
+  if (row.sourceType === 'enchant') return [`마법부여:${row.tier || '일반'}`];
+  if (row.sourceType === 'creatureArtifact') return ['오라/칭호/크리쳐:아티팩트'];
+  if (['creature', 'title', 'aura'].includes(row.sourceType)) {
+    const typeLabel = { creature: '크리쳐', title: '칭호', aura: '오라' }[row.sourceType];
+    return [
+      `오라/칭호/크리쳐:${typeLabel}`,
+      `오라/칭호/크리쳐:${row.tier === '플래티넘' ? '플래티넘' : '일반'}`,
+    ];
+  }
+  if (row.sourceType === 'avatar') {
+    return [`아바타:${row.kind === 'platinumEmblem' ? '플래티넘 엠블렘' : '엠블렘'}`];
+  }
+  if (row.sourceType === 'blackFang') return ['흑아:흑아'];
   if (row.tier === '안전증폭' || row.tier === '증폭 전환') {
-    return '강화/증폭:증폭';
+    return ['강화/증폭:증폭'];
   }
-  if (row.tier === '증폭') return '강화/증폭:증폭';
-  if (row.tier === '강화') return '강화/증폭:강화';
-  return `기타:${row.tier || '일반'}`;
+  if (row.tier === '증폭') return ['강화/증폭:증폭'];
+  if (row.tier === '강화') return ['강화/증폭:강화'];
+  return [`기타:${row.tier || '일반'}`];
 }
 
 function getAcquisitionLabel(acquisition = {}) {
@@ -2142,6 +2150,17 @@ export function installEnchantView(ctx) {
         </div>
       `);
     }
+    if (state.currentBufferBaseline?.isBuffer) {
+      const meta = els.enchantCharacterPortrait.querySelector('.enchant-character-portrait .supply-detail-portrait-meta');
+      const bufferScore = calculateBufferScore(state.currentBufferBaseline);
+      if (meta && Number.isFinite(bufferScore) && bufferScore > 0) {
+        meta.insertAdjacentHTML('beforeend', `
+          <div class="enchant-portrait-buffer-score">
+            <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다.">버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}</strong>
+          </div>
+        `);
+      }
+    }
     bindCharacterAvatars(els.enchantCharacterPortrait);
     bindEnchantPortraitDetailPanel();
   }
@@ -2275,9 +2294,10 @@ export function installEnchantView(ctx) {
           .filter(({ key }) => includeKeySet.has(key));
         if (!options.length) return '';
         return `
+          ${group.breakBefore ? '<span class="enchant-include-group-break" aria-hidden="true"></span>' : ''}
           <div class="enchant-include-group">
             <div class="enchant-include-group-title">${escapeHtml(group.title)}</div>
-            <div class="enchant-include-group-options">
+            <div class="enchant-include-group-options${group.splitAfter ? ' is-split' : ''}">
               ${options.map(({ item, key }) => {
                 const isChecked = initialRender || !existingKeys.has(key) || checked.has(key);
                 return `
@@ -2285,6 +2305,7 @@ export function installEnchantView(ctx) {
                     <input type="checkbox" data-enchant-tier="${escapeHtml(key)}" value="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} />
                     <span>${escapeHtml(item)}</span>
                   </label>
+                  ${group.splitAfter === item ? '<span class="enchant-include-option-break" aria-hidden="true"></span>' : ''}
                 `;
               }).join('')}
             </div>
@@ -2305,7 +2326,7 @@ export function installEnchantView(ctx) {
       const indexB = TIER_ORDER.includes(b) ? TIER_ORDER.indexOf(b) : TIER_ORDER.length;
       return indexA - indexB;
     });
-    const includeTiers = [...new Set([...ENCHANT_INCLUDE_ORDER, ...rows.map(getEnchantIncludeGroup)])].sort((a, b) => {
+    const includeTiers = [...new Set([...ENCHANT_INCLUDE_ORDER, ...rows.flatMap(getEnchantIncludeGroups)])].sort((a, b) => {
       const indexA = ENCHANT_INCLUDE_ORDER.includes(a) ? ENCHANT_INCLUDE_ORDER.indexOf(a) : ENCHANT_INCLUDE_ORDER.length;
       const indexB = ENCHANT_INCLUDE_ORDER.includes(b) ? ENCHANT_INCLUDE_ORDER.indexOf(b) : ENCHANT_INCLUDE_ORDER.length;
       if (indexA !== indexB) return indexA - indexB;
@@ -2359,7 +2380,7 @@ export function installEnchantView(ctx) {
       ))
       .filter((row) => slotFilter === 'all' || row.slot === slotFilter)
       .filter((row) => tierFilter === 'all' || row.tier === tierFilter)
-      .filter((row) => !includeTiers || includeTiers.has(getEnchantIncludeGroup(row)))
+      .filter((row) => !includeTiers || getEnchantIncludeGroups(row).every((key) => includeTiers.has(key)))
       .filter(isTitleRouteAllowed)
       .sort(sortByPriceAsc);
 

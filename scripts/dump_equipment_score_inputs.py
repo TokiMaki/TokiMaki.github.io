@@ -11,7 +11,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-API_KEY = os.environ.get("NEOPLE_API_KEY", "1Ayz6a2QI20mISxbzHV2Ak2xLDYIvMgA")
+API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
+if not API_KEY:
+    raise RuntimeError("NEOPLE_API_KEY 환경변수를 설정해 주세요.")
 REQUEST_TIMEOUT = 30
 REQUEST_DELAY = 0.08
 OUT_JSON = Path("Docs/equipment_score_api_dump.json")

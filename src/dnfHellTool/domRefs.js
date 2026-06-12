@@ -7,6 +7,15 @@ export function createToolDomRefs() {
   // DOM references are grouped by screen so later UI changes have one lookup point.
   return {
       // Shared controls
+      landingPage: $id('landingPage'),
+      toolShell: $id('toolShell'),
+      landingServerIdInput: $id('landingServerIdInput'),
+      landingCharacterNameInput: $id('landingCharacterNameInput'),
+      landingSearchButton: $id('landingSearchButton'),
+      landingSearchStatus: $id('landingSearchStatus'),
+      landingRecentSearches: $id('landingRecentSearches'),
+      landingRecentSearchList: $id('landingRecentSearchList'),
+      siteLogoHomeButton: $id('siteLogoHomeButton'),
       devModeToggle: $id('devModeToggle'),
       hellTabButton: $id('hellTabButton'),
       supplyTabButton: $id('supplyTabButton'),
