@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STAT_SOURCE = ROOT / "Docs" / "증폭별증가량.json"
 SAFE_SOURCE = ROOT / "Docs" / "안전증폭.json"
+SAFE_EVENT_SOURCE = ROOT / "Docs" / "안전증폭지원이벤트.json"
 NORMAL_SOURCE = ROOT / "Docs" / "일반증폭.json"
 OUTPUT = ROOT / "Docs" / "amplification_expected_db.json"
 
@@ -235,14 +236,10 @@ def build_normal_amplification(normal_payload, stat_by_level):
     return rows
 
 
-def build_db():
-    stat_rows = normalize_stats(load_json(STAT_SOURCE))
-    stat_by_level = {row["level"]: row for row in stat_rows}
-    safe_payload = load_json(SAFE_SOURCE)
-    safe_rows = safe_payload["rows"]
-    normal_payload = load_json(NORMAL_SOURCE)
-    normal_gold_per_attempt = get_normal_gold_per_attempt(normal_payload)
-
+def build_safe_amplification(safe_rows, stat_by_level, event_rules=None):
+    event_rules = event_rules or {}
+    guaranteed = set(event_rules.get("guaranteedSuccessTransitions") or [])
+    rate_bonus = event_rules.get("baseSuccessRateBonusPercentPointTransitions") or {}
     safe_transitions = []
     cumulative_weapon = {"harmonyCrystal": 0, "gold": 0}
     cumulative_non_weapon = {"harmonyCrystal": 0, "gold": 0}
@@ -254,7 +251,11 @@ def build_db():
         if not current_stat or not next_stat:
             raise ValueError(f"missing stat row for {from_level} -> {to_level}")
 
-        success_rate_percent = row["successRatePercent"]
+        transition_key = f"{from_level}->{to_level}"
+        success_rate_percent = 100 if transition_key in guaranteed else min(
+            100,
+            row["successRatePercent"] + rate_bonus.get(transition_key, 0),
+        )
         bonus_percent = row["failureBonusPercent"]
         weapon_cost = row["costs"]["weapon"]
         non_weapon_cost = row["costs"]["nonWeapon"]
@@ -268,6 +269,7 @@ def build_db():
             {
                 "level": to_level,
                 "successRatePercent": success_rate_percent,
+                "baseSuccessRatePercent": row["successRatePercent"],
                 "bonusPercent": bonus_percent,
                 "expectedAttempts": attempts,
                 "gain": {
@@ -286,12 +288,29 @@ def build_db():
                 },
             }
         )
+    return safe_transitions
+
+
+def build_db():
+    stat_rows = normalize_stats(load_json(STAT_SOURCE))
+    stat_by_level = {row["level"]: row for row in stat_rows}
+    safe_payload = load_json(SAFE_SOURCE)
+    safe_event_payload = load_json(SAFE_EVENT_SOURCE)
+    normal_payload = load_json(NORMAL_SOURCE)
+    normal_gold_per_attempt = get_normal_gold_per_attempt(normal_payload)
+    safe_transitions = build_safe_amplification(safe_payload["rows"], stat_by_level)
+    safe_event_transitions = build_safe_amplification(
+        safe_payload["rows"],
+        stat_by_level,
+        safe_event_payload.get("rules"),
+    )
 
     return {
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "sources": {
             "statIncrease": "Docs/증폭별증가량.json",
             "safeAmplification": "Docs/안전증폭.json",
+            "safeAmplificationEvent": "Docs/안전증폭지원이벤트.json",
             "normalAmplification": "Docs/일반증폭.json",
         },
         "rules": {
@@ -312,6 +331,7 @@ def build_db():
         "statByLevel": stat_rows,
         "effectsByLevel": effect_row_by_level(stat_rows),
         "safeAmplification": safe_transitions,
+        "safeAmplificationEvent": safe_event_transitions,
         "normalAmplification": build_normal_amplification(normal_payload, stat_by_level),
     }
 

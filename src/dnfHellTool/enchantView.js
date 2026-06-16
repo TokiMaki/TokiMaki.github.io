@@ -118,33 +118,20 @@ const MATERIAL_ENCHANT_SLOT_ORDER = [
 const BUFFER_SCORE_CONFIG = {
   maleCrusader: {
     jobCoefficient: 1.0188, buffMultiplier: 1.12,
-    activeSelfStat: 732,
-    auraStat: 456, auraAttack: 53, auraSkills: ['신념의 오라'],
   },
   femaleCrusader: {
     jobCoefficient: 1.016, buffMultiplier: 1.12,
-    activeSelfStat: 622,
-    auraStat: 622 + 318, auraAttack: 0, auraSkills: ['신실한 열정'],
   },
   enchantress: {
     jobCoefficient: 0.9765, buffMultiplier: 1.155,
-    activeSelfStat: 667,
-    auraStat: 667, auraAttack: 0, auraSkills: ['소악마'],
   },
   muse: {
     jobCoefficient: 1.0177, buffMultiplier: 1.10,
-    activeSelfStat: 683,
-    auraStat: 622, auraAttack: 0, auraSkills: ['유명세'],
   },
   paramedic: {
     jobCoefficient: 1.025, buffMultiplier: 1.12,
-    activeSelfStat: 687,
-    auraStat: 416, auraAttack: 0, auraSkills: ['대응체계'],
   },
 };
-const BUFFER_PRIMARY_STAT_PER_LEVEL = 16;
-const BUFFER_AURA_SELF_STAT_PER_LEVEL = 23;
-const BUFFER_AURA_PARTY_STAT_PER_LEVEL = 23;
 const UPGRADE_MATERIAL_LABELS = {
   harmonyCrystal: '조화의 결정체',
   contradictionCrystal: '모순의 결정체',
@@ -698,19 +685,18 @@ function formatMatchedReinforceSkills(skills = []) {
     .join(' / ');
 }
 
-function getBufferEnchantSkillDelta(row, current, baseline, config) {
+function getBufferEnchantSkillDelta(row, current, baseline) {
   const jobName = baseline?.jobName || '';
   const candidateSkills = row?.reinforceSkill || [];
   const currentSkills = current?.reinforceSkill || [];
-  const auraSkillNames = config?.auraSkills || [];
-  const candidateTotal = getReinforceSkillLevel(candidateSkills, jobName);
-  const currentTotal = getReinforceSkillLevel(currentSkills, jobName);
-  const candidateAura = getReinforceSkillLevel(candidateSkills, jobName, auraSkillNames);
-  const currentAura = getReinforceSkillLevel(currentSkills, jobName, auraSkillNames);
-  return {
-    primaryLevels: (candidateTotal - candidateAura) - (currentTotal - currentAura),
-    auraLevels: candidateAura - currentAura,
-  };
+  return Object.entries(baseline.currentSelfStatSkills || {}).reduce((changes, [skillName, info]) => {
+    const levelDelta = getReinforceSkillLevel(candidateSkills, jobName, [skillName])
+      - getReinforceSkillLevel(currentSkills, jobName, [skillName]);
+    changes.selfStatSkillDelta += getSkillValueDelta(info, 'Stat', levelDelta);
+    changes.auraStatDelta += getSkillValueDelta(info, 'PartyStat', levelDelta);
+    changes.auraAttackDelta += getSkillValueDelta(info, 'PartyAttack', levelDelta);
+    return changes;
+  }, { selfStatSkillDelta: 0, auraStatDelta: 0, auraAttackDelta: 0 });
 }
 
 function getItemSkillLevelBonus(item, baseline, skillName, requiredLevel) {
@@ -733,11 +719,11 @@ function getItemSkillLevelBonus(item, baseline, skillName, requiredLevel) {
   return namedBonus + rangeBonus + explicitBonus;
 }
 
-function getSelfStatSkillDelta(info, levelDelta) {
+function getSkillValueDelta(info, field, levelDelta) {
   if (!levelDelta) return 0;
-  const current = Number(info?.currentStat || 0);
-  if (levelDelta > 0) return (Number(info?.nextStat || current) - current) * levelDelta;
-  return (current - Number(info?.previousStat || current)) * levelDelta;
+  const current = Number(info?.[`current${field}`] || 0);
+  if (levelDelta > 0) return (Number(info?.[`next${field}`] || current) - current) * levelDelta;
+  return (current - Number(info?.[`previous${field}`] || current)) * levelDelta;
 }
 
 function getBufferItemSkillChanges(row, current, baseline) {
@@ -746,22 +732,24 @@ function getBufferItemSkillChanges(row, current, baseline) {
     - getItemSkillLevelBonus(current, baseline, baseline.buffSkillName, 30);
   const awakeningSkillLevelDelta = getItemSkillLevelBonus(row, baseline, baseline.awakeningSkillName, 50)
     - getItemSkillLevelBonus(current, baseline, baseline.awakeningSkillName, 50);
-  const passiveStatDelta = Object.entries(baseline.currentSelfStatSkills || {}).reduce(
-    (total, [skillName, info]) => total + getSelfStatSkillDelta(
-      info,
-      getItemSkillLevelBonus(row, baseline, skillName, Number(info?.requiredLevel || 0))
-        - getItemSkillLevelBonus(current, baseline, skillName, Number(info?.requiredLevel || 0)),
-    ),
-    0,
-  );
+  const skillChanges = Object.entries(baseline.currentSelfStatSkills || {}).reduce((changes, [skillName, info]) => {
+    const levelDelta = getItemSkillLevelBonus(row, baseline, skillName, Number(info?.requiredLevel || 0))
+      - getItemSkillLevelBonus(current, baseline, skillName, Number(info?.requiredLevel || 0));
+    changes.statDelta += getSkillValueDelta(info, 'Stat', levelDelta);
+    changes.auraStatDelta += getSkillValueDelta(info, 'PartyStat', levelDelta);
+    changes.auraAttackDelta += getSkillValueDelta(info, 'PartyAttack', levelDelta);
+    return changes;
+  }, { statDelta: 0, auraStatDelta: 0, auraAttackDelta: 0 });
   if (row.sourceType === 'title') {
     return {
-      currentStatDelta: passiveStatDelta,
+      currentStatDelta: skillChanges.statDelta,
+      auraStatDelta: skillChanges.auraStatDelta,
+      auraAttackDelta: skillChanges.auraAttackDelta,
       awakeningSkillLevelDelta,
     };
   }
   return {
-    statDelta: passiveStatDelta,
+    ...skillChanges,
     buffSkillLevelDelta,
     awakeningSkillLevelDelta,
   };
@@ -773,12 +761,8 @@ function calculateBufferScore(baseline = {}, changes = {}) {
   const commonStatDelta = Number(changes.statDelta || 0);
   const currentStatDelta = Number(changes.currentStatDelta || 0);
   const switchingStatDelta = Number(changes.switchingStatDelta || 0);
-  const primaryLevels = Number(changes.primaryLevels || 0);
-  const auraLevels = Number(changes.auraLevels || 0);
-  const passiveStatDelta =
-    primaryLevels * BUFFER_PRIMARY_STAT_PER_LEVEL +
-    auraLevels * BUFFER_AURA_SELF_STAT_PER_LEVEL;
-  const baseAppliedStat = Number(baseline.stat || 0) + config.activeSelfStat + passiveStatDelta;
+  const passiveStatDelta = Number(changes.selfStatSkillDelta || 0);
+  const baseAppliedStat = Number(baseline.stat || 0) + Number(baseline.activeSelfStat || 0) + passiveStatDelta;
   const appliedStat = baseAppliedStat + commonStatDelta + currentStatDelta;
   const switchingStat = baseAppliedStat
     + Number(baseline.switchingStatDelta || 0)
@@ -788,7 +772,12 @@ function calculateBufferScore(baseline = {}, changes = {}) {
   const currentBuffAmplificationDelta = Number(changes.currentBuffAmplificationDelta || 0);
   const switchingBuffAmplificationDelta = Number(changes.switchingBuffAmplificationDelta || 0);
   const currentAmp = (Number(baseline.buffAmplification || 0) + currentBuffAmplificationDelta) / 100;
-  const switchingAmp = Math.max(0, Number(baseline.buffAmplification || 0) - 2 + switchingBuffAmplificationDelta) / 100;
+  const switchingAmp = Math.max(
+    0,
+    Number(baseline.buffAmplification || 0)
+      + Number(baseline.switchingBuffAmplificationDelta || 0)
+      + switchingBuffAmplificationDelta,
+  ) / 100;
   const buffFactor = (1 + switchingStat / 2993) * (2 + buffPower * (1 + switchingAmp) / 4800);
   const buffSkillLevel = Number(baseline.buffSkillLevel || 0) + Number(changes.buffSkillLevelDelta || 0);
   const awakeningSkillLevel = Number(baseline.awakeningSkillLevel || 0) + Number(changes.awakeningSkillLevelDelta || 0);
@@ -802,9 +791,9 @@ function calculateBufferScore(baseline = {}, changes = {}) {
   const awakeStat = awakeningStatBase
     * (20 * (1 + appliedStat / 15000) * (1 + buffPower * (1 + currentAmp) / 85000) - 1)
     * 1.15;
-  const auraStat = config.auraStat + auraLevels * BUFFER_AURA_PARTY_STAT_PER_LEVEL;
+  const auraStat = Number(baseline.auraStat || 0) + Number(changes.auraStatDelta || 0);
   const totalStat = buffStat + awakeStat + auraStat;
-  const totalAttack = buffAttack + config.auraAttack;
+  const totalAttack = buffAttack + Number(baseline.auraAttack || 0) + Number(changes.auraAttackDelta || 0);
   return (25000 + totalStat) / 25000 * (3300 + totalAttack) / 3300 * 333 * 1.165;
 }
 
@@ -883,9 +872,8 @@ function getBufferRecommendationRows(
         row,
         current,
         baseline,
-        BUFFER_SCORE_CONFIG[baseline.bufferKey],
       )
-      : { primaryLevels: 0, auraLevels: 0 };
+      : { selfStatSkillDelta: 0, auraStatDelta: 0, auraAttackDelta: 0 };
     const avatarSkillLevelChanges = row.sourceType === 'avatar'
       ? {
         buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
@@ -904,6 +892,10 @@ function getBufferRecommendationRows(
       switchingStatDelta: Number(avatarStatChanges.switchingStatDelta || 0)
         + Number(itemSkillChanges.switchingStatDelta || 0),
       ...skillDelta,
+      auraStatDelta: Number(skillDelta.auraStatDelta || 0)
+        + Number(itemSkillChanges.auraStatDelta || 0),
+      auraAttackDelta: Number(skillDelta.auraAttackDelta || 0)
+        + Number(itemSkillChanges.auraAttackDelta || 0),
       buffSkillLevelDelta: Number(avatarSkillLevelChanges.buffSkillLevelDelta || 0)
         + Number(itemSkillChanges.buffSkillLevelDelta || 0),
       awakeningSkillLevelDelta: Number(avatarSkillLevelChanges.awakeningSkillLevelDelta || 0)
@@ -918,7 +910,7 @@ function getBufferRecommendationRows(
       : 0;
     const key = row.sourceType === 'upgrade'
       ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
-      : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${skillDelta.primaryLevels}:${skillDelta.auraLevels}:${JSON.stringify(itemSkillChanges)}`;
+      : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${JSON.stringify(skillDelta)}:${JSON.stringify(itemSkillChanges)}`;
     const previous = bySlotTier.get(key);
     if (
       !previous ||
@@ -979,6 +971,10 @@ function getCreatureRows(groups) {
     auction: candidate.auction || {},
     candidateName: candidate.name,
     groupName: group.groupName,
+    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
+    skillDamagePercent: Number(candidate.skillDamagePercent || 0),
+    reinforceSkillName: candidate.reinforceSkillName || '',
+    reinforceSkillLevel: Number(candidate.reinforceSkillLevel || 0),
   })));
 }
 
@@ -1515,13 +1511,15 @@ function getReplacementIncrementalDamagePercent(row, current, baseline) {
   const targetAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(targetEffects.attackAmplification || 0)) / 100;
   const attackAmplificationMultiplier = targetAttackAmplificationMultiplier / currentAttackAmplificationMultiplier;
   const elementMultiplier = estimateDamageMultiplier(getElementDeltaEffects(targetEffects, currentEffects), baseline);
-  const currentAttack = base.attack + REGION_ATTACK_FLAT + Number(currentEffects.attack || 0);
-  const targetAttack = base.attack + REGION_ATTACK_FLAT + Number(targetEffects.attack || 0);
+  const baseAttack = base.attack - Number(currentEffects.attack || 0);
+  const currentAttack = baseAttack + REGION_ATTACK_FLAT + Number(currentEffects.attack || 0);
+  const targetAttack = baseAttack + REGION_ATTACK_FLAT + Number(targetEffects.attack || 0);
   const attackMultiplier = targetAttack / currentAttack;
   const currentStatValue = getSelectedStatEffect(currentEffects, base);
   const targetStatValue = getSelectedStatEffect(targetEffects, base);
-  const currentEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + currentStatValue, base.baseStat);
-  const targetEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + targetStatValue, base.baseStat);
+  const baseStat = base.stat - currentStatValue;
+  const currentEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + currentStatValue, base.baseStat);
+  const targetEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + targetStatValue, base.baseStat);
   const statMultiplier = (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
   const currentSkillDamageMultiplier = getSkillDamageMultiplier(current);
   const targetSkillDamageMultiplier = getSkillDamageMultiplier(row);
@@ -1700,13 +1698,13 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     const titleSkillKey = row.sourceType === 'title'
       ? getSkillDamageMultiplier(row).toFixed(8)
       : '';
-    const auraSkillKey = row.sourceType === 'aura'
+    const itemSkillKey = ['creature', 'aura'].includes(row.sourceType)
       ? `${row.reinforceSkillName || ''}:${Number(row.reinforceSkillLevel || 0)}:${Number(row.skillDamageMultiplier || 1).toFixed(8)}`
       : '';
     const key = row.sourceType === 'creatureArtifact'
       ? `${row.sourceType}:${row.slot}:${row.tier}`
       : ['creature', 'title', 'aura'].includes(row.sourceType)
-      ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${auraSkillKey}`
+      ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
         : row.sourceType === 'upgrade'
@@ -2798,9 +2796,38 @@ export function installEnchantView(ctx) {
     });
   }
 
+  async function loadCharacterAuraUpgradeGroups() {
+    const character = getSelectedEnchantCharacter();
+    if (!character?.serverId || !character?.characterId) return;
+    const query = new URLSearchParams({
+      serverId: character.serverId,
+      characterId: character.characterId,
+    });
+    const response = await fetch(`${API_BASE}/api/aura-upgrades?${query.toString()}`, { cache: 'no-store' });
+    const payload = await parseApiJsonResponse(response, '오라 후보 조회에 실패했습니다.');
+    state.auraUpgradeGroups = Array.isArray(payload.groups) ? payload.groups : [];
+  }
+
+  async function loadCharacterCreatureUpgradeGroups() {
+    const character = getSelectedEnchantCharacter();
+    if (!character?.serverId || !character?.characterId) return;
+    const query = new URLSearchParams({
+      serverId: character.serverId,
+      characterId: character.characterId,
+    });
+    const response = await fetch(`${API_BASE}/api/creature-upgrades?${query.toString()}`, { cache: 'no-store' });
+    const payload = await parseApiJsonResponse(response, '크리쳐 후보 조회에 실패했습니다.');
+    state.creatureUpgradeGroups = Array.isArray(payload.groups) ? payload.groups : [];
+    state.creatureArtifactGroups = Array.isArray(payload.artifactGroups) ? payload.artifactGroups : [];
+  }
+
   async function loadEnchantRecommendationsAsync(requestId) {
     try {
-      const tasks = [loadCurrentCharacterLoadout()];
+      const tasks = [
+        loadCurrentCharacterLoadout(),
+        loadCharacterAuraUpgradeGroups(),
+        loadCharacterCreatureUpgradeGroups(),
+      ];
       if (!state.enchantPriceLoaded || !hasEnchantPriceRecommendationData()) {
         tasks.push(loadEnchantCards(false, { refreshCurrentCharacter: false, skipImmediateRender: true }));
       }

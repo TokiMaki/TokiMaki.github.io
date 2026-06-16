@@ -43,6 +43,7 @@ from server.price_cache import (
     _ENCHANT_PRICE_CACHE,
     _TITLE_PRICE_CACHE,
     load_price_cache_from_disk,
+    start_periodic_price_refresh,
 )
 
 DEFAULT_HTML = "dnf_hell_vs_craft_percentile_tool_fixed.html"
@@ -262,8 +263,14 @@ class HellApiHandler(SimpleHTTPRequestHandler):
     def handle_creature_upgrades(self, parsed):
         query = parse_qs(parsed.query)
         force_refresh = (query.get("refresh") or [""])[0] == "1"
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
         try:
-            self.send_json(load_creature_upgrades_with_prices(force_refresh=force_refresh))
+            self.send_json(load_creature_upgrades_with_prices(
+                force_refresh=force_refresh,
+                server_id=server_id,
+                character_id=character_id,
+            ))
         except FileNotFoundError:
             self.send_json({"error": "크리쳐 후보 DB를 찾을 수 없습니다."}, status=HTTPStatus.NOT_FOUND)
         except Exception as exc:
@@ -413,6 +420,12 @@ def main():
     load_price_cache_from_disk(_CREATURE_PRICE_CACHE, CREATURE_PRICE_CACHE_PATH)
     load_price_cache_from_disk(_TITLE_PRICE_CACHE, TITLE_PRICE_CACHE_PATH)
     load_price_cache_from_disk(_AURA_PRICE_CACHE, AURA_PRICE_CACHE_PATH)
+    start_periodic_price_refresh([
+        (_ENCHANT_PRICE_CACHE, lambda: load_enchant_cards_with_prices(force_refresh=True, allow_stale=False)),
+        (_CREATURE_PRICE_CACHE, lambda: load_creature_upgrades_with_prices(force_refresh=True, allow_stale=False)),
+        (_TITLE_PRICE_CACHE, lambda: load_title_upgrades_with_prices(force_refresh=True, allow_stale=False)),
+        (_AURA_PRICE_CACHE, lambda: load_aura_upgrades_with_prices(force_refresh=True, allow_stale=False)),
+    ])
     try:
         server.serve_forever()
     except KeyboardInterrupt:

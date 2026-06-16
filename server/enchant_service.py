@@ -239,6 +239,31 @@ def enrich_aura_groups_for_character(groups: list, server_id: str, character_id:
     return enriched_groups
 
 
+def enrich_creature_groups_for_character(groups: list, server_id: str, character_id: str) -> list:
+    skill_context = get_character_skill_context(server_id, character_id)
+    candidate_ids = [
+        clean_text(candidate.get("itemId"))
+        for group in groups or []
+        for candidate in group.get("candidates") or []
+        if clean_text(candidate.get("itemId"))
+    ]
+    detail_map = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(candidate_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    return [{
+        **group,
+        "candidates": [{
+            **candidate,
+            **get_item_reinforce_skill_effect(
+                detail_map.get(clean_text(candidate.get("itemId"))) or {},
+                skill_context,
+            ),
+        } for candidate in group.get("candidates") or []],
+    } for group in groups or []]
+
+
 def load_title_bead_options(get_cached_auction, errors: list) -> list:
     element_keywords = {
         "fire": "화속성",
@@ -426,7 +451,19 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
     return sources or fallback_sources
 
 
-def load_creature_upgrades_with_prices(force_refresh: bool = False, allow_stale: bool = True) -> dict:
+def load_creature_upgrades_with_prices(
+    force_refresh: bool = False,
+    allow_stale: bool = True,
+    server_id: str = "",
+    character_id: str = "",
+) -> dict:
+    if server_id and character_id:
+        payload = load_creature_upgrades_with_prices(force_refresh=force_refresh, allow_stale=allow_stale)
+        return {
+            **payload,
+            "groups": enrich_creature_groups_for_character(payload.get("groups") or [], server_id, character_id),
+        }
+
     now = time.time()
     if allow_stale:
         load_price_cache_from_disk(_CREATURE_PRICE_CACHE, CREATURE_PRICE_CACHE_PATH)

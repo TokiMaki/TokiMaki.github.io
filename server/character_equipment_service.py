@@ -69,6 +69,29 @@ BUFFER_SWITCHING_SELF_STAT_SKILLS = {
     "러블리 템포": {"센세이션", "유명세", "오늘의 주인공", "브랜드 뉴", "에피소드 오브 하모니"},
     "squad::무기강화();": {"apius::전장정보();", "apius::대응체계();", "apius::제한해제();", "apius::하드코딩();", "squad::장갑강화();"},
 }
+BUFFER_SCORE_SKILLS = {
+    "영광의 축복": {
+        "activeSelfStat": {"신념의 오라", "보호의 징표"},
+        "auraStat": {"신념의 오라"},
+        "auraAttack": {"신념의 오라"},
+    },
+    "용맹의 축복": {
+        "activeSelfStat": {"신실한 열정"},
+        "auraStat": {"신실한 열정", "대천사의 축복"},
+    },
+    "금단의 저주": {
+        "activeSelfStat": {"소악마"},
+        "auraStat": {"소악마"},
+    },
+    "러블리 템포": {
+        "activeSelfStat": {"유명세", "오늘의 주인공"},
+        "auraStat": {"유명세"},
+    },
+    "squad::무기강화();": {
+        "activeSelfStat": {"apius::대응체계();", "squad::장갑강화();"},
+        "auraStat": {"apius::대응체계();"},
+    },
+}
 
 
 def combine_effects(*effect_rows: dict) -> dict:
@@ -433,6 +456,11 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
         "get_item_reinforce_skill_matches",
         lambda: get_item_reinforce_skill_matches(detail, get_character_skill_context(server_id, character_id)) if item_id else [],
     )
+    skill_effect = _measure_step(
+        steps,
+        "get_item_reinforce_skill_effect",
+        lambda: get_item_reinforce_skill_effect(detail, get_character_skill_context(server_id, character_id)) if item_id else {},
+    )
     explain = get_item_explain(detail)
     level_tag = parse_title_level_tag(detail.get("itemName"))
     skill_damage_percent = parse_skill_damage_percent(explain)
@@ -474,6 +502,7 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
             "variant": get_level_option_variant(detail.get("itemName")),
             "levelTag": level_tag,
             "skillDamagePercent": skill_damage_percent,
+            **skill_effect,
             "artifacts": artifacts,
         } if item_id else None,
         "debugTimings": {
@@ -693,12 +722,19 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         "load_character_avatar",
         lambda: load_character_avatar(server_id, character_id, enchant_payload.get("bufferBaseline")),
     )
+    damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
+    avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
+    if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
+        damage_baseline["statName"] = avatar_primary_stat_name
+        damage_baseline["baseStat"] = parse_percent_or_number(
+            (load_job_base_stats().get(clean_text(damage_baseline.get("jobGrowName"))) or {}).get(avatar_primary_stat_name)
+        )
     return {
         "serverId": enchant_payload.get("serverId"),
         "characterId": enchant_payload.get("characterId"),
         "characterName": enchant_payload.get("characterName"),
         "fame": enchant_payload.get("fame"),
-        "damageBaseline": enchant_payload.get("damageBaseline"),
+        "damageBaseline": damage_baseline,
         "bufferBaseline": enchant_payload.get("bufferBaseline"),
         "enchants": enchant_payload.get("enchants") or [],
         "equipmentUpgrades": enchant_payload.get("equipmentUpgrades") or [],
@@ -754,6 +790,63 @@ def get_character_primary_stat_name(payload: dict) -> str:
     job_grow_name = clean_text(payload.get("jobGrowName"))
     base_stats = load_job_base_stats().get(job_grow_name) or {}
     return "지능" if parse_percent_or_number(base_stats.get("지능")) > parse_percent_or_number(base_stats.get("힘")) else "힘"
+
+
+def get_avatar_emblem_stat_total(avatar_rows: list, stat_name: str) -> float:
+    total = 0
+    for row in avatar_rows or []:
+        for emblem in row.get("emblems") or []:
+            item_name = clean_text(emblem.get("itemName"))
+            slot_color = clean_text(emblem.get("slotColor"))
+            if "플래티넘" in item_name or "플래티넘" in slot_color:
+                continue
+            kind = (
+                "red" if "붉은빛" in slot_color or "붉은빛" in item_name
+                else "yellow" if "노란빛" in slot_color or "옐로우" in item_name
+                else "green" if "녹색빛" in slot_color or "그린" in item_name
+                else "dual" if "듀얼" in item_name
+                else ""
+            )
+            if kind:
+                total += get_emblem_stat_value(item_name, stat_name, kind)
+    return total
+
+
+def resolve_avatar_primary_stat_name(
+    payload: dict,
+    avatar_rows: list,
+    server_id: str,
+    character_id: str,
+) -> str:
+    status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+    status = status_rows_to_map(status_payload.get("status") or [])
+    strength = float(status.get("힘") or 0)
+    intelligence = float(status.get("지능") or 0)
+    if strength != intelligence:
+        return "힘" if strength > intelligence else "지능"
+
+    strength_emblems = get_avatar_emblem_stat_total(avatar_rows, "힘")
+    intelligence_emblems = get_avatar_emblem_stat_total(avatar_rows, "지능")
+    if strength_emblems != intelligence_emblems:
+        return "힘" if strength_emblems > intelligence_emblems else "지능"
+
+    shoes_option = clean_text(get_avatar_slot(avatar_rows, "SHOES").get("optionAbility"))
+    head_options = " ".join([
+        clean_text(get_avatar_slot(avatar_rows, "HEADGEAR").get("optionAbility")),
+        clean_text(get_avatar_slot(avatar_rows, "HAIR").get("optionAbility")),
+    ])
+    has_strength_option = "힘" in shoes_option
+    has_intelligence_option = "지능" in head_options
+    if has_strength_option != has_intelligence_option:
+        return "힘" if has_strength_option else "지능"
+
+    strength_item = find_lowest_exact_item_by_name(get_avatar_emblem_item_name("힘", "red"))
+    intelligence_item = find_lowest_exact_item_by_name(get_avatar_emblem_item_name("지능", "red"))
+    strength_price = (strength_item.get("auction") or {}).get("minUnitPrice")
+    intelligence_price = (intelligence_item.get("auction") or {}).get("minUnitPrice")
+    if isinstance(strength_price, (int, float)) and isinstance(intelligence_price, (int, float)):
+        return "힘" if strength_price <= intelligence_price else "지능"
+    return get_character_primary_stat_name(payload)
 
 
 def get_character_buffer_stat_name(payload: dict, server_id: str, character_id: str) -> str:
@@ -882,6 +975,12 @@ def get_row_direct_stat(row: dict, detail: dict, stat_name: str) -> float:
     return total
 
 
+def get_row_buff_amplification(row: dict, detail: dict) -> float:
+    item_effects = normalize_enchant_status(detail.get("itemStatus") or [])
+    enchant_effects = normalize_enchant_status((row.get("enchant") or {}).get("status") or [])
+    return float(item_effects.get("buffAmplification") or 0) + float(enchant_effects.get("buffAmplification") or 0)
+
+
 def add_named_skill_bonuses(result: dict, reinforce_skill: list, job_name: str) -> None:
     for job in reinforce_skill or []:
         if clean_text(job.get("jobName")) not in {"", "공통", job_name}:
@@ -933,6 +1032,25 @@ def get_skill_level_stat_value(skill_detail: dict, level: int, stat_name: str) -
         key
         for line in option_desc.splitlines()
         if stat_name in line
+        for key in re.findall(r"\{(value\d+)\}", line)
+    }
+    if not value_keys:
+        return 0
+    row = next((
+        row for row in level_info.get("rows") or []
+        if int(row.get("level") or 0) == int(level)
+    ), {})
+    option_value = row.get("optionValue") or {}
+    return sum(parse_percent_or_number(option_value.get(key)) for key in value_keys)
+
+
+def get_skill_level_labeled_value(skill_detail: dict, level: int, predicate) -> float:
+    level_info = skill_detail.get("levelInfo") or {}
+    option_desc = str(level_info.get("optionDesc") or "")
+    value_keys = {
+        key
+        for line in option_desc.splitlines()
+        if predicate(clean_text(line))
         for key in re.findall(r"\{(value\d+)\}", line)
     }
     if not value_keys:
@@ -1044,13 +1162,19 @@ def get_buffer_switching_stat_delta(
         sum(get_row_direct_stat(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}, stat_name) for row in switching_rows)
         - sum(get_row_direct_stat(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}, stat_name) for row in current_rows)
     )
+    switching_buff_amplification_delta = (
+        sum(get_row_buff_amplification(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}) for row in switching_rows)
+        - sum(get_row_buff_amplification(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}) for row in current_rows)
+    )
 
     style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     style_rows = flatten_skill_rows(style_payload)
     style_by_name = {clean_text(row.get("name")): row for row in style_rows if clean_text(row.get("name"))}
     current_bonuses = get_setup_skill_bonuses(current_rows, detail_by_id, style_rows, job_name)
     switching_bonuses = get_setup_skill_bonuses(switching_rows, detail_by_id, style_rows, job_name)
+    score_skills = BUFFER_SCORE_SKILLS.get(clean_text(buff_skill_name), {})
     relevant_skills = BUFFER_SWITCHING_SELF_STAT_SKILLS.get(clean_text(buff_skill_name), set())
+    score_skill_names = set().union(*(score_skills.values() or [set()]))
     skill_delta = 0
     skill_deltas = {}
     skill_detail_by_name = {}
@@ -1071,7 +1195,7 @@ def get_buffer_switching_stat_delta(
             skill_delta += delta
             skill_deltas[name] = delta
     current_self_stat_skills = {}
-    for name in relevant_skills:
+    for name in relevant_skills | score_skill_names:
         style_row = style_by_name.get(name) or {}
         skill_id = clean_text(style_row.get("skillId"))
         base_level = int(style_row.get("level") or 0)
@@ -1089,13 +1213,73 @@ def get_buffer_switching_stat_delta(
             "previousStat": get_skill_level_stat_value(skill_detail, current_level - 1, stat_name),
             "currentStat": get_skill_level_stat_value(skill_detail, current_level, stat_name),
             "nextStat": get_skill_level_stat_value(skill_detail, current_level + 1, stat_name),
+            "previousPartyStat": get_skill_level_labeled_value(
+                skill_detail,
+                current_level - 1,
+                lambda line: "힘" in line and "지능" in line and "증가" in line,
+            ) if name in score_skills.get("auraStat", set()) else 0,
+            "currentPartyStat": get_skill_level_labeled_value(
+                skill_detail,
+                current_level,
+                lambda line: "힘" in line and "지능" in line and "증가" in line,
+            ) if name in score_skills.get("auraStat", set()) else 0,
+            "nextPartyStat": get_skill_level_labeled_value(
+                skill_detail,
+                current_level + 1,
+                lambda line: "힘" in line and "지능" in line and "증가" in line,
+            ) if name in score_skills.get("auraStat", set()) else 0,
+            "previousPartyAttack": get_skill_level_labeled_value(
+                skill_detail,
+                current_level - 1,
+                lambda line: "파티원" in line and "공격력 증가" in line,
+            ) if name in score_skills.get("auraAttack", set()) else 0,
+            "currentPartyAttack": get_skill_level_labeled_value(
+                skill_detail,
+                current_level,
+                lambda line: "파티원" in line and "공격력 증가" in line,
+            ) if name in score_skills.get("auraAttack", set()) else 0,
+            "nextPartyAttack": get_skill_level_labeled_value(
+                skill_detail,
+                current_level + 1,
+                lambda line: "파티원" in line and "공격력 증가" in line,
+            ) if name in score_skills.get("auraAttack", set()) else 0,
         }
+        skill_detail_by_name[name] = skill_detail
+
+    active_self_stat = sum(
+        get_skill_level_stat_value(
+            skill_detail_by_name.get(name) or {},
+            int((style_by_name.get(name) or {}).get("level") or 0) + current_bonuses.get(name, 0),
+            stat_name,
+        )
+        for name in score_skills.get("activeSelfStat", set())
+    )
+    aura_stat = sum(
+        get_skill_level_labeled_value(
+            skill_detail_by_name.get(name) or {},
+            int((style_by_name.get(name) or {}).get("level") or 0) + current_bonuses.get(name, 0),
+            lambda line: "힘" in line and "지능" in line and "증가" in line,
+        )
+        for name in score_skills.get("auraStat", set())
+    )
+    aura_attack = sum(
+        get_skill_level_labeled_value(
+            skill_detail_by_name.get(name) or {},
+            int((style_by_name.get(name) or {}).get("level") or 0) + current_bonuses.get(name, 0),
+            lambda line: "파티원" in line and "공격력 증가" in line,
+        )
+        for name in score_skills.get("auraAttack", set())
+    )
     return {
         "switchingStatDelta": direct_delta + skill_delta,
         "switchingDirectStatDelta": direct_delta,
         "switchingSkillStatDelta": skill_delta,
         "switchingSkillStatDeltas": skill_deltas,
+        "switchingBuffAmplificationDelta": switching_buff_amplification_delta,
         "currentSelfStatSkills": current_self_stat_skills,
+        "activeSelfStat": active_self_stat,
+        "auraStat": aura_stat,
+        "auraAttack": aura_attack,
     }
 
 
@@ -1601,7 +1785,12 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
     entry = _measure_step(steps, "find_avatar_option_entry", lambda: find_avatar_option_entry(payload))
     option_db = entry.get("avatar") or {}
     buffer_stat_name = get_character_buffer_stat_name(payload, server_id, character_id)
-    primary_stat_name = buffer_stat_name or get_character_primary_stat_name(payload)
+    primary_stat_name = buffer_stat_name or resolve_avatar_primary_stat_name(
+        payload,
+        avatar_rows,
+        server_id,
+        character_id,
+    )
     top_option = clean_text((option_db.get("topOptions") or [""])[0])
     platinum_skill = clean_text((option_db.get("platinumEmblems") or [""])[0])
     top_option_matched = skill_name_matches(jacket.get("optionAbility"), top_option)

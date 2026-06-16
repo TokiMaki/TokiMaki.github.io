@@ -8,10 +8,12 @@ from .neople_client import API_KEY, clean_text, request_json, search_character
 SKILL_ATTACK_PATTERNS = [
     re.compile(r"스킬\s*공격력[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"스킬\s*데미지[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
+    re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
 ]
 SKILL_ATTACK_OPTION_VALUE_PATTERNS = [
     re.compile(r"스킬\s*공격력[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"스킬\s*데미지[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
+    re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
 ]
 
 
