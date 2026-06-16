@@ -2823,15 +2823,16 @@ export function installEnchantView(ctx) {
 
   async function loadEnchantRecommendationsAsync(requestId) {
     try {
-      const tasks = [
-        loadCurrentCharacterLoadout(),
-        loadCharacterAuraUpgradeGroups(),
-        loadCharacterCreatureUpgradeGroups(),
-      ];
+      await loadCurrentCharacterLoadout();
+      if (requestId !== state.enchantRequestId) return;
       if (!state.enchantPriceLoaded || !hasEnchantPriceRecommendationData()) {
-        tasks.push(loadEnchantCards(false, { refreshCurrentCharacter: false, skipImmediateRender: true }));
+        await loadEnchantCards(false, { refreshCurrentCharacter: false, skipImmediateRender: true });
+      } else {
+        await Promise.all([
+          loadCharacterAuraUpgradeGroups(),
+          loadCharacterCreatureUpgradeGroups(),
+        ]);
       }
-      await Promise.all(tasks);
       if (requestId !== state.enchantRequestId) return;
       renderEnchantTable();
       flushEnchantTiming('complete');
@@ -2880,10 +2881,6 @@ export function installEnchantView(ctx) {
       renderEnchantRecommendLoading();
       const requestId = state.enchantRequestId + 1;
       state.enchantRequestId = requestId;
-      void loadCurrentCharacterPreview(requestId).catch((error) => {
-        if (requestId !== state.enchantRequestId) return;
-        setEnchantCharacterStatus(error.message);
-      });
       void loadEnchantRecommendationsAsync(requestId);
     } catch (error) {
       setEnchantCharacterStatus(error.message);
