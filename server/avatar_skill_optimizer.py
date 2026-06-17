@@ -2,17 +2,21 @@ import re
 from urllib.parse import quote
 
 from .data_store import load_avatar_option_db
-from .neople_client import API_KEY, clean_text, request_json, search_character
+from .neople_client import API_KEY, clean_text, fetch_item_details, request_json, search_character
 
 
 SKILL_ATTACK_PATTERNS = [
     re.compile(r"스킬\s*공격력[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"스킬\s*데미지[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
+    re.compile(r"피해\s*증폭률[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
+    re.compile(r"속성\s*공격력\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
 ]
 SKILL_ATTACK_OPTION_VALUE_PATTERNS = [
     re.compile(r"스킬\s*공격력[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"스킬\s*데미지[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
+    re.compile(r"피해\s*증폭률[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
+    re.compile(r"속성\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
 ]
 
@@ -56,6 +60,87 @@ def flatten_skill_rows(payload: dict) -> list[dict]:
                 if isinstance(row, dict):
                     rows.append(row)
     return rows
+
+
+def add_current_setup_skill_bonuses(result: dict, reinforce_skill: list, job_name: str, style_rows: list[dict]) -> None:
+    for job in reinforce_skill or []:
+        if clean_text(job.get("jobName")) not in {"", "공통", job_name}:
+            continue
+        for skill in job.get("skills") or []:
+            name = clean_text(skill.get("name"))
+            if name:
+                result[name] = result.get(name, 0) + int(skill.get("value") or 0)
+        for level_range in job.get("levelRange") or []:
+            minimum = int(level_range.get("minLevel") or 0)
+            maximum = int(level_range.get("maxLevel") or 0)
+            value = int(level_range.get("value") or 0)
+            if not minimum or not maximum or not value:
+                continue
+            for skill in style_rows:
+                required_level = int(skill.get("requiredLevel") or 0)
+                if minimum <= required_level <= maximum:
+                    name = clean_text(skill.get("name"))
+                    if name:
+                        result[name] = result.get(name, 0) + value
+
+
+def add_current_setup_explain_skill_bonuses(result: dict, explain: str, style_rows: list[dict]) -> None:
+    text = clean_text(explain)
+    for match in re.finditer(r"(\d+)\s*~\s*(\d+)\s*(?:레벨|Lv)[^+\d]*스킬\s*Lv\s*\+\s*(\d+)", text, re.IGNORECASE):
+        minimum = int(match.group(1))
+        maximum = int(match.group(2))
+        value = int(match.group(3))
+        for skill in style_rows:
+            required_level = int(skill.get("requiredLevel") or 0)
+            if minimum <= required_level <= maximum:
+                name = clean_text(skill.get("name"))
+                if name:
+                    result[name] = result.get(name, 0) + value
+    for match in re.finditer(r"(\d+)\s*(?:레벨|Lv)[^+\d]*스킬\s*Lv\s*\+\s*(\d+)", text, re.IGNORECASE):
+        required = int(match.group(1))
+        value = int(match.group(2))
+        for skill in style_rows:
+            if int(skill.get("requiredLevel") or 0) == required:
+                name = clean_text(skill.get("name"))
+                if name:
+                    result[name] = result.get(name, 0) + value
+
+
+def get_current_non_avatar_skill_bonuses(server_id: str, character_id: str, style_rows: list[dict], job_name: str) -> dict:
+    equipment_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/equipment?apikey={API_KEY}"
+    avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
+    creature_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/creature?apikey={API_KEY}"
+    equipment_rows = request_json(equipment_url).get("equipment") or []
+    avatar_rows = request_json(avatar_url).get("avatar") or []
+    creature = request_json(creature_url).get("creature") or {}
+    aura = next((
+        row for row in avatar_rows
+        if "오라" in clean_text(row.get("slotName"))
+        or "오라" in clean_text(row.get("itemTypeDetail"))
+        or "오라" in clean_text(row.get("itemName"))
+    ), {})
+    artifact_rows = creature.get("artifact") or []
+    setup_rows = [
+        *equipment_rows,
+        creature,
+        aura,
+        *artifact_rows,
+    ]
+    detail_by_id = {
+        detail.get("itemId"): detail
+        for detail in fetch_item_details([clean_text(row.get("itemId")) for row in setup_rows])
+    }
+    result = {}
+    for row in setup_rows:
+        detail = detail_by_id.get(clean_text(row.get("itemId"))) or {}
+        add_current_setup_skill_bonuses(result, detail.get("itemReinforceSkill") or [], job_name, style_rows)
+        add_current_setup_skill_bonuses(result, (row.get("enchant") or {}).get("reinforceSkill") or [], job_name, style_rows)
+        item_buff = detail.get("itemBuff") or {}
+        item_buff_reinforce_skill = item_buff.get("reinforceSkill") or []
+        add_current_setup_skill_bonuses(result, item_buff_reinforce_skill, job_name, style_rows)
+        if not item_buff_reinforce_skill:
+            add_current_setup_explain_skill_bonuses(result, item_buff.get("explain") or "", style_rows)
+    return result
 
 
 def find_avatar_option_entry(payload: dict) -> dict:
@@ -493,6 +578,16 @@ def get_character_avatar_skill_infos(
         for row in skill_rows
         if clean_text(row.get("name"))
     }
+    current_setup_bonuses = get_current_non_avatar_skill_bonuses(
+        server_id,
+        character_id,
+        style_rows,
+        clean_text(detail.get("jobName")),
+    )
+    current_setup_bonuses_by_key = {
+        normalize_skill_key(name): value
+        for name, value in current_setup_bonuses.items()
+    }
 
     analyzed = []
     skill_infos = {}
@@ -502,11 +597,13 @@ def get_character_avatar_skill_infos(
         style_row = style_by_name.get(key) or {}
         skill_id = clean_text(skill_row.get("skillId") or style_row.get("skillId"))
         api_current_level = int(style_row.get("level") or style_row.get("skillLevel") or 0)
-        current_level = normalized_level_overrides.get(key) or api_current_level
+        setup_bonus_level = int(current_setup_bonuses_by_key.get(key) or 0)
+        current_level = normalized_level_overrides.get(key) or api_current_level + setup_bonus_level
         result = {
             "skillName": skill_name,
             "skillId": skill_id,
             "apiBaseLevel": api_current_level,
+            "currentSetupBonusLevel": setup_bonus_level,
             "currentBaseLevel": current_level,
             "levelOverridden": current_level != api_current_level,
             "note": "skill/style은 아이템 및 장비 스킬 강화 제외 기준입니다.",
@@ -586,6 +683,7 @@ def select_best_avatar_combo_for_character(
     return {
         "currentAvatarSkills": current_avatar,
         "selectionScope": selection_scope,
+        "skillInfos": skill_infos,
         "candidates": analyzed,
         "comboCandidates": combo_candidates,
         "comboResults": combo_results[:20],

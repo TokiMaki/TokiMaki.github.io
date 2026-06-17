@@ -5,6 +5,7 @@ import time
 from .data_store import load_avatar_option_db, load_job_base_stats, load_upgrade_expected_db
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
 from .avatar_skill_optimizer import (
+    evaluate_avatar_combo,
     flatten_skill_rows,
     get_avatar_candidate_combos,
     select_best_avatar_combo_for_character,
@@ -1843,6 +1844,44 @@ def get_recommended_platinum_skill_by_slot(option_db: dict, default_skill: str, 
     }
 
 
+def get_avatar_platinum_skill_damage_multiplier(
+    avatar_combo_analysis: dict,
+    slot_label: str,
+    target_platinum_skill: str,
+) -> float:
+    current_avatar = avatar_combo_analysis.get("currentAvatarSkills") or {}
+    recommended_combo = avatar_combo_analysis.get("recommendedCombo") or {}
+    skill_infos = avatar_combo_analysis.get("skillInfos") or {}
+    if not current_avatar or not recommended_combo or not skill_infos:
+        return 0
+
+    current_combo = {
+        "topSkill": current_avatar.get("topSkill") or recommended_combo.get("topSkill"),
+        "platinumSkills": [
+            *(current_avatar.get("platinumSlotSkills") or current_avatar.get("platinumSkills") or []),
+        ][:2],
+    }
+    while len(current_combo["platinumSkills"]) < 2:
+        current_combo["platinumSkills"].append("")
+
+    target_combo = {
+        "topSkill": current_combo.get("topSkill"),
+        "platinumSkills": [*current_combo.get("platinumSkills")],
+    }
+    target_index = 0 if slot_label == "상의 아바타" else 1
+    target_combo["platinumSkills"][target_index] = clean_text(target_platinum_skill)
+
+    current_result = evaluate_avatar_combo(current_combo, current_avatar, skill_infos, include_price=False)
+    target_result = evaluate_avatar_combo(target_combo, current_avatar, skill_infos, include_price=False)
+    if not current_result.get("calculable") or not target_result.get("calculable"):
+        return 0
+    current_multiplier = float(current_result.get("multiplier") or 0)
+    target_multiplier = float(target_result.get("multiplier") or 0)
+    if current_multiplier <= 0 or target_multiplier <= 0:
+        return 0
+    return target_multiplier / current_multiplier
+
+
 def load_character_avatar(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> dict:
     steps = []
     payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
@@ -1990,6 +2029,20 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             current_platinum_skill = clean_text(platinum_delta.get("currentSkill"))
             buff_skill_name = clean_text(buffer_skill_levels.get("buffSkillName"))
             awakening_skill_name = clean_text(buffer_skill_levels.get("awakeningSkillName"))
+            skill_damage_multiplier = (
+                0
+                if buffer_stat_name
+                else get_avatar_platinum_skill_damage_multiplier(
+                    avatar_combo_analysis,
+                    slot_label,
+                    target_platinum_skill,
+                )
+            )
+            dealer_effects = (
+                {"skillDamageMultiplier": skill_damage_multiplier}
+                if skill_damage_multiplier > 0
+                else {"finalDamage": get_avatar_platinum_damage_percent(slot_label)}
+            )
             recommendations.append({
                 "kind": "platinumEmblem",
                 "slot": slot_label,
@@ -2002,8 +2055,9 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 "effects": (
                     {"bufferStat": platinum_delta.get("statDelta", 0)}
                     if buffer_stat_name
-                    else {"finalDamage": get_avatar_platinum_damage_percent(slot_label)}
+                    else dealer_effects
                 ),
+                "skillDamageMultiplier": skill_damage_multiplier or None,
                 "auction": item.get("auction") or {},
                 "needCount": 1,
                 "targetSkill": target_platinum_skill,

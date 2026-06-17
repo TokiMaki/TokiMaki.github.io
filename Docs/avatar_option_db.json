@@ -100,6 +100,10 @@
         "platinumEmblems": [
           "달의 커튼"
         ],
+        "platinumCandidates": [
+          "달의 커튼",
+          "몽롱한 눈의 브레멘"
+        ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
         "candidateCombos": [

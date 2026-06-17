@@ -1,5 +1,6 @@
 const EFFECT_LABELS = {
   finalDamage: '최종뎀',
+  skillDamageMultiplier: '스킬 공격력',
   attack: '공격력',
   attackIncrease: '공격력 증가',
   attackAmplification: '공증',
@@ -70,8 +71,8 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
-const BUFFER_IRRELEVANT_EFFECT_KEYS = new Set(['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'critical']);
+const EFFECT_ORDER = ['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
+const BUFFER_IRRELEVANT_EFFECT_KEYS = new Set(['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'critical']);
 const DAMAGE_IRRELEVANT_EFFECT_KEYS = new Set(['buffPower', 'buffAmplification', 'bufferStat']);
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '머리어깨', key: 'shoulder', side: 'left' },
@@ -248,6 +249,11 @@ function formatEffectNumber(value) {
 }
 
 function formatEffectValue(key, value) {
+  if (key === 'skillDamageMultiplier') {
+    const percent = (Number(value || 1) - 1) * 100;
+    const sign = percent < 0 ? '' : '+';
+    return `${EFFECT_LABELS[key]} ${sign}${formatEffectNumber(percent)}%`;
+  }
   const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffAmplification', 'critical'].includes(key) ? '%' : '';
   const sign = Number(value) < 0 ? '' : '+';
   return `${EFFECT_LABELS[key] || key} ${sign}${formatEffectNumber(value)}${suffix}`;
@@ -566,7 +572,11 @@ function estimateDamageMultiplier(effects = {}, baseline = {}) {
   const currentEffectiveStat = getEquipmentScoreEffectiveStat(base.stat, base.baseStat);
   const candidateEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + statValue, base.baseStat);
   const statMultiplier = (1 + candidateEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
-  return finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier;
+  const explicitSkillDamageMultiplier = Number(effects.skillDamageMultiplier || 0);
+  const skillDamageMultiplier = Number.isFinite(explicitSkillDamageMultiplier) && explicitSkillDamageMultiplier > 0
+    ? explicitSkillDamageMultiplier
+    : 1;
+  return finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier;
 }
 
 function getCostPerPointOnePercent(row) {
