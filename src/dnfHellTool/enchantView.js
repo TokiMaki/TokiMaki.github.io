@@ -1658,6 +1658,38 @@ function isPreferredTitleEnchantElement(row, baseline, preferredElement = '') {
   return row.titleEnchantElement === element;
 }
 
+function getTitleBaseEffectSignature(title) {
+  return getEffectSignature(subtractEffects(title?.effects || {}, title?.enchantEffects || {}));
+}
+
+function isSameTitleBase(row, currentTitle) {
+  if (row?.sourceType !== 'title' || !currentTitle) return false;
+  if ((row.tier || '일반') !== (currentTitle.variant || currentTitle.tier || '일반')) return false;
+  if (Number(row.levelTag || 0) !== Number(currentTitle.levelTag || 0)) return false;
+  if (Number(row.skillDamagePercent || 0) !== Number(currentTitle.skillDamagePercent || 0)) return false;
+  return getTitleBaseEffectSignature(row) === getTitleBaseEffectSignature(currentTitle);
+}
+
+function getTitleBeadOnlyRow(row, currentTitle) {
+  if (
+    !isSameTitleBase(row, currentTitle) ||
+    !row.titleBead?.auction
+  ) {
+    return row;
+  }
+  return {
+    ...row,
+    auction: row.titleBead.auction,
+    priceItem: {
+      itemId: row.titleBead.itemId,
+      itemName: row.titleBead.itemName,
+      iconUrl: row.titleBead.iconUrl,
+    },
+    purchaseRoute: 'titleBeadOnly',
+    purchaseRouteLabel: '칭호 보주 교체',
+  };
+}
+
 function getCreatureArtifactEffectiveEffects(row, baseline, preferredElement = '') {
   const effects = { ...(row?.effects || {}) };
   if (row?.sourceType !== 'creatureArtifact') return effects;
@@ -1703,7 +1735,6 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         displayEffects: getCreatureArtifactDisplayEffects(row, baseline, preferredArtifactElement),
       }
       : row;
-    if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     const current = row.sourceType === 'upgrade'
       ? { effects: {} }
       : row.sourceType === 'blackFang'
@@ -1737,6 +1768,8 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
             estimatedDamagePercent: estimateDamagePercent(currentAura?.effects || {}, baseline),
           }
         : currentBySlot.get(row.slot);
+    row = getTitleBeadOnlyRow(row, current);
+    if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     if (row.sourceType === 'creature' && current?.itemId && current.itemId === row.itemId) return;
     if (row.sourceType === 'creatureArtifact' && current?.itemId && current.itemId === row.itemId) return;
     if (
@@ -1962,6 +1995,9 @@ function formatTitlePurchaseRouteLabel(row) {
     : '';
   if (row?.purchaseRoute === 'cleanTitlePlusBead') {
     return elementLabel ? `무보주 칭호 + ${elementLabel} 칭호 보주` : '무보주 칭호 + 칭호 보주';
+  }
+  if (row?.purchaseRoute === 'titleBeadOnly') {
+    return elementLabel ? `${elementLabel} 칭호 보주 교체` : '칭호 보주 교체';
   }
   if (row?.purchaseRoute === 'attachedBead') {
     return elementLabel ? `보주 발린 칭호 · ${elementLabel}` : '보주 발린 칭호';

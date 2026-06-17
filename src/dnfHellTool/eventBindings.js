@@ -103,7 +103,7 @@ export function bindToolEvents(ctx) {
   const recalcCharacterOnly = (...args) => ctx.actions.recalcCharacterOnly(...args);
   const RECENT_SEARCHES_STORAGE_KEY = 'dnf-pilot-recent-searches';
   const RECENT_SEARCH_LIMIT = 5;
-  const NOTICE_LIMIT = 3;
+  const NOTICE_LIMIT = 5;
   const SAFE_AMPLIFICATION_MODE_STORAGE_KEY = 'dnf-pilot-safe-amplification-mode';
 
   const setScreen = (screen) => {
