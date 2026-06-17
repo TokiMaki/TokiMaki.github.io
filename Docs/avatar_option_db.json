@@ -1184,6 +1184,9 @@
           "쇼타임",
           "속성 마스터리"
         ],
+        "skipCurrentPlatinumSkills": [
+          "쇼타임"
+        ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
         "candidateCombos": [

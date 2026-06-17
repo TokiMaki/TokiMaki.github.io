@@ -2008,6 +2008,11 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
 
     platinum_slots = []
     missing_or_wrong_slots = []
+    skip_current_platinum_skills = {
+        clean_text(skill)
+        for skill in option_db.get("skipCurrentPlatinumSkills") or []
+        if clean_text(skill)
+    }
     for slot_id, slot_label, row in [
         ("JACKET", "상의 아바타", jacket),
         ("PANTS", "하의 아바타", pants),
@@ -2015,6 +2020,14 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         if clean_text(row.get("itemRarity")) != "레어":
             continue
         emblems = get_platinum_emblems(row)
+        current_platinum_skills = [
+            clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+            for emblem in emblems
+            if clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+        ]
+        if any(skill_name_matches(current_skill, skip_skill) for current_skill in current_platinum_skills for skip_skill in skip_current_platinum_skills):
+            platinum_slots.append(slot_label)
+            continue
         target_platinum_skill = clean_text(platinum_skill_by_slot.get(slot_label) or platinum_skill)
         matched = any(
             skill_name_matches(extract_platinum_skill_name(emblem.get("itemName")), target_platinum_skill)
