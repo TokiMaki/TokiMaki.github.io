@@ -159,13 +159,15 @@ def load_upgrade_material_prices() -> dict:
 
     payload = {}
     for key, config in UPGRADE_MATERIAL_PRICE_ITEMS.items():
-        item_id = clean_text(config.get("itemId"))
+        item_name = clean_text(config.get("label"))
+        item = find_exact_item_by_name(item_name) if item_name else {}
+        item_id = clean_text(item.get("itemId") or config.get("itemId"))
         try:
             auction = get_lowest_auction_price(item_id) if item_id else {}
         except Exception:
             auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
         payload[key] = {
-            "label": config.get("label"),
+            "label": clean_text(item.get("itemName")) or item_name,
             "itemId": item_id,
             "iconUrl": get_item_icon_url(item_id) if item_id else "",
             "auction": auction,
