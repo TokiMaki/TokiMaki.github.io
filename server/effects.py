@@ -1,6 +1,6 @@
 from .neople_client import clean_text
 
-EFFECT_ORDER = ["finalDamage", "attackIncrease", "attackAmplification", "buffAmplification", "attack", "elementAll", "allStat", "str", "int", "critical"]
+EFFECT_ORDER = ["finalDamage", "attackIncrease", "attackAmplification", "buffPower", "buffAmplification", "attack", "elementAll", "allStat", "str", "int", "critical"]
 
 
 def order_effects(effects: dict) -> dict:
@@ -40,6 +40,8 @@ def normalize_enchant_status(status_rows: list) -> dict:
             effects["attackIncrease"] = max(effects.get("attackIncrease", 0), value)
         elif name == "공격력 증폭":
             effects["attackAmplification"] = max(effects.get("attackAmplification", 0), value)
+        elif name == "버프력":
+            effects["buffPower"] = max(effects.get("buffPower", 0), value)
         elif name == "버프력 증폭":
             effects["buffAmplification"] = max(effects.get("buffAmplification", 0), value)
         elif name in {"모든 속성 강화", "모속성 강화"}:

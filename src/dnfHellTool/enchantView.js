@@ -3,6 +3,7 @@ const EFFECT_LABELS = {
   attack: '공격력',
   attackIncrease: '공격력 증가',
   attackAmplification: '공증',
+  buffPower: '버프력',
   buffAmplification: '벞증',
   elementAll: '모속강',
   elementFire: '화속강',
@@ -69,7 +70,9 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
+const EFFECT_ORDER = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
+const BUFFER_IRRELEVANT_EFFECT_KEYS = new Set(['finalDamage', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'critical']);
+const DAMAGE_IRRELEVANT_EFFECT_KEYS = new Set(['buffPower', 'buffAmplification', 'bufferStat']);
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '머리어깨', key: 'shoulder', side: 'left' },
   { slot: '상의', key: 'top', side: 'left' },
@@ -258,12 +261,16 @@ function formatEffects(effects = {}) {
     .join(' / ');
 }
 
-function formatRoleRelevantEquipmentEffects(effects = {}, isBuffer = false) {
-  const hiddenKeys = new Set(isBuffer
-    ? ['finalDamage', 'attackAmplification', 'attack', 'elementAll']
-    : ['buffAmplification']);
-  return formatEffects(Object.fromEntries(
+function getRoleRelevantEffects(effects = {}, isBuffer = false) {
+  const hiddenKeys = isBuffer ? BUFFER_IRRELEVANT_EFFECT_KEYS : DAMAGE_IRRELEVANT_EFFECT_KEYS;
+  return Object.fromEntries(
     Object.entries(effects || {}).filter(([key]) => !hiddenKeys.has(key)),
+  );
+}
+
+function formatRoleRelevantEquipmentEffects(effects = {}, isBuffer = false) {
+  return formatEffects(Object.fromEntries(
+    Object.entries(getRoleRelevantEffects(effects, isBuffer)),
   ));
 }
 
@@ -446,15 +453,16 @@ function formatEffectTransitionValue(key, currentValue, targetValue) {
   return `${EFFECT_LABELS[key] || key} ${formatEffectNumber(currentValue)}${suffix} -> ${formatEffectNumber(targetValue)}${suffix}`;
 }
 
-function formatBlackFangEffect(row) {
+function formatBlackFangEffect(row, isBuffer = false) {
   const currentEffects = row.currentEffects || {};
   const targetEffects = row.targetEffects || {};
+  const changedEffects = getRoleRelevantEffects(row.effects || {}, isBuffer);
   const changedKeys = EFFECT_ORDER
-    .filter((key) => Number.isFinite(row.effects?.[key]))
-    .filter((key) => !(Number.isFinite(row.effects?.allStat) && ['str', 'int'].includes(key)));
+    .filter((key) => Number.isFinite(changedEffects?.[key]))
+    .filter((key) => !(Number.isFinite(changedEffects.allStat) && ['str', 'int'].includes(key)));
   const parts = changedKeys
     .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
-  return parts.length ? parts.join(' / ') : formatEffects(row.effects);
+  return parts.length ? parts.join(' / ') : formatEffects(changedEffects);
 }
 
 function formatEnchantTransitionEffect(row) {
@@ -768,7 +776,7 @@ function calculateBufferScore(baseline = {}, changes = {}) {
     + Number(baseline.switchingStatDelta || 0)
     + commonStatDelta
     + switchingStatDelta;
-  const buffPower = Number(baseline.buffPower || 0);
+  const buffPower = Number(baseline.buffPower || 0) + Number(changes.buffPowerDelta || 0);
   const currentBuffAmplificationDelta = Number(changes.currentBuffAmplificationDelta || 0);
   const switchingBuffAmplificationDelta = Number(changes.switchingBuffAmplificationDelta || 0);
   const currentAmp = (Number(baseline.buffAmplification || 0) + currentBuffAmplificationDelta) / 100;
@@ -812,7 +820,7 @@ function getBufferRecommendationRows(
   const bySlotTier = new Map();
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade'].includes(row.sourceType)) return;
+    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)) return;
     if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
     if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
@@ -826,6 +834,8 @@ function getBufferRecommendationRows(
     if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     const current = row.sourceType === 'upgrade'
       ? {}
+      : row.sourceType === 'blackFang'
+        ? { effects: row.currentEffects || {} }
       : row.sourceType === 'creature'
         ? currentCreature || {}
         : row.sourceType === 'creatureArtifact'
@@ -837,19 +847,28 @@ function getBufferRecommendationRows(
               : currentBySlot.get(row.slot) || {};
     if (
       row.sourceType !== 'upgrade' &&
+      row.sourceType !== 'blackFang' &&
       current?.itemId &&
       current.itemId === row.itemId &&
       getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
     ) return;
+    const targetEffects = row.sourceType === 'blackFang'
+      ? row.targetEffects || addEffects(row.currentEffects, row.effects)
+      : row.effects || {};
+    const scoringTargetEffects = getRoleRelevantEffects(targetEffects, true);
+    const scoringCurrentEffects = getRoleRelevantEffects(current.effects || {}, true);
     const statDelta = row.sourceType === 'upgrade'
       ? Number(row.effects?.allStat || 0)
-      : Number(row.effects?.allStat || 0) - Number(current.effects?.allStat || 0);
+      : Number(scoringTargetEffects?.allStat || 0) - Number(scoringCurrentEffects?.allStat || 0);
     const replacementStatChanges = row.sourceType === 'title'
       ? { currentStatDelta: statDelta }
       : { statDelta };
     const buffAmplificationDelta = row.sourceType === 'upgrade'
       ? 0
-      : Number(row.effects?.buffAmplification || 0) - Number(current.effects?.buffAmplification || 0);
+      : Number(scoringTargetEffects?.buffAmplification || 0) - Number(scoringCurrentEffects?.buffAmplification || 0);
+    const buffPowerDelta = row.sourceType === 'upgrade'
+      ? 0
+      : Number(scoringTargetEffects?.buffPower || 0) - Number(scoringCurrentEffects?.buffPower || 0);
     const buffAmplificationChanges = row.sourceType === 'title'
       ? { currentBuffAmplificationDelta: buffAmplificationDelta }
       : {
@@ -885,6 +904,7 @@ function getBufferRecommendationRows(
       statDelta: Number(replacementStatChanges.statDelta || 0)
         + Number(avatarStatChanges.statDelta || 0)
         + Number(itemSkillChanges.statDelta || 0),
+      buffPowerDelta,
       ...buffAmplificationChanges,
       currentStatDelta: Number(replacementStatChanges.currentStatDelta || 0)
         + Number(avatarStatChanges.currentStatDelta || 0)
@@ -910,6 +930,8 @@ function getBufferRecommendationRows(
       : 0;
     const key = row.sourceType === 'upgrade'
       ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
+      : row.sourceType === 'blackFang'
+        ? `${row.sourceType}:${row.slot}:${getEffectSignature(scoringTargetEffects)}`
       : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${JSON.stringify(skillDelta)}:${JSON.stringify(itemSkillChanges)}`;
     const previous = bySlotTier.get(key);
     if (
@@ -2382,7 +2404,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -2479,7 +2501,7 @@ export function installEnchantView(ctx) {
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
         : row.sourceType === 'blackFang'
-          ? formatBlackFangEffect(row)
+          ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
           ? formatEnchantTransitionEffect(row)
         : row.sourceType === 'creatureArtifact'
