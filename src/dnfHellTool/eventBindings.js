@@ -102,7 +102,7 @@ export function bindToolEvents(ctx) {
   const scheduleRecalc = (...args) => ctx.actions.scheduleRecalc(...args);
   const recalcCharacterOnly = (...args) => ctx.actions.recalcCharacterOnly(...args);
   const RECENT_SEARCHES_STORAGE_KEY = 'dnf-pilot-recent-searches';
-  const RECENT_SEARCH_LIMIT = 5;
+  const RECENT_SEARCH_LIMIT = 8;
   const NOTICE_LIMIT = 5;
   const SAFE_AMPLIFICATION_MODE_STORAGE_KEY = 'dnf-pilot-safe-amplification-mode';
 
@@ -258,11 +258,23 @@ export function bindToolEvents(ctx) {
     if (els.landingServerIdInput) els.landingServerIdInput.value = normalizedServerId;
     if (els.landingCharacterNameInput) els.landingCharacterNameInput.value = normalizedName;
     if (els.landingSearchStatus) els.landingSearchStatus.textContent = '';
+    state.enchantRecommendationLoading = true;
+    if (els.enchantCharacterPortrait) {
+      els.enchantCharacterPortrait.innerHTML = '<div class="table-empty-cell">캐릭터 정보를 불러오는 중입니다...</div>';
+    }
+    if (els.enchantCharacterStatus) {
+      els.enchantCharacterStatus.textContent = `${normalizedName} 검색 중...`;
+    }
+    if (els.enchantRecommendList) {
+      els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">스펙업 순서 추천을 불러오는 중입니다...</div>';
+    }
     setScreen('results');
     setActiveTab('enchantPanel');
     if (updateHistory) updateResultUrl(normalizedServerId, normalizedName);
-    if (saveRecent) saveRecentSearch(normalizedServerId, normalizedName);
-    ctx.actions.searchEnchantCharacter?.();
+    Promise.resolve(ctx.actions.searchEnchantCharacter?.()).then((result) => {
+      if (!saveRecent || !result?.serverId || !result?.characterName) return;
+      saveRecentSearch(result.serverId, result.characterName);
+    });
   };
   const runLandingSearch = () => runEnchantSearch({
     serverId: els.landingServerIdInput?.value,
