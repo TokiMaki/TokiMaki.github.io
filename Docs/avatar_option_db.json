@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-06-17",
-  "sourcePolicy": "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나만 보관하고, avatar.candidateCombos는 채택률 10% 이상인 상위 4개 조합을 저장해 딜 효율 비교에 사용한다.",
+  "sourcePolicy": "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나를 보관하고, avatar.platinumCandidates와 avatar.candidateCombos는 실제 스킬 API 기반 딜 효율 비교에 사용한다.",
   "fields": {
     "avatar.topOptions": "상의 아바타 옵션 후보. 앞쪽일수록 우선 후보.",
-    "avatar.platinumEmblems": "상의/하의 플래티넘 엠블렘 추천값. 후보가 여러 개 추출되면 첫 번째 후보만 사용한다.",
+    "avatar.platinumEmblems": "대표 플래티넘 엠블렘. 계산 후보가 없거나 스킬 API 비교가 실패했을 때 fallback으로 사용한다.",
+    "avatar.platinumCandidates": "딜 플래티넘 엠블렘 계산 후보 목록. 보통 1~2개이며, 서버가 현재 상의 옵션을 고정한 상태에서 후보 조합을 스킬 API 배율로 비교한다.",
     "avatar.candidateCombos": "딜 효율 비교용 상의+플래티넘 2개 후보 조합. 외부 사이트를 런타임 파싱하지 않고 검수된 후보만 보관한다.",
     "avatar.needsReview": "추출 누락 또는 형식 불확실 여부."
   },
@@ -34,12 +35,12 @@
               "검기상인",
               "검기상인"
             ],
-            "adoptionRate": 72.93
+            "adoptionRate": 73.88
           }
         ]
       },
       "review": {
-        "adoptionRate": 72.93
+        "adoptionRate": 73.88
       }
     },
     {
@@ -67,7 +68,7 @@
               "혈십자",
               "혈십자"
             ],
-            "adoptionRate": 44.42
+            "adoptionRate": 45.61
           },
           {
             "rank": 2,
@@ -76,12 +77,12 @@
               "혈십자",
               "혈십자"
             ],
-            "adoptionRate": 22.22
+            "adoptionRate": 25.79
           }
         ]
       },
       "review": {
-        "adoptionRate": 44.42
+        "adoptionRate": 45.61
       }
     },
     {
@@ -109,12 +110,12 @@
               "달의 커튼",
               "달의 커튼"
             ],
-            "adoptionRate": 77.49
+            "adoptionRate": 84.15
           }
         ]
       },
       "review": {
-        "adoptionRate": 77.49
+        "adoptionRate": 84.15
       }
     },
     {
@@ -142,12 +143,12 @@
               "정신이 번쩍!",
               "정신이 번쩍!"
             ],
-            "adoptionRate": 63.08
+            "adoptionRate": 70.49
           }
         ]
       },
       "review": {
-        "adoptionRate": 63.08
+        "adoptionRate": 70.49
       }
     },
     {
@@ -175,12 +176,12 @@
               "검귀의 도 마스터리",
               "검귀의 도 마스터리"
             ],
-            "adoptionRate": 56.85
+            "adoptionRate": 61.89
           }
         ]
       },
       "review": {
-        "adoptionRate": 56.85
+        "adoptionRate": 61.89
       }
     },
     {
@@ -208,12 +209,12 @@
               "무기 숙련",
               "무기 숙련"
             ],
-            "adoptionRate": 69.66
+            "adoptionRate": 75.47
           }
         ]
       },
       "review": {
-        "adoptionRate": 69.66
+        "adoptionRate": 75.47
       }
     },
     {
@@ -241,12 +242,12 @@
               "마검 제어",
               "마검 제어"
             ],
-            "adoptionRate": 81.48
+            "adoptionRate": 86.1
           }
         ]
       },
       "review": {
-        "adoptionRate": 81.48
+        "adoptionRate": 86.1
       }
     },
     {
@@ -274,12 +275,12 @@
               "삼화취정",
               "삼화취정"
             ],
-            "adoptionRate": 85.47
+            "adoptionRate": 91.64
           }
         ]
       },
       "review": {
-        "adoptionRate": 85.47
+        "adoptionRate": 91.64
       }
     },
     {
@@ -307,12 +308,12 @@
               "스티그마",
               "스티그마"
             ],
-            "adoptionRate": 78.72
+            "adoptionRate": 82.03
           }
         ]
       },
       "review": {
-        "adoptionRate": 78.72
+        "adoptionRate": 82.03
       }
     },
     {
@@ -340,12 +341,12 @@
               "빈티지",
               "빈티지"
             ],
-            "adoptionRate": 83.17
+            "adoptionRate": 86.59
           }
         ]
       },
       "review": {
-        "adoptionRate": 83.17
+        "adoptionRate": 86.59
       }
     },
     {
@@ -373,12 +374,12 @@
               "나선의 넨",
               "나선의 넨"
             ],
-            "adoptionRate": 76.33
+            "adoptionRate": 80.84
           }
         ]
       },
       "review": {
-        "adoptionRate": 76.33
+        "adoptionRate": 80.84
       }
     },
     {
@@ -406,12 +407,12 @@
               "머슬 시프트",
               "머슬 시프트"
             ],
-            "adoptionRate": 84.55
+            "adoptionRate": 90.22
           }
         ]
       },
       "review": {
-        "adoptionRate": 84.55
+        "adoptionRate": 90.22
       }
     },
     {
@@ -439,12 +440,12 @@
               "도발",
               "도발"
             ],
-            "adoptionRate": 77.97
+            "adoptionRate": 81.94
           }
         ]
       },
       "review": {
-        "adoptionRate": 77.97
+        "adoptionRate": 81.94
       }
     },
     {
@@ -472,12 +473,12 @@
               "강렬한 테이크 다운",
               "강렬한 테이크 다운"
             ],
-            "adoptionRate": 86.82
+            "adoptionRate": 89.35
           }
         ]
       },
       "review": {
-        "adoptionRate": 86.82
+        "adoptionRate": 89.35
       }
     },
     {
@@ -505,12 +506,12 @@
               "나선의 넨",
               "나선의 넨"
             ],
-            "adoptionRate": 75.15
+            "adoptionRate": 79.52
           }
         ]
       },
       "review": {
-        "adoptionRate": 75.15
+        "adoptionRate": 79.52
       }
     },
     {
@@ -538,12 +539,12 @@
               "급소 지정",
               "급소 지정"
             ],
-            "adoptionRate": 81.45
+            "adoptionRate": 85.31
           }
         ]
       },
       "review": {
-        "adoptionRate": 81.45
+        "adoptionRate": 85.31
       }
     },
     {
@@ -571,12 +572,12 @@
               "도발",
               "도발"
             ],
-            "adoptionRate": 83.2
+            "adoptionRate": 88.8
           }
         ]
       },
       "review": {
-        "adoptionRate": 83.2
+        "adoptionRate": 88.8
       }
     },
     {
@@ -604,12 +605,12 @@
               "강렬한 테이크 다운",
               "강렬한 테이크 다운"
             ],
-            "adoptionRate": 81.93
+            "adoptionRate": 87.29
           }
         ]
       },
       "review": {
-        "adoptionRate": 81.93
+        "adoptionRate": 87.29
       }
     },
     {
@@ -637,12 +638,12 @@
               "스타일리쉬",
               "스타일리쉬"
             ],
-            "adoptionRate": 81.13
+            "adoptionRate": 84.69
           }
         ]
       },
       "review": {
-        "adoptionRate": 81.13
+        "adoptionRate": 84.69
       }
     },
     {
@@ -670,12 +671,12 @@
               "중화기 마스터리",
               "중화기 마스터리"
             ],
-            "adoptionRate": 83.85
+            "adoptionRate": 89.74
           }
         ]
       },
       "review": {
-        "adoptionRate": 83.85
+        "adoptionRate": 89.74
       }
     },
     {
@@ -703,7 +704,7 @@
               "아크리액터",
               "아크리액터"
             ],
-            "adoptionRate": 71.29
+            "adoptionRate": 71.64
           },
           {
             "rank": 2,
@@ -712,12 +713,12 @@
               "아크리액터",
               "아크리액터"
             ],
-            "adoptionRate": 14.06
+            "adoptionRate": 19.34
           }
         ]
       },
       "review": {
-        "adoptionRate": 71.29
+        "adoptionRate": 71.64
       }
     },
     {
@@ -745,12 +746,12 @@
               "병기 숙련",
               "병기 숙련"
             ],
-            "adoptionRate": 85.09
+            "adoptionRate": 89.78
           }
         ]
       },
       "review": {
-        "adoptionRate": 85.09
+        "adoptionRate": 89.78
       }
     },
     {
@@ -778,12 +779,12 @@
               "센서빌리티",
               "센서빌리티"
             ],
-            "adoptionRate": 76.96
+            "adoptionRate": 83.91
           }
         ]
       },
       "review": {
-        "adoptionRate": 76.96
+        "adoptionRate": 83.91
       }
     },
     {
@@ -811,12 +812,12 @@
               "스타일리쉬",
               "스타일리쉬"
             ],
-            "adoptionRate": 80.27
+            "adoptionRate": 83.07
           }
         ]
       },
       "review": {
-        "adoptionRate": 80.27
+        "adoptionRate": 83.07
       }
     },
     {
@@ -844,12 +845,12 @@
               "중화기 마스터리",
               "중화기 마스터리"
             ],
-            "adoptionRate": 85.57
+            "adoptionRate": 90.72
           }
         ]
       },
       "review": {
-        "adoptionRate": 85.57
+        "adoptionRate": 90.72
       }
     },
     {
@@ -867,6 +868,10 @@
         "platinumEmblems": [
           "트랜스포메이션"
         ],
+        "platinumCandidates": [
+          "트랜스포메이션",
+          "하이테크놀로지"
+        ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
         "candidateCombos": [
@@ -877,7 +882,7 @@
               "트랜스포메이션",
               "트랜스포메이션"
             ],
-            "adoptionRate": 50.2
+            "adoptionRate": 54.53
           },
           {
             "rank": 2,
@@ -886,12 +891,12 @@
               "하이테크놀로지",
               "하이테크놀로지"
             ],
-            "adoptionRate": 18.74
+            "adoptionRate": 18.31
           }
         ]
       },
       "review": {
-        "adoptionRate": 50.2
+        "adoptionRate": 54.53
       }
     },
     {
@@ -919,12 +924,12 @@
               "병기 숙련",
               "병기 숙련"
             ],
-            "adoptionRate": 80.93
+            "adoptionRate": 86.01
           }
         ]
       },
       "review": {
-        "adoptionRate": 80.93
+        "adoptionRate": 86.01
       }
     },
     {
@@ -952,12 +957,12 @@
               "apius::전장정보();",
               "apius::전장정보();"
             ],
-            "adoptionRate": 89.99
+            "adoptionRate": 94.31
           }
         ]
       },
       "review": {
-        "adoptionRate": 89.99
+        "adoptionRate": 94.31
       }
     },
     {
@@ -985,12 +990,12 @@
               "원소의 이해",
               "원소의 이해"
             ],
-            "adoptionRate": 82.15
+            "adoptionRate": 86.79
           }
         ]
       },
       "review": {
-        "adoptionRate": 82.15
+        "adoptionRate": 86.79
       }
     },
     {
@@ -1018,7 +1023,7 @@
               "발현",
               "발현"
             ],
-            "adoptionRate": 74.98
+            "adoptionRate": 79.52
           },
           {
             "rank": 2,
@@ -1027,12 +1032,12 @@
               "발현",
               "발현"
             ],
-            "adoptionRate": 12.06
+            "adoptionRate": 13.62
           }
         ]
       },
       "review": {
-        "adoptionRate": 74.98
+        "adoptionRate": 79.52
       }
     },
     {
@@ -1050,6 +1055,10 @@
         "platinumEmblems": [
           "블러드 혼"
         ],
+        "platinumCandidates": [
+          "블러드 혼",
+          "블러드"
+        ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
         "candidateCombos": [
@@ -1060,7 +1069,7 @@
               "블러드 혼",
               "블러드 혼"
             ],
-            "adoptionRate": 46.11
+            "adoptionRate": 46.23
           },
           {
             "rank": 2,
@@ -1069,7 +1078,7 @@
               "블러드",
               "블러드"
             ],
-            "adoptionRate": 12.97
+            "adoptionRate": 15.74
           },
           {
             "rank": 3,
@@ -1078,12 +1087,12 @@
               "블러드 혼",
               "블러드 혼"
             ],
-            "adoptionRate": 11.35
+            "adoptionRate": 12.86
           }
         ]
       },
       "review": {
-        "adoptionRate": 46.11
+        "adoptionRate": 46.23
       }
     },
     {
@@ -1111,12 +1120,12 @@
               "휘몰아치는 질풍의 봉 마스터리",
               "휘몰아치는 질풍의 봉 마스터리"
             ],
-            "adoptionRate": 83.3
+            "adoptionRate": 89.31
           }
         ]
       },
       "review": {
-        "adoptionRate": 83.3
+        "adoptionRate": 89.31
       }
     },
     {
@@ -1144,12 +1153,12 @@
               "도그마 디바이스",
               "도그마 디바이스"
             ],
-            "adoptionRate": 84.74
+            "adoptionRate": 88.82
           }
         ]
       },
       "review": {
-        "adoptionRate": 84.74
+        "adoptionRate": 88.82
       }
     },
     {
@@ -1165,6 +1174,10 @@
           "속성 마스터리"
         ],
         "platinumEmblems": [
+          "쇼타임"
+        ],
+        "platinumCandidates": [
+          "쇼타임",
           "속성 마스터리"
         ],
         "needsReview": false,
@@ -1174,24 +1187,24 @@
             "rank": 1,
             "topOption": "속성 마스터리",
             "platinumEmblems": [
-              "속성 마스터리",
-              "속성 마스터리"
+              "쇼타임",
+              "쇼타임"
             ],
-            "adoptionRate": 42.16
+            "adoptionRate": 48.92
           },
           {
             "rank": 2,
             "topOption": "속성 마스터리",
             "platinumEmblems": [
-              "쇼타임",
-              "쇼타임"
+              "속성 마스터리",
+              "속성 마스터리"
             ],
-            "adoptionRate": 37.32
+            "adoptionRate": 35.1
           }
         ]
       },
       "review": {
-        "adoptionRate": 42.16
+        "adoptionRate": 48.92
       }
     },
     {
@@ -1209,6 +1222,10 @@
         "platinumEmblems": [
           "배틀메이지의 무기 마스터리"
         ],
+        "platinumCandidates": [
+          "배틀메이지의 무기 마스터리",
+          "니우의 전투술"
+        ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
         "candidateCombos": [
@@ -1219,7 +1236,7 @@
               "배틀메이지의 무기 마스터리",
               "배틀메이지의 무기 마스터리"
             ],
-            "adoptionRate": 25.68
+            "adoptionRate": 26.61
           },
           {
             "rank": 2,
@@ -1228,7 +1245,7 @@
               "니우의 전투술",
               "니우의 전투술"
             ],
-            "adoptionRate": 19.8
+            "adoptionRate": 19.28
           },
           {
             "rank": 3,
@@ -1237,12 +1254,12 @@
               "니우의 전투술",
               "니우의 전투술"
             ],
-            "adoptionRate": 16.34
+            "adoptionRate": 18.84
           }
         ]
       },
       "review": {
-        "adoptionRate": 25.68
+        "adoptionRate": 26.61
       }
     },
     {
@@ -1270,12 +1287,12 @@
               "교감",
               "교감"
             ],
-            "adoptionRate": 79
+            "adoptionRate": 84.19
           }
         ]
       },
       "review": {
-        "adoptionRate": 79
+        "adoptionRate": 84.19
       }
     },
     {
@@ -1303,12 +1320,12 @@
               "퍼밀리어와 친하게 지내기",
               "퍼밀리어와 친하게 지내기"
             ],
-            "adoptionRate": 83.68
+            "adoptionRate": 87.84
           }
         ]
       },
       "review": {
-        "adoptionRate": 83.68
+        "adoptionRate": 87.84
       }
     },
     {
@@ -1336,12 +1353,49 @@
               "퍼페티어",
               "퍼페티어"
             ],
-            "adoptionRate": 76.92
+            "adoptionRate": 82.36
           }
         ]
       },
       "review": {
-        "adoptionRate": 76.92
+        "adoptionRate": 82.36
+      }
+    },
+    {
+      "classGroup": "프리스트(남)",
+      "guideName": "크루세이더",
+      "variant": "dealer",
+      "source": {
+        "site": "manual",
+        "url": ""
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "신념의 오라"
+        ],
+        "platinumEmblems": [
+          "신념의 오라"
+        ],
+        "platinumCandidates": [
+          "신념의 오라"
+        ],
+        "needsReview": false,
+        "extractor": "manual-male-crusader-dealer-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "신념의 오라",
+            "platinumEmblems": [
+              "신념의 오라",
+              "신념의 오라"
+            ],
+            "adoptionRate": null
+          }
+        ]
+      },
+      "review": {
+        "note": "성령의 메이스가 찍힌 남크루세이더 딜러용 항목"
       }
     },
     {
@@ -1369,12 +1423,12 @@
               "수호의 은총",
               "수호의 은총"
             ],
-            "adoptionRate": 64.53
+            "adoptionRate": 69.52
           }
         ]
       },
       "review": {
-        "adoptionRate": 64.53
+        "adoptionRate": 69.52
       }
     },
     {
@@ -1402,12 +1456,12 @@
               "윌 드라이버",
               "윌 드라이버"
             ],
-            "adoptionRate": 81.59
+            "adoptionRate": 86.2
           }
         ]
       },
       "review": {
-        "adoptionRate": 81.59
+        "adoptionRate": 86.2
       }
     },
     {
@@ -1435,12 +1489,12 @@
               "퇴마의 서",
               "퇴마의 서"
             ],
-            "adoptionRate": 76.4
+            "adoptionRate": 81.15
           }
         ]
       },
       "review": {
-        "adoptionRate": 76.4
+        "adoptionRate": 81.15
       }
     },
     {
@@ -1468,12 +1522,12 @@
               "환청",
               "환청"
             ],
-            "adoptionRate": 87.82
+            "adoptionRate": 92.09
           }
         ]
       },
       "review": {
-        "adoptionRate": 87.82
+        "adoptionRate": 92.09
       }
     },
     {
@@ -1501,12 +1555,12 @@
               "계시 : 아리아",
               "계시 : 아리아"
             ],
-            "adoptionRate": 77.44
+            "adoptionRate": 82.18
           }
         ]
       },
       "review": {
-        "adoptionRate": 77.44
+        "adoptionRate": 82.18
       }
     },
     {
@@ -1556,6 +1610,10 @@
         ],
         "platinumEmblems": [
           "배틀액스 마스터리"
+        ],
+        "platinumCandidates": [
+          "배틀액스 마스터리",
+          "성화"
         ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
@@ -1660,7 +1718,7 @@
               "죄업에 짓눌린 육신",
               "죄업에 짓눌린 육신"
             ],
-            "adoptionRate": 41.48
+            "adoptionRate": 44.23
           },
           {
             "rank": 2,
@@ -1669,12 +1727,12 @@
               "죄업에 짓눌린 육신",
               "죄업에 짓눌린 육신"
             ],
-            "adoptionRate": 24.17
+            "adoptionRate": 26.69
           }
         ]
       },
       "review": {
-        "adoptionRate": 41.48
+        "adoptionRate": 44.23
       }
     },
     {
@@ -1702,12 +1760,12 @@
               "로그의 무기 마스터리",
               "로그의 무기 마스터리"
             ],
-            "adoptionRate": 88.06
+            "adoptionRate": 90.71
           }
         ]
       },
       "review": {
-        "adoptionRate": 88.06
+        "adoptionRate": 90.71
       }
     },
     {
@@ -1735,7 +1793,7 @@
               "발라크르의 맹약",
               "발라크르의 맹약"
             ],
-            "adoptionRate": 67.1
+            "adoptionRate": 68.08
           },
           {
             "rank": 2,
@@ -1744,12 +1802,12 @@
               "발라크르의 맹약",
               "발라크르의 맹약"
             ],
-            "adoptionRate": 17.14
+            "adoptionRate": 21.2
           }
         ]
       },
       "review": {
-        "adoptionRate": 67.1
+        "adoptionRate": 68.08
       }
     },
     {
@@ -1777,12 +1835,12 @@
               "인법 : 잔영 남기기",
               "인법 : 잔영 남기기"
             ],
-            "adoptionRate": 88.5
+            "adoptionRate": 93.61
           }
         ]
       },
       "review": {
-        "adoptionRate": 88.5
+        "adoptionRate": 93.61
       }
     },
     {
@@ -1810,12 +1868,12 @@
               "날카로운 단검",
               "날카로운 단검"
             ],
-            "adoptionRate": 83.68
+            "adoptionRate": 87.18
           }
         ]
       },
       "review": {
-        "adoptionRate": 83.68
+        "adoptionRate": 87.18
       }
     },
     {
@@ -1833,6 +1891,10 @@
         "platinumEmblems": [
           "강인한 신념"
         ],
+        "platinumCandidates": [
+          "강인한 신념",
+          "체인러쉬"
+        ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
         "candidateCombos": [
@@ -1843,7 +1905,7 @@
               "강인한 신념",
               "강인한 신념"
             ],
-            "adoptionRate": 58.9
+            "adoptionRate": 63.33
           },
           {
             "rank": 2,
@@ -1852,12 +1914,12 @@
               "체인러쉬",
               "체인러쉬"
             ],
-            "adoptionRate": 10.51
+            "adoptionRate": 10.19
           }
         ]
       },
       "review": {
-        "adoptionRate": 58.9
+        "adoptionRate": 63.33
       }
     },
     {
@@ -1885,12 +1947,12 @@
               "혼혈",
               "혼혈"
             ],
-            "adoptionRate": 86.49
+            "adoptionRate": 90.26
           }
         ]
       },
       "review": {
-        "adoptionRate": 86.49
+        "adoptionRate": 90.26
       }
     },
     {
@@ -1918,12 +1980,12 @@
               "세라픽 페더",
               "세라픽 페더"
             ],
-            "adoptionRate": 79.09
+            "adoptionRate": 82.94
           }
         ]
       },
       "review": {
-        "adoptionRate": 79.09
+        "adoptionRate": 82.94
       }
     },
     {
@@ -1951,12 +2013,12 @@
               "대식가",
               "대식가"
             ],
-            "adoptionRate": 79.93
+            "adoptionRate": 83.29
           }
         ]
       },
       "review": {
-        "adoptionRate": 79.93
+        "adoptionRate": 83.29
       }
     },
     {
@@ -1984,12 +2046,12 @@
               "임팩트 스매쉬",
               "임팩트 스매쉬"
             ],
-            "adoptionRate": 77.39
+            "adoptionRate": 80.63
           }
         ]
       },
       "review": {
-        "adoptionRate": 77.39
+        "adoptionRate": 80.63
       }
     },
     {
@@ -2017,12 +2079,12 @@
               "미라지 부스트",
               "미라지 부스트"
             ],
-            "adoptionRate": 74.4
+            "adoptionRate": 75.11
           }
         ]
       },
       "review": {
-        "adoptionRate": 74.4
+        "adoptionRate": 75.11
       }
     },
     {
@@ -2050,12 +2112,12 @@
               "광창 마스터리",
               "광창 마스터리"
             ],
-            "adoptionRate": 84.07
+            "adoptionRate": 86.93
           }
         ]
       },
       "review": {
-        "adoptionRate": 84.07
+        "adoptionRate": 86.93
       }
     },
     {
@@ -2083,12 +2145,12 @@
               "어둠의 투창 마스터리",
               "어둠의 투창 마스터리"
             ],
-            "adoptionRate": 79.53
+            "adoptionRate": 84.83
           }
         ]
       },
       "review": {
-        "adoptionRate": 79.53
+        "adoptionRate": 84.83
       }
     },
     {
@@ -2106,6 +2168,10 @@
         "platinumEmblems": [
           "장도 마스터리"
         ],
+        "platinumCandidates": [
+          "장도 마스터리",
+          "숙련된 전문가"
+        ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",
         "candidateCombos": [
@@ -2116,7 +2182,7 @@
               "장도 마스터리",
               "장도 마스터리"
             ],
-            "adoptionRate": 44.64
+            "adoptionRate": 47.27
           },
           {
             "rank": 2,
@@ -2125,12 +2191,12 @@
               "숙련된 전문가",
               "숙련된 전문가"
             ],
-            "adoptionRate": 20.35
+            "adoptionRate": 21.23
           }
         ]
       },
       "review": {
-        "adoptionRate": 44.64
+        "adoptionRate": 47.27
       }
     },
     {
@@ -2158,12 +2224,12 @@
               "소태도 마스터리",
               "소태도 마스터리"
             ],
-            "adoptionRate": 76.39
+            "adoptionRate": 80.16
           }
         ]
       },
       "review": {
-        "adoptionRate": 76.39
+        "adoptionRate": 80.16
       }
     },
     {
@@ -2191,12 +2257,12 @@
               "중검 마스터리",
               "중검 마스터리"
             ],
-            "adoptionRate": 84.12
+            "adoptionRate": 88.05
           }
         ]
       },
       "review": {
-        "adoptionRate": 84.12
+        "adoptionRate": 88.05
       }
     },
     {
@@ -2224,12 +2290,12 @@
               "코어 블레이드 마스터리",
               "코어 블레이드 마스터리"
             ],
-            "adoptionRate": 78.38
+            "adoptionRate": 82.53
           }
         ]
       },
       "review": {
-        "adoptionRate": 78.38
+        "adoptionRate": 82.53
       }
     },
     {
@@ -2257,12 +2323,12 @@
               "센세이션",
               "센세이션"
             ],
-            "adoptionRate": 81.56
+            "adoptionRate": 84.53
           }
         ]
       },
       "review": {
-        "adoptionRate": 81.56
+        "adoptionRate": 84.53
       }
     },
     {
@@ -2290,12 +2356,12 @@
               "여행자의 직감",
               "여행자의 직감"
             ],
-            "adoptionRate": 86.74
+            "adoptionRate": 90.11
           }
         ]
       },
       "review": {
-        "adoptionRate": 86.74
+        "adoptionRate": 90.11
       }
     },
     {
@@ -2323,12 +2389,12 @@
               "사냥감 식별",
               "사냥감 식별"
             ],
-            "adoptionRate": 87.75
+            "adoptionRate": 91.79
           }
         ]
       },
       "review": {
-        "adoptionRate": 87.75
+        "adoptionRate": 91.79
       }
     },
     {
@@ -2356,12 +2422,12 @@
               "특이체질",
               "특이체질"
             ],
-            "adoptionRate": 87.67
+            "adoptionRate": 91.57
           }
         ]
       },
       "review": {
-        "adoptionRate": 87.67
+        "adoptionRate": 91.57
       }
     },
     {
@@ -2422,12 +2488,12 @@
               "어둠의 검사",
               "어둠의 검사"
             ],
-            "adoptionRate": 77.11
+            "adoptionRate": 80.33
           }
         ]
       },
       "review": {
-        "adoptionRate": 77.11
+        "adoptionRate": 80.33
       }
     },
     {
@@ -2455,14 +2521,17 @@
               "계열강화",
               "계열강화"
             ],
-            "adoptionRate": 85.65
+            "adoptionRate": 92.59
           }
         ]
       },
       "review": {
-        "adoptionRate": 85.65
+        "adoptionRate": 92.59
       }
     }
   ],
-  "errors": []
+  "errors": [
+    "프리스트(여) 이단심판관: adoption rows not found",
+    "프리스트(여) 무녀: adoption rows not found"
+  ]
 }

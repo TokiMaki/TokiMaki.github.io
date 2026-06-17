@@ -84,12 +84,31 @@ function extractAdoptionRows(html, limit = DEFAULT_COMBO_LIMIT) {
   return rows;
 }
 
+function dedupeNames(values) {
+  const result = [];
+  const seen = new Set();
+  for (const value of values) {
+    const name = String(value || "").trim();
+    const key = name.replace(/\s+/g, "").toLowerCase();
+    if (!name || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(name);
+  }
+  return result;
+}
+
 async function main() {
   const db = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
   const failures = [];
   const updates = [];
 
   for (const entry of db.entries || []) {
+    if (entry.source?.site === "manual") {
+      updates.push(`${entry.classGroup} ${entry.guideName}: skipped manual entry`);
+      continue;
+    }
     const pathPart = getDfmaxPath(entry);
     const url = `https://dfmax.xyz${pathPart}`;
     try {
@@ -107,6 +126,7 @@ async function main() {
       const row = rows[0];
       entry.avatar.topOptions = [row.topOption];
       entry.avatar.platinumEmblems = [row.platinumEmblems[0]];
+      entry.avatar.platinumCandidates = dedupeNames(rows.flatMap((candidate) => candidate.platinumEmblems || []));
       entry.avatar.candidateCombos = rows;
       entry.source = {
         site: "dfmax.xyz",
@@ -129,7 +149,7 @@ async function main() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-  db.sourcePolicy = "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나만 보관하고, avatar.candidateCombos는 채택률 10% 이상인 상위 4개 조합을 저장해 딜 효율 비교에 사용한다.";
+  db.sourcePolicy = "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나를 보관하고, avatar.platinumCandidates와 avatar.candidateCombos는 실제 스킬 API 기반 딜 효율 비교에 사용한다.";
   db.errors = failures;
   fs.writeFileSync(DB_PATH, `${JSON.stringify(db, null, 2)}\n`, "utf8");
 

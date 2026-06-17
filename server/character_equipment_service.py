@@ -4,7 +4,11 @@ import time
 
 from .data_store import load_avatar_option_db, load_job_base_stats, load_upgrade_expected_db
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
-from .avatar_skill_optimizer import flatten_skill_rows
+from .avatar_skill_optimizer import (
+    flatten_skill_rows,
+    get_avatar_candidate_combos,
+    select_best_avatar_combo_for_character,
+)
 from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect, get_item_reinforce_skill_matches
 from .neople_client import (
     API_KEY,
@@ -224,7 +228,7 @@ def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | 
     status = status_rows_to_map(payload.get("status") or [])
     job_name = clean_text(payload.get("jobName"))
     job_grow_name = clean_text(payload.get("jobGrowName"))
-    if (job_name, job_grow_name) == ("프리스트(남)", "眞 크루세이더") and is_male_crusader_battle_style(server_id, character_id):
+    if (job_name, job_grow_name) == ("프리스트(남)", "眞 크루세이더") and is_male_crusader_dealer_style(server_id, character_id):
         return None
     buffer_key = {
         ("프리스트(남)", "眞 크루세이더"): "maleCrusader",
@@ -266,7 +270,7 @@ def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | 
     }
 
 
-def is_male_crusader_battle_style(server_id: str, character_id: str) -> bool:
+def is_male_crusader_dealer_style(server_id: str, character_id: str) -> bool:
     style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     return any(
         clean_text(row.get("name")) == "성령의 메이스"
@@ -1687,7 +1691,7 @@ def build_black_fang_recommendations(equipment_rows: list) -> list:
     return _build_black_fang_recommendations_debug(equipment_rows).get("recommendations") or []
 
 
-def find_avatar_option_entry(payload: dict) -> dict:
+def find_avatar_option_entry(payload: dict, preferred_role: str = "", preferred_variant: str = "") -> dict:
     db = load_avatar_option_db()
     job_name = clean_text(payload.get("jobName"))
     job_grow_name = normalize_job_name(payload.get("jobGrowName"))
@@ -1703,6 +1707,27 @@ def find_avatar_option_entry(payload: dict) -> dict:
         ]
         if matched_by_group:
             matched = matched_by_group
+    if preferred_variant:
+        matched_by_variant = [
+            entry for entry in matched
+            if clean_text(entry.get("variant")) == preferred_variant
+        ]
+        if matched_by_variant:
+            matched = matched_by_variant
+    elif len(matched) > 1:
+        matched_without_variant = [
+            entry for entry in matched
+            if not clean_text(entry.get("variant"))
+        ]
+        if matched_without_variant:
+            matched = matched_without_variant
+    if preferred_role:
+        matched_by_role = [
+            entry for entry in matched
+            if clean_text(entry.get("role")) == preferred_role
+        ]
+        if matched_by_role:
+            matched = matched_by_role
     return matched[0] if matched else {}
 
 
@@ -1809,13 +1834,36 @@ def choose_avatar_platinum_price_item(skill_name: str) -> dict:
     }
 
 
+def get_recommended_platinum_skill_by_slot(option_db: dict, default_skill: str, recommended_combo: dict | None = None) -> dict:
+    combo = recommended_combo or next(iter(get_avatar_candidate_combos(option_db, {}) or []), {})
+    platinum_skills = combo.get("platinumSkills") or []
+    return {
+        "상의 아바타": clean_text(platinum_skills[0]) if len(platinum_skills) > 0 else default_skill,
+        "하의 아바타": clean_text(platinum_skills[1]) if len(platinum_skills) > 1 else default_skill,
+    }
+
+
 def load_character_avatar(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> dict:
     steps = []
     payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
     avatar_rows = payload.get("avatar") or []
     jacket = get_avatar_slot(avatar_rows, "JACKET")
     pants = get_avatar_slot(avatar_rows, "PANTS")
-    entry = _measure_step(steps, "find_avatar_option_entry", lambda: find_avatar_option_entry(payload))
+    is_dealer_crusader = (
+        not buffer_baseline
+        and clean_text(payload.get("jobName")) == "프리스트(남)"
+        and clean_text(payload.get("jobGrowName")) == "眞 크루세이더"
+        and is_male_crusader_dealer_style(server_id, character_id)
+    )
+    entry = _measure_step(
+        steps,
+        "find_avatar_option_entry",
+        lambda: find_avatar_option_entry(
+            payload,
+            "dealer" if is_dealer_crusader else "",
+            "dealer" if is_dealer_crusader else "",
+        ),
+    )
     if not buffer_baseline and clean_text(entry.get("role")) == "buffer":
         entry = {}
     option_db = entry.get("avatar") or {}
@@ -1826,8 +1874,27 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         server_id,
         character_id,
     )
-    top_option = clean_text((option_db.get("topOptions") or [""])[0])
+    avatar_combo_analysis = {}
+    if not buffer_baseline and (option_db.get("candidateCombos") or option_db.get("platinumCandidates")):
+        try:
+            avatar_combo_analysis = _measure_step(
+                steps,
+                "select_best_avatar_combo_for_character",
+                lambda: select_best_avatar_combo_for_character(
+                    server_id,
+                    character_id,
+                    payload,
+                    payload,
+                    option_db,
+                    prefer_current_top=True,
+                ),
+            )
+        except Exception as error:
+            avatar_combo_analysis = {"error": str(error)}
+    recommended_avatar_combo = avatar_combo_analysis.get("recommendedCombo") or {}
+    top_option = clean_text(recommended_avatar_combo.get("topSkill") or (option_db.get("topOptions") or [""])[0])
     platinum_skill = clean_text((option_db.get("platinumEmblems") or [""])[0])
+    platinum_skill_by_slot = get_recommended_platinum_skill_by_slot(option_db, platinum_skill, recommended_avatar_combo)
     top_option_matched = skill_name_matches(jacket.get("optionAbility"), top_option)
     switching_rows = []
     if buffer_stat_name:
@@ -1853,10 +1920,11 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         if clean_text(row.get("itemRarity")) != "레어":
             continue
         emblems = get_platinum_emblems(row)
+        target_platinum_skill = clean_text(platinum_skill_by_slot.get(slot_label) or platinum_skill)
         matched = any(
-            skill_name_matches(extract_platinum_skill_name(emblem.get("itemName")), platinum_skill)
+            skill_name_matches(extract_platinum_skill_name(emblem.get("itemName")), target_platinum_skill)
             for emblem in emblems
-        ) if platinum_skill else False
+        ) if target_platinum_skill else False
         if matched:
             platinum_slots.append(slot_label)
         else:
@@ -1886,19 +1954,32 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         if not buffer_baseline:
             buffer_baseline = load_character_buffer_baseline(server_id, character_id) or {}
         buffer_skill_levels = buffer_baseline
-        buffer_platinum_deltas = _measure_step(
-            steps,
-            "get_buffer_platinum_stat_deltas",
-            lambda: get_buffer_platinum_stat_deltas(
-                buffer_baseline,
-                avatar_rows,
-                platinum_skill,
-                ["JACKET" if slot == "상의 아바타" else "PANTS" for slot in missing_or_wrong_slots],
-            ),
-        )
-    if platinum_skill and missing_or_wrong_slots:
-        item = _measure_step(steps, "choose_avatar_platinum_price_item", lambda: choose_avatar_platinum_price_item(platinum_skill))
         for slot_label in missing_or_wrong_slots:
+            slot_id = "JACKET" if slot_label == "상의 아바타" else "PANTS"
+            target_platinum_skill = clean_text(platinum_skill_by_slot.get(slot_label) or platinum_skill)
+            if not target_platinum_skill:
+                continue
+            slot_delta = _measure_step(
+                steps,
+                f"get_buffer_platinum_stat_deltas:{slot_label}",
+                lambda skill_name=target_platinum_skill, target_slot_id=slot_id: get_buffer_platinum_stat_deltas(
+                    buffer_baseline,
+                    avatar_rows,
+                    skill_name,
+                    [target_slot_id],
+                ),
+            )
+            buffer_platinum_deltas.update(slot_delta)
+    if platinum_skill and missing_or_wrong_slots:
+        for slot_label in missing_or_wrong_slots:
+            target_platinum_skill = clean_text(platinum_skill_by_slot.get(slot_label) or platinum_skill)
+            if not target_platinum_skill:
+                continue
+            item = _measure_step(
+                steps,
+                f"choose_avatar_platinum_price_item:{slot_label}",
+                lambda skill_name=target_platinum_skill: choose_avatar_platinum_price_item(skill_name),
+            )
             slot_id = "JACKET" if slot_label == "상의 아바타" else "PANTS"
             platinum_delta = buffer_platinum_deltas.get(slot_id) or {}
             buffer_stat_scope = (
@@ -1914,7 +1995,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 "slot": slot_label,
                 "tier": "플래티넘",
                 "itemId": item.get("itemId"),
-                "itemName": item.get("itemName") or f"플래티넘 엠블렘[{platinum_skill}]",
+                "itemName": item.get("itemName") or f"플래티넘 엠블렘[{target_platinum_skill}]",
                 "itemRarity": item.get("itemRarity"),
                 "iconUrl": item.get("iconUrl"),
                 "itemExplain": f"{slot_label} 플래티넘 교체 필요 · {item.get('priceCompareText')}",
@@ -1925,18 +2006,18 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 ),
                 "auction": item.get("auction") or {},
                 "needCount": 1,
-                "targetSkill": platinum_skill,
+                "targetSkill": target_platinum_skill,
                 "bufferSkillStatDeltas": platinum_delta.get("skillDeltas") or {},
                 "bufferSkillLevels": platinum_delta.get("skillLevels") or {},
                 "currentPlatinumSkill": current_platinum_skill,
                 "bufferBuffSkillLevelDelta": (
-                    (1 if platinum_skill == buff_skill_name else 0)
+                    (1 if target_platinum_skill == buff_skill_name else 0)
                     - (1 if current_platinum_skill == buff_skill_name else 0)
                     if buffer_stat_scope == "common"
                     else 0
                 ),
                 "bufferAwakeningSkillLevelDelta": (
-                    (1 if platinum_skill == awakening_skill_name else 0)
+                    (1 if target_platinum_skill == awakening_skill_name else 0)
                     - (1 if current_platinum_skill == awakening_skill_name else 0)
                     if buffer_stat_name
                     else 0
@@ -1986,6 +2067,9 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             "primaryStatName": primary_stat_name,
             "expectedTopOption": top_option,
             "expectedPlatinumEmblem": platinum_skill,
+            "expectedPlatinumEmblemsBySlot": platinum_skill_by_slot,
+            "recommendedCombo": recommended_avatar_combo,
+            "comboAnalysisError": avatar_combo_analysis.get("error"),
             "rareAvatarCount": len(rare_slots),
             "rareAvatarSlots": rare_slots,
             "rareCloneAvatarCount": len(clone_slots),

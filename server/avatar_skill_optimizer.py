@@ -226,6 +226,57 @@ def get_avatar_candidate_combos(option_db: dict, current_avatar: dict) -> list[d
     return result
 
 
+def get_avatar_top_candidates(option_db: dict, current_avatar: dict) -> list[str]:
+    return dedupe_skill_names([
+        *(option_db.get("topOptions") or []),
+        current_avatar.get("topSkill"),
+        *[
+            combo.get("topSkill")
+            for combo in get_avatar_candidate_combos(option_db, current_avatar)
+            if combo.get("topSkill")
+        ],
+    ])
+
+
+def get_avatar_platinum_candidates(option_db: dict, current_avatar: dict) -> list[str]:
+    return dedupe_skill_names([
+        *(option_db.get("platinumCandidates") or []),
+        *(option_db.get("platinumEmblems") or []),
+        *(current_avatar.get("platinumSkills") or []),
+        *[
+            skill
+            for combo in get_avatar_candidate_combos(option_db, current_avatar)
+            for skill in combo.get("platinumSkills") or []
+        ],
+    ])
+
+
+def build_avatar_combo_candidates(option_db: dict, current_avatar: dict) -> list[dict]:
+    top_candidates = get_avatar_top_candidates(option_db, current_avatar)
+    platinum_candidates = get_avatar_platinum_candidates(option_db, current_avatar)
+    combos = []
+    for top_skill in top_candidates:
+        for platinum_a in platinum_candidates:
+            for platinum_b in platinum_candidates:
+                combos.append({
+                    "topSkill": top_skill,
+                    "platinumSkills": [platinum_a, platinum_b],
+                })
+
+    seen = set()
+    result = []
+    for combo in combos:
+        key = (
+            normalize_skill_key(combo.get("topSkill")),
+            tuple(normalize_skill_key(skill) for skill in combo.get("platinumSkills") or []),
+        )
+        if not key[0] or len(key[1]) < 2 or key in seen:
+            continue
+        seen.add(key)
+        result.append(combo)
+    return result
+
+
 def build_current_avatar_combo(current_avatar: dict) -> dict:
     current_top = current_avatar.get("topSkill")
     current_plats = current_avatar.get("platinumSlotSkills") or current_avatar.get("platinumSkills") or []
@@ -301,7 +352,20 @@ def count_changes(combo: dict, current: dict) -> int:
     return changes
 
 
-def evaluate_avatar_combo(combo: dict, current: dict, skill_infos: dict) -> dict:
+def count_slot_changes(combo: dict, current: dict) -> int:
+    current_plats = [
+        normalize_skill_key(name)
+        for name in (current.get("platinumSlotSkills") or current.get("platinumSkills") or [])
+    ]
+    target_plats = [normalize_skill_key(name) for name in combo.get("platinumSkills") or []]
+    return sum(
+        1
+        for index, target in enumerate(target_plats)
+        if index >= len(current_plats) or current_plats[index] != target
+    )
+
+
+def evaluate_avatar_combo(combo: dict, current: dict, skill_infos: dict, include_price: bool = True) -> dict:
     added_by_skill = {}
     for skill_name in [combo.get("topSkill"), *(combo.get("platinumSkills") or [])]:
         key = normalize_skill_key(skill_name)
@@ -326,13 +390,18 @@ def evaluate_avatar_combo(combo: dict, current: dict, skill_infos: dict) -> dict
             }
         multiplier *= ratio["multiplier"]
 
-    platinum_price_sum = sum((find_platinum_item_price(name) or 10**18) for name in combo.get("platinumSkills") or [])
+    platinum_price_sum = (
+        sum((find_platinum_item_price(name) or 10**18) for name in combo.get("platinumSkills") or [])
+        if include_price
+        else None
+    )
     return {
         **combo,
         "calculable": True,
         "multiplier": multiplier,
         "incrementalDamagePercent": (multiplier - 1) * 100,
         "changeCount": count_changes(combo, current),
+        "slotChangeCount": count_slot_changes(combo, current),
         "platinumPriceSum": platinum_price_sum,
         "skillResults": skill_results,
     }
@@ -388,27 +457,24 @@ def normalize_skill_level_overrides(skill_level_overrides: dict | None) -> dict:
     return result
 
 
-def load_character_avatar_skill_efficiency(
+def get_character_avatar_skill_infos(
     server_id: str,
-    character_id: str = "",
-    character_name: str = "",
+    character_id: str,
+    detail: dict,
+    skill_names: list[str],
     skill_level_overrides: dict | None = None,
-) -> dict:
+) -> tuple[list[dict], dict]:
     normalized_level_overrides = normalize_skill_level_overrides(skill_level_overrides)
-    resolved = {}
-    if not character_id:
-        resolved = search_character(server_id, character_name)
-        character_id = resolved["character_id"]
-
-    detail_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?apikey={API_KEY}"
-    detail = request_json(detail_url)
     job_id = clean_text(detail.get("jobId"))
     job_grow_id = clean_text(detail.get("jobGrowId"))
+    if not job_id or not job_grow_id:
+        detail_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?apikey={API_KEY}"
+        detail = request_json(detail_url)
+        job_id = clean_text(detail.get("jobId"))
+        job_grow_id = clean_text(detail.get("jobGrowId"))
 
     style_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/skill/style?apikey={API_KEY}"
     style = request_json(style_url)
-    avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
-    avatar = request_json(avatar_url)
     style_rows = flatten_skill_rows(style)
     style_by_name = {
         normalize_skill_key(row.get("name")): row
@@ -428,35 +494,9 @@ def load_character_avatar_skill_efficiency(
         if clean_text(row.get("name"))
     }
 
-    avatar_payload = {
-        "jobName": detail.get("jobName"),
-        "jobGrowName": detail.get("jobGrowName"),
-    }
-    option_entry = find_avatar_option_entry(avatar_payload)
-    option_db = option_entry.get("avatar") or {}
-    current_avatar = extract_current_avatar_skills(avatar)
-    top_candidates = dedupe_skill_names([
-        clean_text((option_db.get("topOptions") or [""])[0]),
-        current_avatar.get("topSkill"),
-    ])
-    platinum_candidates = dedupe_skill_names([
-        clean_text((option_db.get("platinumEmblems") or [""])[0]),
-        *current_avatar.get("platinumSkills", []),
-    ])
-    candidates = (
-        [{"kind": "topOption", "skillName": skill_name} for skill_name in top_candidates]
-        + [{"kind": "platinumEmblem", "skillName": skill_name} for skill_name in platinum_candidates]
-    )
-    candidate_combos = get_avatar_candidate_combos(option_db, current_avatar)
-    for combo in candidate_combos:
-        for skill_name in [combo.get("topSkill"), *(combo.get("platinumSkills") or [])]:
-            if skill_name and not any(normalize_skill_key(row["skillName"]) == normalize_skill_key(skill_name) for row in candidates):
-                candidates.append({"kind": "comboCandidate", "skillName": skill_name})
-
     analyzed = []
     skill_infos = {}
-    for candidate in candidates:
-        skill_name = candidate["skillName"]
+    for skill_name in dedupe_skill_names(skill_names):
         key = normalize_skill_key(skill_name)
         skill_row = skill_by_name.get(key) or style_by_name.get(key) or {}
         style_row = style_by_name.get(key) or {}
@@ -464,7 +504,7 @@ def load_character_avatar_skill_efficiency(
         api_current_level = int(style_row.get("level") or style_row.get("skillLevel") or 0)
         current_level = normalized_level_overrides.get(key) or api_current_level
         result = {
-            **candidate,
+            "skillName": skill_name,
             "skillId": skill_id,
             "apiBaseLevel": api_current_level,
             "currentBaseLevel": current_level,
@@ -488,28 +528,129 @@ def load_character_avatar_skill_efficiency(
             })
         analyzed.append(result)
 
-    combo_results = []
-    if candidate_combos:
-        for combo in candidate_combos:
-            combo_results.append(evaluate_avatar_combo(combo, current_avatar, skill_infos))
-    else:
-        for top_skill in top_candidates:
-            for platinum_a in platinum_candidates:
-                for platinum_b in platinum_candidates:
-                    combo_results.append(evaluate_avatar_combo(
-                        {
-                            "topSkill": top_skill,
-                            "platinumSkills": [platinum_a, platinum_b],
-                        },
-                        current_avatar,
-                        skill_infos,
-                    ))
+    return analyzed, skill_infos
+
+
+def select_best_avatar_combo_for_character(
+    server_id: str,
+    character_id: str,
+    detail: dict,
+    avatar_payload: dict,
+    option_db: dict,
+    skill_level_overrides: dict | None = None,
+    prefer_current_top: bool = False,
+) -> dict:
+    current_avatar = extract_current_avatar_skills(avatar_payload)
+    combo_candidates = build_avatar_combo_candidates(option_db, current_avatar)
+    if not combo_candidates:
+        return {}
+
+    skill_names = [
+        skill_name
+        for combo in combo_candidates
+        for skill_name in [combo.get("topSkill"), *(combo.get("platinumSkills") or [])]
+        if skill_name
+    ]
+    analyzed, skill_infos = get_character_avatar_skill_infos(
+        server_id,
+        character_id,
+        detail,
+        skill_names,
+        skill_level_overrides,
+    )
+    combo_results = [
+        evaluate_avatar_combo(combo, current_avatar, skill_infos, include_price=False)
+        for combo in combo_candidates
+    ]
+    combo_results.sort(key=lambda row: (
+        not row.get("calculable"),
+        -(row.get("incrementalDamagePercent") or -10**18),
+        row.get("changeCount", 10**9),
+        row.get("slotChangeCount", 10**9),
+        clean_text(row.get("topSkill")),
+        ",".join(row.get("platinumSkills") or []),
+    ))
+    selection_scope = "allCandidates"
+    selection_pool = combo_results
+    current_top_key = normalize_skill_key(current_avatar.get("topSkill"))
+    if prefer_current_top and current_top_key:
+        current_top_results = [
+            row for row in combo_results
+            if row.get("calculable") and normalize_skill_key(row.get("topSkill")) == current_top_key
+        ]
+        if current_top_results:
+            selection_scope = "currentTopOption"
+            selection_pool = current_top_results
+    strongest_recommended_combos = select_strongest_combos(selection_pool)
+    recommended_combo = strongest_recommended_combos[0] if strongest_recommended_combos else (combo_results[0] if combo_results else None)
+    return {
+        "currentAvatarSkills": current_avatar,
+        "selectionScope": selection_scope,
+        "candidates": analyzed,
+        "comboCandidates": combo_candidates,
+        "comboResults": combo_results[:20],
+        "recommendedCombos": strongest_recommended_combos,
+        "recommendedCombo": recommended_combo,
+    }
+
+
+def load_character_avatar_skill_efficiency(
+    server_id: str,
+    character_id: str = "",
+    character_name: str = "",
+    skill_level_overrides: dict | None = None,
+) -> dict:
+    resolved = {}
+    if not character_id:
+        resolved = search_character(server_id, character_name)
+        character_id = resolved["character_id"]
+
+    detail_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?apikey={API_KEY}"
+    detail = request_json(detail_url)
+    job_id = clean_text(detail.get("jobId"))
+    job_grow_id = clean_text(detail.get("jobGrowId"))
+
+    avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
+    avatar = request_json(avatar_url)
+
+    avatar_payload = {
+        "jobName": detail.get("jobName"),
+        "jobGrowName": detail.get("jobGrowName"),
+    }
+    option_entry = find_avatar_option_entry(avatar_payload)
+    option_db = option_entry.get("avatar") or {}
+    current_avatar = extract_current_avatar_skills(avatar)
+    top_candidates = get_avatar_top_candidates(option_db, current_avatar)
+    platinum_candidates = get_avatar_platinum_candidates(option_db, current_avatar)
+    candidates = (
+        [{"kind": "topOption", "skillName": skill_name} for skill_name in top_candidates]
+        + [{"kind": "platinumEmblem", "skillName": skill_name} for skill_name in platinum_candidates]
+    )
+    candidate_combos = get_avatar_candidate_combos(option_db, current_avatar)
+    for combo in candidate_combos:
+        for skill_name in [combo.get("topSkill"), *(combo.get("platinumSkills") or [])]:
+            if skill_name and not any(normalize_skill_key(row["skillName"]) == normalize_skill_key(skill_name) for row in candidates):
+                candidates.append({"kind": "comboCandidate", "skillName": skill_name})
+
+    analyzed, skill_infos = get_character_avatar_skill_infos(
+        server_id,
+        character_id,
+        detail,
+        [candidate["skillName"] for candidate in candidates],
+        skill_level_overrides,
+    )
+
+    combo_results = [
+        evaluate_avatar_combo(combo, current_avatar, skill_infos)
+        for combo in build_avatar_combo_candidates(option_db, current_avatar)
+    ]
     current_combo = build_current_avatar_combo(current_avatar)
     current_combo_result = evaluate_avatar_combo(current_combo, current_avatar, skill_infos) if current_combo else None
     combo_results.sort(key=lambda row: (
         not row.get("calculable"),
         -(row.get("incrementalDamagePercent") or -10**18),
         row.get("changeCount", 10**9),
+        row.get("slotChangeCount", 10**9),
         row.get("platinumPriceSum", 10**18),
         clean_text(row.get("topSkill")),
         ",".join(row.get("platinumSkills") or []),
@@ -526,7 +667,7 @@ def load_character_avatar_skill_efficiency(
         "jobGrowId": job_grow_id,
         "jobName": clean_text(detail.get("jobName")),
         "jobGrowName": clean_text(detail.get("jobGrowName")),
-        "sourcePolicy": "1차 진단: DB의 avatar.candidateCombos 후보끼리 먼저 딜 효율을 비교해 가장 강한 추천 후보만 남깁니다. 동률이면 여러 후보를 유지하고, 이후 현재 착용 조합과 추천 조합을 비교합니다. 같은 스킬 중복은 현재 -> 현재+n 누적 배율로 계산합니다.",
+        "sourcePolicy": "DB의 avatar.candidateCombos에 등장한 상의/플래티넘 스킬 후보로 상의 후보 x 플래티넘 후보 x 플래티넘 후보 전체 조합을 만들고, 네오플 스킬 상세 API의 현재 레벨 -> 현재+n 누적 배율로 가장 강한 조합을 고릅니다.",
         "skillLevelOverrides": skill_level_overrides or {},
         "currentAvatarSkills": current_avatar,
         "candidates": analyzed,
