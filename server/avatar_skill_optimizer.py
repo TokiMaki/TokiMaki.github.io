@@ -24,6 +24,11 @@ def normalize_skill_key(value: str) -> str:
     return re.sub(r"[\s:!·ㆍ\[\]\(\)]", "", text).lower()
 
 
+def normalize_job_name(value: str) -> str:
+    text = clean_text(value)
+    return re.sub(r"^(眞|진|真)\s*", "", text).strip()
+
+
 def flatten_skill_rows(payload: dict) -> list[dict]:
     rows = []
     containers = []
@@ -55,12 +60,20 @@ def flatten_skill_rows(payload: dict) -> list[dict]:
 
 def find_avatar_option_entry(payload: dict) -> dict:
     db = load_avatar_option_db()
-    job_grow_name = clean_text(payload.get("jobGrowName"))
+    job_grow_name = normalize_job_name(payload.get("jobGrowName"))
     job_name = clean_text(payload.get("jobName"))
-    for entry in db.get("entries") or []:
-        if clean_text(entry.get("guideName")) in {job_grow_name, job_name}:
-            return entry
-    return {}
+    matched = [
+        entry for entry in db.get("entries") or []
+        if clean_text(entry.get("guideName")) == job_grow_name
+    ]
+    if len(matched) > 1 and job_name:
+        matched_by_group = [
+            entry for entry in matched
+            if clean_text(entry.get("classGroup")) == job_name
+        ]
+        if matched_by_group:
+            matched = matched_by_group
+    return matched[0] if matched else {}
 
 
 def collect_strings(value) -> list[str]:
