@@ -2524,6 +2524,9 @@ export function installEnchantView(ctx) {
       const titleRouteLabel = row.sourceType === 'title'
         ? formatTitlePurchaseRouteLabel(row)
         : '';
+      const tierLabel = row.sourceType === 'title'
+        ? row.tier === '플래티넘' ? '플래티넘' : '일반'
+        : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
         : row.sourceType === 'creature'
@@ -2575,7 +2578,7 @@ export function installEnchantView(ctx) {
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
               <span class="enchant-recommend-title">${escapeHtml(row.slot)}</span>
-              <span class="enchant-recommend-sub">${escapeHtml(row.sourceType === 'title' && titleElementLabel ? `${row.tier} · ${titleElementLabel}` : row.tier)}</span>
+              <span class="enchant-recommend-sub">${escapeHtml(tierLabel)}</span>
             </span>
             <span class="enchant-recommend-metric">
               <strong>${acquisitionMarkup || escapeHtml(formatCompactGold(isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent))}</strong>
