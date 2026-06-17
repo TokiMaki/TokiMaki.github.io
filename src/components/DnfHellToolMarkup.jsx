@@ -329,10 +329,16 @@ export default function DnfHellToolMarkup() {
         <section className={'panel enchant-include-card'}>
           <div className={'enchant-include-title'}>포함 항목</div>
           <div className={'enchant-include-controls'} id={'enchantIncludeControls'}></div>
-          <label className={'enchant-include-option enchant-route-option'}>
-            <input id={'enchantTitleBeadOnlyToggle'} type={'checkbox'} defaultChecked />
-            칭호 보주 포함 추천
-          </label>
+          <div className={'enchant-route-options'}>
+            <label className={'enchant-include-option enchant-route-option'}>
+              <input id={'enchantTitleBeadOnlyToggle'} type={'checkbox'} defaultChecked />
+              칭호 보주 포함 추천
+            </label>
+            <label className={'enchant-include-option enchant-route-option'}>
+              <input id={'enchantMaterialCostToggle'} type={'checkbox'} />
+              재료값 포함
+            </label>
+          </div>
           <label className={'enchant-amplification-mode'}>
             <span>안전 증폭</span>
             <select id={'safeAmplificationModeSelect'} defaultValue={'normal'}>

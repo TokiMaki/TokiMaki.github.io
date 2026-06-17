@@ -45,6 +45,7 @@ export function bindToolEvents(ctx) {
     API_BASE,
     DEV_MODE_STORAGE_KEY,
     ENCHANT_INCLUDE_FILTER_STORAGE_KEY,
+    ENCHANT_MATERIAL_COST_STORAGE_KEY,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
     SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY,
@@ -395,6 +396,21 @@ if (els.enchantIncludeControls) {
 }
 if (els.enchantTitleBeadOnlyToggle) {
   els.enchantTitleBeadOnlyToggle.addEventListener('change', () => {
+    ctx.actions.renderEnchantTable?.();
+  });
+}
+if (els.enchantMaterialCostToggle) {
+  try {
+    els.enchantMaterialCostToggle.checked = localStorage.getItem(ENCHANT_MATERIAL_COST_STORAGE_KEY) === '1';
+  } catch {
+    els.enchantMaterialCostToggle.checked = false;
+  }
+  els.enchantMaterialCostToggle.addEventListener('change', () => {
+    try {
+      localStorage.setItem(ENCHANT_MATERIAL_COST_STORAGE_KEY, els.enchantMaterialCostToggle.checked ? '1' : '0');
+    } catch {
+      // 설정 저장이 막혀도 현재 선택값으로 계산한다.
+    }
     ctx.actions.renderEnchantTable?.();
   });
 }

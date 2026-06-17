@@ -216,15 +216,59 @@ function getUpgradeMaterialIconId(material, upgradeMode) {
   return UPGRADE_MATERIAL_ICON_IDS[material.key] || '';
 }
 
+function getUpgradeMaterialPriceKey(material, upgradeMode) {
+  if (material.key === 'protectionTicket') {
+    return ['reinforcement', 'safeReinforcement'].includes(upgradeMode)
+      ? 'reinforcementProtectionTicket'
+      : 'amplificationProtectionTicket';
+  }
+  return material.key;
+}
+
+function applyUpgradeMaterialPrices(materials = [], upgradeMode = '', materialPrices = {}) {
+  return (materials || []).map((material) => {
+    const priceKey = getUpgradeMaterialPriceKey(material, upgradeMode);
+    const priceRow = materialPrices?.[priceKey] || {};
+    return {
+      ...material,
+      priceKey,
+      auction: priceRow.auction || material.auction || {},
+      itemId: priceRow.itemId || material.itemId || '',
+      itemName: priceRow.label || material.itemName || material.label || '',
+      iconUrl: priceRow.iconUrl || material.iconUrl || '',
+    };
+  });
+}
+
+function getMaterialGold(materials = []) {
+  return (materials || []).reduce((sum, material) => {
+    const amount = Number(material.amount || 0);
+    const unitPrice = Number(material.auction?.minUnitPrice || 0);
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0) return sum;
+    return sum + amount * unitPrice;
+  }, 0);
+}
+
+function getRecommendationGold(row, includeMaterialCosts = false) {
+  const baseGold = Number.isFinite(row?.expectedGold) ? row.expectedGold : Number(row?.auction?.minUnitPrice || 0);
+  if (!Number.isFinite(baseGold) || baseGold <= 0) return 0;
+  if (!includeMaterialCosts || !['upgrade', 'blackFang'].includes(row?.sourceType)) return baseGold;
+  const materialGold = row.sourceType === 'upgrade'
+    ? getMaterialGold(row.expectedMaterials)
+    : getMaterialGold(row.materials);
+  return baseGold + materialGold;
+}
+
 function getUpgradeMaterialParts(materials = [], upgradeMode = '') {
   return (materials || [])
     .map((material) => {
       const amount = formatMaterialAmount(material.amount);
       const iconId = getUpgradeMaterialIconId(material, upgradeMode);
+      const iconUrl = material.iconUrl || (iconId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(iconId)}` : '');
       return amount ? {
-        label: getUpgradeMaterialLabel(material, upgradeMode),
+        label: material.itemName || getUpgradeMaterialLabel(material, upgradeMode),
         amount,
-        iconUrl: iconId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(iconId)}` : '',
+        iconUrl,
       } : null;
     })
     .filter(Boolean);
@@ -579,8 +623,8 @@ function estimateDamageMultiplier(effects = {}, baseline = {}) {
   return finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier;
 }
 
-function getCostPerPointOnePercent(row) {
-  const price = Number.isFinite(row?.expectedGold) ? row.expectedGold : row?.auction?.minUnitPrice;
+function getCostPerPointOnePercent(row, includeMaterialCosts = false) {
+  const price = getRecommendationGold(row, includeMaterialCosts);
   if (!Number.isFinite(price) || price <= 0) return 0;
   if (!Number.isFinite(row.incrementalDamagePercent) || row.incrementalDamagePercent <= 0) return 0;
   return price * 0.1 / row.incrementalDamagePercent;
@@ -822,6 +866,7 @@ function getBufferRecommendationRows(
   currentTitle,
   currentAura,
   baseline,
+  includeMaterialCosts = false,
 ) {
   if (!baseline?.isBuffer) return [];
   const currentBySlot = new Map((currentEnchants || []).map((enchant) => [enchant.slot, enchant]));
@@ -934,7 +979,7 @@ function getBufferRecommendationRows(
     const incrementalBuffScore = candidateScore - currentScore;
     const incrementalBuffPercent = currentScore > 0 ? (candidateScore / currentScore - 1) * 100 : 0;
     if (incrementalBuffScore <= 0.0001) return;
-    const price = row?.auction?.minUnitPrice;
+    const price = getRecommendationGold(row, includeMaterialCosts);
     const buffCostPerHundredPoints = Number.isFinite(price) && price > 0
       ? price * 100 / incrementalBuffScore
       : 0;
@@ -956,7 +1001,7 @@ function getBufferRecommendationRows(
       (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
       (
         isMaterialAcquisition(row) === isMaterialAcquisition(previous) &&
-        Number(row?.auction?.minUnitPrice || 0) < Number(previous?.auction?.minUnitPrice || 0)
+        getRecommendationGold(row, includeMaterialCosts) < getRecommendationGold(previous, includeMaterialCosts)
       )
     ) {
       bySlotTier.set(key, {
@@ -1209,10 +1254,11 @@ function buildUpgradeRow({
   stepCost,
   effects,
   itemName,
+  materialPrices,
 }) {
   const expectedGold = Number(stepCost?.gold || 0);
   if (!Number.isFinite(expectedGold) || expectedGold <= 0) return null;
-  const expectedMaterials = getUpgradeMaterials(stepCost);
+  const expectedMaterials = applyUpgradeMaterialPrices(getUpgradeMaterials(stepCost), mode, materialPrices);
   return {
     sourceType: 'upgrade',
     slot: equipment.slot,
@@ -1383,7 +1429,7 @@ function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, basel
     }) || null;
 }
 
-function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline = {}, bufferBaseline = null, safeAmplificationEventEnabled = false) {
+function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline = {}, bufferBaseline = null, safeAmplificationEventEnabled = false, materialPrices = {}) {
   upgradeDb = upgradeDb || {};
   const reinforcementRows = upgradeDb.reinforcement?.reinforcement || [];
   const amplificationRows = upgradeDb.amplification?.normalAmplification || [];
@@ -1434,6 +1480,7 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
             )
             : getUpgradeEffects(equipment.slot, targetLevel, treatAsAmplified ? 'amplification' : 'reinforcement', upgradeDb),
         itemName: `${equipment.slot} ${currentLevel}->${targetLevel} ${isSafeAmplification ? '안전증폭' : treatAsAmplified ? '증폭' : isSafeReinforcement ? '안전강화' : '강화'}`,
+        materialPrices,
       });
       if ((treatAsAmplified || isSafeReinforcement) && nextUpgradeRow) rows.push(nextUpgradeRow);
     }
@@ -1463,6 +1510,7 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
             stepCost: expectedFromZero,
             effects: incrementalEffects,
             itemName: `${equipment.slot} ${currentLevel}강화->${conversionLevel}증폭`,
+            materialPrices,
           });
           if (row) rows.push(row);
         }
@@ -1720,7 +1768,7 @@ function getCreatureArtifactDisplayEffects(row, baseline, preferredElement = '')
   return effects;
 }
 
-function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreature, currentTitle, currentAura, baseline) {
+function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreature, currentTitle, currentAura, baseline, includeMaterialCosts = false) {
   const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
   const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
   const preferredArtifactElement = getPreferredElementForElementalUpgrades(rows, baseline, currentCreature, currentTitle);
@@ -1821,14 +1869,14 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       : row.sourceType === 'creature'
         ? (
           !previous ||
-          getCostPerPointOnePercent({ ...row, incrementalDamagePercent }) <
-            getCostPerPointOnePercent(previous)
+          getCostPerPointOnePercent({ ...row, incrementalDamagePercent }, includeMaterialCosts) <
+            getCostPerPointOnePercent(previous, includeMaterialCosts)
         )
       : !previous ||
       (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
       (
         isMaterialAcquisition(row) === isMaterialAcquisition(previous) &&
-        (row?.auction?.minUnitPrice || 0) < (previous?.auction?.minUnitPrice || 0)
+        getRecommendationGold(row, includeMaterialCosts) < getRecommendationGold(previous, includeMaterialCosts)
       );
     if (shouldReplace) {
       bySlotTier.set(key, {
@@ -1844,7 +1892,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
   const representativeRows = [...bySlotTier.values()]
     .map((row) => ({
       ...row,
-      costPerPointOnePercent: getCostPerPointOnePercent(row),
+      costPerPointOnePercent: getCostPerPointOnePercent(row, includeMaterialCosts),
     }));
   const bestUpgradeBySlot = new Map();
   const nonUpgradeRows = [];
@@ -2024,6 +2072,7 @@ export function installEnchantView(ctx) {
   state.currentEquipmentUpgrades = [];
   state.currentBlackFangRecommendations = [];
   state.upgradeExpectedDb = null;
+  state.upgradeMaterialPrices = {};
   state.currentDamageBaseline = null;
   state.currentBufferBaseline = null;
   state.currentEnchantCharacterKey = '';
@@ -2319,6 +2368,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = [];
     state.currentBlackFangRecommendations = [];
     state.upgradeExpectedDb = null;
+    state.upgradeMaterialPrices = {};
     state.currentDamageBaseline = null;
     state.currentBufferBaseline = null;
     state.currentCreature = null;
@@ -2478,6 +2528,7 @@ export function installEnchantView(ctx) {
       renderEnchantRecommendLoading();
       return;
     }
+    const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
     const renderStartedAt = getEnchantNowMs();
     const allRows = [
       ...getCardRows(state.enchantCards),
@@ -2492,6 +2543,7 @@ export function installEnchantView(ctx) {
         state.currentDamageBaseline,
         state.currentBufferBaseline,
         els.safeAmplificationModeSelect?.value === 'event',
+        state.upgradeMaterialPrices,
       ),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
     ];
@@ -2516,7 +2568,7 @@ export function installEnchantView(ctx) {
       .filter(isTitleRouteAllowed)
       .sort(sortByPriceAsc);
 
-    renderEnchantRecommendations(rows, allRows);
+    renderEnchantRecommendations(rows, allRows, includeMaterialCosts);
     recordEnchantTimingStep('renderEnchantTable', renderStartedAt, {
       rows: rows.length,
       allRows: allRows.length,
@@ -2560,7 +2612,7 @@ export function installEnchantView(ctx) {
       `).join('');
   }
 
-  function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows) {
+  function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
     const recommendations = state.currentBufferBaseline?.isBuffer
       ? getBufferRecommendationRows(
@@ -2570,8 +2622,9 @@ export function installEnchantView(ctx) {
         state.currentTitle,
         state.currentAura,
         state.currentBufferBaseline,
+        includeMaterialCosts,
       )
-      : getRepresentativeRecommendationRows(rows, state.currentEnchants, state.currentCreature, state.currentTitle, state.currentAura, state.currentDamageBaseline);
+      : getRepresentativeRecommendationRows(rows, state.currentEnchants, state.currentCreature, state.currentTitle, state.currentAura, state.currentDamageBaseline, includeMaterialCosts);
     renderEfficiencyLegend(recommendations);
     if (!recommendations.length) {
       els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">현재 세팅보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
@@ -2647,6 +2700,11 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'blackFang'
           ? getBlackFangMaterialParts(row.materials)
           : [];
+      const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+      const rowGold = getRecommendationGold(row, includeMaterialCosts);
+      const priceLabel = includeMaterialCosts && ['upgrade', 'blackFang'].includes(row.sourceType)
+        ? '재료 포함'
+        : ['upgrade', 'blackFang'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
       const materialPartsMarkup = materialParts.length
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
@@ -2660,7 +2718,7 @@ export function installEnchantView(ctx) {
         { text: effectText, className: 'enchant-popover-effect' },
         { text: acquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
         { text: acquisitionLabel, className: 'enchant-popover-material' },
-        { text: acquisitionLabel ? '' : `${['upgrade', 'blackFang'].includes(row.sourceType) ? '예상 골드' : '최저가'} ${formatGold(row?.auction?.minUnitPrice)}`, className: 'enchant-popover-price' },
+        { text: acquisitionLabel ? '' : `${priceLabel} ${formatGold(rowGold)}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
         { text: !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
         { text: isBufferMetric ? `교체 시 버프점수 +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `교체 상승 ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
@@ -2700,6 +2758,7 @@ export function installEnchantView(ctx) {
       state.currentEquipmentUpgrades = [];
       state.currentBlackFangRecommendations = [];
       state.upgradeExpectedDb = null;
+      state.upgradeMaterialPrices = {};
       state.currentDamageBaseline = null;
       state.currentBufferBaseline = null;
       state.currentEnchantCharacterKey = '';
@@ -2721,6 +2780,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
+    state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
     state.currentBufferBaseline = payload.bufferBaseline || null;
     state.currentEnchantCharacterKey = characterKey;
@@ -2892,6 +2952,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
+    state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
     state.currentBufferBaseline = payload.bufferBaseline || null;
     state.currentCreature = payload.creature || null;

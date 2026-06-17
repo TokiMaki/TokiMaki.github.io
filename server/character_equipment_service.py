@@ -41,8 +41,24 @@ AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
 BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}
 CHARACTER_RESPONSE_CACHE_TTL_SECONDS = 15
+UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS = 300
 _CHARACTER_RESPONSE_CACHE_LOCK = threading.Lock()
 _CHARACTER_RESPONSE_CACHE = {}
+_UPGRADE_MATERIAL_PRICE_CACHE_LOCK = threading.Lock()
+_UPGRADE_MATERIAL_PRICE_CACHE = {}
+UPGRADE_MATERIAL_PRICE_ITEMS = {
+    "harmonyCrystal": {"label": "무결점 조화의 결정체", "itemId": "ab8eab6848ed81b8bdd65d1c5a6ae8b2"},
+    "contradictionCrystal": {"label": "모순의 결정체", "itemId": "f1afc13118b2b07ec1e3b8c2f1958b03"},
+    "colorlessCube": {"label": "무색 큐브 조각", "itemId": "785e56a0ed4e3efd573da1f56a45217d"},
+    "lionCore": {"label": "무결점 라이언 코어", "itemId": "3840051cf487429c5a757c8bdb00e33b"},
+    "amplificationProtectionTicket": {"label": "증폭 보호권", "itemId": "55be75a1c024aac3ef84ed3bed5b8db9"},
+    "reinforcementProtectionTicket": {"label": "강화 보호권", "itemId": "8bc063c2b80179bc002f7dfb8203c4ab"},
+}
+BLACK_FANG_MATERIAL_AUCTION_NAME_MAP = {
+    "조화의 결정체": "무결점 조화의 결정체",
+    "태초 소울": "태초 소울 결정",
+    "순례의 인장": "순례의 인장(1회 교환 가능)",
+}
 AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "HEADGEAR", "slot": "모자 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "HAIR", "slot": "머리 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
@@ -132,6 +148,35 @@ def _measure_step(steps: list, name: str, fn):
         "ms": round((time.perf_counter() - started_at) * 1000, 1),
     })
     return result
+
+
+def load_upgrade_material_prices() -> dict:
+    now = time.time()
+    with _UPGRADE_MATERIAL_PRICE_CACHE_LOCK:
+        cached = _UPGRADE_MATERIAL_PRICE_CACHE.get("payload")
+        if cached and float(cached.get("expires_at") or 0) > now:
+            return cached.get("payload") or {}
+
+    payload = {}
+    for key, config in UPGRADE_MATERIAL_PRICE_ITEMS.items():
+        item_id = clean_text(config.get("itemId"))
+        try:
+            auction = get_lowest_auction_price(item_id) if item_id else {}
+        except Exception:
+            auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+        payload[key] = {
+            "label": config.get("label"),
+            "itemId": item_id,
+            "iconUrl": get_item_icon_url(item_id) if item_id else "",
+            "auction": auction,
+        }
+
+    with _UPGRADE_MATERIAL_PRICE_CACHE_LOCK:
+        _UPGRADE_MATERIAL_PRICE_CACHE["payload"] = {
+            "payload": payload,
+            "expires_at": now + UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS,
+        }
+    return payload
 
 
 def status_rows_to_map(status_rows: list) -> dict:
@@ -441,6 +486,7 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "equipmentUpgrades": equipment_upgrades,
         "blackFangRecommendations": black_fang_recommendations,
         "upgradeExpectedDb": load_upgrade_expected_db(),
+        "upgradeMaterialPrices": load_upgrade_material_prices(),
         "debugTimings": {
             "steps": steps,
             "details": {
@@ -756,6 +802,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         "equipmentUpgrades": enchant_payload.get("equipmentUpgrades") or [],
         "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
         "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
+        "upgradeMaterialPrices": enchant_payload.get("upgradeMaterialPrices"),
         "creature": creature_payload.get("creature"),
         "title": title_payload.get("title"),
         "aura": aura_payload.get("aura"),
@@ -1551,14 +1598,21 @@ def enrich_black_fang_materials(materials: list) -> list:
         label = clean_text(material.get("label"))
         if not label:
             continue
-        item = find_exact_item_by_name(label)
+        auction_name = BLACK_FANG_MATERIAL_AUCTION_NAME_MAP.get(label, label)
+        item = find_exact_item_by_name(auction_name)
         item_id = clean_text(item.get("itemId"))
+        try:
+            auction = get_lowest_auction_price(item_id) if item_id else {}
+        except Exception:
+            auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
         enriched.append({
             "label": label,
             "amount": material.get("amount"),
             "itemId": item_id,
-            "itemName": clean_text(item.get("itemName")) or label,
+            "itemName": clean_text(item.get("itemName")) or auction_name,
+            "auctionName": auction_name,
             "iconUrl": get_item_icon_url(item_id),
+            "auction": auction,
         })
     return enriched
 

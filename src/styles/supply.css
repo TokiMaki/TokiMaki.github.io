@@ -208,6 +208,12 @@
       margin: 0;
       accent-color: var(--accent-2);
     }
+    .enchant-route-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
     .enchant-route-option {
       justify-self: start;
       width: fit-content;
