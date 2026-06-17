@@ -224,6 +224,8 @@ def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | 
     status = status_rows_to_map(payload.get("status") or [])
     job_name = clean_text(payload.get("jobName"))
     job_grow_name = clean_text(payload.get("jobGrowName"))
+    if (job_name, job_grow_name) == ("프리스트(남)", "眞 크루세이더") and is_male_crusader_battle_style(server_id, character_id):
+        return None
     buffer_key = {
         ("프리스트(남)", "眞 크루세이더"): "maleCrusader",
         ("프리스트(여)", "眞 크루세이더"): "femaleCrusader",
@@ -262,6 +264,15 @@ def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | 
         **switching_stat,
         **skill_levels,
     }
+
+
+def is_male_crusader_battle_style(server_id: str, character_id: str) -> bool:
+    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    return any(
+        clean_text(row.get("name")) == "성령의 메이스"
+        and int(row.get("level") or row.get("skillLevel") or 0) > 0
+        for row in flatten_skill_rows(style_payload)
+    )
 
 
 def get_named_skill_level_bonus(reinforce_skill: list, job_name: str, skill_name: str) -> int:
@@ -1805,8 +1816,10 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
     jacket = get_avatar_slot(avatar_rows, "JACKET")
     pants = get_avatar_slot(avatar_rows, "PANTS")
     entry = _measure_step(steps, "find_avatar_option_entry", lambda: find_avatar_option_entry(payload))
+    if not buffer_baseline and clean_text(entry.get("role")) == "buffer":
+        entry = {}
     option_db = entry.get("avatar") or {}
-    buffer_stat_name = get_character_buffer_stat_name(payload, server_id, character_id)
+    buffer_stat_name = get_character_buffer_stat_name(payload, server_id, character_id) if buffer_baseline else ""
     primary_stat_name = buffer_stat_name or resolve_avatar_primary_stat_name(
         payload,
         avatar_rows,
