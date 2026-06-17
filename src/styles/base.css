@@ -304,6 +304,7 @@
       margin-top: 16px;
       padding-top: 16px;
       display: flex;
+      align-items: flex-start;
       justify-content: center;
       gap: 12px;
       border-top: 1px solid var(--line-white-soft);
@@ -317,6 +318,76 @@
     }
     .landing-notice p {
       margin: 0;
+    }
+    .landing-notice-list {
+      width: min(560px, 100%);
+      display: grid;
+      gap: 8px;
+      text-align: left;
+      min-width: 0;
+    }
+    .landing-notice-item {
+      display: grid;
+      gap: 7px;
+    }
+    .landing-notice-item-summary {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      list-style: none;
+      width: 100%;
+      max-width: 100%;
+    }
+    .landing-notice-item-summary::-webkit-details-marker {
+      display: none;
+    }
+    .landing-notice-item-summary::after {
+      content: '+';
+      color: var(--accent-2);
+      justify-self: end;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .landing-notice-item[open] .landing-notice-item-summary::after {
+      content: '-';
+    }
+    .landing-notice-item-date {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .landing-notice-item-title {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .landing-notice-item-body {
+      padding: 9px 11px;
+      margin-left: 92px;
+      border: 1px solid var(--line-white-soft);
+      background: color-mix(in srgb, var(--accent-2) 12%, var(--panel-2));
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--white) 8%, transparent);
+      border-radius: 8px;
+      line-height: 1.55;
+    }
+    .landing-notice-item-body,
+    .landing-notice-item-link {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .landing-notice-item-link {
+      justify-self: start;
+      margin-left: 92px;
+      text-decoration: none;
+    }
+    .landing-notice-item-link:hover {
+      color: var(--text);
     }
     .hero-actions {
       display: flex;
@@ -412,6 +483,27 @@
       padding: 7px 10px;
       font-size: 12px;
       opacity: 0.72;
+    }
+    .neople-bi-footer {
+      display: flex;
+      justify-content: center;
+      padding: 8px 0 2px;
+    }
+    .neople-bi-footer a {
+      display: inline-flex;
+      opacity: 0.72;
+      transition: opacity 140ms ease, filter 140ms ease;
+    }
+    .neople-bi-footer a:hover,
+    .neople-bi-footer a:focus-visible {
+      opacity: 1;
+      filter: brightness(1.08);
+    }
+    .neople-bi-footer img {
+      display: block;
+      width: 191px;
+      max-width: min(191px, 70vw);
+      height: auto;
     }
     .grid {
       display: grid;

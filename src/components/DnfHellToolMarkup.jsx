@@ -1,4 +1,5 @@
 import logoImage from '../../이미지/로고/logo.png';
+import neopleBiImage from '../../이미지/BI/BI.png';
 
 const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
 
@@ -41,7 +42,9 @@ export default function DnfHellToolMarkup() {
           </section>
           <aside className={'landing-notice'}>
             <span>NOTICE</span>
-            <p>공지사항 영역 준비 중...</p>
+            <div className={'landing-notice-list'} id={'landingNoticeList'}>
+              <p>공지사항을 불러오는 중...</p>
+            </div>
           </aside>
         </main>
       </section>
@@ -573,6 +576,11 @@ export default function DnfHellToolMarkup() {
         </div>
       ) : null}
       </div>
+      <footer className={'neople-bi-footer'}>
+        <a href={'https://developers.neople.co.kr'} target={'_blank'} rel={'noopener noreferrer'}>
+          <img src={neopleBiImage} alt={'Neople 오픈 API'} />
+        </a>
+      </footer>
     </div>
   );
 }

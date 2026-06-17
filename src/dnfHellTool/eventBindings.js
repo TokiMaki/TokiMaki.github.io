@@ -102,6 +102,7 @@ export function bindToolEvents(ctx) {
   const recalcCharacterOnly = (...args) => ctx.actions.recalcCharacterOnly(...args);
   const RECENT_SEARCHES_STORAGE_KEY = 'dnf-pilot-recent-searches';
   const RECENT_SEARCH_LIMIT = 5;
+  const NOTICE_LIMIT = 3;
   const SAFE_AMPLIFICATION_MODE_STORAGE_KEY = 'dnf-pilot-safe-amplification-mode';
 
   const setScreen = (screen) => {
@@ -182,6 +183,66 @@ export function bindToolEvents(ctx) {
       return;
     }
     renderRecentSearches();
+  };
+  const renderLandingNotices = (rows = []) => {
+    if (!els.landingNoticeList) return;
+    const notices = rows
+      .map((row, index) => ({ ...row, noticeOrder: index }))
+      .filter((row) => row?.visible !== false && row?.title)
+      .sort((a, b) => {
+        const dateOrder = String(b.date || '').localeCompare(String(a.date || ''));
+        return dateOrder || Number(b.noticeOrder || 0) - Number(a.noticeOrder || 0);
+      })
+      .slice(0, NOTICE_LIMIT);
+    if (!notices.length) {
+      els.landingNoticeList.replaceChildren(Object.assign(document.createElement('p'), {
+        textContent: '등록된 공지사항이 없습니다.',
+      }));
+      return;
+    }
+    els.landingNoticeList.replaceChildren(...notices.map((notice) => {
+      const item = document.createElement('details');
+      item.className = 'landing-notice-item';
+
+      const summary = document.createElement('summary');
+      summary.className = 'landing-notice-item-summary';
+      const date = document.createElement('span');
+      date.className = 'landing-notice-item-date';
+      date.textContent = notice.date ? `[${notice.date}]` : '';
+      const title = document.createElement('span');
+      title.className = 'landing-notice-item-title';
+      title.textContent = notice.title;
+      summary.append(date, title);
+
+      const body = document.createElement('p');
+      body.className = 'landing-notice-item-body';
+      body.textContent = notice.body || '';
+
+      item.append(summary, body);
+      if (notice.link) {
+        const link = document.createElement('a');
+        link.className = 'landing-notice-item-link';
+        link.href = notice.link;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = '자세히 보기';
+        item.append(link);
+      }
+      return item;
+    }));
+  };
+  const loadLandingNotices = async () => {
+    if (!els.landingNoticeList) return;
+    try {
+      const response = await fetch('./notices.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`공지사항 로드 실패 (${response.status})`);
+      const payload = await response.json();
+      renderLandingNotices(Array.isArray(payload) ? payload : []);
+    } catch {
+      els.landingNoticeList.replaceChildren(Object.assign(document.createElement('p'), {
+        textContent: '공지사항을 불러오지 못했습니다.',
+      }));
+    }
   };
   const runEnchantSearch = ({ serverId, characterName, updateHistory = true, saveRecent = true } = {}) => {
     const normalizedServerId = String(serverId || els.enchantServerIdInput?.value || 'cain').trim();
@@ -293,6 +354,7 @@ bindRecentSearchList(els.landingRecentSearchList);
 bindRecentSearchList(els.resultRecentSearchList);
 window.addEventListener('popstate', applyLocation);
 renderRecentSearches();
+loadLandingNotices();
 window.setTimeout(applyLocation, 0);
 if (els.enchantSlotFilter) {
   els.enchantSlotFilter.addEventListener('change', () => {
