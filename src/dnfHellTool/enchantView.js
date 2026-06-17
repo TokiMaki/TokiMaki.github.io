@@ -1555,10 +1555,29 @@ function getCurrentCreatureArtifactBySlot(currentCreature) {
     .map((artifact) => [artifact.slotColor, artifact]));
 }
 
-function getPreferredElementForElementalUpgrades(rows, baseline) {
+function getCurrentElementPreferenceOrder(currentCreature, currentTitle, topElements = []) {
+  const counts = new Map(topElements.map((element) => [element, 0]));
+  const currentTitleElement = currentTitle?.titleEnchantElement;
+  if (currentTitleElement && currentTitleElement !== 'all' && counts.has(currentTitleElement)) {
+    counts.set(currentTitleElement, counts.get(currentTitleElement) + 1);
+  }
+  (currentCreature?.artifacts || []).forEach((artifact) => {
+    if (!['RED', 'BLUE'].includes(artifact?.slotColor)) return;
+    if (!counts.has(artifact?.element)) return;
+    counts.set(artifact.element, counts.get(artifact.element) + 1);
+  });
+  return [...counts.entries()]
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([element]) => element);
+}
+
+function getPreferredElementForElementalUpgrades(rows, baseline, currentCreature, currentTitle) {
   const base = getDamageBaseline(baseline);
   const topElements = base.elementNames || [];
   if (topElements.length <= 1) return topElements[0] || '';
+  const currentPreferenceOrder = getCurrentElementPreferenceOrder(currentCreature, currentTitle, topElements);
+  if (currentPreferenceOrder.length === 1) return currentPreferenceOrder[0];
   const artifactCandidates = (rows || []).filter((row) => (
     row?.sourceType === 'creatureArtifact' &&
     ['RED', 'BLUE'].includes(row.slotColor) &&
@@ -1592,7 +1611,15 @@ function getPreferredElementForElementalUpgrades(rows, baseline) {
     };
   }).filter((row) => Number.isFinite(row.totalPrice));
   ranked.sort((a, b) => a.totalPrice - b.totalPrice);
-  return ranked[0]?.element || topElements[0] || '';
+  if (currentPreferenceOrder.length > 1) {
+    const currentPreferenceRank = new Map(currentPreferenceOrder.map((element, index) => [element, index]));
+    ranked.sort((a, b) => {
+      const rankA = currentPreferenceRank.has(a.element) ? currentPreferenceRank.get(a.element) : Number.POSITIVE_INFINITY;
+      const rankB = currentPreferenceRank.has(b.element) ? currentPreferenceRank.get(b.element) : Number.POSITIVE_INFINITY;
+      return (rankA - rankB) || a.totalPrice - b.totalPrice;
+    });
+  }
+  return ranked[0]?.element || currentPreferenceOrder[0] || topElements[0] || '';
 }
 
 function isPreferredCreatureArtifactElement(row, baseline, preferredElement = '') {
@@ -1647,7 +1674,7 @@ function getCreatureArtifactDisplayEffects(row, baseline, preferredElement = '')
 function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreature, currentTitle, currentAura, baseline) {
   const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
   const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
-  const preferredArtifactElement = getPreferredElementForElementalUpgrades(rows, baseline);
+  const preferredArtifactElement = getPreferredElementForElementalUpgrades(rows, baseline, currentCreature, currentTitle);
   const bySlotTier = new Map();
   rows.forEach((row) => {
     if (!isPreferredCreatureArtifactElement(row, baseline, preferredArtifactElement)) return;
