@@ -3,9 +3,20 @@
   "updatedAt": "2026-06-04",
   "source": {
     "type": "manual_keyword_seed_from_user",
-    "note": "오라는 키워드 기반으로 네오플 아이템 검색에서 직접 오라 아바타와 관련 상자를 찾아 가격을 비교한다."
+    "note": "오라는 itemId 직접 등록을 우선 사용한다. priceItemIds는 거래 가능한 상자 가격을 후보 가격으로 쓰기 위한 항목이다."
   },
-  "keywords": [
-    "열대야의 추억"
-  ]
+  "items": [
+    {
+      "groupName": "열대야의 추억",
+      "itemId": "c6ca900e513cccb177890939de234227",
+      "priceItemIds": [
+        "ae1b370972f85389d77eee716ae9f6e2"
+      ]
+    },
+    {
+      "groupName": "신선한 햇살의 조각",
+      "itemId": "1c914aadf7b1828de3813b388ffec5e4"
+    }
+  ],
+  "keywords": []
 }

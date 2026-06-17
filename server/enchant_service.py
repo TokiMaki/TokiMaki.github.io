@@ -680,8 +680,94 @@ def load_aura_upgrades_with_prices(
             auction_cache[item_id] = get_lowest_auction_price(item_id)
         return auction_cache[item_id]
 
+    direct_group_names = set()
+    for item_config in aura_db.get("items") or []:
+        item_id = clean_text(item_config.get("itemId"))
+        if not item_id:
+            continue
+        group_name = clean_text(item_config.get("groupName") or item_config.get("itemName") or item_id)
+        direct_group_names.add(group_name)
+        aura_details = fetch_item_details([item_id])
+
+        price_item_ids = [
+            clean_text(price_item_id)
+            for price_item_id in item_config.get("priceItemIds") or []
+            if clean_text(price_item_id)
+        ]
+        for price_search_name in item_config.get("priceSearchNames") or []:
+            price_search_name = clean_text(price_search_name)
+            if not price_search_name:
+                continue
+            try:
+                for row in search_items_by_name(price_search_name):
+                    if clean_text(row.get("itemName")) == price_search_name:
+                        price_item_ids.append(row.get("itemId"))
+            except Exception as exc:
+                errors.append({"keyword": price_search_name, "error": str(exc)})
+
+        price_details = fetch_item_details(price_item_ids)
+        box_details = [
+            detail for detail in price_details
+            if "상자" in clean_text(detail.get("itemName"))
+        ]
+        price_items = []
+        for detail in [*aura_details, *box_details]:
+            detail_item_id = detail.get("itemId")
+            item = {
+                "itemId": detail_item_id,
+                "itemName": clean_text(detail.get("itemName")),
+                "iconUrl": get_item_icon_url(detail_item_id),
+                "itemExplain": get_item_explain(detail),
+            }
+            try:
+                item["auction"] = get_cached_auction(detail_item_id)
+            except Exception as exc:
+                item["auction"] = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                errors.append({"itemId": detail_item_id, "itemName": item.get("itemName"), "error": str(exc)})
+            price_items.append(item)
+
+        candidates = []
+        for detail in aura_details:
+            detail_item_id = detail.get("itemId")
+            direct_price = next((item for item in price_items if item.get("itemId") == detail_item_id), None)
+            price_options = [
+                item for item in price_items
+                if item.get("itemId") == detail_item_id or "상자" in clean_text(item.get("itemName"))
+            ]
+            priced_options = [
+                item for item in price_options
+                if isinstance(item.get("auction", {}).get("minUnitPrice"), (int, float))
+                and item["auction"]["minUnitPrice"] > 0
+            ]
+            price_item = min(priced_options, key=lambda item: item["auction"]["minUnitPrice"], default=None)
+            candidates.append({
+                **build_aura_payload(
+                    detail_item_id,
+                    detail,
+                    auction=(price_item or direct_price or {}).get("auction", {}),
+                    price_item={
+                        "itemId": (price_item or {}).get("itemId"),
+                        "itemName": (price_item or {}).get("itemName"),
+                        "iconUrl": (price_item or {}).get("iconUrl"),
+                    } if price_item and price_item.get("itemId") != detail_item_id else None,
+                ),
+                "name": clean_text(detail.get("itemName")),
+                "variant": clean_text(item_config.get("variant")) or "일반",
+            })
+
+        candidates.sort(key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30)
+        groups.append({
+            "groupName": group_name,
+            "searchName": group_name,
+            "itemType": "오라",
+            "candidates": candidates,
+            "unresolved": not bool(candidates),
+        })
+
     for keyword in aura_db.get("keywords") or []:
         keyword = clean_text(keyword)
+        if keyword in direct_group_names:
+            continue
         matched = {}
         try:
             for row in search_items_by_name(keyword):
