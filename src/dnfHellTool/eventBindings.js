@@ -44,6 +44,7 @@ export function bindToolEvents(ctx) {
     ACTIVE_TAB_STORAGE_KEY,
     API_BASE,
     DEV_MODE_STORAGE_KEY,
+    ENCHANT_INCLUDE_FILTER_STORAGE_KEY,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
     SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY,
@@ -369,6 +370,13 @@ if (els.enchantTierFilter) {
 if (els.enchantIncludeControls) {
   els.enchantIncludeControls.addEventListener('change', (event) => {
     if (event.target?.matches?.('input[data-enchant-tier]')) {
+      try {
+        const checked = [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
+          .map((input) => input.value);
+        localStorage.setItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY, JSON.stringify(checked));
+      } catch {
+        // 저장 실패는 렌더링에 영향 주지 않는다.
+      }
       ctx.actions.renderEnchantTable?.();
     }
   });

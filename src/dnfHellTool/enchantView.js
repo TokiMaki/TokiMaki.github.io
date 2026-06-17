@@ -932,10 +932,17 @@ function getBufferRecommendationRows(
       ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(scoringTargetEffects)}`
+      : row.sourceType === 'creature'
+        ? `${row.sourceType}:${row.slot}:${row.tier}`
       : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${JSON.stringify(skillDelta)}:${JSON.stringify(itemSkillChanges)}`;
     const previous = bySlotTier.get(key);
     if (
       !previous ||
+      (
+        row.sourceType === 'creature' &&
+        buffCostPerHundredPoints > 0 &&
+        (!previous.buffCostPerHundredPoints || buffCostPerHundredPoints < previous.buffCostPerHundredPoints)
+      ) ||
       (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
       (
         isMaterialAcquisition(row) === isMaterialAcquisition(previous) &&
@@ -1752,6 +1759,8 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       : '';
     const key = row.sourceType === 'creatureArtifact'
       ? `${row.sourceType}:${row.slot}:${row.tier}`
+      : row.sourceType === 'creature'
+        ? `${row.sourceType}:${row.slot}:${row.tier}`
       : ['creature', 'title', 'aura'].includes(row.sourceType)
       ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
       : row.sourceType === 'blackFang'
@@ -1766,6 +1775,12 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         Math.abs(incrementalDamagePercent - previous.incrementalDamagePercent) <= 0.0001 &&
           (row?.auction?.minUnitPrice || 0) < (previous?.auction?.minUnitPrice || 0)
       )
+      : row.sourceType === 'creature'
+        ? (
+          !previous ||
+          getCostPerPointOnePercent({ ...row, incrementalDamagePercent }) <
+            getCostPerPointOnePercent(previous)
+        )
       : !previous ||
       (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
       (
@@ -1946,7 +1961,7 @@ function formatTitlePurchaseRouteLabel(row) {
 
 export function installEnchantView(ctx) {
   const { els, state } = ctx;
-  const { API_BASE, parseApiJsonResponse } = ctx.constants;
+  const { API_BASE, ENCHANT_INCLUDE_FILTER_STORAGE_KEY, parseApiJsonResponse } = ctx.constants;
   const { bindCharacterAvatars, escapeHtml, getCharacterPortraitMarkup } = ctx.deps;
 
   state.enchantCards = [];
@@ -2268,13 +2283,6 @@ export function installEnchantView(ctx) {
   function resetEnchantRecommendationFilters() {
     if (els.enchantSlotFilter) els.enchantSlotFilter.value = 'all';
     if (els.enchantTierFilter) els.enchantTierFilter.value = 'all';
-    if (els.enchantIncludeControls) {
-      els.enchantIncludeControls
-        .querySelectorAll('input[data-enchant-tier]')
-        .forEach((input) => {
-          input.checked = true;
-        });
-    }
   }
 
   function hasEnchantPriceRecommendationData() {
@@ -2328,6 +2336,15 @@ export function installEnchantView(ctx) {
 
   function renderEnchantIncludeControls(includeKeys = ENCHANT_INCLUDE_ORDER) {
     if (!els.enchantIncludeControls) return;
+    let storedChecked = null;
+    if (ENCHANT_INCLUDE_FILTER_STORAGE_KEY) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY) || 'null');
+        if (Array.isArray(parsed)) storedChecked = new Set(parsed.filter((key) => typeof key === 'string'));
+      } catch {
+        storedChecked = null;
+      }
+    }
     const checked = new Set(
       [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
         .map((input) => input.value),
@@ -2350,7 +2367,9 @@ export function installEnchantView(ctx) {
             <div class="enchant-include-group-title">${escapeHtml(group.title)}</div>
             <div class="enchant-include-group-options${group.splitAfter ? ' is-split' : ''}">
               ${options.map(({ item, key }) => {
-                const isChecked = initialRender || !existingKeys.has(key) || checked.has(key);
+                const isChecked = storedChecked
+                  ? storedChecked.has(key)
+                  : initialRender || !existingKeys.has(key) || checked.has(key);
                 return `
                   <label class="enchant-include-option">
                     <input type="checkbox" data-enchant-tier="${escapeHtml(key)}" value="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} />

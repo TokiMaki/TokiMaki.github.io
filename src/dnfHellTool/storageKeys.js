@@ -46,6 +46,7 @@ export const CHARACTER_CACHE_BACKUP_KEY = 'dnf-hell-info:api-character-list:back
 export const SUPPLY_CACHE_PREFIX = 'dnf-hell-info:supply-character-list:';
 export const SUPPLY_CACHE_BACKUP_KEY = 'dnf-hell-info:supply-character-list:backup';
 export const ACTIVE_TAB_STORAGE_KEY = 'dnf-hell-info:active-tab';
+export const ENCHANT_INCLUDE_FILTER_STORAGE_KEY = 'dnf-hell-info:enchant-include-filter';
 export const SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY = 'dnf-hell-info:supply-soul-excluded-keys';
 export const SUPPLY_SOUL_USAGE_RATES_STORAGE_KEY = 'dnf-hell-info:supply-soul-usage-rates';
 export const STORAGE_SCOPE_LABEL = '이 컴퓨터 저장소';

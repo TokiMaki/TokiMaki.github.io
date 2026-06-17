@@ -812,6 +812,10 @@ def get_avatar_emblem_stat_total(avatar_rows: list, stat_name: str) -> float:
     return total
 
 
+def get_avatar_buffer_stat_signal_total(avatar_rows: list, stat_name: str) -> float:
+    return sum(get_row_direct_stat(row, {}, stat_name) for row in avatar_rows or [])
+
+
 def resolve_avatar_primary_stat_name(
     payload: dict,
     avatar_rows: list,
@@ -859,6 +863,24 @@ def get_character_buffer_stat_name(payload: dict, server_id: str, character_id: 
     }.get(job_key)
     if stat_name or job_key != ("프리스트(남)", "眞 크루세이더"):
         return stat_name or ""
+    avatar_rows = payload.get("avatar") or []
+    switching_payload = _get_character_cached_payload(
+        server_id,
+        character_id,
+        "buff_avatar",
+        "skill/buff/equip/avatar",
+    )
+    switching_rows = ((switching_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+    vitality_signal = (
+        get_avatar_buffer_stat_signal_total(avatar_rows, "체력")
+        + get_avatar_buffer_stat_signal_total(switching_rows, "체력")
+    )
+    spirit_signal = (
+        get_avatar_buffer_stat_signal_total(avatar_rows, "정신력")
+        + get_avatar_buffer_stat_signal_total(switching_rows, "정신력")
+    )
+    if vitality_signal != spirit_signal:
+        return "체력" if vitality_signal > spirit_signal else "정신력"
     status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
     status = status_rows_to_map(status_payload.get("status") or [])
     return "체력" if status.get("체력", 0) >= status.get("정신력", 0) else "정신력"
