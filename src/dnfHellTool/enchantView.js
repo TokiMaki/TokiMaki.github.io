@@ -48,6 +48,7 @@ const SLOT_ORDER = [
   '마법석',
   '크리쳐',
   '칭호',
+  '벞강 칭호',
   '아바타',
   '모자 아바타',
   '머리 아바타',
@@ -665,8 +666,8 @@ function getEnchantIncludeGroups(row = {}) {
   }
   if (row.sourceType === 'enchant') return [`마법부여:${row.tier || '일반'}`];
   if (row.sourceType === 'creatureArtifact') return ['오라/칭호/크리쳐:아티팩트'];
-  if (['creature', 'title', 'aura'].includes(row.sourceType)) {
-    const typeLabel = { creature: '크리쳐', title: '칭호', aura: '오라' }[row.sourceType];
+  if (['creature', 'title', 'switchingTitle', 'aura'].includes(row.sourceType)) {
+    const typeLabel = { creature: '크리쳐', title: '칭호', switchingTitle: '칭호', aura: '오라' }[row.sourceType];
     return [
       `오라/칭호/크리쳐:${typeLabel}`,
       `오라/칭호/크리쳐:${row.tier === '플래티넘' ? '플래티넘' : '일반'}`,
@@ -1111,6 +1112,30 @@ function getTitleRows(groups, currentTitle) {
       purchaseRouteLabel: candidate.purchaseRouteLabel || '',
       titleBead: candidate.titleBead || null,
     })));
+}
+
+function getSwitchingTitleRows(recommendations = []) {
+  return (recommendations || []).map((candidate) => ({
+    sourceType: 'switchingTitle',
+    slot: candidate.slot === '버프강화 칭호' ? '벞강 칭호' : candidate.slot || '벞강 칭호',
+    tier: candidate.tier === '스위칭' ? '버프강화' : candidate.tier || '버프강화',
+    kind: candidate.kind || 'switchingTitle',
+    itemId: candidate.itemId,
+    itemName: candidate.itemName,
+    itemRarity: candidate.itemRarity || '레어',
+    fame: candidate.fame,
+    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+    effects: candidate.effects || {},
+    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
+    itemExplain: candidate.itemExplain || '',
+    auction: candidate.auction || {},
+    candidateName: candidate.itemName,
+    buffSkillName: candidate.buffSkillName || '',
+    enchantBuffSkillLevelDelta: Number(candidate.enchantBuffSkillLevelDelta || 0),
+    purchaseRoute: candidate.purchaseRoute || '',
+    purchaseRouteLabel: candidate.purchaseRouteLabel || '',
+    recommendationPriority: Number(candidate.recommendationPriority || 0),
+  }));
 }
 
 function getAuraRows(groups) {
@@ -1566,7 +1591,7 @@ function getRecommendationDamageEffects(row, current) {
       row.currentEffects || {},
     );
   }
-  if (['avatar'].includes(row.sourceType)) return row.effects || {};
+  if (['avatar', 'switchingTitle'].includes(row.sourceType)) return row.effects || {};
   return subtractEffects(row.effects || {}, current?.effects || {});
 }
 
@@ -1789,6 +1814,8 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         ? { effects: {} }
       : row.sourceType === 'avatar'
         ? { effects: {} }
+      : row.sourceType === 'switchingTitle'
+        ? { effects: {} }
       : row.sourceType === 'creature'
       ? {
         ...currentCreature,
@@ -1827,7 +1854,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
     ) return;
     if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
-    const isReplacement = !['upgrade', 'avatar'].includes(row.sourceType);
+    const isReplacement = !['upgrade', 'avatar', 'switchingTitle'].includes(row.sourceType);
     const damageEffects = getRecommendationDamageEffects(row, current);
     const estimatedDamagePercent = isReplacement
       ? getReplacementIncrementalDamagePercent(
@@ -1852,7 +1879,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       ? `${row.sourceType}:${row.slot}:${row.tier}`
       : row.sourceType === 'creature'
         ? `${row.sourceType}:${row.slot}:${row.tier}`
-      : ['creature', 'title', 'aura'].includes(row.sourceType)
+      : ['creature', 'title', 'switchingTitle', 'aura'].includes(row.sourceType)
       ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
@@ -2069,6 +2096,7 @@ export function installEnchantView(ctx) {
   state.currentTitle = null;
   state.currentAura = null;
   state.currentAvatar = null;
+  state.switchingTitleRecommendations = [];
   state.currentEquipmentUpgrades = [];
   state.currentBlackFangRecommendations = [];
   state.upgradeExpectedDb = null;
@@ -2375,6 +2403,7 @@ export function installEnchantView(ctx) {
     state.currentTitle = null;
     state.currentAura = null;
     state.currentAvatar = null;
+    state.switchingTitleRecommendations = [];
     state.currentEnchantCharacterKey = '';
     state.currentCreatureCharacterKey = '';
     state.currentTitleCharacterKey = '';
@@ -2393,6 +2422,7 @@ export function installEnchantView(ctx) {
       || state.creatureUpgradeGroups.length > 0
       || state.creatureArtifactGroups.length > 0
       || state.titleUpgradeGroups.length > 0
+      || state.switchingTitleRecommendations.length > 0
       || state.auraUpgradeGroups.length > 0
     );
   }
@@ -2535,6 +2565,7 @@ export function installEnchantView(ctx) {
       ...getCreatureRows(state.creatureUpgradeGroups),
       ...getCreatureArtifactRows(state.creatureArtifactGroups),
       ...getTitleRows(state.titleUpgradeGroups, state.currentTitle),
+      ...getSwitchingTitleRows(state.switchingTitleRecommendations),
       ...getAuraRows(state.auraUpgradeGroups),
       ...getAvatarRows(state.currentAvatar),
       ...getUpgradeRows(
@@ -2558,7 +2589,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -2652,7 +2683,7 @@ export function installEnchantView(ctx) {
         ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(materialAcquisition || isMaterialAcquisition(previousRow) ? (isBufferMetric ? BUFFER_EFFICIENCY_COLOR_STOPS : DAMAGE_EFFICIENCY_COLOR_STOPS)[0].color : isBufferMetric ? getBufferArrowBackground(previousRow.buffCostPerHundredPoints, row.buffCostPerHundredPoints) : getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
-      const showOptionText = !['creature', 'title', 'aura', 'creatureArtifact'].includes(row.sourceType);
+      const showOptionText = !['creature', 'title', 'switchingTitle', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
         : row.sourceType === 'blackFang'
@@ -2678,12 +2709,16 @@ export function installEnchantView(ctx) {
         : '';
       const titleRouteLabel = row.sourceType === 'title'
         ? formatTitlePurchaseRouteLabel(row)
+        : row.sourceType === 'switchingTitle'
+          ? row.purchaseRouteLabel || (row.buffSkillName && row.enchantBuffSkillLevelDelta ? `[${row.buffSkillName} +${row.enchantBuffSkillLevelDelta}Lv]` : '')
         : '';
       const tierLabel = row.sourceType === 'title'
         ? row.tier === '플래티넘' ? '플래티넘' : '일반'
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
+        : row.sourceType === 'switchingTitle'
+          ? row.itemName
         : row.sourceType === 'creature'
           ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, row.tier === '플래티넘')
           : row.sourceType === 'creatureArtifact'
@@ -2714,7 +2749,7 @@ export function installEnchantView(ctx) {
       const tooltipRows = [
         { text: displayName, className: 'enchant-popover-name' },
         { text: titleRouteLabel, className: 'enchant-popover-muted' },
-        { text: showOptionText ? row.itemExplain : '', className: 'enchant-popover-muted' },
+        { text: showOptionText || row.sourceType === 'switchingTitle' ? row.itemExplain : '', className: 'enchant-popover-muted' },
         { text: effectText, className: 'enchant-popover-effect' },
         { text: acquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
         { text: acquisitionLabel, className: 'enchant-popover-material' },
@@ -2906,6 +2941,7 @@ export function installEnchantView(ctx) {
     state.currentCreature = payload.creature || null;
     state.currentTitle = payload.title || null;
     state.currentAura = payload.aura || null;
+    state.switchingTitleRecommendations = [];
     state.currentEnchantCharacterKey = characterKey;
     state.currentCreatureCharacterKey = characterKey;
     state.currentTitleCharacterKey = characterKey;
@@ -2959,6 +2995,7 @@ export function installEnchantView(ctx) {
     state.currentTitle = payload.title || null;
     state.currentAura = payload.aura || null;
     state.currentAvatar = payload.avatar || null;
+    state.switchingTitleRecommendations = Array.isArray(payload.switchingTitleRecommendations) ? payload.switchingTitleRecommendations : [];
     state.currentEnchantCharacterKey = characterKey;
     state.currentCreatureCharacterKey = characterKey;
     state.currentTitleCharacterKey = characterKey;
@@ -3113,6 +3150,7 @@ export function installEnchantView(ctx) {
     const ownsTiming = !state.enchantTiming && beginEnchantTiming(forceRefresh ? 'price-refresh' : 'price-load');
     if (forceRefresh) {
       state.currentAvatar = null;
+      state.switchingTitleRecommendations = [];
       state.currentAvatarCharacterKey = '';
     }
     if (els.refreshEnchantCardsButton) els.refreshEnchantCardsButton.disabled = true;
@@ -3160,7 +3198,7 @@ export function installEnchantView(ctx) {
       const errorCount = Number(payload.errors?.length || 0) + Number(creaturePayload.errors?.length || 0) + Number(titlePayload.errors?.length || 0) + Number(auraPayload.errors?.length || 0);
       const creatureCount = getCreatureRows(state.creatureUpgradeGroups).length;
       const artifactCount = getCreatureArtifactRows(state.creatureArtifactGroups).length;
-      const titleCount = getTitleRows(state.titleUpgradeGroups, state.currentTitle).length;
+      const titleCount = getTitleRows(state.titleUpgradeGroups, state.currentTitle).length + getSwitchingTitleRows(state.switchingTitleRecommendations).length;
       const auraCount = getAuraRows(state.auraUpgradeGroups).length;
       const avatarCount = getAvatarRows(state.currentAvatar).length;
       const errorText = errorCount ? `, 실패 ${errorCount}개` : '';

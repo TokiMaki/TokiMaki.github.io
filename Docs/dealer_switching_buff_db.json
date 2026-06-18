@@ -1,0 +1,1122 @@
+{
+  "metadata": {
+    "baseLevel": 20,
+    "unit": "percent",
+    "notes": [
+      "편린/짙편린 장비 보정과 실제 상승률은 사용 시점에 전후 딜 증가값으로 계산한다.",
+      "damageIncreasePerLevelCoefficients는 1레벨당 증가하는 딜 계수를 합산/곱연산하지 않고 항목별로 분리해 저장한다.",
+      "넨마스터(남/여)는 편린x 기준 최대 레벨 딜 계수가 2개라 maxLevelDamageCoefficients에 분리 저장한다. 남넨은 속성 공격력/마법 공격력, 여넨은 기본·스킬 공격력/속성 공격력이다.",
+      "maxLevelDamageCoefficients가 최대 레벨 기준 딜 계수의 단일 원천이다. 단일 계수 직업은 1개 항목, 남/여 넨마스터처럼 복수 계수 직업은 여러 항목으로 저장한다."
+    ],
+    "levelDeltaSource": "Neople skill API levelInfo damage options; coefficients are stored separately without pre-combining multiplicative or repeated terms.",
+    "levelDeltaField": "damageIncreasePerLevelCoefficients"
+  },
+  "jobs": [
+    {
+      "className": "귀검사(남)",
+      "jobName": "웨펀마스터",
+      "buffSkillName": "오버드라이브",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 82
+        }
+      ]
+    },
+    {
+      "className": "귀검사(남)",
+      "jobName": "소울브링어",
+      "buffSkillName": "잔영의 케이가",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 69
+        }
+      ]
+    },
+    {
+      "className": "귀검사(남)",
+      "jobName": "버서커",
+      "buffSkillName": "폭주",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 116
+        }
+      ]
+    },
+    {
+      "className": "귀검사(남)",
+      "jobName": "아수라",
+      "buffSkillName": "살의의 파동",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 1
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 58
+        }
+      ]
+    },
+    {
+      "className": "귀검사(남)",
+      "jobName": "검귀",
+      "buffSkillName": "귀혼일체",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "귀검사(여)",
+      "jobName": "소드마스터",
+      "buffSkillName": "신검합일",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 71
+        }
+      ]
+    },
+    {
+      "className": "귀검사(여)",
+      "jobName": "다크템플러",
+      "buffSkillName": "컨제스트",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 65
+        }
+      ]
+    },
+    {
+      "className": "귀검사(여)",
+      "jobName": "데몬슬레이어",
+      "buffSkillName": "광폭화",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "귀검사(여)",
+      "jobName": "베가본드",
+      "buffSkillName": "오기조원",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "크리티컬 공격력 증가율",
+          "value": 3
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "크리티컬 공격력 증가율",
+          "value": 125
+        }
+      ]
+    },
+    {
+      "className": "귀검사(여)",
+      "jobName": "블레이드",
+      "buffSkillName": "트레이스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "격투가(남)",
+      "jobName": "넨마스터(남)",
+      "buffSkillName": "역혈기공",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "속성 공격력 증가율",
+          "value": 0.5
+        },
+        {
+          "label": "마법 공격력 증가율",
+          "value": 1
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "속성 공격력 증가율",
+          "value": 43
+        },
+        {
+          "label": "마법 공격력 증가율",
+          "value": 23
+        }
+      ]
+    },
+    {
+      "className": "격투가(남)",
+      "jobName": "스트라이커(남)",
+      "buffSkillName": "강권",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 104
+        }
+      ]
+    },
+    {
+      "className": "격투가(남)",
+      "jobName": "스트리트파이터(남)",
+      "buffSkillName": "뒷골목 싸움법",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 79
+        }
+      ]
+    },
+    {
+      "className": "격투가(남)",
+      "jobName": "그래플러(남)",
+      "buffSkillName": "반드시 잡는다!",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 108
+        }
+      ]
+    },
+    {
+      "className": "격투가(여)",
+      "jobName": "넨마스터(여)",
+      "buffSkillName": "카이",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "기본/스킬 공격력 증가율",
+          "value": 1
+        },
+        {
+          "label": "속성 공격력 증가율",
+          "value": 0.5
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "기본/스킬 공격력 증가율",
+          "value": 57
+        },
+        {
+          "label": "속성 공격력 증가율",
+          "value": 21
+        }
+      ]
+    },
+    {
+      "className": "격투가(여)",
+      "jobName": "스트라이커(여)",
+      "buffSkillName": "강권",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 113
+        }
+      ]
+    },
+    {
+      "className": "격투가(여)",
+      "jobName": "스트리트파이터(여)",
+      "buffSkillName": "독 바르기",
+      "damageApplicationRatio": 0.5,
+      "damageApplicationNote": "중독 비율 50% 기준",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "스킬에 포함된 독 바르기 독 공격력 변화율",
+          "value": 20
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "스킬에 포함된 독 바르기 독 공격력 변화율",
+          "value": 850
+        }
+      ]
+    },
+    {
+      "className": "격투가(여)",
+      "jobName": "그래플러(여)",
+      "buffSkillName": "반드시 잡는다!",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 107
+        }
+      ]
+    },
+    {
+      "className": "거너(남)",
+      "jobName": "레인저(남)",
+      "buffSkillName": "데스 바이 리볼버",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 4
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 125
+        }
+      ]
+    },
+    {
+      "className": "거너(남)",
+      "jobName": "런처(남)",
+      "buffSkillName": "미라클 비전",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "거너(남)",
+      "jobName": "메카닉(남)",
+      "buffSkillName": "로보틱스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 85
+        }
+      ]
+    },
+    {
+      "className": "거너(남)",
+      "jobName": "스핏파이어(남)",
+      "buffSkillName": "오버 차지",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 84
+        }
+      ]
+    },
+    {
+      "className": "거너(남)",
+      "jobName": "어썰트",
+      "buffSkillName": "액티베이션",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "거너(여)",
+      "jobName": "레인저(여)",
+      "buffSkillName": "데스 바이 리볼버",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 4
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 125
+        }
+      ]
+    },
+    {
+      "className": "거너(여)",
+      "jobName": "런처(여)",
+      "buffSkillName": "미라클 비전",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 95
+        }
+      ]
+    },
+    {
+      "className": "거너(여)",
+      "jobName": "메카닉(여)",
+      "buffSkillName": "로보틱스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 85
+        }
+      ]
+    },
+    {
+      "className": "거너(여)",
+      "jobName": "스핏파이어(여)",
+      "buffSkillName": "오버 차지",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 84
+        }
+      ]
+    },
+    {
+      "className": "마법사(남)",
+      "jobName": "엘리멘탈바머",
+      "buffSkillName": "마나 폭주",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 107
+        }
+      ]
+    },
+    {
+      "className": "마법사(남)",
+      "jobName": "빙결사",
+      "buffSkillName": "공명",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 80
+        }
+      ]
+    },
+    {
+      "className": "마법사(남)",
+      "jobName": "블러드메이지",
+      "buffSkillName": "블러드 번",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 97
+        }
+      ]
+    },
+    {
+      "className": "마법사(남)",
+      "jobName": "스위프트마스터",
+      "buffSkillName": "윈드니스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 111
+        }
+      ]
+    },
+    {
+      "className": "마법사(남)",
+      "jobName": "디멘션워커",
+      "buffSkillName": "경계망상",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 85
+        }
+      ]
+    },
+    {
+      "className": "마법사(여)",
+      "jobName": "엘리멘탈마스터",
+      "buffSkillName": "엘레멘탈 번",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 85
+        }
+      ]
+    },
+    {
+      "className": "마법사(여)",
+      "jobName": "소환사",
+      "buffSkillName": "환수 폭주",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 79
+        }
+      ]
+    },
+    {
+      "className": "마법사(여)",
+      "jobName": "배틀메이지",
+      "buffSkillName": "전장의 여신",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 79
+        }
+      ]
+    },
+    {
+      "className": "마법사(여)",
+      "jobName": "마도학자",
+      "buffSkillName": "고대의 도서관",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 92
+        }
+      ]
+    },
+    {
+      "className": "프리스트(남)",
+      "jobName": "크루세이더(딜러)",
+      "buffSkillName": "성령의 메이스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 97
+        }
+      ]
+    },
+    {
+      "className": "프리스트(남)",
+      "jobName": "인파이터",
+      "buffSkillName": "섀도우 박서",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 1.5
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100.5
+        }
+      ]
+    },
+    {
+      "className": "프리스트(남)",
+      "jobName": "퇴마사",
+      "buffSkillName": "봉마연화",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 76
+        }
+      ]
+    },
+    {
+      "className": "프리스트(남)",
+      "jobName": "어벤저",
+      "buffSkillName": "추락하는 영혼",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 1
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 90
+        }
+      ]
+    },
+    {
+      "className": "프리스트(여)",
+      "jobName": "이단심판관",
+      "buffSkillName": "광적인 믿음",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 93
+        }
+      ]
+    },
+    {
+      "className": "프리스트(여)",
+      "jobName": "무녀",
+      "buffSkillName": "신탁의 기원",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 108
+        }
+      ]
+    },
+    {
+      "className": "프리스트(여)",
+      "jobName": "미스트리스",
+      "buffSkillName": "일곱개의 대죄",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "공격 시 추가 피해 비율",
+          "value": 1.5
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "공격 시 추가 피해 비율",
+          "value": 89.5
+        }
+      ]
+    },
+    {
+      "className": "도적",
+      "jobName": "로그",
+      "buffSkillName": "셰이크 다운",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 77
+        }
+      ]
+    },
+    {
+      "className": "도적",
+      "jobName": "쿠노이치",
+      "buffSkillName": "화둔 : 홍염",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 104
+        }
+      ]
+    },
+    {
+      "className": "도적",
+      "jobName": "사령술사",
+      "buffSkillName": "암흑의 의식",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 114
+        }
+      ]
+    },
+    {
+      "className": "도적",
+      "jobName": "섀도우댄서",
+      "buffSkillName": "암살자의 마음가짐",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 103
+        }
+      ]
+    },
+    {
+      "className": "나이트",
+      "jobName": "엘븐나이트",
+      "buffSkillName": "워크라이",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 102
+        }
+      ]
+    },
+    {
+      "className": "나이트",
+      "jobName": "카오스",
+      "buffSkillName": "브레인 스톰",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "나이트",
+      "jobName": "팔라딘",
+      "buffSkillName": "페이스풀",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 89
+        }
+      ]
+    },
+    {
+      "className": "나이트",
+      "jobName": "드래곤나이트",
+      "buffSkillName": "폭음폭식",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 85
+        }
+      ]
+    },
+    {
+      "className": "마창사",
+      "jobName": "뱅가드",
+      "buffSkillName": "마창 해방",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 80
+        }
+      ]
+    },
+    {
+      "className": "마창사",
+      "jobName": "듀얼리스트",
+      "buffSkillName": "오러 랜스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "마창사",
+      "jobName": "다크랜서",
+      "buffSkillName": "다크니스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 93
+        }
+      ]
+    },
+    {
+      "className": "마창사",
+      "jobName": "드래고니안랜서",
+      "buffSkillName": "마나 익스트랙트",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 85
+        }
+      ]
+    },
+    {
+      "className": "총검사",
+      "jobName": "히트맨",
+      "buffSkillName": "전술 지휘",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 85
+        }
+      ]
+    },
+    {
+      "className": "총검사",
+      "jobName": "요원",
+      "buffSkillName": "임무 시작",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "총검사",
+      "jobName": "트러블슈터",
+      "buffSkillName": "역전의 승부사",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "총검사",
+      "jobName": "스페셜리스트",
+      "buffSkillName": "코어 프렉시스",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "아처",
+      "jobName": "트래블러",
+      "buffSkillName": "익사이팅",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "아처",
+      "jobName": "비질란테",
+      "buffSkillName": "하악질",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "아처",
+      "jobName": "헌터",
+      "buffSkillName": "사냥을 시작해볼까!",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "외전",
+      "jobName": "크리에이터",
+      "buffSkillName": "증폭",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 66
+        }
+      ]
+    },
+    {
+      "className": "외전",
+      "jobName": "다크나이트",
+      "buffSkillName": "오버플로우",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 1.5
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 54
+        }
+      ]
+    }
+  ]
+}

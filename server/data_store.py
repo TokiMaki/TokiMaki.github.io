@@ -6,6 +6,8 @@ ENCHANT_DB_PATH = ROOT / "Docs" / "enchant_card_db.json"
 CREATURE_DB_PATH = ROOT / "Docs" / "creature_upgrade_db.json"
 CREATURE_ARTIFACT_DB_PATH = ROOT / "Docs" / "creature_artifact_db.json"
 TITLE_DB_PATH = ROOT / "Docs" / "title_upgrade_db.json"
+DEALER_SWITCHING_BUFF_DB_PATH = ROOT / "Docs" / "dealer_switching_buff_db.json"
+DEALER_SWITCHING_TITLE_DB_PATH = ROOT / "Docs" / "dealer_switching_title_db.json"
 AURA_DB_PATH = ROOT / "Docs" / "aura_upgrade_db.json"
 AVATAR_OPTION_DB_PATH = ROOT / "Docs" / "avatar_option_db.json"
 JOB_BASE_STAT_PATH = ROOT / "Docs" / "jobBaseStat.json"
@@ -15,6 +17,8 @@ REINFORCEMENT_EXPECTED_DB_PATH = ROOT / "Docs" / "reinforcement_expected_db.json
 _JOB_BASE_STAT_CACHE = None
 _UPGRADE_EXPECTED_DB_CACHE = None
 _AVATAR_OPTION_DB_CACHE = None
+_DEALER_SWITCHING_BUFF_DB_CACHE = None
+_DEALER_SWITCHING_TITLE_DB_CACHE = None
 
 
 def load_upgrade_expected_db() -> dict:
@@ -37,6 +41,28 @@ def load_avatar_option_db() -> dict:
         with AVATAR_OPTION_DB_PATH.open("r", encoding="utf-8") as handle:
             _AVATAR_OPTION_DB_CACHE = json.load(handle)
     return _AVATAR_OPTION_DB_CACHE
+
+
+def load_dealer_switching_buff_db() -> dict:
+    global _DEALER_SWITCHING_BUFF_DB_CACHE
+    if _DEALER_SWITCHING_BUFF_DB_CACHE is None:
+        try:
+            with DEALER_SWITCHING_BUFF_DB_PATH.open("r", encoding="utf-8") as handle:
+                _DEALER_SWITCHING_BUFF_DB_CACHE = json.load(handle)
+        except FileNotFoundError:
+            _DEALER_SWITCHING_BUFF_DB_CACHE = {}
+    return _DEALER_SWITCHING_BUFF_DB_CACHE
+
+
+def load_dealer_switching_title_db() -> dict:
+    global _DEALER_SWITCHING_TITLE_DB_CACHE
+    if _DEALER_SWITCHING_TITLE_DB_CACHE is None:
+        try:
+            with DEALER_SWITCHING_TITLE_DB_PATH.open("r", encoding="utf-8") as handle:
+                _DEALER_SWITCHING_TITLE_DB_CACHE = json.load(handle)
+        except FileNotFoundError:
+            _DEALER_SWITCHING_TITLE_DB_CACHE = {}
+    return _DEALER_SWITCHING_TITLE_DB_CACHE
 
 
 def load_job_base_stats() -> dict:

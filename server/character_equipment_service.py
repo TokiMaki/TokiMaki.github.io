@@ -2,7 +2,13 @@ import re
 import threading
 import time
 
-from .data_store import load_avatar_option_db, load_job_base_stats, load_upgrade_expected_db
+from .data_store import (
+    load_avatar_option_db,
+    load_dealer_switching_buff_db,
+    load_dealer_switching_title_db,
+    load_job_base_stats,
+    load_upgrade_expected_db,
+)
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
 from .avatar_skill_optimizer import (
     evaluate_avatar_combo,
@@ -17,6 +23,7 @@ from .neople_client import (
     clean_item_display_name,
     clean_text,
     fetch_item_details,
+    get_auction_rows,
     get_item_explain,
     get_item_icon_url,
     get_lowest_auction_price,
@@ -335,6 +342,34 @@ def get_named_skill_level_bonus(reinforce_skill: list, job_name: str, skill_name
         for skill in job.get("skills") or []
         if clean_text(skill.get("name")) == skill_name
     )
+
+
+def normalize_job_grow_name(value: str) -> str:
+    return re.sub(r"^(眞|진|真)\s*", "", clean_text(value)).strip()
+
+
+def get_item_level_range_skill_bonus(detail: dict, job_name: str, required_level: int) -> int:
+    if required_level <= 0:
+        return 0
+    total = 0
+    item_buff = detail.get("itemBuff") or {}
+    for job in item_buff.get("reinforceSkill") or []:
+        if clean_text(job.get("jobName")) not in {"", "공통", job_name}:
+            continue
+        for level_range in job.get("levelRange") or []:
+            minimum = int(level_range.get("minLevel") or 0)
+            maximum = int(level_range.get("maxLevel") or 0)
+            value = int(level_range.get("value") or 0)
+            if minimum <= required_level <= maximum:
+                total += value
+    explain = clean_text(item_buff.get("explain"))
+    for match in re.finditer(r"(\d+)\s*~\s*(\d+)\s*(?:레벨|Lv)[^+\d]*스킬\s*Lv\s*\+\s*(\d+)", explain, re.IGNORECASE):
+        minimum = int(match.group(1))
+        maximum = int(match.group(2))
+        value = int(match.group(3))
+        if minimum <= required_level <= maximum:
+            total += value
+    return total
 
 
 def get_item_awakening_level_bonus(detail: dict, job_name: str, skill_name: str) -> int:
@@ -774,6 +809,260 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
     }
 
 
+def find_dealer_switching_buff_entry(payload: dict, is_dealer_crusader: bool = False) -> dict:
+    job_name = clean_text(payload.get("jobName"))
+    job_grow_name = normalize_job_grow_name(payload.get("jobGrowName"))
+    target_job_name = "크루세이더(딜러)" if is_dealer_crusader and job_name == "프리스트(남)" else job_grow_name
+    entries = load_dealer_switching_buff_db().get("jobs") or []
+    class_entries = [
+        entry for entry in entries
+        if clean_text(entry.get("className")) == job_name
+    ]
+    for entry in class_entries:
+        if clean_text(entry.get("jobName")) == target_job_name:
+            return entry
+    for entry in class_entries:
+        normalized_entry_job = re.sub(r"\s*\((남|여)\)\s*$", "", clean_text(entry.get("jobName"))).strip()
+        if normalized_entry_job == target_job_name:
+            return entry
+    return {}
+
+
+def get_buff_skill_required_level(server_id: str, character_id: str, skill_info: dict) -> int:
+    direct_level = int(skill_info.get("requiredLevel") or skill_info.get("requiredlevel") or 0)
+    if direct_level:
+        return direct_level
+    skill_id = clean_text(skill_info.get("skillId"))
+    skill_name = clean_text(skill_info.get("name"))
+    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    for row in flatten_skill_rows(style_payload):
+        if skill_id and clean_text(row.get("skillId")) == skill_id:
+            return int(row.get("requiredLevel") or 0)
+        if skill_name and clean_text(row.get("name")) == skill_name:
+            return int(row.get("requiredLevel") or 0)
+    return 0
+
+
+def get_switching_title_contribution(row: dict, detail: dict, job_name: str, buff_skill_name: str, required_level: int) -> int:
+    if not row:
+        return 0
+    return (
+        get_item_level_range_skill_bonus(detail, job_name, required_level)
+        + get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, buff_skill_name)
+    )
+
+
+def parse_buff_option_numbers(skill_info: dict) -> list[float]:
+    values = (skill_info.get("option") or {}).get("values") or []
+    parsed = []
+    for value in values:
+        text = clean_text(value)
+        if not re.search(r"\d", text):
+            continue
+        parsed.append(float(parse_percent_or_number(text)))
+    return parsed
+
+
+def match_current_switching_coefficients(skill_info: dict, entry: dict) -> list[float]:
+    numbers = parse_buff_option_numbers(skill_info)
+    base_coefficients = [
+        float(row.get("value") or 0)
+        for row in entry.get("maxLevelDamageCoefficients") or []
+        if float(row.get("value") or 0) > 0
+    ]
+    if not numbers or not base_coefficients:
+        return []
+    if len(base_coefficients) == 1:
+        base = base_coefficients[0]
+        return [min(numbers, key=lambda value: abs(value - base))]
+
+    remaining = list(numbers)
+    matched = []
+    for base in base_coefficients:
+        best_index = min(range(len(remaining)), key=lambda index: abs(remaining[index] - base))
+        matched.append(remaining.pop(best_index))
+        if not remaining:
+            break
+    return matched
+
+
+def get_switching_damage_multiplier(coefficients: list[float]) -> float:
+    multiplier = 1.0
+    for coefficient in coefficients:
+        multiplier *= 1 + float(coefficient or 0) / 100
+    return multiplier
+
+
+def auction_row_to_switching_title_price(row: dict) -> dict:
+    return {
+        "listingCount": int(row.get("regCount") or 1),
+        "minUnitPrice": row.get("unitPrice") or row.get("currentPrice"),
+        "averagePrice": row.get("averagePrice") if row.get("averagePrice", 0) > 0 else None,
+        "auctionNo": row.get("auctionNo"),
+        "expireDate": row.get("expireDate"),
+    }
+
+
+def load_switching_title_price_candidate(title_config: dict, job_name: str, buff_skill_name: str) -> dict:
+    item_id = clean_text(title_config.get("itemId"))
+    item = {}
+    if not item_id:
+        item = find_exact_item_by_name(clean_text(title_config.get("priceSearchName") or title_config.get("itemName")), "칭호")
+        item_id = clean_text(item.get("itemId"))
+    if not item_id:
+        return {}
+    rows = get_auction_rows(item_id, limit=100)
+    matched_rows = [
+        row for row in rows
+        if isinstance(row.get("unitPrice"), (int, float))
+        and row.get("unitPrice") > 0
+        and get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, buff_skill_name)
+            >= int(title_config.get("enchantBuffSkillLevelDelta") or 0)
+    ]
+    lowest = min(matched_rows, key=lambda row: row.get("unitPrice"), default=None)
+    if not lowest:
+        return {}
+    return {
+        "itemId": item_id,
+        "itemName": clean_item_display_name(lowest.get("itemName") or item.get("itemName") or title_config.get("itemName")),
+        "itemRarity": clean_text(lowest.get("itemRarity") or item.get("itemRarity") or "레어"),
+        "iconUrl": get_item_icon_url(item_id),
+        "fame": lowest.get("fame") or item.get("fame"),
+        "auction": auction_row_to_switching_title_price(lowest),
+    }
+
+
+def load_dealer_switching_title_recommendations(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> list:
+    if buffer_baseline:
+        return []
+    buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
+        status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+        buff_payload = {
+            **buff_payload,
+            "jobName": clean_text(buff_payload.get("jobName")) or clean_text(status_payload.get("jobName")),
+            "jobGrowName": clean_text(buff_payload.get("jobGrowName")) or clean_text(status_payload.get("jobGrowName")),
+        }
+    job_name = clean_text(buff_payload.get("jobName"))
+    skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+    buff_skill_name = clean_text(skill_info.get("name"))
+    if not buff_skill_name:
+        return []
+
+    is_dealer_crusader = (
+        job_name == "프리스트(남)"
+        and clean_text(buff_payload.get("jobGrowName")) == "眞 크루세이더"
+        and is_male_crusader_dealer_style(server_id, character_id)
+    )
+    entry = find_dealer_switching_buff_entry(buff_payload, is_dealer_crusader=is_dealer_crusader)
+    if not entry or clean_text(entry.get("buffSkillName")) != buff_skill_name:
+        return []
+
+    required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    per_level_coefficients = [
+        float(row.get("value") or 0)
+        for row in entry.get("damageIncreasePerLevelCoefficients") or []
+        if float(row.get("value") or 0) > 0
+    ]
+    current_coefficients = match_current_switching_coefficients(skill_info, entry)
+    if not per_level_coefficients or not current_coefficients:
+        return []
+    if len(per_level_coefficients) == 1 and len(current_coefficients) > 1:
+        per_level_coefficients = per_level_coefficients * len(current_coefficients)
+    if len(per_level_coefficients) != len(current_coefficients):
+        return []
+
+    buff_equipment_rows = ((buff_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
+    buff_title = next((
+        row for row in buff_equipment_rows
+        if clean_text(row.get("slotId")) == "TITLE" or clean_text(row.get("slotName")) == "칭호"
+    ), {})
+    source_title = buff_title
+    source_title_kind = "buffTitle" if buff_title else ""
+    if not source_title:
+        equipment_payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+        source_title = next((
+            row for row in equipment_payload.get("equipment") or []
+            if clean_text(row.get("slotId")) == "TITLE" or clean_text(row.get("slotName")) == "칭호"
+        ), {})
+        source_title_kind = "equippedTitle" if source_title else ""
+
+    source_title_id = clean_text(source_title.get("itemId"))
+    source_detail = (fetch_item_details([source_title_id]) or [{}])[0] if source_title_id else {}
+    current_contribution = get_switching_title_contribution(
+        source_title,
+        source_detail,
+        job_name,
+        buff_skill_name,
+        required_level,
+    )
+    base_coefficients = [
+        current - current_contribution * per_level
+        for current, per_level in zip(current_coefficients, per_level_coefficients)
+    ]
+    current_multiplier = get_switching_damage_multiplier(current_coefficients)
+    title_db = load_dealer_switching_title_db()
+    recommendations = []
+    for config in title_db.get("items") or []:
+        skill_range = config.get("skillLevelRange") or {}
+        minimum = int(skill_range.get("min") or 0)
+        maximum = int(skill_range.get("max") or 0)
+        if not (minimum <= required_level <= maximum):
+            continue
+        candidate_contribution = int(config.get("totalBuffSkillLevelDelta") or 0)
+        if candidate_contribution <= current_contribution:
+            continue
+        candidate_price = load_switching_title_price_candidate(config, job_name, buff_skill_name)
+        if not candidate_price:
+            continue
+        candidate_coefficients = [
+            base + candidate_contribution * per_level
+            for base, per_level in zip(base_coefficients, per_level_coefficients)
+        ]
+        candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
+        if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
+            continue
+        raw_skill_damage_multiplier = candidate_multiplier / current_multiplier
+        damage_application_ratio = float(entry.get("damageApplicationRatio") or 1)
+        if not (0 < damage_application_ratio <= 1):
+            damage_application_ratio = 1
+        skill_damage_multiplier = 1 + (raw_skill_damage_multiplier - 1) * damage_application_ratio
+        damage_application_note = clean_text(entry.get("damageApplicationNote"))
+        item_explain = f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
+        if damage_application_note:
+            item_explain = f"{item_explain} · {damage_application_note}"
+        recommendations.append({
+            "kind": "switchingTitle",
+            "slot": "벞강 칭호",
+            "tier": "버프강화",
+            "itemId": candidate_price.get("itemId"),
+            "itemName": candidate_price.get("itemName") or config.get("itemName"),
+            "itemRarity": candidate_price.get("itemRarity") or "레어",
+            "iconUrl": candidate_price.get("iconUrl"),
+            "fame": candidate_price.get("fame"),
+            "auction": candidate_price.get("auction") or {},
+            "effects": {"skillDamageMultiplier": skill_damage_multiplier},
+            "skillDamageMultiplier": skill_damage_multiplier,
+            "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
+            "damageApplicationRatio": damage_application_ratio,
+            "damageApplicationNote": damage_application_note,
+            "itemExplain": item_explain,
+            "buffSkillName": buff_skill_name,
+            "requiredLevel": required_level,
+            "titleSkillLevelDelta": int(config.get("titleSkillLevelDelta") or 0),
+            "enchantBuffSkillLevelDelta": int(config.get("enchantBuffSkillLevelDelta") or 0),
+            "currentTitleContribution": current_contribution,
+            "candidateTitleContribution": candidate_contribution,
+            "currentSwitchingMultiplier": current_multiplier,
+            "candidateSwitchingMultiplier": candidate_multiplier,
+            "sourceTitleKind": source_title_kind,
+            "sourceTitleName": clean_text(source_title.get("itemName")),
+            "purchaseRoute": "attachedSwitchingTitle",
+            "purchaseRouteLabel": f"[{buff_skill_name} +{int(config.get('enchantBuffSkillLevelDelta') or 0)}Lv]",
+        })
+    return recommendations
+
+
 def load_character_loadout(server_id: str, character_id: str) -> dict:
     started_at = time.perf_counter()
     steps = []
@@ -785,6 +1074,15 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         steps,
         "load_character_avatar",
         lambda: load_character_avatar(server_id, character_id, enchant_payload.get("bufferBaseline")),
+    )
+    switching_title_recommendations = _measure_step(
+        steps,
+        "load_dealer_switching_title_recommendations",
+        lambda: load_dealer_switching_title_recommendations(
+            server_id,
+            character_id,
+            enchant_payload.get("bufferBaseline"),
+        ),
     )
     damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
     avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
@@ -809,6 +1107,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         "title": title_payload.get("title"),
         "aura": aura_payload.get("aura"),
         "avatar": avatar_payload,
+        "switchingTitleRecommendations": switching_title_recommendations,
         "debugTimings": {
             "totalMs": round((time.perf_counter() - started_at) * 1000, 1),
             "steps": steps,

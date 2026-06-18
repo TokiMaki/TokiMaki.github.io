@@ -1,0 +1,64 @@
+{
+  "metadata": {
+    "type": "dealerSwitchingTitle",
+    "notes": [
+      "딜러 버프강화 +3 칭호 후보 DB다.",
+      "칭호 자체의 모든 직업 스킬 레벨 구간 +1과, 자기 자버프 스킬 레벨 +2 보주가 발린 완성품을 추천 대상으로 본다.",
+      "스펙업 탭의 칭호 보주 추천 포함 옵션과 무관하게 버프강화 칭호는 보주 포함 완성품 기준으로 계산한다."
+    ]
+  },
+  "items": [
+    {
+      "itemName": "모험가의 의지[불]",
+      "itemId": "1b6e0285c6c4d0de74784a184b059e81",
+      "priceSearchName": "모험가의 의지[불]",
+      "skillLevelRange": {
+        "min": 15,
+        "max": 20
+      },
+      "titleSkillLevelDelta": 1,
+      "enchantBuffSkillLevelDelta": 2,
+      "totalBuffSkillLevelDelta": 3,
+      "requiresBuffSkillEnchant": true
+    },
+    {
+      "itemName": "모험가의 의지[물]",
+      "itemId": "f261c059344ce7e3836d75afb4d519d7",
+      "priceSearchName": "모험가의 의지[물]",
+      "skillLevelRange": {
+        "min": 20,
+        "max": 25
+      },
+      "titleSkillLevelDelta": 1,
+      "enchantBuffSkillLevelDelta": 2,
+      "totalBuffSkillLevelDelta": 3,
+      "requiresBuffSkillEnchant": true
+    },
+    {
+      "itemName": "모험가의 의지[빛]",
+      "itemId": "5556566f09bb895cb36ad1164bf8231c",
+      "priceSearchName": "모험가의 의지[빛]",
+      "skillLevelRange": {
+        "min": 25,
+        "max": 30
+      },
+      "titleSkillLevelDelta": 1,
+      "enchantBuffSkillLevelDelta": 2,
+      "totalBuffSkillLevelDelta": 3,
+      "requiresBuffSkillEnchant": true
+    },
+    {
+      "itemName": "모험가의 의지[어둠]",
+      "itemId": "e42f9a3edcd289b003137f12cc9a1224",
+      "priceSearchName": "모험가의 의지[어둠]",
+      "skillLevelRange": {
+        "min": 30,
+        "max": 35
+      },
+      "titleSkillLevelDelta": 1,
+      "enchantBuffSkillLevelDelta": 2,
+      "totalBuffSkillLevelDelta": 3,
+      "requiresBuffSkillEnchant": true
+    }
+  ]
+}
