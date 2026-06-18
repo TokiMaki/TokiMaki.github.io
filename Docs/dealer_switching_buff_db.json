@@ -712,6 +712,23 @@
     },
     {
       "className": "프리스트(여)",
+      "jobName": "인파이터",
+      "buffSkillName": "신기일체",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "프리스트(여)",
       "jobName": "이단심판관",
       "buffSkillName": "광적인 믿음",
       "damageIncreasePerLevelCoefficients": [
@@ -1071,6 +1088,23 @@
       "className": "아처",
       "jobName": "헌터",
       "buffSkillName": "사냥을 시작해볼까!",
+      "damageIncreasePerLevelCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 2
+        }
+      ],
+      "maxLevelDamageCoefficients": [
+        {
+          "label": "딜 증가 계수",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "className": "제국기사",
+      "jobName": "브레이커",
+      "buffSkillName": "어베스트",
       "damageIncreasePerLevelCoefficients": [
         {
           "label": "딜 증가 계수",

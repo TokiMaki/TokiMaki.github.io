@@ -893,6 +893,17 @@ def get_switching_damage_multiplier(coefficients: list[float]) -> float:
     return multiplier
 
 
+def get_applied_switching_multiplier(raw_multiplier: float, entry: dict) -> float:
+    damage_application_ratio = float(entry.get("damageApplicationRatio") or 1)
+    if not (0 < damage_application_ratio <= 1):
+        damage_application_ratio = 1
+    return 1 + (raw_multiplier - 1) * damage_application_ratio
+
+
+def get_damage_application_note(entry: dict) -> str:
+    return clean_text(entry.get("damageApplicationNote"))
+
+
 def auction_row_to_switching_title_price(row: dict) -> dict:
     return {
         "listingCount": int(row.get("regCount") or 1),
@@ -901,6 +912,232 @@ def auction_row_to_switching_title_price(row: dict) -> dict:
         "auctionNo": row.get("auctionNo"),
         "expireDate": row.get("expireDate"),
     }
+
+
+SWITCHING_FRAGMENT_SLOT_LABELS = {
+    "WEAPON": "무기",
+    "JACKET": "상의",
+    "PANTS": "하의",
+    "SHOULDER": "머리어깨",
+    "WAIST": "벨트",
+    "SHOES": "신발",
+    "WRIST": "팔찌",
+    "AMULET": "목걸이",
+    "RING": "반지",
+    "SUPPORT": "보조장비",
+    "MAGIC_STON": "마법석",
+    "EARRING": "귀걸이",
+}
+SWITCHING_FRAGMENT_SLOT_ALIASES = {
+    "어깨": "머리어깨",
+    "완장": "보조장비",
+}
+
+
+def normalize_switching_fragment_slot(value: str) -> str:
+    text = clean_text(value)
+    return SWITCHING_FRAGMENT_SLOT_ALIASES.get(text, text)
+
+
+def get_switching_fragment_slot(row: dict) -> str:
+    slot_id = clean_text(row.get("slotId"))
+    if slot_id in SWITCHING_FRAGMENT_SLOT_LABELS:
+        return SWITCHING_FRAGMENT_SLOT_LABELS[slot_id]
+    if clean_text(row.get("itemType")) == "무기":
+        return "무기"
+    return normalize_switching_fragment_slot(row.get("itemTypeDetail") or row.get("slotName"))
+
+
+def normalize_switching_skill_name(value: str) -> str:
+    return re.sub(r"\((남|여)\)", "", clean_text(value)).replace(" ", "")
+
+
+def switching_skill_name_matches(text: str, buff_skill_name: str) -> bool:
+    return normalize_switching_skill_name(buff_skill_name) in normalize_switching_skill_name(text)
+
+
+def get_switching_fragment_coefficients(detail: dict, buff_skill_name: str, coefficient_count: int) -> list[float]:
+    text = clean_text(detail.get("itemExplainDetail") or detail.get("itemExplain"))
+    if buff_skill_name and not switching_skill_name_matches(text, buff_skill_name):
+        return [0] * coefficient_count
+    value = 0.0
+    match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*%\s*추가\s*증가", text)
+    if match:
+        value = float(match.group(1))
+    result = [0.0] * coefficient_count
+    if result:
+        result[0] = value
+    return result
+
+
+def get_switching_fragment_candidate_items(buff_skill_name: str, job_name: str) -> list:
+    search_names = [
+        f"짙은 심연의 편린 {buff_skill_name}",
+        f"짙은 뒤틀린 심연 {buff_skill_name}",
+    ]
+    seen_ids = set()
+    candidates = []
+    for search_name in search_names:
+        for row in search_items_by_name(search_name):
+            item_id = clean_text(row.get("itemId"))
+            item_name = clean_text(row.get("itemName"))
+            if not item_id or item_id in seen_ids:
+                continue
+            if "짙은" not in item_name or "심연" not in item_name or not switching_skill_name_matches(item_name, buff_skill_name):
+                continue
+            if "제작 레시피" in item_name or "[결투장]" in item_name:
+                continue
+            if not any(clean_text(job.get("jobName")) == job_name for job in row.get("jobs") or []):
+                continue
+            seen_ids.add(item_id)
+            candidates.append(row)
+    return candidates
+
+
+def get_lowest_switching_fragment_auction(item_id: str) -> dict:
+    priced_rows = [
+        row for row in get_auction_rows(item_id, limit=100)
+        if isinstance(row.get("unitPrice") or row.get("currentPrice"), (int, float))
+        and (row.get("unitPrice") or row.get("currentPrice")) > 0
+    ]
+    if not priced_rows:
+        return {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None, "expireDate": None}
+    return auction_row_to_switching_title_price(min(
+        priced_rows,
+        key=lambda row: row.get("unitPrice") or row.get("currentPrice") or 10**30,
+    ))
+
+
+def load_dealer_switching_fragment_recommendations(
+    server_id: str,
+    character_id: str,
+    entry: dict,
+    buff_payload: dict,
+    skill_info: dict,
+    current_coefficients: list[float],
+) -> list:
+    buff_skill_name = clean_text(skill_info.get("name"))
+    job_name = clean_text(buff_payload.get("jobName"))
+    if not buff_skill_name or not current_coefficients:
+        return []
+
+    buff_equipment_rows = ((buff_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
+    current_by_slot = {
+        get_switching_fragment_slot(row): row
+        for row in buff_equipment_rows
+        if get_switching_fragment_slot(row)
+    }
+    dense_slots = {
+        slot for slot, row in current_by_slot.items()
+        if "짙은" in clean_text(row.get("itemName")) and "심연" in clean_text(row.get("itemName"))
+    }
+
+    candidate_items = get_switching_fragment_candidate_items(buff_skill_name, job_name)
+    candidate_by_slot = {}
+    for row in candidate_items:
+        slot = get_switching_fragment_slot(row)
+        if not slot or slot in dense_slots:
+            continue
+        auction = get_lowest_switching_fragment_auction(clean_text(row.get("itemId")))
+        unit_price = auction.get("minUnitPrice")
+        if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+            continue
+        row = {**row, "auction": auction}
+        previous = candidate_by_slot.get(slot)
+        previous_price = (previous.get("auction") or {}).get("minUnitPrice") if previous else None
+        if not previous or unit_price < previous_price:
+            candidate_by_slot[slot] = row
+
+    item_ids = [
+        *[clean_text(row.get("itemId")) for row in candidate_by_slot.values()],
+        *[clean_text(row.get("itemId")) for row in current_by_slot.values()],
+    ]
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    current_multiplier = get_switching_damage_multiplier(current_coefficients)
+    recommendations = []
+    for slot, row in candidate_by_slot.items():
+        candidate_detail = detail_by_id.get(clean_text(row.get("itemId"))) or {}
+        candidate_delta = get_switching_fragment_coefficients(candidate_detail, buff_skill_name, len(current_coefficients))
+        if not any(candidate_delta):
+            continue
+        current_row = current_by_slot.get(slot) or {}
+        current_detail = detail_by_id.get(clean_text(current_row.get("itemId"))) or {}
+        current_delta = get_switching_fragment_coefficients(current_detail, buff_skill_name, len(current_coefficients))
+        candidate_coefficients = [
+            current - old + new
+            for current, old, new in zip(current_coefficients, current_delta, candidate_delta)
+        ]
+        candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
+        if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
+            continue
+        raw_multiplier = candidate_multiplier / current_multiplier
+        skill_damage_multiplier = get_applied_switching_multiplier(raw_multiplier, entry)
+        note = get_damage_application_note(entry)
+        item_explain = note if note else ""
+        recommendations.append({
+            "kind": "switchingFragment",
+            "slot": "짙편린",
+            "tier": "버프강화",
+            "itemId": clean_text(row.get("itemId")),
+            "itemName": clean_item_display_name(row.get("itemName")),
+            "itemRarity": clean_text(row.get("itemRarity")) or "유니크",
+            "iconUrl": get_item_icon_url(clean_text(row.get("itemId"))),
+            "fame": row.get("fame"),
+            "auction": row.get("auction") or {},
+            "effects": {"skillDamageMultiplier": skill_damage_multiplier},
+            "skillDamageMultiplier": skill_damage_multiplier,
+            "rawSkillDamageMultiplier": raw_multiplier,
+            "damageApplicationNote": note,
+            "itemExplain": item_explain,
+            "buffSkillName": buff_skill_name,
+            "switchingSlot": slot,
+            "purchaseRouteLabel": "",
+        })
+    return recommendations
+
+
+def load_dealer_switching_fragment_recommendations_for_character(
+    server_id: str,
+    character_id: str,
+    buffer_baseline: dict | None = None,
+) -> list:
+    if buffer_baseline:
+        return []
+    buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
+        status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+        buff_payload = {
+            **buff_payload,
+            "jobName": clean_text(buff_payload.get("jobName")) or clean_text(status_payload.get("jobName")),
+            "jobGrowName": clean_text(buff_payload.get("jobGrowName")) or clean_text(status_payload.get("jobGrowName")),
+        }
+    skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+    buff_skill_name = clean_text(skill_info.get("name"))
+    if not buff_skill_name:
+        return []
+    is_dealer_crusader = (
+        clean_text(buff_payload.get("jobName")) == "프리스트(남)"
+        and clean_text(buff_payload.get("jobGrowName")) == "眞 크루세이더"
+        and is_male_crusader_dealer_style(server_id, character_id)
+    )
+    entry = find_dealer_switching_buff_entry(buff_payload, is_dealer_crusader=is_dealer_crusader)
+    if not entry or clean_text(entry.get("buffSkillName")) != buff_skill_name:
+        return []
+    current_coefficients = match_current_switching_coefficients(skill_info, entry)
+    if not current_coefficients:
+        return []
+    return load_dealer_switching_fragment_recommendations(
+        server_id,
+        character_id,
+        entry,
+        buff_payload,
+        skill_info,
+        current_coefficients,
+    )
 
 
 def load_switching_title_price_candidate(title_config: dict, job_name: str, buff_skill_name: str) -> dict:
@@ -1084,6 +1321,15 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             enchant_payload.get("bufferBaseline"),
         ),
     )
+    switching_fragment_recommendations = _measure_step(
+        steps,
+        "load_dealer_switching_fragment_recommendations",
+        lambda: load_dealer_switching_fragment_recommendations_for_character(
+            server_id,
+            character_id,
+            enchant_payload.get("bufferBaseline"),
+        ),
+    )
     damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
     avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
     if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
@@ -1108,6 +1354,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         "aura": aura_payload.get("aura"),
         "avatar": avatar_payload,
         "switchingTitleRecommendations": switching_title_recommendations,
+        "switchingFragmentRecommendations": switching_fragment_recommendations,
         "debugTimings": {
             "totalMs": round((time.perf_counter() - started_at) * 1000, 1),
             "steps": steps,
