@@ -353,7 +353,11 @@ def get_item_level_range_skill_bonus(detail: dict, job_name: str, required_level
         return 0
     total = 0
     item_buff = detail.get("itemBuff") or {}
-    for job in item_buff.get("reinforceSkill") or []:
+    reinforce_skill_groups = [
+        *(detail.get("itemReinforceSkill") or []),
+        *(item_buff.get("reinforceSkill") or []),
+    ]
+    for job in reinforce_skill_groups:
         if clean_text(job.get("jobName")) not in {"", "공통", job_name}:
             continue
         for level_range in job.get("levelRange") or []:
