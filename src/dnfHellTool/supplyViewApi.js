@@ -45,6 +45,7 @@ export function installSupplyViewApi(ctx) {
     ACTIVE_TAB_STORAGE_KEY,
     API_BASE,
     DEV_MODE_STORAGE_KEY,
+    normalizeApiErrorMessage,
     parseApiJsonResponse,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
@@ -569,7 +570,7 @@ async function addSupplyCharacter() {
     setSupplyCharacters(nextCharacters, '검색 반영');
     els.supplyCharacterNameInput.value = '';
   } catch (error) {
-    setSupplyError(error instanceof Error ? error.message : '캐릭터 추가 중 오류가 발생했습니다.');
+    setSupplyError(normalizeApiErrorMessage(error, '캐릭터 추가 중 오류가 발생했습니다.'));
     els.supplySearchStatus.textContent = '추가 실패';
   } finally {
     setSupplySearchBusy(false);
@@ -616,7 +617,7 @@ async function refreshSupplyCharacters() {
       els.supplySearchStatus.textContent = `${state.supplyCharactersSource} · ${refreshed.length.toLocaleString('ko-KR')}캐릭 전체 갱신`;
     }
   } catch (error) {
-    setSupplyError(error instanceof Error ? error.message : '전체 갱신 중 오류가 발생했습니다.');
+    setSupplyError(normalizeApiErrorMessage(error, '전체 갱신 중 오류가 발생했습니다.'));
   } finally {
     setSupplySearchBusy(false);
   }
@@ -642,7 +643,7 @@ async function refreshSupplyCharacterByKey(characterKey) {
     setSupplyCharacters(nextCharacters, '단일 갱신');
     els.supplySearchStatus.textContent = `${state.supplyCharactersSource} · ${getCharacterLabel(resolved)} 갱신 완료`;
   } catch (error) {
-    setSupplyError(error instanceof Error ? error.message : '캐릭터 갱신 중 오류가 발생했습니다.');
+    setSupplyError(normalizeApiErrorMessage(error, '캐릭터 갱신 중 오류가 발생했습니다.'));
     els.supplySearchStatus.textContent = `${getCharacterLabel(target)} 갱신 실패`;
   }
 }

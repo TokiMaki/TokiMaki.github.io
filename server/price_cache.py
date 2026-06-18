@@ -3,6 +3,8 @@ import time
 from pathlib import Path
 from threading import Lock, Thread
 
+from .ops_log import write_ops_log
+
 ROOT = Path(__file__).resolve().parents[1]
 PRICE_CACHE_DIR = ROOT / "Docs" / ".price_cache"
 ENCHANT_PRICE_CACHE_PATH = PRICE_CACHE_DIR / "enchant_prices.json"
@@ -62,15 +64,34 @@ def save_price_cache_to_disk(path: Path, payload: dict, expires_at: float):
         pass
 
 
-def start_cache_refresh(cache: dict, refresh_fn) -> bool:
+def start_cache_refresh(cache: dict, refresh_fn, name: str = "price") -> bool:
     with _CACHE_LOCK:
         if cache.get("refreshing"):
+            write_ops_log("cache_refresh_skip", cache=name, reason="already_refreshing")
             return False
         cache["refreshing"] = True
 
     def worker():
+        started_at = time.time()
+        write_ops_log("cache_refresh_start", cache=name)
         try:
-            refresh_fn()
+            payload = refresh_fn()
+            payload_dict = payload if isinstance(payload, dict) else {}
+            write_ops_log(
+                "cache_refresh_success",
+                cache=name,
+                elapsedMs=round((time.time() - started_at) * 1000),
+                groups=len(payload_dict.get("groups") or []),
+                cards=len(payload_dict.get("cards") or []),
+                errors=len(payload_dict.get("errors") or []),
+            )
+        except Exception as exc:
+            write_ops_log(
+                "cache_refresh_error",
+                cache=name,
+                elapsedMs=round((time.time() - started_at) * 1000),
+                error=str(exc),
+            )
         finally:
             with _CACHE_LOCK:
                 cache["refreshing"] = False
@@ -82,8 +103,13 @@ def start_cache_refresh(cache: dict, refresh_fn) -> bool:
 def start_periodic_price_refresh(refresh_jobs, interval: int = PRICE_REFRESH_INTERVAL_SECONDS):
     def refresh_loop():
         while True:
-            for cache, refresh_fn in refresh_jobs:
-                start_cache_refresh(cache, refresh_fn)
+            for job in refresh_jobs:
+                if len(job) == 3:
+                    cache, refresh_fn, name = job
+                else:
+                    cache, refresh_fn = job
+                    name = "price"
+                start_cache_refresh(cache, refresh_fn, name=name)
             time.sleep(interval)
 
     Thread(target=refresh_loop, daemon=True).start()

@@ -40,12 +40,14 @@ export function bindToolEvents(ctx) {
     getCharacterPortraitMarkup,
     normalizeCharacters,
   } = ctx.deps;
+  let feedbackStatusTimer = null;
   const {
     ACTIVE_TAB_STORAGE_KEY,
     API_BASE,
     DEV_MODE_STORAGE_KEY,
     ENCHANT_INCLUDE_FILTER_STORAGE_KEY,
     ENCHANT_MATERIAL_COST_STORAGE_KEY,
+    normalizeApiErrorMessage,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
     SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY,
@@ -281,6 +283,33 @@ export function bindToolEvents(ctx) {
     serverId: els.landingServerIdInput?.value,
     characterName: els.landingCharacterNameInput?.value,
   });
+  const copyTextToClipboard = async (text) => {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+    } finally {
+      textarea.remove();
+    }
+  };
+  const showFeedbackCopyStatus = (message) => {
+    if (!els.feedbackEmailCopyStatus) return;
+    window.clearTimeout(feedbackStatusTimer);
+    els.feedbackEmailCopyStatus.textContent = message;
+    els.feedbackEmailCopyStatus.classList.add('is-visible');
+    feedbackStatusTimer = window.setTimeout(() => {
+      els.feedbackEmailCopyStatus.classList.remove('is-visible');
+    }, 1800);
+  };
   const applyLocation = () => {
     const params = new URLSearchParams(window.location.search);
     const characterName = String(params.get('name') || '').trim();
@@ -303,6 +332,21 @@ export function bindToolEvents(ctx) {
 if (els.devModeToggle) {
   els.devModeToggle.addEventListener('click', () => {
     setDevMode(!state.isDevMode);
+  });
+}
+if (els.feedbackEmailCopyButton) {
+  els.feedbackEmailCopyButton.addEventListener('click', async () => {
+    const email = String(els.feedbackEmailCopyButton.dataset.feedbackEmail || '').trim();
+    if (!email) {
+      showFeedbackCopyStatus('피드백 메일 준비 중');
+      return;
+    }
+    try {
+      await copyTextToClipboard(email);
+      showFeedbackCopyStatus('메일 주소가 복사되었습니다');
+    } catch {
+      showFeedbackCopyStatus(email);
+    }
   });
 }
 els.hellTabButton.addEventListener('click', () => {
@@ -446,22 +490,23 @@ els.selectedCharacter.addEventListener('change', () => {
       ctx.actions.loadCurrentTitle?.(),
     ])
       .catch((error) => {
-        if (els.enchantStatus) els.enchantStatus.textContent = error.message;
+        if (els.enchantStatus) els.enchantStatus.textContent = normalizeApiErrorMessage(error);
       })
       .finally(() => ctx.actions.renderEnchantTable?.());
   }
 });
 els.addCharacterButton.addEventListener('click', () => {
   addCharacterFromApi().catch((error) => {
-    els.error.textContent = error.message;
+    const message = normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
+    els.error.textContent = message;
     els.calcState.textContent = '오류';
     setCalcMeta('캐릭터 검색에 실패했습니다');
-    els.searchStatus.textContent = error.message;
+    els.searchStatus.textContent = message;
   });
 });
 els.refreshCharactersButton.addEventListener('click', () => {
   refreshAllCharactersFromApi().catch((error) => {
-    const message = error instanceof Error ? error.message : String(error || '전체 갱신에 실패했습니다.');
+    const message = normalizeApiErrorMessage(error, '전체 갱신에 실패했습니다.');
     els.error.textContent = message;
     els.calcState.textContent = '오류';
     setCalcMeta('전체 갱신에 실패했습니다');
@@ -546,13 +591,13 @@ if (els.applySupplyHellCalcButton) {
   
 els.addSupplyCharacterButton.addEventListener('click', () => {
   addSupplyCharacter().catch((error) => {
-    setSupplyError(error instanceof Error ? error.message : '캐릭터 추가 중 오류가 발생했습니다.');
+    setSupplyError(normalizeApiErrorMessage(error, '캐릭터 추가 중 오류가 발생했습니다.'));
     els.supplySearchStatus.textContent = '추가 실패';
   });
 });
 els.refreshSupplyCharactersButton.addEventListener('click', () => {
   refreshSupplyCharacters().catch((error) => {
-    setSupplyError(error instanceof Error ? error.message : '전체 갱신 중 오류가 발생했습니다.');
+    setSupplyError(normalizeApiErrorMessage(error, '전체 갱신 중 오류가 발생했습니다.'));
     els.supplySearchStatus.textContent = '전체 갱신 실패';
   });
 });
@@ -591,7 +636,7 @@ const scheduleSupplyCharacterRefresh = (rowKey) => {
   window.clearTimeout(pendingSupplyRefreshTimer);
   pendingSupplyRefreshTimer = window.setTimeout(() => {
     refreshSupplyCharacterByKey(rowKey).catch((error) => {
-      setSupplyError(error instanceof Error ? error.message : '캐릭터 갱신 중 오류가 발생했습니다.');
+      setSupplyError(normalizeApiErrorMessage(error, '캐릭터 갱신 중 오류가 발생했습니다.'));
       els.supplySearchStatus.textContent = '갱신 실패';
     });
   }, 350);

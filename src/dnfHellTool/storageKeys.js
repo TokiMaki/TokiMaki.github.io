@@ -17,6 +17,18 @@ function resolveApiBase() {
 
 export const API_BASE = resolveApiBase();
 export const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
+export const DNF_MAINTENANCE_MESSAGE = '던파 점검중...';
+
+export function normalizeApiErrorMessage(errorOrMessage, fallbackMessage = 'API 요청에 실패했습니다.') {
+  const message = String(errorOrMessage?.message || errorOrMessage || fallbackMessage);
+  if (
+    /Failed to fetch|NetworkError|Load failed|fetch/i.test(message) ||
+    /DNF980|503|시스템 점검|점검중|점검 중/.test(message)
+  ) {
+    return DNF_MAINTENANCE_MESSAGE;
+  }
+  return message || fallbackMessage;
+}
 
 export async function parseApiJsonResponse(response, fallbackMessage = 'API 요청에 실패했습니다.') {
   const text = await response.text();
@@ -32,8 +44,13 @@ export async function parseApiJsonResponse(response, fallbackMessage = 'API 요�
     throw new Error(`${fallbackMessage} JSON 응답이 아닙니다.`);
   }
 
+  const errorCode = payload?.code || payload?.errorCode || payload?.status?.code;
+  if (response.status === 503 || errorCode === 'DNF980') {
+    throw new Error(DNF_MAINTENANCE_MESSAGE);
+  }
+
   if (!response.ok || payload?.error) {
-    throw new Error(payload?.error || payload?.message || `${fallbackMessage} (${response.status})`);
+    throw new Error(normalizeApiErrorMessage(payload?.error || payload?.message || `${fallbackMessage} (${response.status})`, fallbackMessage));
   }
 
   return payload;

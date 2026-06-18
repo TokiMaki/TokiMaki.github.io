@@ -481,6 +481,7 @@ def load_creature_upgrades_with_prices(
         start_cache_refresh(
             _CREATURE_PRICE_CACHE,
             lambda: load_creature_upgrades_with_prices(force_refresh=True, allow_stale=False),
+            name="creature",
         )
         return add_cache_status(payload, _CREATURE_PRICE_CACHE, stale=True)
     if allow_stale and payload is None and _CREATURE_PRICE_CACHE.get("refreshing"):
@@ -495,6 +496,7 @@ def load_creature_upgrades_with_prices(
         start_cache_refresh(
             _CREATURE_PRICE_CACHE,
             lambda: load_creature_upgrades_with_prices(force_refresh=True, allow_stale=False),
+            name="creature",
         )
         return add_cache_status({
             "updatedAt": None,
@@ -645,6 +647,7 @@ def load_aura_upgrades_with_prices(
         start_cache_refresh(
             _AURA_PRICE_CACHE,
             lambda: load_aura_upgrades_with_prices(force_refresh=True, allow_stale=False),
+            name="aura",
         )
         return add_cache_status(payload, _AURA_PRICE_CACHE, stale=True)
     if allow_stale and payload is None and _AURA_PRICE_CACHE.get("refreshing"):
@@ -659,6 +662,7 @@ def load_aura_upgrades_with_prices(
         start_cache_refresh(
             _AURA_PRICE_CACHE,
             lambda: load_aura_upgrades_with_prices(force_refresh=True, allow_stale=False),
+            name="aura",
         )
         return add_cache_status({
             "updatedAt": None,
@@ -884,6 +888,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         start_cache_refresh(
             _TITLE_PRICE_CACHE,
             lambda: load_title_upgrades_with_prices(force_refresh=True, allow_stale=False),
+            name="title",
         )
         return add_cache_status(payload, _TITLE_PRICE_CACHE, stale=True)
     if allow_stale and payload is None and _TITLE_PRICE_CACHE.get("refreshing"):
@@ -898,6 +903,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         start_cache_refresh(
             _TITLE_PRICE_CACHE,
             lambda: load_title_upgrades_with_prices(force_refresh=True, allow_stale=False),
+            name="title",
         )
         return add_cache_status({
             "updatedAt": None,
@@ -1129,6 +1135,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
         start_cache_refresh(
             _ENCHANT_PRICE_CACHE,
             lambda: load_enchant_cards_with_prices(force_refresh=True, allow_stale=False),
+            name="enchant",
         )
         return add_cache_status(payload, _ENCHANT_PRICE_CACHE, stale=True)
     if allow_stale and payload is None and _ENCHANT_PRICE_CACHE.get("refreshing"):
@@ -1143,6 +1150,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
         start_cache_refresh(
             _ENCHANT_PRICE_CACHE,
             lambda: load_enchant_cards_with_prices(force_refresh=True, allow_stale=False),
+            name="enchant",
         )
         return add_cache_status({
             "updatedAt": None,

@@ -2055,7 +2055,7 @@ function formatTitlePurchaseRouteLabel(row) {
 
 export function installEnchantView(ctx) {
   const { els, state } = ctx;
-  const { API_BASE, ENCHANT_INCLUDE_FILTER_STORAGE_KEY, parseApiJsonResponse } = ctx.constants;
+  const { API_BASE, ENCHANT_INCLUDE_FILTER_STORAGE_KEY, normalizeApiErrorMessage, parseApiJsonResponse } = ctx.constants;
   const { bindCharacterAvatars, escapeHtml, getCharacterPortraitMarkup } = ctx.deps;
 
   state.enchantCards = [];
@@ -3031,7 +3031,7 @@ export function installEnchantView(ctx) {
     } catch (error) {
       if (requestId !== state.enchantRequestId) return;
       state.enchantRecommendationLoading = false;
-      renderEnchantRecommendLoading(error.message || '스펙업 순서 추천을 불러오지 못했습니다.');
+      renderEnchantRecommendLoading(normalizeApiErrorMessage(error, '스펙업 순서 추천을 불러오지 못했습니다.'));
       flushEnchantTiming('error');
     }
   }
@@ -3090,7 +3090,7 @@ export function installEnchantView(ctx) {
       if (requestId !== state.enchantRequestId) return;
       const errorMessage = String(error?.message || '').includes('캐릭터를 찾지 못했습니다')
         ? '캐릭터를 찾지 못했습니다.'
-        : error?.message || '캐릭터 검색에 실패했습니다.';
+        : normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
       state.enchantRecommendationLoading = false;
       renderEnchantRecommendLoading(errorMessage);
       renderEnchantCharacterMessage(errorMessage);
@@ -3178,13 +3178,13 @@ export function installEnchantView(ctx) {
           .catch((error) => {
             if (isStalePriceRequest()) return;
             resetCurrentEnchantCharacterState();
-            setEnchantPriceStatus('일부 정보를 확인하지 못했습니다.', `${devStatus}, 현재 세팅 미반영: ${error.message}`);
+            setEnchantPriceStatus('일부 정보를 확인하지 못했습니다.', `${devStatus}, 현재 세팅 미반영: ${normalizeApiErrorMessage(error)}`);
             renderEnchantTable();
           });
       }
     } catch (error) {
       if (isStalePriceRequest()) return;
-      setEnchantPriceStatus(error.message);
+      setEnchantPriceStatus(normalizeApiErrorMessage(error, '가격 정보를 불러오지 못했습니다.'));
       if (ownsTiming) flushEnchantTiming('error');
     } finally {
       if (!isStalePriceRequest()) {

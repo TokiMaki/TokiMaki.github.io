@@ -7,6 +7,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
+from .ops_log import sanitize_url, write_ops_log
+
 API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
@@ -55,13 +57,30 @@ def request_json(url: str) -> dict[str, Any]:
             if not isinstance(payload, dict):
                 raise ValueError("응답 형식이 올바르지 않습니다.")
             return payload
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+        except HTTPError as exc:
+            last_error = exc
+            error_text = ""
+            try:
+                error_text = exc.read().decode("utf-8")
+            except Exception:
+                error_text = ""
+            if exc.code == 503 or "DNF980" in error_text:
+                write_ops_log("neople_api_maintenance", status=exc.code, url=sanitize_url(url), body=error_text[:500])
+                raise RuntimeError("던파 점검중...") from exc
+            if attempt < MAX_RETRIES:
+                time.sleep(1)
+            else:
+                write_ops_log("neople_api_http_error", status=exc.code, url=sanitize_url(url), error=str(exc), body=error_text[:500])
+                raise RuntimeError(f"API 요청 실패: {url}\n{exc}") from exc
+        except (URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
             last_error = exc
             if attempt < MAX_RETRIES:
                 time.sleep(1)
             else:
+                write_ops_log("neople_api_error", url=sanitize_url(url), error=repr(exc))
                 raise RuntimeError(f"API 요청 실패: {url}\n{exc}") from exc
 
+    write_ops_log("neople_api_error", url=sanitize_url(url), error=repr(last_error))
     raise RuntimeError(f"API 요청 실패: {url}\n{last_error}")
 
 

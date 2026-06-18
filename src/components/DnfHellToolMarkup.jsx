@@ -1,7 +1,9 @@
 import logoImage from '../../이미지/로고/logo.png';
+import gmailImage from '../../이미지/로고/Gmail.svg';
 import neopleBiImage from '../../이미지/BI/BI.png';
 
 const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
+const FEEDBACK_EMAIL = import.meta.env.VITE_FEEDBACK_EMAIL?.trim() || 'dunpilot.feedback@gmail.com';
 
 export default function DnfHellToolMarkup() {
   return (
@@ -583,6 +585,23 @@ export default function DnfHellToolMarkup() {
       ) : null}
       </div>
       <footer className={'neople-bi-footer'}>
+        <div className={'feedback-footer'} aria-label={'오류 제보 및 피드백'}>
+          <button
+            type={'button'}
+            className={'feedback-mail-button'}
+            id={'feedbackEmailCopyButton'}
+            data-feedback-email={FEEDBACK_EMAIL}
+            disabled={!FEEDBACK_EMAIL}
+            aria-describedby={'feedbackEmailCopyStatus'}
+          >
+            <span className={'feedback-mail-icon'} aria-hidden={'true'}>
+              <img src={gmailImage} alt={''} />
+            </span>
+            <span className={'sr-only'}>오류 제보 및 피드백 메일 주소 복사</span>
+          </button>
+          <span className={'feedback-mail-label'}>오류 제보 및 피드백</span>
+          <span className={'feedback-mail-status'} id={'feedbackEmailCopyStatus'} role={'status'} aria-live={'polite'}></span>
+        </div>
         <a href={'https://developers.neople.co.kr'} target={'_blank'} rel={'noopener noreferrer'}>
           <img src={neopleBiImage} alt={'Neople 오픈 API'} />
         </a>

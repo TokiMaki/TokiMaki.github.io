@@ -44,6 +44,7 @@ export function installHellApiState(ctx) {
     ACTIVE_TAB_STORAGE_KEY,
     API_BASE,
     DEV_MODE_STORAGE_KEY,
+    normalizeApiErrorMessage,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
     SUPPLY_CHARACTER_FATIGUE_POTIONS,
@@ -109,7 +110,7 @@ function setActiveTab(tabId, persist = true, options = {}) {
     } else {
       ctx.actions.loadCurrentEnchants?.()
         .catch((error) => {
-          if (els.enchantStatus) els.enchantStatus.textContent = error.message;
+          if (els.enchantStatus) els.enchantStatus.textContent = normalizeApiErrorMessage(error);
         })
         .finally(() => ctx.actions.renderEnchantTable?.());
     }
@@ -185,7 +186,7 @@ async function addCharacterFromApi() {
     recalc();
     els.searchStatus.textContent = `${state.activeCharactersSource} · ${state.activeCharacters.length.toLocaleString('ko-KR')}캐릭`;
   } catch (error) {
-    const rawMessage = error instanceof Error ? error.message : String(error || '');
+    const rawMessage = normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
     const message = /fetch/i.test(rawMessage)
       ? '로컬 API 서버를 먼저 실행해 주세요. python3 neople_hell_api_server.py'
       : (rawMessage || '캐릭터 검색에 실패했습니다.');
@@ -237,7 +238,7 @@ async function refreshAllCharactersFromApi() {
       els.searchStatus.textContent = `${state.activeCharactersSource} · ${state.activeCharacters.length.toLocaleString('ko-KR')}캐릭 전체 갱신`;
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error || '전체 갱신에 실패했습니다.');
+    const message = normalizeApiErrorMessage(error, '전체 갱신에 실패했습니다.');
     els.error.textContent = message;
     els.calcState.textContent = '오류';
     setCalcMeta('전체 갱신에 실패했습니다');

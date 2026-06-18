@@ -5,6 +5,7 @@ import errno
 import json
 import os
 import sys
+import time
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlparse
@@ -33,6 +34,7 @@ from server.neople_client import (
     clean_text,
     search_character,
 )
+from server.ops_log import write_ops_log
 from server.price_cache import (
     AURA_PRICE_CACHE_PATH,
     CREATURE_PRICE_CACHE_PATH,
@@ -87,7 +89,10 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        self._request_started_at = time.time()
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/"):
+            write_ops_log("api_request_start", route=parsed.path)
 
         if parsed.path in {"/", "/index.html"}:
             return self.send_json({"ok": True, "service": "dnf-hell-api"})
@@ -145,7 +150,20 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        finally:
+            started_at = getattr(self, "_request_started_at", None)
+            elapsed_ms = round((time.time() - started_at) * 1000) if started_at else None
+            route = urlparse(self.path).path
+            error_message = payload.get("error") if isinstance(payload, dict) else None
+            write_ops_log(
+                "api_response",
+                route=route,
+                status=int(status),
+                elapsedMs=elapsed_ms,
+                error=error_message,
+            )
 
     def handle_search(self, parsed):
         query = parse_qs(parsed.query)
@@ -421,10 +439,10 @@ def main():
     load_price_cache_from_disk(_TITLE_PRICE_CACHE, TITLE_PRICE_CACHE_PATH)
     load_price_cache_from_disk(_AURA_PRICE_CACHE, AURA_PRICE_CACHE_PATH)
     start_periodic_price_refresh([
-        (_ENCHANT_PRICE_CACHE, lambda: load_enchant_cards_with_prices(force_refresh=True, allow_stale=False)),
-        (_CREATURE_PRICE_CACHE, lambda: load_creature_upgrades_with_prices(force_refresh=True, allow_stale=False)),
-        (_TITLE_PRICE_CACHE, lambda: load_title_upgrades_with_prices(force_refresh=True, allow_stale=False)),
-        (_AURA_PRICE_CACHE, lambda: load_aura_upgrades_with_prices(force_refresh=True, allow_stale=False)),
+        (_ENCHANT_PRICE_CACHE, lambda: load_enchant_cards_with_prices(force_refresh=True, allow_stale=False), "enchant"),
+        (_CREATURE_PRICE_CACHE, lambda: load_creature_upgrades_with_prices(force_refresh=True, allow_stale=False), "creature"),
+        (_TITLE_PRICE_CACHE, lambda: load_title_upgrades_with_prices(force_refresh=True, allow_stale=False), "title"),
+        (_AURA_PRICE_CACHE, lambda: load_aura_upgrades_with_prices(force_refresh=True, allow_stale=False), "aura"),
     ])
     try:
         server.serve_forever()
