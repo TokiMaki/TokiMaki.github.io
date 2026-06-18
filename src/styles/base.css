@@ -194,7 +194,7 @@
     .landing-search-row {
       display: grid;
       grid-template-columns: 116px minmax(0, 1fr) auto;
-      gap: 10px;
+      gap: 18px;
       align-items: end;
     }
     .landing-field {
@@ -334,7 +334,7 @@
       display: grid;
       grid-template-columns: 82px minmax(0, 1fr) auto;
       align-items: center;
-      gap: 10px;
+      gap: 22px;
       cursor: pointer;
       list-style: none;
       width: 100%;
@@ -394,7 +394,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 10px;
+      gap: 22px;
     }
     @keyframes landing-card-in {
       from { opacity: 0; transform: translateY(14px); }
@@ -490,7 +490,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 22px;
       padding: 8px 0 2px;
     }
     .feedback-footer {
@@ -598,6 +598,7 @@
     }
     .neople-bi-footer a {
       display: inline-flex;
+      margin-top: 4px;
       opacity: 0.72;
       transition: opacity 140ms ease, filter 140ms ease;
     }
