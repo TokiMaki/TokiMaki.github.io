@@ -18,14 +18,15 @@ function resolveApiBase() {
 export const API_BASE = resolveApiBase();
 export const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
 export const DNF_MAINTENANCE_MESSAGE = '던파 점검중...';
+export const API_SERVER_UNAVAILABLE_MESSAGE = '서버 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.';
 
 export function normalizeApiErrorMessage(errorOrMessage, fallbackMessage = 'API 요청에 실패했습니다.') {
   const message = String(errorOrMessage?.message || errorOrMessage || fallbackMessage);
-  if (
-    /Failed to fetch|NetworkError|Load failed|fetch/i.test(message) ||
-    /DNF980|503|시스템 점검|점검중|점검 중/.test(message)
-  ) {
+  if (/DNF980|503|시스템 점검|점검중|점검 중/.test(message)) {
     return DNF_MAINTENANCE_MESSAGE;
+  }
+  if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+    return API_SERVER_UNAVAILABLE_MESSAGE;
   }
   return message || fallbackMessage;
 }
