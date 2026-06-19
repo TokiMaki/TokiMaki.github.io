@@ -850,8 +850,11 @@ def get_buff_skill_required_level(server_id: str, character_id: str, skill_info:
 def get_switching_title_contribution(row: dict, detail: dict, job_name: str, buff_skill_name: str, required_level: int) -> int:
     if not row:
         return 0
+    item_buff = detail.get("itemBuff") or {}
     return (
         get_item_level_range_skill_bonus(detail, job_name, required_level)
+        + get_named_skill_level_bonus(detail.get("itemReinforceSkill") or [], job_name, buff_skill_name)
+        + get_named_skill_level_bonus(item_buff.get("reinforceSkill") or [], job_name, buff_skill_name)
         + get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, buff_skill_name)
     )
 
