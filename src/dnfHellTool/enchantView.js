@@ -793,6 +793,15 @@ function getSkillValueDelta(info, field, levelDelta) {
 }
 
 function getBufferItemSkillChanges(row, current, baseline) {
+  if (row.sourceType === 'switchingTitle') {
+    return {
+      switchingStatDelta: Number(row.switchingStatDelta || 0),
+      switchingBuffAmplificationDelta: Number(row.switchingBuffAmplificationDelta || 0),
+      buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
+      auraStatDelta: Number(row.auraStatDelta || 0),
+      auraAttackDelta: Number(row.auraAttackDelta || 0),
+    };
+  }
   if (!['creature', 'title', 'aura'].includes(row.sourceType)) return {};
   const buffSkillLevelDelta = getItemSkillLevelBonus(row, baseline, baseline.buffSkillName, 30)
     - getItemSkillLevelBonus(current, baseline, baseline.buffSkillName, 30);
@@ -879,7 +888,7 @@ function getBufferRecommendationRows(
   const bySlotTier = new Map();
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)) return;
+    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)) return;
     if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
     if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
@@ -901,7 +910,9 @@ function getBufferRecommendationRows(
           ? currentArtifactBySlot.get(row.slotColor) || {}
           : row.sourceType === 'title'
             ? currentTitle || {}
-            : row.sourceType === 'aura'
+            : row.sourceType === 'switchingTitle'
+              ? {}
+              : row.sourceType === 'aura'
               ? currentAura || {}
               : currentBySlot.get(row.slot) || {};
     if (
@@ -965,6 +976,8 @@ function getBufferRecommendationRows(
         + Number(itemSkillChanges.statDelta || 0),
       buffPowerDelta,
       ...buffAmplificationChanges,
+      switchingBuffAmplificationDelta: Number(buffAmplificationChanges.switchingBuffAmplificationDelta || 0)
+        + Number(itemSkillChanges.switchingBuffAmplificationDelta || 0),
       currentStatDelta: Number(replacementStatChanges.currentStatDelta || 0)
         + Number(avatarStatChanges.currentStatDelta || 0)
         + Number(itemSkillChanges.currentStatDelta || 0),
@@ -1129,12 +1142,22 @@ function getSwitchingTitleRows(recommendations = []) {
     fame: candidate.fame,
     iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
+    itemReinforceSkill: candidate.itemReinforceSkill || [],
+    itemBuff: candidate.itemBuff || {},
+    enchantEffects: candidate.enchantEffects || {},
     skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
     itemExplain: candidate.itemExplain || '',
     auction: candidate.auction || {},
     candidateName: candidate.itemName,
     buffSkillName: candidate.buffSkillName || '',
     enchantBuffSkillLevelDelta: Number(candidate.enchantBuffSkillLevelDelta || 0),
+    switchingStatDelta: Number(candidate.switchingStatDelta || 0),
+    switchingBuffAmplificationDelta: Number(candidate.switchingBuffAmplificationDelta || 0),
+    bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
+    auraStatDelta: Number(candidate.auraStatDelta || 0),
+    auraAttackDelta: Number(candidate.auraAttackDelta || 0),
+    currentTitleContribution: Number(candidate.currentTitleContribution || 0),
+    candidateTitleContribution: Number(candidate.candidateTitleContribution || 0),
     purchaseRoute: candidate.purchaseRoute || '',
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),

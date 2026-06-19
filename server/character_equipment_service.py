@@ -1172,7 +1172,106 @@ def load_switching_title_price_candidate(title_config: dict, job_name: str, buff
         "itemRarity": clean_text(lowest.get("itemRarity") or item.get("itemRarity") or "레어"),
         "iconUrl": get_item_icon_url(item_id),
         "fame": lowest.get("fame") or item.get("fame"),
+        "enchant": lowest.get("enchant") or {},
         "auction": auction_row_to_switching_title_price(lowest),
+    }
+
+
+def get_buffer_switching_rows(server_id: str, character_id: str) -> tuple[list, list, dict]:
+    current_equipment = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment") or []
+    current_avatar = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar") or []
+    current_creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    current_creature = current_creature_payload.get("creature") or {}
+    buff_equipment_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    buff_avatar_payload = _get_character_cached_payload(server_id, character_id, "buff_avatar", "skill/buff/equip/avatar")
+    buff_creature_payload = _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+    switching_equipment = ((buff_equipment_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
+    switching_avatar = ((buff_avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+    switching_creature_rows = ((buff_creature_payload.get("skill") or {}).get("buff") or {}).get("creature") or []
+    switching_creature = (
+        switching_creature_rows[0]
+        if isinstance(switching_creature_rows, list) and switching_creature_rows
+        else switching_creature_rows
+    )
+    switching_equipment_by_slot = {
+        clean_text(row.get("slotId")): row
+        for row in switching_equipment
+        if clean_text(row.get("slotId"))
+    }
+    switching_avatar_by_slot = {
+        clean_text(row.get("slotId")): row
+        for row in switching_avatar
+        if clean_text(row.get("slotId"))
+    }
+    current_rows = [*current_equipment, *current_avatar, current_creature]
+    switching_rows = [
+        switching_equipment_by_slot.get(clean_text(row.get("slotId")), row)
+        for row in current_equipment
+    ] + [
+        switching_avatar_by_slot.get(clean_text(row.get("slotId")), row)
+        for row in current_avatar
+    ]
+    switching_rows.append(switching_creature if isinstance(switching_creature, dict) and switching_creature else current_creature)
+    return current_rows, switching_rows, buff_equipment_payload
+
+
+def replace_title_row(rows: list, title_row: dict) -> list:
+    replaced = False
+    result = []
+    for row in rows or []:
+        if clean_text(row.get("slotId")) == "TITLE" or clean_text(row.get("slotName")) == "칭호":
+            result.append(title_row)
+            replaced = True
+        else:
+            result.append(row)
+    if not replaced:
+        result.append(title_row)
+    return result
+
+
+def get_title_row(rows: list) -> dict:
+    return next((
+        row for row in rows or []
+        if clean_text(row.get("slotId")) == "TITLE" or clean_text(row.get("slotName")) == "칭호"
+    ), {})
+
+
+def get_buffer_switching_metrics(
+    current_rows: list,
+    switching_rows: list,
+    detail_by_id: dict,
+    style_payload: dict,
+    job_name: str,
+    stat_name: str,
+    buff_skill_name: str,
+) -> dict:
+    style_rows = flatten_skill_rows(style_payload)
+    style_by_name = {clean_text(row.get("name")): row for row in style_rows if clean_text(row.get("name"))}
+    current_direct = sum(get_row_direct_stat(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}, stat_name) for row in current_rows)
+    switching_direct = sum(get_row_direct_stat(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}, stat_name) for row in switching_rows)
+    current_bonuses = get_setup_skill_bonuses(current_rows, detail_by_id, style_rows, job_name)
+    switching_bonuses = get_setup_skill_bonuses(switching_rows, detail_by_id, style_rows, job_name)
+    relevant_skills = BUFFER_SWITCHING_SELF_STAT_SKILLS.get(clean_text(buff_skill_name), set())
+    skill_delta = 0
+    for name in set(current_bonuses) | set(switching_bonuses):
+        if name not in relevant_skills or current_bonuses.get(name, 0) == switching_bonuses.get(name, 0):
+            continue
+        style_row = style_by_name.get(name) or {}
+        skill_id = clean_text(style_row.get("skillId"))
+        base_level = int(style_row.get("level") or 0)
+        if not skill_id or base_level <= 0:
+            continue
+        skill_detail = request_json(f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}")
+        current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
+        switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
+        skill_delta += switching_value - current_value
+    switching_buff_amplification_delta = (
+        sum(get_row_buff_amplification(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}) for row in switching_rows)
+        - sum(get_row_buff_amplification(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}) for row in current_rows)
+    )
+    return {
+        "switchingStatDelta": switching_direct - current_direct + skill_delta,
+        "switchingBuffAmplificationDelta": switching_buff_amplification_delta,
     }
 
 
@@ -1307,6 +1406,145 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
     return recommendations
 
 
+def load_buffer_switching_title_recommendations(
+    server_id: str,
+    character_id: str,
+    buffer_baseline: dict | None = None,
+) -> list:
+    if not buffer_baseline:
+        return []
+    current_rows, switching_rows, buff_payload = get_buffer_switching_rows(server_id, character_id)
+    job_name = clean_text(buffer_baseline.get("jobName") or buff_payload.get("jobName"))
+    stat_name = clean_text(buffer_baseline.get("statName"))
+    buff_skill_name = clean_text(buffer_baseline.get("buffSkillName"))
+    skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+    required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    if not job_name or not stat_name or not buff_skill_name or required_level <= 0:
+        return []
+
+    source_title = get_title_row(switching_rows)
+    source_title_id = clean_text(source_title.get("itemId"))
+    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    title_db = load_dealer_switching_title_db()
+    matching_configs = []
+    for config in title_db.get("items") or []:
+        skill_range = config.get("skillLevelRange") or {}
+        minimum = int(skill_range.get("min") or 0)
+        maximum = int(skill_range.get("max") or 0)
+        if minimum <= required_level <= maximum:
+            matching_configs.append(config)
+    if not matching_configs:
+        return []
+
+    source_detail = {}
+    item_ids = [
+        clean_text(row.get("itemId"))
+        for row in [*current_rows, *switching_rows]
+        if clean_text(row.get("itemId"))
+    ]
+    for detail in fetch_item_details(item_ids):
+        if clean_text(detail.get("itemId")) == source_title_id:
+            source_detail = detail
+            break
+    current_contribution = get_switching_title_contribution(
+        source_title,
+        source_detail,
+        job_name,
+        buff_skill_name,
+        required_level,
+    )
+
+    base_detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    current_metrics = get_buffer_switching_metrics(
+        current_rows,
+        switching_rows,
+        base_detail_by_id,
+        style_payload,
+        job_name,
+        stat_name,
+        buff_skill_name,
+    )
+    recommendations = []
+    for config in matching_configs:
+        candidate_price = load_switching_title_price_candidate(config, job_name, buff_skill_name)
+        if not candidate_price:
+            continue
+        candidate_row = {
+            "slotId": "TITLE",
+            "slotName": "칭호",
+            "itemId": candidate_price.get("itemId"),
+            "itemName": candidate_price.get("itemName") or config.get("itemName"),
+            "itemType": "액세서리",
+            "itemTypeDetail": "칭호",
+            "itemRarity": candidate_price.get("itemRarity") or "레어",
+            "enchant": candidate_price.get("enchant") or {},
+        }
+        candidate_switching_rows = replace_title_row(switching_rows, candidate_row)
+        candidate_item_ids = [
+            clean_text(row.get("itemId"))
+            for row in [*current_rows, *candidate_switching_rows]
+            if clean_text(row.get("itemId"))
+        ]
+        candidate_detail_by_id = {
+            clean_text(detail.get("itemId")): detail
+            for detail in fetch_item_details(candidate_item_ids)
+            if clean_text(detail.get("itemId"))
+        }
+        candidate_detail = candidate_detail_by_id.get(clean_text(candidate_row.get("itemId"))) or {}
+        candidate_contribution = get_switching_title_contribution(
+            candidate_row,
+            candidate_detail,
+            job_name,
+            buff_skill_name,
+            required_level,
+        )
+        if candidate_contribution <= current_contribution:
+            continue
+        candidate_metrics = get_buffer_switching_metrics(
+            current_rows,
+            candidate_switching_rows,
+            candidate_detail_by_id,
+            style_payload,
+            job_name,
+            stat_name,
+            buff_skill_name,
+        )
+        recommendations.append({
+            "kind": "switchingTitle",
+            "slot": "벞강 칭호",
+            "tier": "버프강화",
+            "itemId": candidate_price.get("itemId"),
+            "itemName": candidate_price.get("itemName") or config.get("itemName"),
+            "itemRarity": candidate_price.get("itemRarity") or "레어",
+            "iconUrl": candidate_price.get("iconUrl"),
+            "fame": candidate_price.get("fame"),
+            "auction": candidate_price.get("auction") or {},
+            "effects": {},
+            "itemReinforceSkill": candidate_detail.get("itemReinforceSkill") or [],
+            "itemBuff": candidate_detail.get("itemBuff") or {},
+            "enchantEffects": normalize_enchant_status((candidate_row.get("enchant") or {}).get("status") or []),
+            "itemExplain": f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv",
+            "buffSkillName": buff_skill_name,
+            "requiredLevel": required_level,
+            "titleSkillLevelDelta": int(config.get("titleSkillLevelDelta") or 0),
+            "enchantBuffSkillLevelDelta": int(config.get("enchantBuffSkillLevelDelta") or 0),
+            "currentTitleContribution": current_contribution,
+            "candidateTitleContribution": candidate_contribution,
+            "switchingStatDelta": candidate_metrics.get("switchingStatDelta", 0) - current_metrics.get("switchingStatDelta", 0),
+            "switchingBuffAmplificationDelta": candidate_metrics.get("switchingBuffAmplificationDelta", 0) - current_metrics.get("switchingBuffAmplificationDelta", 0),
+            "bufferBuffSkillLevelDelta": candidate_contribution - current_contribution,
+            "sourceTitleKind": "switchingTitle",
+            "sourceTitleName": clean_text(source_title.get("itemName")),
+            "purchaseRoute": "attachedSwitchingTitle",
+            "purchaseRouteLabel": f"[{buff_skill_name} +{int(config.get('enchantBuffSkillLevelDelta') or 0)}Lv]",
+        })
+    return recommendations
+
+
 def load_character_loadout(server_id: str, character_id: str) -> dict:
     started_at = time.perf_counter()
     steps = []
@@ -1321,11 +1559,15 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
     )
     switching_title_recommendations = _measure_step(
         steps,
-        "load_dealer_switching_title_recommendations",
-        lambda: load_dealer_switching_title_recommendations(
-            server_id,
-            character_id,
-            enchant_payload.get("bufferBaseline"),
+        "load_switching_title_recommendations",
+        lambda: (
+            load_buffer_switching_title_recommendations(
+                server_id,
+                character_id,
+                enchant_payload.get("bufferBaseline"),
+            )
+            if enchant_payload.get("bufferBaseline")
+            else load_dealer_switching_title_recommendations(server_id, character_id)
         ),
     )
     switching_fragment_recommendations = _measure_step(
@@ -1637,7 +1879,11 @@ def get_setup_skill_bonuses(rows: list, detail_by_id: dict, style_rows: list, jo
         detail = detail_by_id.get(clean_text(row.get("itemId"))) or {}
         add_named_skill_bonuses(result, detail.get("itemReinforceSkill") or [], job_name)
         add_named_skill_bonuses(result, (row.get("enchant") or {}).get("reinforceSkill") or [], job_name)
-        for job in (detail.get("itemBuff") or {}).get("reinforceSkill") or []:
+        reinforce_skill_groups = [
+            *(detail.get("itemReinforceSkill") or []),
+            *((detail.get("itemBuff") or {}).get("reinforceSkill") or []),
+        ]
+        for job in reinforce_skill_groups:
             if clean_text(job.get("jobName")) not in {"", "공통", job_name}:
                 continue
             for level_range in job.get("levelRange") or []:
