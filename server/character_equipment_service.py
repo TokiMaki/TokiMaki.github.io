@@ -14,6 +14,8 @@ from .avatar_skill_optimizer import (
     evaluate_avatar_combo,
     flatten_skill_rows,
     get_avatar_candidate_combos,
+    get_skill_attack_ratio,
+    normalize_skill_key,
     select_best_avatar_combo_for_character,
 )
 from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect, get_item_reinforce_skill_matches
@@ -2678,15 +2680,13 @@ def choose_avatar_platinum_price_item(skill_name: str) -> dict:
         )
     )
     selected = selection_box if use_box else direct
+    selected_price = selected.get("auction", {}).get("minUnitPrice")
     return {
         **selected,
         "priceSource": "selectionBox" if use_box else "direct",
         "directItem": direct,
         "selectionBoxItem": selection_box,
-        "priceCompareText": (
-            f"직접 플티 {format_price_label(direct_price)}"
-            f" / 선택 상자 {format_price_label(box_price)}"
-        ),
+        "priceCompareText": f"최저가 {format_price_label(selected_price)}",
     }
 
 
@@ -2705,36 +2705,59 @@ def get_avatar_platinum_skill_damage_multiplier(
     target_platinum_skill: str,
 ) -> float:
     current_avatar = avatar_combo_analysis.get("currentAvatarSkills") or {}
-    recommended_combo = avatar_combo_analysis.get("recommendedCombo") or {}
     skill_infos = avatar_combo_analysis.get("skillInfos") or {}
-    if not current_avatar or not recommended_combo or not skill_infos:
+    target_skill = clean_text(target_platinum_skill)
+    target_key = normalize_skill_key(target_skill)
+    if not current_avatar or not target_key or not skill_infos:
         return 0
 
-    current_combo = {
-        "topSkill": current_avatar.get("topSkill") or recommended_combo.get("topSkill"),
-        "platinumSkills": [
-            *(current_avatar.get("platinumSlotSkills") or current_avatar.get("platinumSkills") or []),
-        ][:2],
-    }
-    while len(current_combo["platinumSkills"]) < 2:
-        current_combo["platinumSkills"].append("")
-
-    target_combo = {
-        "topSkill": current_combo.get("topSkill"),
-        "platinumSkills": [*current_combo.get("platinumSkills")],
-    }
+    current_platinum_skills = [
+        *(current_avatar.get("platinumSlotSkills") or current_avatar.get("platinumSkills") or []),
+    ][:2]
+    while len(current_platinum_skills) < 2:
+        current_platinum_skills.append("")
     target_index = 0 if slot_label == "상의 아바타" else 1
-    target_combo["platinumSkills"][target_index] = clean_text(target_platinum_skill)
+    target_platinum_skills = [*current_platinum_skills]
+    target_platinum_skills[target_index] = target_skill
+    top_key = normalize_skill_key(current_avatar.get("topSkill"))
 
-    current_result = evaluate_avatar_combo(current_combo, current_avatar, skill_infos, include_price=False)
-    target_result = evaluate_avatar_combo(target_combo, current_avatar, skill_infos, include_price=False)
-    if not current_result.get("calculable") or not target_result.get("calculable"):
-        return 0
-    current_multiplier = float(current_result.get("multiplier") or 0)
-    target_multiplier = float(target_result.get("multiplier") or 0)
-    if current_multiplier <= 0 or target_multiplier <= 0:
-        return 0
-    return target_multiplier / current_multiplier
+    def count_avatar_skill(skill_key: str, platinum_skills: list[str]) -> int:
+        return (
+            (1 if top_key == skill_key else 0)
+            + sum(1 for skill in platinum_skills if normalize_skill_key(skill) == skill_key)
+        )
+
+    multiplier = 1.0
+    changed_keys = {
+        normalize_skill_key(current_platinum_skills[target_index]),
+        target_key,
+    }
+    for skill_key in changed_keys:
+        if not skill_key:
+            continue
+        current_count = count_avatar_skill(skill_key, current_platinum_skills)
+        target_count = count_avatar_skill(skill_key, target_platinum_skills)
+        level_delta = target_count - current_count
+        if level_delta == 0:
+            continue
+        skill_info = skill_infos.get(skill_key) or {}
+        current_level = int(skill_info.get("currentLevel") or 0) + current_count
+        if current_level <= 0:
+            if skill_key == target_key and level_delta > 0:
+                return 0
+            continue
+        if level_delta > 0:
+            ratio = get_skill_attack_ratio(skill_info.get("detail") or {}, current_level, level_delta)
+            if not ratio.get("calculable"):
+                return 0
+            multiplier *= float(ratio.get("multiplier") or 1)
+        else:
+            target_level = current_level + level_delta
+            ratio = get_skill_attack_ratio(skill_info.get("detail") or {}, target_level, -level_delta)
+            if ratio.get("calculable"):
+                multiplier /= float(ratio.get("multiplier") or 1)
+            # 계산 불가 플티는 딜 상승률 0%로 보고 제거 손실도 0으로 처리한다.
+    return multiplier if multiplier > 0 else 0
 
 
 def load_character_avatar(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> dict:
@@ -2919,7 +2942,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 "itemName": item.get("itemName") or f"플래티넘 엠블렘[{target_platinum_skill}]",
                 "itemRarity": item.get("itemRarity"),
                 "iconUrl": item.get("iconUrl"),
-                "itemExplain": f"{slot_label} 플래티넘 교체 필요 · {item.get('priceCompareText')}",
+                "itemExplain": f"{slot_label} [{target_platinum_skill}] 교체",
                 "effects": (
                     {"bufferStat": platinum_delta.get("statDelta", 0)}
                     if buffer_stat_name
