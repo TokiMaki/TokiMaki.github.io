@@ -816,12 +816,20 @@ function getBufferItemSkillChanges(row, current, baseline) {
     return changes;
   }, { statDelta: 0, auraStatDelta: 0, auraAttackDelta: 0 });
   if (row.sourceType === 'title') {
-    return {
-      currentStatDelta: skillChanges.statDelta,
-      auraStatDelta: skillChanges.auraStatDelta,
-      auraAttackDelta: skillChanges.auraAttackDelta,
-      awakeningSkillLevelDelta,
-    };
+    return baseline.switchingTitleUsesCurrent
+      ? {
+        selfStatSkillDelta: skillChanges.statDelta,
+        auraStatDelta: skillChanges.auraStatDelta,
+        auraAttackDelta: skillChanges.auraAttackDelta,
+        buffSkillLevelDelta,
+        awakeningSkillLevelDelta,
+      }
+      : {
+        currentStatDelta: skillChanges.statDelta,
+        auraStatDelta: skillChanges.auraStatDelta,
+        auraAttackDelta: skillChanges.auraAttackDelta,
+        awakeningSkillLevelDelta,
+      };
   }
   return {
     ...skillChanges,
@@ -930,7 +938,8 @@ function getBufferRecommendationRows(
     const statDelta = row.sourceType === 'upgrade'
       ? Number(row.effects?.allStat || 0)
       : Number(scoringTargetEffects?.allStat || 0) - Number(scoringCurrentEffects?.allStat || 0);
-    const replacementStatChanges = row.sourceType === 'title'
+    const titleAppliesToSwitching = row.sourceType === 'title' && baseline.switchingTitleUsesCurrent;
+    const replacementStatChanges = row.sourceType === 'title' && !titleAppliesToSwitching
       ? { currentStatDelta: statDelta }
       : { statDelta };
     const buffAmplificationDelta = row.sourceType === 'upgrade'
@@ -939,7 +948,7 @@ function getBufferRecommendationRows(
     const buffPowerDelta = row.sourceType === 'upgrade'
       ? 0
       : Number(scoringTargetEffects?.buffPower || 0) - Number(scoringCurrentEffects?.buffPower || 0);
-    const buffAmplificationChanges = row.sourceType === 'title'
+    const buffAmplificationChanges = row.sourceType === 'title' && !titleAppliesToSwitching
       ? { currentBuffAmplificationDelta: buffAmplificationDelta }
       : {
         currentBuffAmplificationDelta: buffAmplificationDelta,

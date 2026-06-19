@@ -2164,6 +2164,7 @@ def get_buffer_switching_stat_delta(
         "switchingSkillStatDelta": skill_delta,
         "switchingSkillStatDeltas": skill_deltas,
         "switchingBuffAmplificationDelta": switching_buff_amplification_delta,
+        "switchingTitleUsesCurrent": "TITLE" not in switching_equipment_by_slot,
         "currentSelfStatSkills": current_self_stat_skills,
         "activeSelfStat": active_self_stat,
         "auraStat": aura_stat,
