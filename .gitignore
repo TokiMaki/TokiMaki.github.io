@@ -60,6 +60,12 @@ Docs/.price_cache/
 .venv-xlsx/
 .codex
 
+### Local server scripts
+scripts/start_api_*.sh
+scripts/start_api_*.bat
+scripts/start_cloudflare_tunnel.sh
+scripts/start_cloudflare_tunnel.bat
+
 # Jupyter Notebook
 .ipynb_checkpoints
 

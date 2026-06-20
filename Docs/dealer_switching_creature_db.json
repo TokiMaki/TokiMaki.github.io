@@ -1,0 +1,772 @@
+{
+  "metadata": {
+    "type": "dealerSwitchingCreature",
+    "notes": [
+      "딜러 버프강화 크리쳐 후보 DB다.",
+      "기존 수동 후보는 유지하고, 새 검색 검증 후보는 itemId 중복을 제거한 뒤 추가한다.",
+      "기본 추가 방식은 items 배열에 itemName/itemId 객체를 추가하는 것이다.",
+      "itemId가 있으면 서버는 /df/items 이름 검색을 생략하고 상세/경매장 조회만 수행한다.",
+      "문자열 항목이나 itemId 없는 객체는 기존처럼 이름 검색 fallback으로 동작한다.",
+      "직접 크리쳐 후보는 상세 명성 491~601 사이만 버프강화 크리쳐로 본다.",
+      "현재 등록 목록은 SD/쁘띠/[노련한]/[단련된] 검색 결과 중 마키여넨 카이 +1Lv 기여가 확인된 항목만 포함한다.",
+      "패키지 상자 판매가 있는 경우 객체 형식의 itemName/searchNames/boxSearchNames를 사용하면 직접 크리쳐와 상자 중 더 싼 가격을 사용한다."
+    ],
+    "fameRange": {
+      "min": 491,
+      "max": 601
+    },
+    "sourceKeywords": [
+      "SD",
+      "쁘띠",
+      "[노련한]",
+      "[단련된]"
+    ],
+    "lastFilledAt": "2026-06-21 00:49:21",
+    "candidateCount": 147,
+    "manualSeedCount": 10
+  },
+  "items": [
+    {
+      "itemName": "2026 쁘띠 바이킹 알",
+      "itemId": "01375fe1580ec9b2806ba9a540c7db7a",
+      "fame": 491,
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "2026 쁘띠 발키리 알",
+      "itemId": "a4b2ad8108f898c259331fae5683521a",
+      "fame": 491,
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "Miss.바니바니 알",
+      "itemId": "0f012d0294f52a094f58a4cbd9513b3f",
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "SD 베리아스 알",
+      "itemId": "18f33ee1cf2ddc780ca0a07edc8ce734",
+      "fame": 601,
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "SD 아사미야 아테나 알",
+      "itemId": "eff751f62d8f8bad8e4dd3d121556dc7",
+      "fame": 491,
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "SD 카잔 알",
+      "itemId": "ba12bf64a0e97ae2f2004f2d74df58a5",
+      "fame": 601,
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "SD 쿠사나기 쿄 알",
+      "itemId": "270892173c4a855e09be6259eade362a",
+      "fame": 491,
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "SD 티아매트 알",
+      "itemId": "c440b7ec9aa36c68c8ad01fbee1b8e35",
+      "fame": 601,
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "든든한 조력자 오르페오 알",
+      "itemId": "c3d052b4c251ccc42ae220984dd092cb",
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "팬텀 매지션 에코의 알",
+      "itemId": "cdb477d94890a09510e31fd7484cd555",
+      "source": "manualSeed"
+    },
+    {
+      "itemName": "4대룡 쁘띠 네이저의 알",
+      "itemId": "ec345f12cfc76c9df46fa98bba620205",
+      "fame": 601
+    },
+    {
+      "itemName": "4대룡 쁘띠 느마우그의 알",
+      "itemId": "a0b8bde8cb87bcfc4f2acf1283adee36",
+      "fame": 601
+    },
+    {
+      "itemName": "4대룡 쁘띠 애쉬코어의 알",
+      "itemId": "1078694309e50a35dbd561ef0a5f2114",
+      "fame": 601
+    },
+    {
+      "itemName": "4대룡 쁘띠 이트레녹의 알",
+      "itemId": "85b3ee6a76c1a846ed64a4256d332882",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 가이아 알[단련된]",
+      "itemId": "397ecd779badfa77f04f14532d928a88",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 가이아 알[평범한]",
+      "itemId": "8a40ad3a59678d1a5075fbe506e4be34",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 갓파더 알[단련된]",
+      "itemId": "4b1fb932fa1244120a6b7ca82a10d279",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 갓파더 알[평범한]",
+      "itemId": "00e7a3a7507287f77559b78fa404fab7",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 검신 알[단련된]",
+      "itemId": "7afe244f490be1a2e1232ca8b6176f9b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 검신 알[평범한]",
+      "itemId": "19145f1ea0e7c996c8512a5c7a99331c",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 검제 알[단련된]",
+      "itemId": "690dab7fdd3bcf440466579d7c14e447",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 검제 알[평범한]",
+      "itemId": "5094e708dc3c218fb1274ced451bcbcd",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 그라골의 알",
+      "itemId": "11ef60df1ec272ad43baa77c55185cb6",
+      "fame": 491
+    },
+    {
+      "itemName": "SD 그랜드 마스터 알[단련된]",
+      "itemId": "2a6ebfcc63c6b6048c7d87bef552cf82",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 그랜드 마스터 알[평범한]",
+      "itemId": "3e4aadf71816c9bab2e68481b49cb07f",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 그림리퍼 알[단련된]",
+      "itemId": "f4e5c162a4c6b71fbf0f73d64521cfc4",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 그림리퍼 알[평범한]",
+      "itemId": "cdedcbf1d7eda2163aef8e294e11abbc",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 네메시스 알[단련된]",
+      "itemId": "40d5b22cdd9ef779a28c5cf49768fd0d",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 네메시스 알[평범한]",
+      "itemId": "59580eaf9f862a8aa42ed4b12015798a",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 다크로드 알[단련된]",
+      "itemId": "48a763e703255c675ad6d1e7b877dc22",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 다크로드 알[평범한]",
+      "itemId": "4df6d8c1ee7c76681213ce487b9eb1bd",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 도미나 헤일리의 알",
+      "itemId": "ddc270f57f686a2a1f8c689fdd456cc8",
+      "fame": 491
+    },
+    {
+      "itemName": "SD 듀란달 알[단련된]",
+      "itemId": "e7006497ef88b22786df5f8c154880d1",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 듀란달 알[평범한]",
+      "itemId": "0fbb0d9e61042e26940aec15cf251861",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 드레드노트 알[단련된]",
+      "itemId": "dec2888f75d2d8e6fd5724a71d315bf1",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 드레드노트 알[평범한]",
+      "itemId": "8f1a89ea75191355cccde0e179035c0e",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 디스트로이어 알[단련된]",
+      "itemId": "f476d280187da1e25755ce61dd2db163",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 디스트로이어 알[평범한]",
+      "itemId": "587b79c901c69dc1cc465b3f6922bf08",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 디어사이드 알[단련된]",
+      "itemId": "15e2e0ca90a76cf85124dd925c830e3a",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 디어사이드 알[평범한]",
+      "itemId": "436d85a1d3df558afee129b167e756b1",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 레이븐 알[단련된]",
+      "itemId": "01fa4a0ba8c0dc28dec805a76a86fb28",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 레이븐 알[평범한]",
+      "itemId": "f2b2d8c62eb4ff41056f2c319ba8013a",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 레퀴엠 알[단련된]",
+      "itemId": "352aba099b9a2a69bd9154301136b174",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 레퀴엠 알[평범한]",
+      "itemId": "c36572ba3bd46b2b5a9639d4e424e2e2",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 리디머 알[단련된]",
+      "itemId": "d2dec508277e7cfb6fdde1b2c24f48ad",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 리디머 알[평범한]",
+      "itemId": "893204480c0f41b07a9699cba825d90e",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 마신 알[단련된]",
+      "itemId": "ff49fbb50c0f2acf3b3261078eb1d725",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 마신 알[평범한]",
+      "itemId": "0a3b6d5269d0c06aa126679fab5fe671",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 마제스티 알[단련된]",
+      "itemId": "b00b63eecc60ec0f81e89a38fc0ddba6",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 마제스티 알[평범한]",
+      "itemId": "5441485087aac034042e3e745b0c9cf2",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 명왕 알[단련된]",
+      "itemId": "d334700533f91e62f5c0dae118d074c9",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 명왕 알[평범한]",
+      "itemId": "19ab7f87775f8bf3ae419bbb1279a8cd",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 뱀파이어 로드 알[단련된]",
+      "itemId": "735e73ba3e42a5700d96eba65d4cd498",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 뱀파이어 로드 알[평범한]",
+      "itemId": "b7d8d0fa8458a7c9e5e13fa7e63c3ac2",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 벤데타 알[단련된]",
+      "itemId": "2c41e23ae61ce4c8e8f2cb215fce99a5",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 붉은 마녀의 알",
+      "itemId": "5169eec1cc5de91c16871b72f389ffae",
+      "fame": 491
+    },
+    {
+      "itemName": "SD 블러드 이블 알[단련된]",
+      "itemId": "961e1231f4ab3a7ae3c3c72e4eeb555e",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 블러드 이블 알[평범한]",
+      "itemId": "eccfa55cbac067f433b2c58e6502ea44",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 세라핌 알[단련된]",
+      "itemId": "b297028f0847f251e4e6cd1f859ad0ee",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 세라핌 알[평범한]",
+      "itemId": "b4736a328d1a4fa5dbee4395f103d8df",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 세이비어 알[단련된]",
+      "itemId": "49c56debe2907f598b76493ed7fdc96a",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 세이비어 알[평범한]",
+      "itemId": "5cbda11f6edc0bc682dc4d237af0f0d0",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 세인트 알[단련된]",
+      "itemId": "e578105333ed0322249409064c655afd",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 세인트 알[평범한]",
+      "itemId": "baef800c588ae7c598df157b718f7d4f",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 셀레스티얼 알[단련된]",
+      "itemId": "ebf9577d7629d8b682c280762b623eb7",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 수파르나의 알",
+      "itemId": "795e9f8d18170f0c81fe586672d7c189",
+      "fame": 491
+    },
+    {
+      "itemName": "SD 스톰트루퍼 알[단련된]",
+      "itemId": "bce4a1a2e8996e867fbf91e3ea921617",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 스톰트루퍼 알[평범한]",
+      "itemId": "d3a0ccc79de7da70be0e2bf84c2b1ed9",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 시라누이 알[단련된]",
+      "itemId": "3e63290fa60019e3e80ababcd7b4a16f",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 시라누이 알[평범한]",
+      "itemId": "7c09f5cc5ca56b8ee641accf1e9f4aff",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 아슈타르테 알[단련된]",
+      "itemId": "f8009c4fd21d60f0243454a9b6068397",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 아슈타르테 알[평범한]",
+      "itemId": "79351dae1214fa76ec70445be9c7cb86",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 아이올로스 알[단련된]",
+      "itemId": "ff31ecabd91cd1b3527d514c0cca6e86",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 아이올로스 알[평범한]",
+      "itemId": "30f8dfe29b10b455bbf12db829301bb5",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 악귀나찰 알[단련된]",
+      "itemId": "f8721356e852a771d840d48bebfe9b0b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 악귀나찰 알[평범한]",
+      "itemId": "3dc673c962379dd2f82f6952d8577ded",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 알키오네 알[단련된]",
+      "itemId": "f59e067dfa657ab4b3c8d2f204f04df0",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 알키오네 알[평범한]",
+      "itemId": "cc5ae34df506edde24db964880935466",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 어센션 알[단련된]",
+      "itemId": "c07c641b7e913517e0c5c1a253062d7a",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 어센션 알[평범한]",
+      "itemId": "f16a8577511537aa015f38313da57729",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 언터처블 알[단련된]",
+      "itemId": "15fb40388629039df1ddc47d34e6c36b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 언터처블 알[평범한]",
+      "itemId": "cfc3c12b2c1b1d2f58db3c8a99e5b28d",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 얼티밋 디바 알[단련된]",
+      "itemId": "eaecfa23909e7928847583ee0b490abb",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 얼티밋 디바 알[평범한]",
+      "itemId": "a835beaad75cd28815127b860b13193d",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 에레보스 알[단련된]",
+      "itemId": "1e010140feae610c6e2afeca16ed90d9",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 에레보스 알[평범한]",
+      "itemId": "3ab6815596c505760d2073953381387c",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 엑스마키나 알[단련된]",
+      "itemId": "594d9691b5071b938e2d1d1a42966f1a",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 염제 폐월수화 알[단련된]",
+      "itemId": "c72d7b86e1149777507dfc7152dcaaa7",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 염제 폐월수화 알[평범한]",
+      "itemId": "eda50cec80d44fbf9b97baff7999c70d",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 염황 광풍제월 알[단련된]",
+      "itemId": "c2994767ead65743f52364cfd94cf1d0",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 염황 광풍제월 알[평범한]",
+      "itemId": "14d5e9a5e1f5d21e03cadde68cc4512b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 오버마인드 알[단련된]",
+      "itemId": "380c840d011f2d2d5247be2aaf4eb7bd",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 오버마인드 알[평범한]",
+      "itemId": "6a9f6e116df935853b2cdc16de39aef1",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 오블리비언 알[단련된]",
+      "itemId": "9440baca5ad0aefee41b51c42d1be111",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 오블리비언 알[평범한]",
+      "itemId": "4043a4c8a45a9fe8c69c57c85abe88b8",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 옵티머스 알[단련된]",
+      "itemId": "07db8692ed0ba4f67ed715083bb041b4",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 옵티머스 알[평범한]",
+      "itemId": "68aab2d8715731707d899c7efc3a9667",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 용독문주 알[단련된]",
+      "itemId": "633a06244847a4ba6a288fa721ba2738",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 용독문주 알[평범한]",
+      "itemId": "1e6c9ac3b85db3773252dcdd9cb2d863",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 워로드 알[단련된]",
+      "itemId": "ebb2bfe719b45e3e9f5999511632329b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 워로드 알[평범한]",
+      "itemId": "75ba33061c740c5dffa55c09954be710",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 이모탈 알[단련된]",
+      "itemId": "85e6db3be76662e144d8197100ec292b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 이모탈 알[평범한]",
+      "itemId": "2ecfb1b0be24ff835d359d8fd37abf8e",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 이클립스 알[단련된]",
+      "itemId": "7ce9fd6476f6fc8e15e87f28635d8a93",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 이클립스 알[평범한]",
+      "itemId": "eb4ca63d0e043750537b746dc9f1dc46",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 이터널 알[단련된]",
+      "itemId": "c7727d5aa435cead1cf05c3179ebaf52",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 이터널 알[평범한]",
+      "itemId": "09cc845938bfef8fc884f5430d006a46",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 인다라천 알[단련된]",
+      "itemId": "6fd5a00ba199398b3992a1b0970d0b3d",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 인다라천 알[평범한]",
+      "itemId": "eb819596accda39d72017dc99db99f53",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 인페르노 알[단련된]",
+      "itemId": "1869ff1fbc7d027653816db4df33a743",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 인페르노 알[평범한]",
+      "itemId": "2990f543c4282032bb4893d09278b42d",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 저스티스 알[단련된]",
+      "itemId": "bba1ee59238fe103dafcd8083eb24b79",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 저스티스 알[평범한]",
+      "itemId": "024eb99a4a5d47e89c1721fc7bd6ffa0",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 제노사이더 알[단련된]",
+      "itemId": "8691299521d2d56b85801eaa90baccf9",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 제노사이더 알[평범한]",
+      "itemId": "b01a9c7c14147c0128cbccc5b1651143",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 지니위즈 알[단련된]",
+      "itemId": "f14d2162bc35ffd4d4fba518f8e553ee",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 지니위즈 알[평범한]",
+      "itemId": "0b57b021a3b0b67965cab479e0e294f2",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 천선낭랑 알[단련된]",
+      "itemId": "4033d09ceba926f450080d09b9975211",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 천선낭랑 알[평범한]",
+      "itemId": "6dc365e083ca7843ed33da8cd7eafabc",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 초월의 노르닐의 알",
+      "itemId": "47e16cc333987a101c66f74c95937920",
+      "fame": 491
+    },
+    {
+      "itemName": "SD 카이저 알[단련된]",
+      "itemId": "b0df4bc9fdbd0d4527bd097c517fcb0b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 카이저 알[평범한]",
+      "itemId": "25496c924654f29f13f061c1d13edbcd",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 커맨더 알[단련된]",
+      "itemId": "3bfe3380c98ad5fc8b683ab33c88c3da",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 커맨더 알[평범한]",
+      "itemId": "d6acfc1d72dbd17850bbb2a7a39e3879",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 크림슨 로제 알[단련된]",
+      "itemId": "183559322026ea294e0e56d86a0e1d76",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 크림슨 로제 알[평범한]",
+      "itemId": "bc95298158b1588409188b9184eee035",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 타나토스 알[단련된]",
+      "itemId": "140626552588270bb5a66d90ab96d6b8",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 타나토스 알[평범한]",
+      "itemId": "300e2f34bdfadf3301139777b8e9ec1d",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 태을선인 알[단련된]",
+      "itemId": "45e9fa18dc7ca775654572d047dbb8fb",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 태을선인 알[평범한]",
+      "itemId": "c8f2d30b414aa7fb0ae0ba96165951a9",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 트렌드세터 알[단련된]",
+      "itemId": "257be24abae8bce11da7c0fb29c57908",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 패스파인더 알[단련된]",
+      "itemId": "cd240a29718241d71881e739a78abfbf",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 패스파인더 알[평범한]",
+      "itemId": "32f57b0ca9ce01b8be083f2f2f727f49",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 패황 알[단련된]",
+      "itemId": "e4408d85d58c7a76e3cf483f505c9ab2",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 패황 알[평범한]",
+      "itemId": "db2f45efb11a2c28b204f476af5790a5",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 프라임 알[단련된]",
+      "itemId": "1bbdbd91e2638a4ddc8afb9213c7a0c6",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 프라임 알[평범한]",
+      "itemId": "729b712806aceec0ae1ea05381e211fc",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 프레이야 알[단련된]",
+      "itemId": "b5304e9be125c842b2c03ea64bed6c8b",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 프레이야 알[평범한]",
+      "itemId": "5fbe1ea8fb44ac0876087b18d8d8d301",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 헤카테 알[단련된]",
+      "itemId": "6590e4e78fabd8b1d86dcd27d75173dc",
+      "fame": 601
+    },
+    {
+      "itemName": "SD 헤카테 알[평범한]",
+      "itemId": "f4e07a3a7532db7524c4e10725681424",
+      "fame": 601
+    },
+    {
+      "itemName": "달의 수호자 야나 알[단련된]",
+      "itemId": "695b46c881a94dbad7374c7ee66ec1ce",
+      "fame": 601
+    },
+    {
+      "itemName": "쁘띠 베릭트의 알",
+      "itemId": "6adce4cb378aeabcc99314b14c4dca52",
+      "fame": 491
+    },
+    {
+      "itemName": "순수한 인디언 소녀 알[단련된]",
+      "itemId": "82035ca85c48f95d80a8eab7a675e2df",
+      "fame": 601
+    },
+    {
+      "itemName": "순수한 인디언 소년 알[단련된]",
+      "itemId": "23b718d2d0022eed187afbf1679596a4",
+      "fame": 601
+    },
+    {
+      "itemName": "차분한 집사 제이드 알[단련된]",
+      "itemId": "bc3679d3109bbd76730b7cea6b145201",
+      "fame": 601
+    },
+    {
+      "itemName": "태양의 수호자 키르케 알[단련된]",
+      "itemId": "5c5af92fef06dd25d6193d7539c1268d",
+      "fame": 601
+    }
+  ]
+}

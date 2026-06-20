@@ -51,6 +51,7 @@ from server.price_cache import (
 DEFAULT_HTML = "dnf_hell_vs_craft_percentile_tool_fixed.html"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8787)
+API_SERVER_MODE = os.environ.get("API_SERVER_MODE", "prod").strip() or "prod"
 
 
 def json_response(payload: dict) -> bytes:
@@ -95,10 +96,20 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             write_ops_log("api_request_start", route=parsed.path)
 
         if parsed.path in {"/", "/index.html"}:
-            return self.send_json({"ok": True, "service": "dnf-hell-api"})
+            return self.send_json({
+                "ok": True,
+                "service": "dnf-hell-api",
+                "mode": API_SERVER_MODE,
+                "port": getattr(self.server, "server_port", PORT),
+            })
 
         if parsed.path == "/api/health":
-            return self.send_json({"ok": True})
+            return self.send_json({
+                "ok": True,
+                "service": "dnf-hell-api",
+                "mode": API_SERVER_MODE,
+                "port": getattr(self.server, "server_port", PORT),
+            })
 
         if parsed.path == "/api/search":
             return self.handle_search(parsed)
@@ -432,7 +443,7 @@ def main():
             print(f"다른 포트로 열려면: python3 neople_hell_api_server.py --port {args.port + 1}")
             return 1
         raise
-    print(f"Serving on http://{args.host}:{args.port}/")
+    print(f"Serving on http://{args.host}:{args.port}/ ({API_SERVER_MODE})")
     print(f"Open {DEFAULT_HTML} via the server root or file:// with the local API proxy.")
     load_price_cache_from_disk(_ENCHANT_PRICE_CACHE, ENCHANT_PRICE_CACHE_PATH)
     load_price_cache_from_disk(_CREATURE_PRICE_CACHE, CREATURE_PRICE_CACHE_PATH)

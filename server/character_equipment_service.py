@@ -73,6 +73,11 @@ BLACK_FANG_MATERIAL_AUCTION_NAME_MAP = {
     "태초 소울": "태초 소울 결정",
     "순례의 인장": "순례의 인장(1회 교환 가능)",
 }
+BLACK_FANG_MATERIAL_AUCTION_ITEM_ID_MAP = {
+    "무결점 조화의 결정체": "ab8eab6848ed81b8bdd65d1c5a6ae8b2",
+    "태초 소울 결정": "d288ebf406a65f4ec23d1f9c33227888",
+    "순례의 인장(1회 교환 가능)": "d7e9443a19fe81a9cc8364c201f6ab55",
+}
 AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "HEADGEAR", "slot": "모자 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "HAIR", "slot": "머리 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
@@ -174,8 +179,9 @@ def load_upgrade_material_prices() -> dict:
     payload = {}
     for key, config in UPGRADE_MATERIAL_PRICE_ITEMS.items():
         item_name = clean_text(config.get("label"))
-        item = find_exact_item_by_name(item_name) if item_name else {}
-        item_id = clean_text(item.get("itemId") or config.get("itemId"))
+        item_id = clean_text(config.get("itemId"))
+        item = {} if item_id else (find_exact_item_by_name(item_name) if item_name else {})
+        item_id = clean_text(item_id or item.get("itemId"))
         try:
             auction = get_lowest_auction_price(item_id) if item_id else {}
         except Exception:
@@ -1218,8 +1224,19 @@ def get_switching_creature_item_candidates(
         for search_name in config.get("searchNames") or []
         if clean_text(search_name)
     ]
+    direct_item_ids = []
+    seen_direct_item_ids = set()
+    for item_id in [
+        config.get("itemId"),
+        *(config.get("itemIds") or []),
+    ]:
+        item_id = clean_text(item_id)
+        if item_id and item_id not in seen_direct_item_ids:
+            direct_item_ids.append(item_id)
+            seen_direct_item_ids.add(item_id)
     max_pages = max(1, int(config.get("maxPages") or config.get("searchMaxPages") or 5))
     cache_key = (
+        tuple(direct_item_ids),
         tuple(search_names),
         int(fame_min),
         int(fame_max),
@@ -1242,22 +1259,30 @@ def get_switching_creature_item_candidates(
             ]
 
     matched = {}
-    for search_name in search_names:
-        for row in search_items_by_name(search_name, max_pages=max_pages):
-            item_id = clean_text(row.get("itemId"))
-            item_name = clean_text(row.get("itemName"))
-            if not item_id or item_id in matched:
-                continue
-            if clean_text(row.get("itemTypeDetail")) != "크리쳐":
-                continue
-            if clean_text(search_name) not in item_name:
-                continue
-            matched[item_id] = {
-                "itemId": item_id,
-                "itemName": item_name,
-                "itemRarity": clean_text(row.get("itemRarity") or "레어"),
-                "rowFame": int(row.get("fame") or 0),
-            }
+    for item_id in direct_item_ids:
+        matched[item_id] = {
+            "itemId": item_id,
+            "itemName": clean_text(config.get("itemName") or config.get("name") or config.get("groupName")),
+            "itemRarity": "레어",
+            "rowFame": 0,
+        }
+    if not direct_item_ids:
+        for search_name in search_names:
+            for row in search_items_by_name(search_name, max_pages=max_pages):
+                item_id = clean_text(row.get("itemId"))
+                item_name = clean_text(row.get("itemName"))
+                if not item_id or item_id in matched:
+                    continue
+                if clean_text(row.get("itemTypeDetail")) != "크리쳐":
+                    continue
+                if clean_text(search_name) not in item_name:
+                    continue
+                matched[item_id] = {
+                    "itemId": item_id,
+                    "itemName": item_name,
+                    "itemRarity": clean_text(row.get("itemRarity") or "레어"),
+                    "rowFame": int(row.get("fame") or 0),
+                }
 
     details_by_id = {
         clean_text(detail.get("itemId")): detail
@@ -1353,6 +1378,12 @@ def normalize_switching_creature_configs(creature_db: dict) -> list[dict]:
         configs.append({
             **item,
             "searchNames": search_names,
+            "itemId": clean_text(item.get("itemId")),
+            "itemIds": [
+                clean_text(item_id)
+                for item_id in item.get("itemIds") or []
+                if clean_text(item_id)
+            ],
             "boxSearchNames": [
                 clean_text(box_name)
                 for box_name in item.get("boxSearchNames") or []
@@ -1469,9 +1500,64 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
     fame_range = (creature_db.get("metadata") or {}).get("fameRange") or {}
     fame_min = int(fame_range.get("min") or 491)
     fame_max = int(fame_range.get("max") or 601)
+    configs = normalize_switching_creature_configs(creature_db)
     best_candidates = {}
     seen_item_ids = set()
-    for config in normalize_switching_creature_configs(creature_db):
+
+    direct_candidate_by_id = {}
+    for config in configs:
+        for item_id in [
+            config.get("itemId"),
+            *(config.get("itemIds") or []),
+        ]:
+            item_id = clean_text(item_id)
+            if not item_id or item_id == current_creature_id or item_id in direct_candidate_by_id:
+                continue
+            direct_candidate_by_id[item_id] = {
+                "itemId": item_id,
+                "itemName": clean_text(config.get("itemName") or config.get("name") or config.get("groupName")),
+                "itemRarity": clean_text(config.get("itemRarity") or "레어"),
+                "fame": int(config.get("fame") or 0),
+                "iconUrl": get_item_icon_url(item_id),
+                "purchaseRoute": "creature",
+                "candidateCreatureContribution": 1,
+            }
+    if direct_candidate_by_id and current_contribution < 1:
+        auctions_by_id = get_lowest_auction_prices(list(direct_candidate_by_id.keys()))
+        priced_direct_candidates = []
+        for item_id, candidate in direct_candidate_by_id.items():
+            auction = auctions_by_id.get(item_id) or {}
+            unit_price = auction.get("minUnitPrice")
+            if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+                continue
+            priced_direct_candidates.append({
+                **candidate,
+                "auction": auction,
+            })
+        selected_direct = min(
+            priced_direct_candidates,
+            key=lambda row: (row.get("auction") or {}).get("minUnitPrice") or 10**30,
+            default=None,
+        )
+        if selected_direct:
+            selected_detail = (fetch_item_details([selected_direct.get("itemId")]) or [{}])[0]
+            selected_direct = {
+                **selected_direct,
+                "itemName": clean_item_display_name(selected_detail.get("itemName") or selected_direct.get("itemName")),
+                "itemRarity": clean_text(selected_detail.get("itemRarity") or selected_direct.get("itemRarity") or "레어"),
+                "fame": int(selected_detail.get("fame") or selected_direct.get("fame") or 0),
+                "iconUrl": get_item_icon_url(selected_direct.get("itemId")),
+                "detail": selected_detail,
+            }
+            best_candidates[1] = {
+                "creatureOption": selected_direct,
+                "purchaseOption": selected_direct,
+            }
+            seen_item_ids.add(clean_text(selected_direct.get("itemId")))
+
+    for config in configs:
+        if clean_text(config.get("itemId")) or any(clean_text(item_id) for item_id in config.get("itemIds") or []):
+            continue
         box_options = get_switching_creature_box_price_candidates(config.get("boxSearchNames") or [])
         for creature_option in get_switching_creature_item_candidates(
             config,
@@ -2810,8 +2896,9 @@ def enrich_black_fang_materials(materials: list) -> list:
         if not label:
             continue
         auction_name = BLACK_FANG_MATERIAL_AUCTION_NAME_MAP.get(label, label)
-        item = find_exact_item_by_name(auction_name)
-        item_id = clean_text(item.get("itemId"))
+        item_id = clean_text(BLACK_FANG_MATERIAL_AUCTION_ITEM_ID_MAP.get(auction_name))
+        item = {} if item_id else find_exact_item_by_name(auction_name)
+        item_id = clean_text(item_id or item.get("itemId"))
         try:
             auction = get_lowest_auction_price(item_id) if item_id else {}
         except Exception:
