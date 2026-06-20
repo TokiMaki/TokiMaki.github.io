@@ -1073,10 +1073,10 @@ function getCreatureRows(groups) {
     slot: '크리쳐',
     tier: candidate.variant || '일반',
     itemId: candidate.itemId,
-    itemName: candidate.itemName || candidate.name,
+    itemName: candidate.priceItem?.itemName || candidate.itemName || candidate.name,
     itemRarity: '레어',
     fame: candidate.targetFame || group.targetFame,
-    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+    iconUrl: candidate.priceItem?.iconUrl || candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
     itemReinforceSkill: candidate.itemReinforceSkill || [],
     itemBuff: candidate.itemBuff || {},
@@ -1088,6 +1088,7 @@ function getCreatureRows(groups) {
     skillDamagePercent: Number(candidate.skillDamagePercent || 0),
     reinforceSkillName: candidate.reinforceSkillName || '',
     reinforceSkillLevel: Number(candidate.reinforceSkillLevel || 0),
+    priceItem: candidate.priceItem || null,
   })));
 }
 

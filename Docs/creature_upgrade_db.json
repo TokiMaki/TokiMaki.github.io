@@ -1,44 +1,91 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-05-12",
+  "schemaVersion": 3,
+  "updatedAt": "2026-06-21",
   "source": {
-    "type": "manual_seed_from_neople_item_search",
-    "note": "크리쳐는 /df/items 전체 수집이 불안정하므로 시즌별 키워드/아이템명을 수동으로 추가한다. 가격은 itemId 기준 경매장 조회에서 minFame/maxFame을 사용한다."
+    "type": "manual_item_id_index",
+    "note": "effectItems는 딜/버프 계산 기준 아이템, priceItems는 경매장 최저가 비교용 구매 후보 itemId다. 플래티넘 레벨별 알과 선택 상자는 네오플 /df/items wordType=full 검색으로 확인해 고정한다."
   },
   "groups": [
     {
       "groupName": "운명을 담는 재단사",
       "searchName": "운명을 담는 재단사",
       "itemType": "크리쳐",
-      "targetFame": 1261,
       "candidates": [
         {
           "name": "운명을 담는 재단사",
           "variant": "일반",
-          "searchNames": [
-            "운명을 담는 재단사 알",
-            "[프리미엄 코인샵]운명을 담는 재단사 크리쳐 상자"
+          "effectItems": [
+            {
+              "itemName": "운명을 담는 재단사 알",
+              "itemId": "0e7f6b6de8df0ec334c5c2bc0aabd60a"
+            }
           ],
-          "includeItemNames": [
-            "운명을 담는 재단사 알",
-            "[프리미엄 코인샵]운명을 담는 재단사 크리쳐 상자"
-          ],
-          "targetFame": 1261,
-          "includeZeroFameBox": true
+          "priceItems": [
+            {
+              "itemName": "운명을 담는 재단사 알",
+              "itemId": "0e7f6b6de8df0ec334c5c2bc0aabd60a"
+            }
+          ]
         },
         {
           "name": "운명을 담는 재단사 플래티넘",
           "variant": "플래티넘",
-          "searchNames": [
-            "운명을 담는 재단사 플래티넘",
-            "운명을 담는 재단사 플래티넘 크리쳐 알 선택 상자"
+          "priceItems": [
+            {
+              "itemName": "운명을 담는 재단사 플래티넘 크리쳐 알 선택 상자",
+              "itemId": "4a6aea875d97279c8a7735d88625a614"
+            }
           ],
-          "includeNamePrefixes": [
-            "운명을 담는 재단사 플래티넘[",
-            "운명을 담는 재단사 플래티넘 크리쳐 알 선택 상자"
-          ],
-          "targetFame": 1261,
-          "includeZeroFameBox": true
+          "effectItems": [
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[30Lv] 알",
+              "itemId": "be8e5e360c6a3b6f7c076f4b84ebaabb"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[35Lv] 알",
+              "itemId": "68227e3eaf4117abe2a8942bb6be0f05"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[40Lv] 알",
+              "itemId": "c68bdc22ccfcede2344c5b7fed8e23d6"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[45Lv] 알",
+              "itemId": "ea0da2c27509d1c97cbcac2987fa144e"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[50Lv] 알",
+              "itemId": "1691ecca70c8cff167b7b87ef40d6ab1"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[60Lv] 알",
+              "itemId": "206536639ad98b75091d8e56ea81d95c"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[70Lv] 알",
+              "itemId": "a24417947c0090ee56347b7d3d25d940"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[75Lv] 알",
+              "itemId": "7218337ac36173c6a16d86909bf2d9a5"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[80Lv] 알",
+              "itemId": "41b434f17e1485a2c64634e6019796cf"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[85Lv] 알",
+              "itemId": "125c3a868e68c61baf0026c383a35980"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[95Lv] 알",
+              "itemId": "f1c9f42cabc2ade8a55b78abf460d945"
+            },
+            {
+              "itemName": "운명을 담는 재단사 플래티넘[100Lv] 알",
+              "itemId": "651e94ffe671229b099340b44f804287"
+            }
+          ]
         }
       ]
     },
@@ -46,35 +93,126 @@
       "groupName": "탐사대장 셀레나/스타 체이서",
       "searchName": "탐사대장 셀레나/스타 체이서",
       "itemType": "크리쳐",
-      "targetFame": 1261,
       "candidates": [
         {
           "name": "탐사대장 셀레나",
           "variant": "플래티넘",
-          "searchNames": [
-            "탐사대장 셀레나",
-            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
+          "priceItems": [
+            {
+              "itemName": "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자",
+              "itemId": "2ebc3bcf3a0621d288d084ee15782107"
+            }
           ],
-          "includeNamePrefixes": [
-            "탐사대장 셀레나[",
-            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
-          ],
-          "targetFame": 1261,
-          "includeZeroFameBox": true
+          "effectItems": [
+            {
+              "itemName": "탐사대장 셀레나[30Lv] 알",
+              "itemId": "c69d1ecb77100c109721a780fd0c86ca"
+            },
+            {
+              "itemName": "탐사대장 셀레나[35Lv] 알",
+              "itemId": "8012341616ea45ab4640ffccab9cbe21"
+            },
+            {
+              "itemName": "탐사대장 셀레나[40Lv] 알",
+              "itemId": "c813271636e537bcaa61819fefca2b76"
+            },
+            {
+              "itemName": "탐사대장 셀레나[45Lv] 알",
+              "itemId": "9b3a1cc671589cc23bcdf280bcbe283e"
+            },
+            {
+              "itemName": "탐사대장 셀레나[50Lv] 알",
+              "itemId": "27359efa1b2874ee1b9add627da2e246"
+            },
+            {
+              "itemName": "탐사대장 셀레나[60Lv] 알",
+              "itemId": "cf0566ef0fca57d42029bba9cd249adc"
+            },
+            {
+              "itemName": "탐사대장 셀레나[70Lv] 알",
+              "itemId": "f71ab774813d1d0eba772d2833d0ecc6"
+            },
+            {
+              "itemName": "탐사대장 셀레나[75Lv] 알",
+              "itemId": "a9d5dcdbd6913299708776f4991fc1e7"
+            },
+            {
+              "itemName": "탐사대장 셀레나[80Lv] 알",
+              "itemId": "f0f45eec4a6843272fdeca0e0c5a24e5"
+            },
+            {
+              "itemName": "탐사대장 셀레나[85Lv] 알",
+              "itemId": "3619aaa5082a585402df1bcd875e6c52"
+            },
+            {
+              "itemName": "탐사대장 셀레나[95Lv] 알",
+              "itemId": "00826459f05c4a19a910676daa84cd59"
+            },
+            {
+              "itemName": "탐사대장 셀레나[100Lv] 알",
+              "itemId": "95413e507265fb899be31956f2ea4b9b"
+            }
+          ]
         },
         {
           "name": "스타 체이서",
           "variant": "플래티넘",
-          "searchNames": [
-            "스타 체이서",
-            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
+          "priceItems": [
+            {
+              "itemName": "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자",
+              "itemId": "2ebc3bcf3a0621d288d084ee15782107"
+            }
           ],
-          "includeNamePrefixes": [
-            "스타 체이서[",
-            "탐사대장 셀레나/스타 체이서 크리쳐 알 선택 상자"
-          ],
-          "targetFame": 1261,
-          "includeZeroFameBox": true
+          "effectItems": [
+            {
+              "itemName": "스타 체이서[30Lv] 알",
+              "itemId": "0a00612f615d4f3e363d90e94c2421c3"
+            },
+            {
+              "itemName": "스타 체이서[35Lv] 알",
+              "itemId": "00f4240dd3f6f51355853fc6b7eda78f"
+            },
+            {
+              "itemName": "스타 체이서[40Lv] 알",
+              "itemId": "f79f36ea7c68e4dafd576af9b694b560"
+            },
+            {
+              "itemName": "스타 체이서[45Lv] 알",
+              "itemId": "cb6d25ba52a7b4d80b7e626417fde275"
+            },
+            {
+              "itemName": "스타 체이서[50Lv] 알",
+              "itemId": "5f8fef22617b8ef71782b68a6cbb93b8"
+            },
+            {
+              "itemName": "스타 체이서[60Lv] 알",
+              "itemId": "1e28e6236c969c8dafe8767854729b40"
+            },
+            {
+              "itemName": "스타 체이서[70Lv] 알",
+              "itemId": "70ef35dc927f7900fb1089be2bde4d79"
+            },
+            {
+              "itemName": "스타 체이서[75Lv] 알",
+              "itemId": "5f31fbb47df44dfdc767f69d35ee80ff"
+            },
+            {
+              "itemName": "스타 체이서[80Lv] 알",
+              "itemId": "242df1462d6aeac5d08a8dd2a1251b26"
+            },
+            {
+              "itemName": "스타 체이서[85Lv] 알",
+              "itemId": "ab35fe2f8aa508828259b6cba63af921"
+            },
+            {
+              "itemName": "스타 체이서[95Lv] 알",
+              "itemId": "8e0d8405ba26e6e264491738d1281086"
+            },
+            {
+              "itemName": "스타 체이서[100Lv] 알",
+              "itemId": "792a491fb4242434dadbf6dc69538508"
+            }
+          ]
         }
       ]
     }

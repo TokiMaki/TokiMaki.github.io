@@ -1175,6 +1175,7 @@ def get_switching_creature_contribution(row: dict, detail: dict, job_name: str, 
         get_item_level_range_skill_bonus(detail, job_name, required_level)
         + get_named_skill_level_bonus(detail.get("itemReinforceSkill") or [], job_name, buff_skill_name)
         + get_named_skill_level_bonus(item_buff.get("reinforceSkill") or [], job_name, buff_skill_name)
+        + get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, buff_skill_name)
     )
 
 
@@ -1305,7 +1306,7 @@ def get_switching_creature_item_candidates(
                 buff_skill_name,
                 required_level,
             )
-            if candidate_contribution != 1:
+            if candidate_contribution <= 0:
                 continue
         fame_by_item_id[item_id] = fame
         priced_candidates[item_id] = {
@@ -1520,10 +1521,14 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
                 "fame": int(config.get("fame") or 0),
                 "iconUrl": get_item_icon_url(item_id),
                 "purchaseRoute": "creature",
-                "candidateCreatureContribution": 1,
             }
-    if direct_candidate_by_id and current_contribution < 1:
-        auctions_by_id = get_lowest_auction_prices(list(direct_candidate_by_id.keys()))
+    if direct_candidate_by_id:
+        fame_by_item_id = {
+            item_id: int(candidate.get("fame") or 0)
+            for item_id, candidate in direct_candidate_by_id.items()
+            if int(candidate.get("fame") or 0) > 0
+        }
+        auctions_by_id = get_lowest_auction_prices(list(direct_candidate_by_id.keys()), fame_by_item_id=fame_by_item_id)
         priced_direct_candidates = []
         for item_id, candidate in direct_candidate_by_id.items():
             auction = auctions_by_id.get(item_id) or {}
@@ -1541,19 +1546,29 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
         )
         if selected_direct:
             selected_detail = (fetch_item_details([selected_direct.get("itemId")]) or [{}])[0]
-            selected_direct = {
-                **selected_direct,
-                "itemName": clean_item_display_name(selected_detail.get("itemName") or selected_direct.get("itemName")),
-                "itemRarity": clean_text(selected_detail.get("itemRarity") or selected_direct.get("itemRarity") or "레어"),
-                "fame": int(selected_detail.get("fame") or selected_direct.get("fame") or 0),
-                "iconUrl": get_item_icon_url(selected_direct.get("itemId")),
-                "detail": selected_detail,
-            }
-            best_candidates[1] = {
-                "creatureOption": selected_direct,
-                "purchaseOption": selected_direct,
-            }
-            seen_item_ids.add(clean_text(selected_direct.get("itemId")))
+            fame = int(selected_detail.get("fame") or selected_direct.get("fame") or 0)
+            candidate_contribution = get_switching_creature_contribution(
+                {},
+                selected_detail,
+                job_name,
+                buff_skill_name,
+                required_level,
+            )
+            if fame_min <= fame <= fame_max and candidate_contribution > current_contribution:
+                selected_direct = {
+                    **selected_direct,
+                    "itemName": clean_item_display_name(selected_detail.get("itemName") or selected_direct.get("itemName")),
+                    "itemRarity": clean_text(selected_detail.get("itemRarity") or selected_direct.get("itemRarity") or "레어"),
+                    "fame": fame,
+                    "iconUrl": get_item_icon_url(selected_direct.get("itemId")),
+                    "detail": selected_detail,
+                    "candidateCreatureContribution": candidate_contribution,
+                }
+                best_candidates[candidate_contribution] = {
+                    "creatureOption": selected_direct,
+                    "purchaseOption": selected_direct,
+                }
+                seen_item_ids.add(clean_text(selected_direct.get("itemId")))
 
     for config in configs:
         if clean_text(config.get("itemId")) or any(clean_text(item_id) for item_id in config.get("itemIds") or []):

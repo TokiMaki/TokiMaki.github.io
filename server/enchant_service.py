@@ -52,9 +52,9 @@ _AURA_DISCOVERY_LIMIT = 30
 _AURA_DISCOVERY_CACHE_TTL_SECONDS = 21600
 _AURA_DISCOVERY_CACHE_LOCK = Lock()
 _AURA_DISCOVERY_CACHE = {}
-CREATURE_PRICE_CACHE_SCHEMA_VERSION = 2
+CREATURE_PRICE_CACHE_SCHEMA_VERSION = 5
 AURA_PRICE_CACHE_SCHEMA_VERSION = 2
-TITLE_PRICE_CACHE_SCHEMA_VERSION = 8
+TITLE_PRICE_CACHE_SCHEMA_VERSION = 10
 
 
 def get_enchant_bead_search_names(card: dict) -> list:
@@ -68,6 +68,13 @@ def get_enchant_bead_search_names(card: dict) -> list:
 
 
 def find_enchant_bead_item(card: dict):
+    bead_item_id = clean_text(card.get("beadItemId"))
+    if bead_item_id:
+        return {
+            "itemId": bead_item_id,
+            "itemName": clean_item_display_name(card.get("beadItemName")) or "",
+            "iconUrl": get_item_icon_url(bead_item_id),
+        }
     for bead_name in get_enchant_bead_search_names(card):
         try:
             for row in search_items_by_name(bead_name):
@@ -451,6 +458,79 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
     return sources or fallback_sources
 
 
+def iter_creature_upgrade_configs(creature_db: dict) -> list[dict]:
+    groups = creature_db.get("groups") or []
+    if groups:
+        return groups
+
+    direct_items = creature_db.get("items") or []
+    if not direct_items:
+        return []
+
+    grouped = {}
+    for item in direct_items:
+        group_name = clean_text(item.get("groupName") or item.get("searchName") or item.get("name"))
+        if not group_name:
+            continue
+        group = grouped.setdefault(group_name, {
+            "groupName": group_name,
+            "searchName": clean_text(item.get("searchName") or group_name),
+            "itemType": clean_text(item.get("itemType")) or "크리쳐",
+            "targetFame": item.get("targetFame"),
+            "candidates": [],
+        })
+        if group.get("targetFame") is None and item.get("targetFame") is not None:
+            group["targetFame"] = item.get("targetFame")
+        group["candidates"].append(item)
+    return list(grouped.values())
+
+
+def normalize_creature_item_specs(candidate: dict, key: str) -> list[dict]:
+    specs = []
+    for item in candidate.get(key) or []:
+        if isinstance(item, str):
+            item_id = clean_text(item)
+            if item_id:
+                specs.append({"itemId": item_id})
+            continue
+        if not isinstance(item, dict):
+            continue
+        item_id = clean_text(item.get("itemId"))
+        item_name = clean_text(item.get("itemName"))
+        if item_id or item_name:
+            specs.append({**item, "itemId": item_id, "itemName": item_name})
+    return specs
+
+
+def creature_search_row_matches(row: dict, search_config: dict) -> bool:
+    item_name = clean_text(row.get("itemName"))
+    if not item_name:
+        return False
+    exact_names = {clean_text(name) for name in search_config.get("includeItemNames") or []}
+    prefixes = [clean_text(prefix) for prefix in search_config.get("includeNamePrefixes") or []]
+    if exact_names and item_name in exact_names:
+        return True
+    if prefixes and any(item_name.startswith(prefix) for prefix in prefixes):
+        return True
+    query = clean_text(search_config.get("query"))
+    return bool(query and query in item_name)
+
+
+def iter_creature_search_configs(candidate: dict, key: str) -> list[dict]:
+    configs = []
+    for search_config in candidate.get(key) or []:
+        if isinstance(search_config, str):
+            query = clean_text(search_config)
+            if query:
+                configs.append({"query": query})
+            continue
+        if isinstance(search_config, dict):
+            query = clean_text(search_config.get("query"))
+            if query:
+                configs.append({**search_config, "query": query})
+    return configs
+
+
 def load_creature_upgrades_with_prices(
     force_refresh: bool = False,
     allow_stale: bool = True,
@@ -519,20 +599,81 @@ def load_creature_upgrades_with_prices(
 
     groups = []
     errors = []
-    for group in creature_db.get("groups") or []:
+    for group in iter_creature_upgrade_configs(creature_db):
         target_fame = group.get("targetFame")
-        group_payload = {key: group.get(key) for key in ("groupName", "searchName", "itemType", "targetFame")}
+        group_payload = {key: group.get(key) for key in ("groupName", "searchName", "itemType")}
         candidates = []
         for candidate in group.get("candidates") or []:
             matched = {}
+            price_only_item_ids = set()
             candidate_target_fame = candidate.get("targetFame", target_fame)
-            for search_name in candidate.get("searchNames") or [candidate.get("name")]:
+            effect_item_ids = set()
+            effect_item_specs = normalize_creature_item_specs(candidate, "effectItems")
+            if not effect_item_specs:
+                effect_item_specs = [
+                    {"itemId": clean_text(item_id)}
+                    for item_id in [
+                        candidate.get("itemId"),
+                        *(candidate.get("itemIds") or []),
+                    ]
+                    if clean_text(item_id)
+                ]
+            for item in effect_item_specs:
+                item_id = clean_text(item.get("itemId"))
+                if not item_id:
+                    continue
+                matched[item_id] = item
+                effect_item_ids.add(item_id)
+
+            price_item_specs = normalize_creature_item_specs(candidate, "priceItems")
+            if not price_item_specs:
+                price_item_specs = [
+                    {"itemId": clean_text(item_id)}
+                    for item_id in candidate.get("priceItemIds") or []
+                    if clean_text(item_id)
+                ]
+            for item in price_item_specs:
+                item_id = clean_text(item.get("itemId"))
+                if not item_id:
+                    continue
+                matched[item_id] = item
+                if item_id not in effect_item_ids:
+                    price_only_item_ids.add(item_id)
+
+            effect_searches = iter_creature_search_configs(candidate, "effectSearches")
+            price_searches = iter_creature_search_configs(candidate, "priceSearches")
+            if not effect_searches and not price_searches:
+                effect_searches = [
+                    {
+                        "query": clean_text(search_name),
+                        "includeItemNames": candidate.get("includeItemNames") or [],
+                        "includeNamePrefixes": candidate.get("includeNamePrefixes") or [],
+                        "legacy": True,
+                    }
+                    for search_name in candidate.get("searchNames") or [candidate.get("name")]
+                    if clean_text(search_name)
+                ]
+            for search_config in effect_searches:
                 try:
-                    for row in search_items_by_name(clean_text(search_name)):
-                        if creature_item_matches(row, candidate, candidate_target_fame):
+                    for row in search_items_by_name(clean_text(search_config.get("query"))):
+                        if search_config.get("legacy"):
+                            is_match = creature_item_matches(row, candidate, candidate_target_fame)
+                        else:
+                            is_match = creature_search_row_matches(row, search_config)
+                        if is_match:
                             matched[row["itemId"]] = row
+                            effect_item_ids.add(row["itemId"])
                 except Exception as exc:
-                    errors.append({"name": candidate.get("name"), "searchName": search_name, "error": str(exc)})
+                    errors.append({"name": candidate.get("name"), "searchName": search_config.get("query"), "error": str(exc)})
+            for search_config in price_searches:
+                try:
+                    for row in search_items_by_name(clean_text(search_config.get("query"))):
+                        if creature_search_row_matches(row, search_config):
+                            matched[row["itemId"]] = row
+                            if row["itemId"] not in effect_item_ids:
+                                price_only_item_ids.add(row["itemId"])
+                except Exception as exc:
+                    errors.append({"name": candidate.get("name"), "searchName": search_config.get("query"), "error": str(exc)})
 
             detail_by_id = {
                 row.get("itemId"): row
@@ -542,7 +683,7 @@ def load_creature_upgrades_with_prices(
             for item_id, row in matched.items():
                 detail = detail_by_id.get(item_id) or row
                 fame = detail.get("fame", row.get("fame"))
-                min_fame = candidate_target_fame if fame == candidate_target_fame else None
+                min_fame = candidate_target_fame if candidate_target_fame is not None and fame == candidate_target_fame else None
                 item_inputs.append((item_id, min_fame, {
                     "itemId": item_id,
                     "itemName": clean_text(detail.get("itemName", row.get("itemName"))),
@@ -553,6 +694,7 @@ def load_creature_upgrades_with_prices(
                     "effects": normalize_enchant_status(detail.get("itemStatus") or []),
                     "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
                     "itemBuff": detail.get("itemBuff") or {},
+                    "_priceOnly": item_id in price_only_item_ids,
                 }))
 
             items = []
@@ -576,19 +718,41 @@ def load_creature_upgrades_with_prices(
                 and item["auction"]["minUnitPrice"] > 0
             ]
             lowest_item = min(priced_items, key=lambda item: item["auction"]["minUnitPrice"], default=None)
-            effect_source = next((item for item in items if item.get("effects")), None)
+            effect_items = [
+                item for item in items
+                if not item.get("_priceOnly") and item.get("effects")
+            ]
+            priced_effect_items = [
+                item for item in effect_items
+                if isinstance(item.get("auction", {}).get("minUnitPrice"), (int, float))
+                and item["auction"]["minUnitPrice"] > 0
+            ]
+            effect_source = min(
+                priced_effect_items,
+                key=lambda item: item["auction"]["minUnitPrice"],
+                default=effect_items[0] if effect_items else None,
+            )
+            display_source = effect_source or lowest_item or {}
+            public_items = [
+                {key: value for key, value in item.items() if key != "_priceOnly"}
+                for item in items
+            ]
             candidates.append({
                 "name": clean_text(candidate.get("name")),
                 "variant": clean_text(candidate.get("variant")),
-                "targetFame": candidate_target_fame,
-                "items": sorted(items, key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30),
-                "itemId": lowest_item.get("itemId") if lowest_item else None,
-                "itemName": lowest_item.get("itemName") if lowest_item else None,
-                "iconUrl": lowest_item.get("iconUrl") if lowest_item else (effect_source or {}).get("iconUrl", ""),
-                "itemExplain": (effect_source or {}).get("itemExplain", ""),
-                "effects": (effect_source or {}).get("effects", {}),
-                "itemReinforceSkill": (effect_source or {}).get("itemReinforceSkill", []),
-                "itemBuff": (effect_source or {}).get("itemBuff", {}),
+                "items": sorted(public_items, key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30),
+                "itemId": display_source.get("itemId"),
+                "itemName": display_source.get("itemName"),
+                "iconUrl": display_source.get("iconUrl", ""),
+                "itemExplain": display_source.get("itemExplain", ""),
+                "effects": display_source.get("effects", {}),
+                "itemReinforceSkill": display_source.get("itemReinforceSkill", []),
+                "itemBuff": display_source.get("itemBuff", {}),
+                "priceItem": {
+                    "itemId": lowest_item.get("itemId"),
+                    "itemName": lowest_item.get("itemName"),
+                    "iconUrl": lowest_item.get("iconUrl"),
+                } if lowest_item and lowest_item.get("itemId") != display_source.get("itemId") else None,
                 "auction": lowest_item.get("auction") if lowest_item else {
                     "listingCount": 0,
                     "minUnitPrice": None,
@@ -926,25 +1090,82 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         return auction_cache[item_id]
 
     title_bead_options = load_title_bead_options(get_cached_auction, errors)
-    for keyword in title_db.get("keywords") or []:
-        keyword = clean_text(keyword)
-        matched = {}
-        try:
-            for row in search_items_by_name(keyword):
-                if title_item_matches(row, keyword):
-                    matched[row["itemId"]] = row
-        except Exception as exc:
-            errors.append({"keyword": keyword, "error": str(exc)})
+    title_groups = title_db.get("groups") or [
+        {
+            "groupName": keyword,
+            "searchName": keyword,
+            "itemType": "칭호",
+        }
+        for keyword in title_db.get("keywords") or []
+    ]
+    for title_group in title_groups:
+        keyword = clean_text(title_group.get("searchName") or title_group.get("groupName"))
+        if not keyword:
+            continue
 
-        details = fetch_item_details(list(matched.keys()))
-        title_details = [
-            detail for detail in details
-            if detail.get("itemTypeDetail") == "칭호" and keyword in clean_text(detail.get("itemName"))
+        title_item_ids = [
+            clean_text(item.get("itemId"))
+            for item in title_group.get("titleItems") or []
+            if isinstance(item, dict) and clean_text(item.get("itemId"))
         ]
-        box_details = [
-            detail for detail in details
-            if "칭호 선택 상자" in clean_text(detail.get("itemName"))
+        price_item_ids = [
+            clean_text(item.get("itemId"))
+            for item in title_group.get("priceItems") or []
+            if isinstance(item, dict) and clean_text(item.get("itemId"))
         ]
+        if title_item_ids:
+            details = fetch_item_details(title_item_ids)
+            title_details = [
+                detail for detail in details
+                if detail.get("itemTypeDetail") == "칭호"
+            ]
+            box_details = [
+                detail for detail in fetch_item_details(price_item_ids)
+                if "칭호 선택 상자" in clean_text(detail.get("itemName"))
+            ] if price_item_ids else []
+        else:
+            matched = {}
+            try:
+                for row in search_items_by_name(keyword):
+                    if title_item_matches(row, keyword):
+                        matched[row["itemId"]] = row
+            except Exception as exc:
+                errors.append({"keyword": keyword, "error": str(exc)})
+
+            details = fetch_item_details(list(matched.keys()))
+            title_details = [
+                detail for detail in details
+                if detail.get("itemTypeDetail") == "칭호" and keyword in clean_text(detail.get("itemName"))
+            ]
+            box_details = [
+                detail for detail in details
+                if "칭호 선택 상자" in clean_text(detail.get("itemName"))
+            ]
+
+        for search_config in title_group.get("priceSearches") or []:
+            if isinstance(search_config, str):
+                search_config = {"query": search_config}
+            if not isinstance(search_config, dict):
+                continue
+            search_query = clean_text(search_config.get("query"))
+            if not search_query:
+                continue
+            try:
+                for row in search_items_by_name(search_query):
+                    item_name = clean_text(row.get("itemName"))
+                    exact_names = {clean_text(name) for name in search_config.get("includeItemNames") or []}
+                    prefixes = [clean_text(prefix) for prefix in search_config.get("includeNamePrefixes") or []]
+                    if (
+                        ("칭호 선택 상자" in item_name)
+                        and (
+                            not exact_names and not prefixes
+                            or item_name in exact_names
+                            or any(item_name.startswith(prefix) for prefix in prefixes)
+                        )
+                    ):
+                        box_details.extend(fetch_item_details([row.get("itemId")]))
+            except Exception as exc:
+                errors.append({"keyword": search_query, "error": str(exc)})
 
         box_prices = []
         with ThreadPoolExecutor(max_workers=8) as executor:
@@ -1094,9 +1315,9 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
             item.get("auction", {}).get("minUnitPrice") or 10**30,
         ))
         groups.append({
-            "groupName": keyword,
+            "groupName": clean_text(title_group.get("groupName")) or keyword,
             "searchName": keyword,
-            "itemType": "칭호",
+            "itemType": clean_text(title_group.get("itemType")) or "칭호",
             "candidates": candidates,
             "unresolved": not bool(candidates),
         })
@@ -1238,7 +1459,10 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
             item_with_source["iconUrl"] = ""
         acquisition = dict(item.get("acquisition") or {})
         material_search_name = clean_text(acquisition.get("materialSearchName") or acquisition.get("materialItemName"))
-        if material_search_name:
+        if acquisition.get("materialItemId"):
+            if not acquisition.get("materialIconUrl"):
+                acquisition["materialIconUrl"] = get_item_icon_url(acquisition.get("materialItemId"))
+        elif material_search_name:
             resolved_material = resolve_exact_item_by_name(material_search_name, "재료")
             if resolved_material:
                 acquisition["materialItemId"] = resolved_material.get("itemId")
@@ -1246,8 +1470,6 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
                 acquisition["materialIconUrl"] = resolved_material.get("iconUrl")
             else:
                 errors.append({"itemName": material_search_name, "error": "재료 itemId를 찾지 못했습니다."})
-        elif acquisition.get("materialItemId") and not acquisition.get("materialIconUrl"):
-            acquisition["materialIconUrl"] = get_item_icon_url(acquisition.get("materialItemId"))
         item_with_source["acquisition"] = acquisition
         item_with_source["sources"] = build_material_enchant_sources(item, detail)
         item_with_source["auction"] = {

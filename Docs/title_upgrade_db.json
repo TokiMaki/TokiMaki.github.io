@@ -1,20 +1,335 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-05-12",
+  "schemaVersion": 3,
+  "updatedAt": "2026-06-21",
   "source": {
-    "type": "manual_keyword_seed_from_user",
-    "note": "칭호는 키워드 기반으로 네오플 아이템 검색에서 직접 칭호와 선택 상자를 찾아 가격을 비교한다."
+    "type": "manual_item_id_index_from_neople_item_search",
+    "note": "titleItems는 네오플 /df/items wordType=full 검색으로 확인한 칭호 본체 itemId다. 경매장 가격은 itemId 기준으로 조회하고, 칭호 보주 조합은 서버의 칭호 보주 옵션 로더가 별도로 처리한다."
   },
-  "keywords": [
-    "천공의 지배자",
-    "성운 초월자",
-    "군자의 사계",
-    "프로스트의 전설",
-    "운명이 담긴 책",
+  "groups": [
+    {
+      "groupName": "천공의 지배자",
+      "searchName": "천공의 지배자",
+      "itemType": "칭호",
+      "titleItems": [
+        {
+          "itemName": "천공의 지배자",
+          "itemId": "157903e48399874bc18b35d276b3ef1b"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[30Lv]",
+          "itemId": "bc6170dcd3dd57209653e48c8aa6d7be"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[35Lv]",
+          "itemId": "fc0e7580aba2a53340fc2ca3ca1526b9"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[40Lv]",
+          "itemId": "eb390b33bfa5d2a59048c1d55338fd60"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[45Lv]",
+          "itemId": "395c319e0b61d490f3cb6955fc2b8586"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[50Lv]",
+          "itemId": "e26df89782c543dfa433cb3e3f3ce7a0"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[60Lv]",
+          "itemId": "b4d3acb705238a02f05700924519c9be"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[70Lv]",
+          "itemId": "eb3505a57a935c78fe27b97bda2ae4b2"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[75Lv]",
+          "itemId": "3e1bbfc7ed75c0419d41346f766d0b26"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[80Lv]",
+          "itemId": "11211a59e7cf2ac7020dca96b5da6ee0"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[85Lv]",
+          "itemId": "58e606c75adee1641da8ad9ba8ebedc1"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[95Lv]",
+          "itemId": "eac4d486e5b280785545b18bbff279f8"
+        },
+        {
+          "itemName": "천공의 지배자 플래티넘[100Lv]",
+          "itemId": "8204d2da7a709dc91a1e2e8149ed78be"
+        }
+      ],
+      "priceItems": [
+        {
+          "itemName": "천공의 지배자 플래티넘 칭호 선택 상자",
+          "itemId": "489c8a759b398904405469835d62c715"
+        }
+      ]
+    },
+    {
+      "groupName": "성운 초월자",
+      "searchName": "성운 초월자",
+      "itemType": "칭호",
+      "titleItems": [
+        {
+          "itemName": "성운 초월자[30Lv]",
+          "itemId": "ed2511473e9014f16c5f1a8a5412aa64"
+        },
+        {
+          "itemName": "성운 초월자[35Lv]",
+          "itemId": "2b392b3a597f3f25f51bafb83861422a"
+        },
+        {
+          "itemName": "성운 초월자[40Lv]",
+          "itemId": "9e89c4d3433bbb6b658fd940b66e611b"
+        },
+        {
+          "itemName": "성운 초월자[45Lv]",
+          "itemId": "5d96b44234e9a72be23d5641e39d9124"
+        },
+        {
+          "itemName": "성운 초월자[50Lv]",
+          "itemId": "30721b65c5e876053c25fc1437511714"
+        },
+        {
+          "itemName": "성운 초월자[60Lv]",
+          "itemId": "57e5a84d19c1c69510294c9972cc26aa"
+        },
+        {
+          "itemName": "성운 초월자[70Lv]",
+          "itemId": "f99048cab137a5af2cb4a15f18d65f2b"
+        },
+        {
+          "itemName": "성운 초월자[75Lv]",
+          "itemId": "aaafe12d0c9faade3b50739740968066"
+        },
+        {
+          "itemName": "성운 초월자[80Lv]",
+          "itemId": "4505a805f564672587e8c7be203748c0"
+        },
+        {
+          "itemName": "성운 초월자[85Lv]",
+          "itemId": "7496c7214ee51e43e94f08e6c93660c3"
+        },
+        {
+          "itemName": "성운 초월자[95Lv]",
+          "itemId": "a436e84ca10b98460f4abc592cf0843c"
+        },
+        {
+          "itemName": "성운 초월자[100Lv]",
+          "itemId": "a8e6bc911f7bd22535354170a34375b4"
+        }
+      ],
+      "priceItems": [
+        {
+          "itemName": "성운 초월자 칭호 선택 상자",
+          "itemId": "915a84044e80d96faac8830428c6208d"
+        }
+      ]
+    },
+    {
+      "groupName": "군자의 사계",
+      "searchName": "군자의 사계",
+      "itemType": "칭호",
+      "titleItems": [
+        {
+          "itemName": "군자의 사계",
+          "itemId": "efef96c0ebc3ace0a7aed5bb82b4ff67"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[30Lv]",
+          "itemId": "309828c3712b9be081a5a52cc85ca29d"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[35Lv]",
+          "itemId": "a2de545de7e2212fb333bbb5534684f7"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[40Lv]",
+          "itemId": "3ebee628ce2299601362ce7825680fc9"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[45Lv]",
+          "itemId": "6dcad09f656561f553d8c8c2b5b1c32d"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[50Lv]",
+          "itemId": "6dc63c5bd10f0831602085fca75816da"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[60Lv]",
+          "itemId": "bf61b4a220b12705b22ff6e2a6ab173f"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[70Lv]",
+          "itemId": "381f087017173f2184925ecc09b8eaf6"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[75Lv]",
+          "itemId": "4596884bd125e1a49cfc68c35f4ae794"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[80Lv]",
+          "itemId": "20bfa51361276a520de61d87f242aad8"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[85Lv]",
+          "itemId": "c84cb99a4dade085e57d45b9f3dbbc95"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[95Lv]",
+          "itemId": "6c2bd25d5b62d770f6e64677ded57fd0"
+        },
+        {
+          "itemName": "군자의 사계 플래티넘[100Lv]",
+          "itemId": "9c90e5154eae61a110c6c257abd176ad"
+        }
+      ],
+      "priceItems": [
+        {
+          "itemName": "군자의 사계 플래티넘 칭호 선택 상자",
+          "itemId": "d8a61a9101b22b654c7a608f62be6bcf"
+        }
+      ]
+    },
+    {
+      "groupName": "프로스트의 전설",
+      "searchName": "프로스트의 전설",
+      "itemType": "칭호",
+      "titleItems": [
+        {
+          "itemName": "프로스트의 전설",
+          "itemId": "42fd3d4144f788b37ed19c70281dcda6"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[30Lv]",
+          "itemId": "7cdecc590ff1920d9cbffc684070d72a"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[35Lv]",
+          "itemId": "6f008c0c92c0346b114d2ffdafb92292"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[40Lv]",
+          "itemId": "7ff744342ad0586c9d62a73c4c684bde"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[45Lv]",
+          "itemId": "53ebb215d0249e099ed0cd456e7ff2e4"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[50Lv]",
+          "itemId": "2bb1c86f1ed2644c156c0e24ff11d5b2"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[60Lv]",
+          "itemId": "1b483a53811c5c3b38651416b9570efd"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[70Lv]",
+          "itemId": "3079953d6096df87fd02700f57b3efb5"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[75Lv]",
+          "itemId": "fd881f22fb227bf52def891e1c8ad5b1"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[80Lv]",
+          "itemId": "a33cbd6ee4519308cafb65cd3189b279"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[85Lv]",
+          "itemId": "b89d2344496f87896fafd505dc70c092"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[95Lv]",
+          "itemId": "c9f4e5017aa56ed86709f9fd86867ec1"
+        },
+        {
+          "itemName": "프로스트의 전설 플래티넘[100Lv]",
+          "itemId": "821c509ad1f5d4d62a3326cc24f17aa5"
+        }
+      ],
+      "priceItems": [
+        {
+          "itemName": "프로스트의 전설 플래티넘 칭호 선택 상자",
+          "itemId": "cdfc1227f1ab61a959cb8dc568fb8198"
+        }
+      ]
+    },
+    {
+      "groupName": "운명이 담긴 책",
+      "searchName": "운명이 담긴 책",
+      "itemType": "칭호",
+      "titleItems": [
+        {
+          "itemName": "운명이 담긴 책[30Lv]",
+          "itemId": "f88604c768bb3937e915fddfe93d7423"
+        },
+        {
+          "itemName": "운명이 담긴 책[35Lv]",
+          "itemId": "d55c21ffe41e0a1b2403abb6ba386236"
+        },
+        {
+          "itemName": "운명이 담긴 책[40Lv]",
+          "itemId": "fd73575c16cf9dddf1bcb831c14c6a6c"
+        },
+        {
+          "itemName": "운명이 담긴 책[45Lv]",
+          "itemId": "2fac6d1913189162e26fc8bdee9444a1"
+        },
+        {
+          "itemName": "운명이 담긴 책[50Lv]",
+          "itemId": "d28120edf4675d65f0b7d05744760732"
+        },
+        {
+          "itemName": "운명이 담긴 책[60Lv]",
+          "itemId": "b8a6d8255db2de71ef06a3f2bb9b520a"
+        },
+        {
+          "itemName": "운명이 담긴 책[70Lv]",
+          "itemId": "50d5ec619da70bbe418ca396292b9242"
+        },
+        {
+          "itemName": "운명이 담긴 책[75Lv]",
+          "itemId": "f6fe7d58a79e891fb93c737205266645"
+        },
+        {
+          "itemName": "운명이 담긴 책[80Lv]",
+          "itemId": "a2f816e75eeeb1674966ad79a47bf494"
+        },
+        {
+          "itemName": "운명이 담긴 책[85Lv]",
+          "itemId": "6d8194cce7abf8fb8409e53f2339d284"
+        },
+        {
+          "itemName": "운명이 담긴 책[95Lv]",
+          "itemId": "44fa6eea454d3a7b898ba0e776475387"
+        },
+        {
+          "itemName": "운명이 담긴 책[100Lv]",
+          "itemId": "69bc3b80f0b1456ffb5dc63149d8b949"
+        }
+      ],
+      "priceItems": [
+        {
+          "itemName": "운명이 담긴 책 칭호 선택 상자",
+          "itemId": "452583c28156d48f3cbe2dfc3a97cfd7"
+        }
+      ]
+    }
+  ],
+  "retiredKeywords": [
     "천둥 신의 무구",
     "소나무의 곧은 기개",
     "해상구조대",
     "철쇄아",
-    "순백의 눈꽃 결정"
+    "순백의 눈꽃 결정",
+    "이터널 크로노스"
   ]
 }
