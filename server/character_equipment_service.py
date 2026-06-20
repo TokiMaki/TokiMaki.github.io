@@ -3176,9 +3176,9 @@ def find_avatar_platinum_selection_box() -> dict:
     )
 
 
-def choose_avatar_platinum_price_item(skill_name: str) -> dict:
+def choose_avatar_platinum_price_item(skill_name: str, allow_selection_box: bool = False) -> dict:
     direct = find_avatar_platinum_item(skill_name)
-    selection_box = find_avatar_platinum_selection_box()
+    selection_box = find_avatar_platinum_selection_box() if allow_selection_box else {}
     direct_price = direct.get("auction", {}).get("minUnitPrice")
     box_price = selection_box.get("auction", {}).get("minUnitPrice")
     use_box = (
@@ -3190,13 +3190,13 @@ def choose_avatar_platinum_price_item(skill_name: str) -> dict:
         )
     )
     selected = selection_box if use_box else direct
-    selected_price = selected.get("auction", {}).get("minUnitPrice")
+    selected = dict(selected or {})
     return {
         **selected,
         "priceSource": "selectionBox" if use_box else "direct",
         "directItem": direct,
         "selectionBoxItem": selection_box,
-        "priceCompareText": f"최저가 {format_price_label(selected_price)}",
+        "priceWarningText": "선택 상자는 교환불가 아바타에만 사용 가능" if use_box else "",
     }
 
 
@@ -3388,6 +3388,99 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         if is_rare_clone_avatar(row)
     ]
     recommendations = []
+    if not buffer_baseline:
+        buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+        if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
+            buff_payload = {
+                **buff_payload,
+                "jobName": clean_text(buff_payload.get("jobName")) or clean_text(payload.get("jobName")),
+                "jobGrowName": clean_text(buff_payload.get("jobGrowName")) or clean_text(payload.get("jobGrowName")),
+            }
+        buff_skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+        buff_skill_name = clean_text(buff_skill_info.get("name"))
+        switching_entry = find_dealer_switching_buff_entry(
+            buff_payload,
+            is_dealer_crusader=is_dealer_crusader,
+        )
+        if switching_entry and buff_skill_name and clean_text(switching_entry.get("buffSkillName")) == buff_skill_name:
+            per_level_coefficients = [
+                float(row.get("value") or 0)
+                for row in switching_entry.get("damageIncreasePerLevelCoefficients") or []
+                if float(row.get("value") or 0) > 0
+            ]
+            current_coefficients = match_current_switching_coefficients(buff_skill_info, switching_entry)
+            if len(per_level_coefficients) == 1 and len(current_coefficients) > 1:
+                per_level_coefficients = per_level_coefficients * len(current_coefficients)
+            if per_level_coefficients and len(per_level_coefficients) == len(current_coefficients):
+                switching_avatar_payload = _get_character_cached_payload(
+                    server_id,
+                    character_id,
+                    "buff_avatar",
+                    "skill/buff/equip/avatar",
+                )
+                dealer_switching_rows = ((switching_avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+                current_multiplier = get_switching_damage_multiplier(current_coefficients)
+                switching_platinum_item = None
+                note = get_damage_application_note(switching_entry)
+                for slot_id, slot_label in [
+                    ("JACKET", "벞강 상의"),
+                    ("PANTS", "벞강 하의"),
+                ]:
+                    row = get_avatar_slot(dealer_switching_rows, slot_id)
+                    if clean_text(row.get("itemRarity")) != "레어":
+                        continue
+                    current_platinum_skills = [
+                        clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+                        for emblem in get_platinum_emblems(row)
+                        if clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+                    ]
+                    current_contribution = 1 if any(skill_name_matches(skill, buff_skill_name) for skill in current_platinum_skills) else 0
+                    candidate_contribution = 1
+                    if candidate_contribution <= current_contribution:
+                        continue
+                    candidate_coefficients = [
+                        current + (candidate_contribution - current_contribution) * per_level
+                        for current, per_level in zip(current_coefficients, per_level_coefficients)
+                    ]
+                    candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
+                    if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
+                        continue
+                    raw_skill_damage_multiplier = candidate_multiplier / current_multiplier
+                    skill_damage_multiplier = get_applied_switching_multiplier(raw_skill_damage_multiplier, switching_entry)
+                    if switching_platinum_item is None:
+                        switching_platinum_item = _measure_step(
+                            steps,
+                            f"choose_avatar_platinum_price_item:buff:{buff_skill_name}",
+                            lambda skill_name=buff_skill_name: choose_avatar_platinum_price_item(skill_name, allow_selection_box=True),
+                        )
+                    item = switching_platinum_item
+                    item_id = clean_text(item.get("itemId"))
+                    item_explain = f"{slot_label} [{buff_skill_name}] 교체 · {buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
+                    if note:
+                        item_explain = f"{item_explain} · {note}"
+                    recommendations.append({
+                        "kind": "switchingPlatinumEmblem",
+                        "slot": slot_label,
+                        "tier": "버프강화",
+                        "itemId": item_id,
+                        "itemName": item.get("itemName") or f"플래티넘 엠블렘[{buff_skill_name}]",
+                        "itemRarity": item.get("itemRarity"),
+                        "iconUrl": item.get("iconUrl") or (get_item_icon_url(item_id) if item_id else ""),
+                        "itemExplain": item_explain,
+                        "effects": {"skillDamageMultiplier": skill_damage_multiplier},
+                        "skillDamageMultiplier": skill_damage_multiplier,
+                        "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
+                        "damageApplicationNote": note,
+                        "auction": item.get("auction") or {},
+                        "needCount": 1,
+                        "targetSkill": buff_skill_name,
+                        "currentPlatinumSkill": current_platinum_skills[0] if current_platinum_skills else "",
+                        "currentSwitchingMultiplier": current_multiplier,
+                        "candidateSwitchingMultiplier": candidate_multiplier,
+                        "priceSource": item.get("priceSource"),
+                        "priceWarningText": item.get("priceWarningText"),
+                        "recommendationPriority": 0,
+                    })
     buffer_platinum_deltas = {}
     buffer_skill_levels = {}
     if buffer_stat_name and platinum_skill and missing_or_wrong_slots:
@@ -3418,7 +3511,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             item = _measure_step(
                 steps,
                 f"choose_avatar_platinum_price_item:{slot_label}",
-                lambda skill_name=target_platinum_skill: choose_avatar_platinum_price_item(skill_name),
+                lambda skill_name=target_platinum_skill: choose_avatar_platinum_price_item(skill_name, allow_selection_box=True),
             )
             slot_id = "JACKET" if slot_label == "상의 아바타" else "PANTS"
             platinum_delta = buffer_platinum_deltas.get(slot_id) or {}
@@ -3444,14 +3537,15 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 if skill_damage_multiplier > 0
                 else {"finalDamage": get_avatar_platinum_damage_percent(slot_label)}
             )
+            item_id = clean_text(item.get("itemId"))
             recommendations.append({
                 "kind": "platinumEmblem",
                 "slot": slot_label,
                 "tier": "플래티넘",
-                "itemId": item.get("itemId"),
+                "itemId": item_id,
                 "itemName": item.get("itemName") or f"플래티넘 엠블렘[{target_platinum_skill}]",
                 "itemRarity": item.get("itemRarity"),
-                "iconUrl": item.get("iconUrl"),
+                "iconUrl": item.get("iconUrl") or (get_item_icon_url(item_id) if item_id else ""),
                 "itemExplain": f"{slot_label} [{target_platinum_skill}] 교체",
                 "effects": (
                     {"bufferStat": platinum_delta.get("statDelta", 0)}
@@ -3479,6 +3573,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 ),
                 "missingSlots": [slot_label],
                 "priceSource": item.get("priceSource"),
+                "priceWarningText": item.get("priceWarningText"),
                 "bufferStatScope": buffer_stat_scope,
                 "recommendationPriority": 0,
             })

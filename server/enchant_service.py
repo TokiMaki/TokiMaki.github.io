@@ -43,6 +43,8 @@ from .upgrade_payloads import (
     build_title_payload,
     creature_item_matches,
     get_title_variant,
+    parse_skill_damage_percent,
+    parse_title_level_tag,
     title_item_matches,
 )
 
@@ -52,7 +54,7 @@ _AURA_DISCOVERY_LIMIT = 30
 _AURA_DISCOVERY_CACHE_TTL_SECONDS = 21600
 _AURA_DISCOVERY_CACHE_LOCK = Lock()
 _AURA_DISCOVERY_CACHE = {}
-CREATURE_PRICE_CACHE_SCHEMA_VERSION = 5
+CREATURE_PRICE_CACHE_SCHEMA_VERSION = 6
 AURA_PRICE_CACHE_SCHEMA_VERSION = 2
 TITLE_PRICE_CACHE_SCHEMA_VERSION = 10
 
@@ -694,6 +696,8 @@ def load_creature_upgrades_with_prices(
                     "effects": normalize_enchant_status(detail.get("itemStatus") or []),
                     "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
                     "itemBuff": detail.get("itemBuff") or {},
+                    "levelTag": parse_title_level_tag(detail.get("itemName")),
+                    "skillDamagePercent": parse_skill_damage_percent(get_item_explain(detail)),
                     "_priceOnly": item_id in price_only_item_ids,
                 }))
 
@@ -748,6 +752,8 @@ def load_creature_upgrades_with_prices(
                 "effects": display_source.get("effects", {}),
                 "itemReinforceSkill": display_source.get("itemReinforceSkill", []),
                 "itemBuff": display_source.get("itemBuff", {}),
+                "levelTag": display_source.get("levelTag"),
+                "skillDamagePercent": display_source.get("skillDamagePercent", 0),
                 "priceItem": {
                     "itemId": lowest_item.get("itemId"),
                     "itemName": lowest_item.get("itemName"),

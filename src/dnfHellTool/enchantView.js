@@ -67,7 +67,7 @@ const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘'
 const ENCHANT_INCLUDE_GROUPS = [
   { title: '마법부여', items: ['가성비', '준종결', '종결'] },
   { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '오라', '칭호', '크리쳐', '아티팩트'], splitAfter: '플래티넘', breakBefore: true },
-  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린'], breakBefore: true },
+  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '플티'], breakBefore: true },
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'], breakBefore: true },
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '흑아', items: ['흑아'] },
@@ -539,10 +539,12 @@ function formatUpgradeEffect(row) {
   return parts.join(' / ');
 }
 
-function formatLevelOptionName(name, hasLevelOption) {
+function formatLevelOptionName(name, levelOption) {
   const cleanName = String(name || '').trim();
-  if (!cleanName || !hasLevelOption) return cleanName;
-  return `${cleanName.replace(/\[\d+Lv\]/g, '').trim()}[xxLv]`;
+  if (!cleanName || !levelOption) return cleanName;
+  const levelTag = Number(levelOption || 0);
+  const levelLabel = Number.isFinite(levelTag) && levelTag > 0 ? `${levelTag}Lv` : 'xxLv';
+  return `${cleanName.replace(/\[\d+Lv\]/g, '').trim()}[${levelLabel}]`;
 }
 
 function formatPercent(value, digits = 3) {
@@ -670,6 +672,7 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'switchingTitle') return ['버프강화:칭호'];
   if (row.sourceType === 'switchingCreature') return ['버프강화:크리쳐'];
   if (row.sourceType === 'switchingFragment') return ['버프강화:짙편린'];
+  if (row.sourceType === 'avatar' && row.kind === 'switchingPlatinumEmblem') return ['버프강화:플티'];
   if (['creature', 'title', 'aura'].includes(row.sourceType)) {
     const typeLabel = { creature: '크리쳐', title: '칭호', aura: '오라' }[row.sourceType];
     return [
@@ -899,7 +902,7 @@ function getBufferRecommendationRows(
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
     if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)) return;
     if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
-    if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem'].includes(row.kind)) return;
+    if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem', 'switchingPlatinumEmblem'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
       ? {
         ...row,
@@ -1086,6 +1089,7 @@ function getCreatureRows(groups) {
     groupName: group.groupName,
     skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
     skillDamagePercent: Number(candidate.skillDamagePercent || 0),
+    levelTag: candidate.levelTag,
     reinforceSkillName: candidate.reinforceSkillName || '',
     reinforceSkillLevel: Number(candidate.reinforceSkillLevel || 0),
     priceItem: candidate.priceItem || null,
@@ -1272,6 +1276,7 @@ function getAvatarRows(currentAvatar) {
     bufferSkillStatDeltas: candidate.bufferSkillStatDeltas || {},
     bufferSkillLevels: candidate.bufferSkillLevels || {},
     currentPlatinumSkill: candidate.currentPlatinumSkill || '',
+    priceWarningText: candidate.priceWarningText || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
 }
@@ -2785,6 +2790,9 @@ export function installEnchantView(ctx) {
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
       const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
+      const displayEffects = row.sourceType === 'avatar'
+        ? Object.fromEntries(Object.entries(row.effects || {}).filter(([key]) => key !== 'skillDamageMultiplier'))
+        : row.effects;
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
         : row.sourceType === 'blackFang'
@@ -2793,7 +2801,7 @@ export function installEnchantView(ctx) {
           ? formatEnchantTransitionEffect(row)
         : row.sourceType === 'creatureArtifact'
           ? formatEnchantTransitionEffect(row)
-        : showOptionText ? formatEffects(row.effects) : '';
+        : showOptionText ? formatEffects(displayEffects) : '';
       const bufferSkillEffectText = isBufferMetric
         ? [
           row.bufferSkillDelta?.primaryLevels
@@ -2829,7 +2837,7 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'switchingFragment'
           ? row.itemName
         : row.sourceType === 'creature'
-          ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, row.tier === '플래티넘')
+          ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0) || (row.tier === '플래티넘'))
           : row.sourceType === 'creatureArtifact'
             ? row.candidateName || row.itemName
           : row.sourceType === 'aura'
@@ -2860,6 +2868,7 @@ export function installEnchantView(ctx) {
         { text: titleRouteLabel, className: 'enchant-popover-muted' },
         { text: showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '', className: 'enchant-popover-muted' },
         { text: effectText, className: 'enchant-popover-effect' },
+        { text: row.priceWarningText ? `⚠ ${row.priceWarningText}` : '', className: 'enchant-recommend-warning' },
         { text: acquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
         { text: acquisitionLabel, className: 'enchant-popover-material' },
         { text: acquisitionLabel ? '' : `${priceLabel} ${formatGold(rowGold)}`, className: 'enchant-popover-price' },
