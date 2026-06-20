@@ -96,8 +96,7 @@ def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 10
     return request_json(url).get("rows") or []
 
 
-def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
-    rows = get_auction_rows(item_id, min_fame=min_fame, max_fame=max_fame)
+def _lowest_auction_price_from_rows(rows: list) -> dict:
     priced_rows = [
         row for row in rows
         if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0
@@ -127,6 +126,47 @@ def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict
     }
 
 
+def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
+    return _lowest_auction_price_from_rows(get_auction_rows(item_id, min_fame=min_fame, max_fame=max_fame))
+
+
+def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, int] | None = None, limit: int = 100) -> dict[str, dict]:
+    unique_ids = []
+    seen = set()
+    for item_id in item_ids:
+        item_id = clean_text(item_id)
+        if item_id and item_id not in seen:
+            unique_ids.append(item_id)
+            seen.add(item_id)
+    if not unique_ids:
+        return {}
+
+    rows_by_id = {item_id: [] for item_id in unique_ids}
+    for index in range(0, len(unique_ids), 10):
+        chunk = unique_ids[index:index + 10]
+        params = {
+            "itemIds": ",".join(chunk),
+            "limit": limit,
+            "apikey": API_KEY,
+        }
+        url = f"https://api.neople.co.kr/df/auction?{urlencode(params)}"
+        for row in request_json(url).get("rows") or []:
+            item_id = clean_text(row.get("itemId"))
+            if item_id in rows_by_id:
+                rows_by_id[item_id].append(row)
+
+    prices = {}
+    for item_id, rows in rows_by_id.items():
+        target_fame = (fame_by_item_id or {}).get(item_id)
+        if target_fame is not None:
+            rows = [
+                row for row in rows
+                if int(row.get("fame") or 0) == int(target_fame)
+            ]
+        prices[item_id] = _lowest_auction_price_from_rows(rows)
+    return prices
+
+
 def get_item_icon_url(item_id: str) -> str:
     return f"https://img-api.neople.co.kr/df/items/{item_id}" if item_id else ""
 
@@ -139,17 +179,24 @@ def get_item_explain(detail: dict) -> str:
     return clean_text(detail.get("itemExplainDetail") or detail.get("itemExplain"))
 
 
-def search_items_by_name(item_name: str) -> list:
-    cache_key = clean_text(item_name)
+def search_items_by_name(item_name: str, max_pages: int = 1) -> list:
+    max_pages = max(1, int(max_pages or 1))
+    cache_key = f"{clean_text(item_name)}::pages={max_pages}"
     with _ITEM_SEARCH_CACHE_LOCK:
         cached = _ITEM_SEARCH_CACHE.get(cache_key)
         if cached is not None:
             return [dict(row) for row in cached]
-    url = (
-        "https://api.neople.co.kr/df/items"
-        f"?itemName={quote(item_name)}&wordType=full&limit=100&apikey={API_KEY}"
-    )
-    rows = request_json(url).get("rows") or []
+    rows = []
+    for page in range(max_pages):
+        offset = page * 100
+        url = (
+            "https://api.neople.co.kr/df/items"
+            f"?itemName={quote(item_name)}&wordType=full&limit=100&offset={offset}&apikey={API_KEY}"
+        )
+        page_rows = request_json(url).get("rows") or []
+        rows.extend(page_rows)
+        if len(page_rows) < 100:
+            break
     with _ITEM_SEARCH_CACHE_LOCK:
         _ITEM_SEARCH_CACHE[cache_key] = [dict(row) for row in rows]
     return rows

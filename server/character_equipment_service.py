@@ -5,6 +5,7 @@ import time
 from .data_store import (
     load_avatar_option_db,
     load_dealer_switching_buff_db,
+    load_dealer_switching_creature_db,
     load_dealer_switching_title_db,
     load_job_base_stats,
     load_upgrade_expected_db,
@@ -29,6 +30,7 @@ from .neople_client import (
     get_item_explain,
     get_item_icon_url,
     get_lowest_auction_price,
+    get_lowest_auction_prices,
     request_json,
     search_items_by_name,
 )
@@ -51,10 +53,13 @@ AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHO
 BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}
 CHARACTER_RESPONSE_CACHE_TTL_SECONDS = 15
 UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS = 300
+SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
 _CHARACTER_RESPONSE_CACHE_LOCK = threading.Lock()
 _CHARACTER_RESPONSE_CACHE = {}
 _UPGRADE_MATERIAL_PRICE_CACHE_LOCK = threading.Lock()
 _UPGRADE_MATERIAL_PRICE_CACHE = {}
+_SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK = threading.Lock()
+_SWITCHING_CREATURE_CANDIDATE_CACHE = {}
 UPGRADE_MATERIAL_PRICE_ITEMS = {
     "harmonyCrystal": {"label": "무결점 조화의 결정체", "itemId": "ab8eab6848ed81b8bdd65d1c5a6ae8b2"},
     "contradictionCrystal": {"label": "모순의 결정체", "itemId": "f1afc13118b2b07ec1e3b8c2f1958b03"},
@@ -1149,6 +1154,398 @@ def load_dealer_switching_fragment_recommendations_for_character(
     )
 
 
+def get_switching_creature_rows(buff_payload: dict) -> list:
+    rows = ((buff_payload.get("skill") or {}).get("buff") or {}).get("creature") or []
+    if isinstance(rows, list):
+        return [row for row in rows if isinstance(row, dict)]
+    return [rows] if isinstance(rows, dict) else []
+
+
+def get_switching_creature_contribution(row: dict, detail: dict, job_name: str, buff_skill_name: str, required_level: int) -> int:
+    if not row and not detail:
+        return 0
+    item_buff = detail.get("itemBuff") or {}
+    return (
+        get_item_level_range_skill_bonus(detail, job_name, required_level)
+        + get_named_skill_level_bonus(detail.get("itemReinforceSkill") or [], job_name, buff_skill_name)
+        + get_named_skill_level_bonus(item_buff.get("reinforceSkill") or [], job_name, buff_skill_name)
+    )
+
+
+def get_switching_creature_box_price_candidates(search_names: list[str]) -> list[dict]:
+    candidates = []
+    seen_ids = set()
+    for search_name in search_names or []:
+        search_name = clean_text(search_name)
+        if not search_name:
+            continue
+        for row in search_items_by_name(search_name):
+            item_id = clean_text(row.get("itemId"))
+            item_name = clean_text(row.get("itemName"))
+            if not item_id or item_id in seen_ids:
+                continue
+            if item_name != search_name and search_name not in item_name:
+                continue
+            if "상자" not in item_name:
+                continue
+            auction = get_lowest_auction_price(item_id)
+            unit_price = auction.get("minUnitPrice")
+            if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+                continue
+            seen_ids.add(item_id)
+            candidates.append({
+                "itemId": item_id,
+                "itemName": clean_item_display_name(item_name),
+                "itemRarity": clean_text(row.get("itemRarity")) or "레어",
+                "fame": row.get("fame"),
+                "iconUrl": get_item_icon_url(item_id),
+                "auction": auction,
+                "purchaseRoute": "box",
+            })
+    return candidates
+
+
+def get_switching_creature_item_candidates(
+    config: dict,
+    fame_min: int,
+    fame_max: int,
+    job_name: str = "",
+    buff_skill_name: str = "",
+    required_level: int = 0,
+) -> list[dict]:
+    search_names = [
+        clean_text(search_name)
+        for search_name in config.get("searchNames") or []
+        if clean_text(search_name)
+    ]
+    max_pages = max(1, int(config.get("maxPages") or config.get("searchMaxPages") or 5))
+    cache_key = (
+        tuple(search_names),
+        int(fame_min),
+        int(fame_max),
+        max_pages,
+        clean_text(job_name),
+        clean_text(buff_skill_name),
+        int(required_level or 0),
+    )
+    now = time.time()
+    with _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK:
+        cached = _SWITCHING_CREATURE_CANDIDATE_CACHE.get(cache_key)
+        if cached and float(cached.get("expires_at") or 0) > now:
+            return [
+                {
+                    **row,
+                    "auction": dict(row.get("auction") or {}),
+                    "detail": dict(row.get("detail") or {}),
+                }
+                for row in cached.get("rows") or []
+            ]
+
+    matched = {}
+    for search_name in search_names:
+        for row in search_items_by_name(search_name, max_pages=max_pages):
+            item_id = clean_text(row.get("itemId"))
+            item_name = clean_text(row.get("itemName"))
+            if not item_id or item_id in matched:
+                continue
+            if clean_text(row.get("itemTypeDetail")) != "크리쳐":
+                continue
+            if clean_text(search_name) not in item_name:
+                continue
+            matched[item_id] = {
+                "itemId": item_id,
+                "itemName": item_name,
+                "itemRarity": clean_text(row.get("itemRarity") or "레어"),
+                "rowFame": int(row.get("fame") or 0),
+            }
+
+    details_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(list(matched.keys()))
+        if clean_text(detail.get("itemId"))
+    }
+    priced_candidates = {}
+    fame_by_item_id = {}
+    for item_id, row in matched.items():
+        detail = details_by_id.get(item_id) or {}
+        fame = int(detail.get("fame") or row.get("rowFame") or 0)
+        if not (fame_min <= fame <= fame_max):
+            continue
+        candidate_contribution = 0
+        if job_name and buff_skill_name and required_level:
+            candidate_contribution = get_switching_creature_contribution(
+                {},
+                detail,
+                job_name,
+                buff_skill_name,
+                required_level,
+            )
+            if candidate_contribution != 1:
+                continue
+        fame_by_item_id[item_id] = fame
+        priced_candidates[item_id] = {
+            "itemId": item_id,
+            "itemName": clean_item_display_name(detail.get("itemName") or row.get("itemName")),
+            "itemRarity": clean_text(detail.get("itemRarity") or row.get("itemRarity") or "레어"),
+            "fame": fame,
+            "iconUrl": get_item_icon_url(item_id),
+            "detail": detail,
+            "purchaseRoute": "creature",
+            "candidateCreatureContribution": candidate_contribution,
+        }
+
+    auctions_by_id = get_lowest_auction_prices(list(priced_candidates.keys()), fame_by_item_id=fame_by_item_id)
+    candidates = []
+    for item_id, candidate in priced_candidates.items():
+        auction = auctions_by_id.get(item_id) or {}
+        unit_price = auction.get("minUnitPrice")
+        if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+            continue
+        candidates.append({
+            **candidate,
+            "auction": auction,
+        })
+
+    with _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK:
+        _SWITCHING_CREATURE_CANDIDATE_CACHE[cache_key] = {
+            "expires_at": now + SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS,
+            "rows": [
+                {
+                    **row,
+                    "auction": dict(row.get("auction") or {}),
+                    "detail": dict(row.get("detail") or {}),
+                }
+                for row in candidates
+            ],
+        }
+    return candidates
+
+
+def normalize_switching_creature_configs(creature_db: dict) -> list[dict]:
+    configs = []
+
+    def add_name_config(name):
+        item_name = clean_text(name)
+        if item_name:
+            configs.append({
+                "groupName": item_name,
+                "searchNames": [item_name],
+                "boxSearchNames": [],
+            })
+
+    for item in creature_db.get("items") or []:
+        if isinstance(item, str):
+            add_name_config(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        search_names = [
+            clean_text(search_name)
+            for search_name in item.get("searchNames") or []
+            if clean_text(search_name)
+        ]
+        item_name = clean_text(item.get("itemName") or item.get("name"))
+        if item_name and item_name not in search_names:
+            search_names.insert(0, item_name)
+        if not search_names:
+            add_name_config(item.get("groupName"))
+            continue
+        configs.append({
+            **item,
+            "searchNames": search_names,
+            "boxSearchNames": [
+                clean_text(box_name)
+                for box_name in item.get("boxSearchNames") or []
+                if clean_text(box_name)
+            ],
+        })
+    return configs
+
+
+def select_switching_creature_purchase_option(creature_option: dict, box_options: list[dict]) -> dict:
+    options = [
+        {
+            key: value
+            for key, value in creature_option.items()
+            if key != "detail"
+        },
+        *box_options,
+    ]
+    return min(
+        options,
+        key=lambda option: (option.get("auction") or {}).get("minUnitPrice") or 10**30,
+        default={},
+    )
+
+
+def reduce_switching_creature_recommendations(recommendations: list[dict]) -> list[dict]:
+    best_by_effect = {}
+    for row in recommendations:
+        key = (
+            clean_text(row.get("buffSkillName")),
+            int(row.get("currentCreatureContribution") or 0),
+            int(row.get("candidateCreatureContribution") or 0),
+            round(float(row.get("skillDamageMultiplier") or 1), 8),
+        )
+        current_price = (row.get("auction") or {}).get("minUnitPrice")
+        previous = best_by_effect.get(key)
+        previous_price = (previous.get("auction") or {}).get("minUnitPrice") if previous else None
+        if (
+            not previous
+            or not isinstance(previous_price, (int, float))
+            or (
+                isinstance(current_price, (int, float))
+                and current_price > 0
+                and current_price < previous_price
+            )
+        ):
+            best_by_effect[key] = row
+    return list(best_by_effect.values())
+
+
+def get_candidate_auction_price(row: dict) -> float:
+    price = (row.get("auction") or {}).get("minUnitPrice")
+    return float(price) if isinstance(price, (int, float)) and price > 0 else float("inf")
+
+
+def load_dealer_switching_creature_recommendations(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> list:
+    if buffer_baseline:
+        return []
+    buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
+        status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+        buff_payload = {
+            **buff_payload,
+            "jobName": clean_text(buff_payload.get("jobName")) or clean_text(status_payload.get("jobName")),
+            "jobGrowName": clean_text(buff_payload.get("jobGrowName")) or clean_text(status_payload.get("jobGrowName")),
+        }
+    job_name = clean_text(buff_payload.get("jobName"))
+    skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+    buff_skill_name = clean_text(skill_info.get("name"))
+    if not buff_skill_name:
+        return []
+
+    is_dealer_crusader = (
+        job_name == "프리스트(남)"
+        and clean_text(buff_payload.get("jobGrowName")) == "眞 크루세이더"
+        and is_male_crusader_dealer_style(server_id, character_id)
+    )
+    entry = find_dealer_switching_buff_entry(buff_payload, is_dealer_crusader=is_dealer_crusader)
+    if not entry or clean_text(entry.get("buffSkillName")) != buff_skill_name:
+        return []
+
+    required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    per_level_coefficients = [
+        float(row.get("value") or 0)
+        for row in entry.get("damageIncreasePerLevelCoefficients") or []
+        if float(row.get("value") or 0) > 0
+    ]
+    current_coefficients = match_current_switching_coefficients(skill_info, entry)
+    if not per_level_coefficients or not current_coefficients:
+        return []
+    if len(per_level_coefficients) == 1 and len(current_coefficients) > 1:
+        per_level_coefficients = per_level_coefficients * len(current_coefficients)
+    if len(per_level_coefficients) != len(current_coefficients):
+        return []
+
+    current_creature = next(iter(get_switching_creature_rows(
+        _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+    )), {})
+    current_creature_id = clean_text(current_creature.get("itemId"))
+    current_detail = (fetch_item_details([current_creature_id]) or [{}])[0] if current_creature_id else {}
+    current_contribution = get_switching_creature_contribution(
+        current_creature,
+        current_detail,
+        job_name,
+        buff_skill_name,
+        required_level,
+    )
+    base_coefficients = [
+        current - current_contribution * per_level
+        for current, per_level in zip(current_coefficients, per_level_coefficients)
+    ]
+    current_multiplier = get_switching_damage_multiplier(current_coefficients)
+    creature_db = load_dealer_switching_creature_db()
+    fame_range = (creature_db.get("metadata") or {}).get("fameRange") or {}
+    fame_min = int(fame_range.get("min") or 491)
+    fame_max = int(fame_range.get("max") or 601)
+    best_candidates = {}
+    seen_item_ids = set()
+    for config in normalize_switching_creature_configs(creature_db):
+        box_options = get_switching_creature_box_price_candidates(config.get("boxSearchNames") or [])
+        for creature_option in get_switching_creature_item_candidates(
+            config,
+            fame_min,
+            fame_max,
+            job_name=job_name,
+            buff_skill_name=buff_skill_name,
+            required_level=required_level,
+        ):
+            item_id = clean_text(creature_option.get("itemId"))
+            if not item_id or item_id in seen_item_ids or item_id == current_creature_id:
+                continue
+            candidate_contribution = int(creature_option.get("candidateCreatureContribution") or 0)
+            if candidate_contribution <= current_contribution:
+                continue
+            purchase_option = select_switching_creature_purchase_option(creature_option, box_options)
+            if not purchase_option:
+                continue
+            seen_item_ids.add(item_id)
+            best_key = candidate_contribution
+            current_best = best_candidates.get(best_key)
+            if not current_best or get_candidate_auction_price(purchase_option) < get_candidate_auction_price(current_best.get("purchaseOption") or {}):
+                best_candidates[best_key] = {
+                    "creatureOption": creature_option,
+                    "purchaseOption": purchase_option,
+                }
+
+    recommendations = []
+    for candidate_contribution, selected in best_candidates.items():
+        creature_option = selected.get("creatureOption") or {}
+        purchase_option = selected.get("purchaseOption") or {}
+        candidate_coefficients = [
+            base + candidate_contribution * per_level
+            for base, per_level in zip(base_coefficients, per_level_coefficients)
+        ]
+        candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
+        if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
+            continue
+        raw_skill_damage_multiplier = candidate_multiplier / current_multiplier
+        skill_damage_multiplier = get_applied_switching_multiplier(raw_skill_damage_multiplier, entry)
+        item_id = clean_text(creature_option.get("itemId"))
+        note = get_damage_application_note(entry)
+        item_explain = f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
+        if note:
+            item_explain = f"{item_explain} · {note}"
+        recommendations.append({
+            "kind": "switchingCreature",
+            "slot": "벞강 크리쳐",
+            "tier": "버프강화",
+            "itemId": purchase_option.get("itemId") or item_id,
+            "itemName": purchase_option.get("itemName") or creature_option.get("itemName"),
+            "itemRarity": purchase_option.get("itemRarity") or creature_option.get("itemRarity") or "레어",
+            "iconUrl": purchase_option.get("iconUrl") or creature_option.get("iconUrl"),
+            "fame": creature_option.get("fame"),
+            "auction": purchase_option.get("auction") or {},
+            "effects": {"skillDamageMultiplier": skill_damage_multiplier},
+            "skillDamageMultiplier": skill_damage_multiplier,
+            "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
+            "damageApplicationNote": note,
+            "itemExplain": item_explain,
+            "buffSkillName": buff_skill_name,
+            "requiredLevel": required_level,
+            "currentCreatureContribution": current_contribution,
+            "candidateCreatureContribution": candidate_contribution,
+            "currentSwitchingMultiplier": current_multiplier,
+            "candidateSwitchingMultiplier": candidate_multiplier,
+            "sourceCreatureName": clean_text(current_creature.get("itemName")),
+            "targetCreatureName": creature_option.get("itemName"),
+            "purchaseRoute": purchase_option.get("purchaseRoute") or "creature",
+            "purchaseRouteLabel": "상자" if purchase_option.get("purchaseRoute") == "box" else "",
+        })
+    return reduce_switching_creature_recommendations(recommendations)
+
+
 def load_switching_title_price_candidate(title_config: dict, job_name: str, buff_skill_name: str) -> dict:
     item_id = clean_text(title_config.get("itemId"))
     item = {}
@@ -1581,6 +1978,15 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             enchant_payload.get("bufferBaseline"),
         ),
     )
+    switching_creature_recommendations = _measure_step(
+        steps,
+        "load_dealer_switching_creature_recommendations",
+        lambda: load_dealer_switching_creature_recommendations(
+            server_id,
+            character_id,
+            enchant_payload.get("bufferBaseline"),
+        ),
+    )
     damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
     avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
     if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
@@ -1606,6 +2012,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         "avatar": avatar_payload,
         "switchingTitleRecommendations": switching_title_recommendations,
         "switchingFragmentRecommendations": switching_fragment_recommendations,
+        "switchingCreatureRecommendations": switching_creature_recommendations,
         "debugTimings": {
             "totalMs": round((time.perf_counter() - started_at) * 1000, 1),
             "steps": steps,

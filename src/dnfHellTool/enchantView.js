@@ -67,7 +67,7 @@ const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘'
 const ENCHANT_INCLUDE_GROUPS = [
   { title: '마법부여', items: ['가성비', '준종결', '종결'] },
   { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '오라', '칭호', '크리쳐', '아티팩트'], splitAfter: '플래티넘', breakBefore: true },
-  { title: '버프강화', items: ['칭호', '짙편린'], breakBefore: true },
+  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린'], breakBefore: true },
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'], breakBefore: true },
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '흑아', items: ['흑아'] },
@@ -668,6 +668,7 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'enchant') return [`마법부여:${row.tier || '일반'}`];
   if (row.sourceType === 'creatureArtifact') return ['오라/칭호/크리쳐:아티팩트'];
   if (row.sourceType === 'switchingTitle') return ['버프강화:칭호'];
+  if (row.sourceType === 'switchingCreature') return ['버프강화:크리쳐'];
   if (row.sourceType === 'switchingFragment') return ['버프강화:짙편린'];
   if (['creature', 'title', 'aura'].includes(row.sourceType)) {
     const typeLabel = { creature: '크리쳐', title: '칭호', aura: '오라' }[row.sourceType];
@@ -896,7 +897,7 @@ function getBufferRecommendationRows(
   const bySlotTier = new Map();
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)) return;
+    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)) return;
     if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
     if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
@@ -920,6 +921,8 @@ function getBufferRecommendationRows(
             ? currentTitle || {}
             : row.sourceType === 'switchingTitle'
               ? {}
+              : row.sourceType === 'switchingCreature'
+                ? {}
               : row.sourceType === 'aura'
               ? currentAura || {}
               : currentBySlot.get(row.slot) || {};
@@ -1191,6 +1194,31 @@ function getSwitchingFragmentRows(recommendations = []) {
     candidateName: candidate.itemName,
     switchingSlot: candidate.switchingSlot || '',
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
+  }));
+}
+
+function getSwitchingCreatureRows(recommendations = []) {
+  return (recommendations || []).map((candidate) => ({
+    sourceType: 'switchingCreature',
+    slot: candidate.slot || '벞강 크리쳐',
+    tier: candidate.tier || '버프강화',
+    kind: candidate.kind || 'switchingCreature',
+    itemId: candidate.itemId,
+    itemName: candidate.itemName,
+    itemRarity: candidate.itemRarity || '레어',
+    fame: candidate.fame,
+    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+    effects: candidate.effects || {},
+    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
+    itemExplain: candidate.itemExplain || '',
+    auction: candidate.auction || {},
+    candidateName: candidate.itemName,
+    buffSkillName: candidate.buffSkillName || '',
+    currentCreatureContribution: Number(candidate.currentCreatureContribution || 0),
+    candidateCreatureContribution: Number(candidate.candidateCreatureContribution || 0),
+    purchaseRoute: candidate.purchaseRoute || '',
+    purchaseRouteLabel: candidate.purchaseRouteLabel || '',
+    targetCreatureName: candidate.targetCreatureName || '',
   }));
 }
 
@@ -1647,7 +1675,7 @@ function getRecommendationDamageEffects(row, current) {
       row.currentEffects || {},
     );
   }
-  if (['avatar', 'switchingTitle', 'switchingFragment'].includes(row.sourceType)) return row.effects || {};
+  if (['avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType)) return row.effects || {};
   return subtractEffects(row.effects || {}, current?.effects || {});
 }
 
@@ -1872,6 +1900,8 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         ? { effects: {} }
       : row.sourceType === 'switchingTitle'
         ? { effects: {} }
+      : row.sourceType === 'switchingCreature'
+        ? { effects: {} }
       : row.sourceType === 'switchingFragment'
         ? { effects: {} }
       : row.sourceType === 'creature'
@@ -1912,7 +1942,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
     ) return;
     if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
-    const isReplacement = !['upgrade', 'avatar', 'switchingTitle', 'switchingFragment'].includes(row.sourceType);
+    const isReplacement = !['upgrade', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
     const damageEffects = getRecommendationDamageEffects(row, current);
     const estimatedDamagePercent = isReplacement
       ? getReplacementIncrementalDamagePercent(
@@ -1935,11 +1965,13 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       : '';
     const key = row.sourceType === 'creatureArtifact'
       ? `${row.sourceType}:${row.slot}:${row.tier}`
+      : row.sourceType === 'switchingCreature'
+        ? `${row.sourceType}:${row.itemId || row.itemName}:${getEffectSignature(row.effects)}`
       : row.sourceType === 'switchingFragment'
         ? `${row.sourceType}:${row.switchingSlot || row.itemId || row.itemName}:${getEffectSignature(row.effects)}`
       : row.sourceType === 'creature'
         ? `${row.sourceType}:${row.slot}:${row.tier}`
-      : ['creature', 'title', 'switchingTitle', 'aura'].includes(row.sourceType)
+      : ['creature', 'title', 'switchingTitle', 'switchingCreature', 'aura'].includes(row.sourceType)
       ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
@@ -2157,6 +2189,7 @@ export function installEnchantView(ctx) {
   state.currentAura = null;
   state.currentAvatar = null;
   state.switchingTitleRecommendations = [];
+  state.switchingCreatureRecommendations = [];
   state.switchingFragmentRecommendations = [];
   state.currentEquipmentUpgrades = [];
   state.currentBlackFangRecommendations = [];
@@ -2465,6 +2498,7 @@ export function installEnchantView(ctx) {
     state.currentAura = null;
     state.currentAvatar = null;
     state.switchingTitleRecommendations = [];
+    state.switchingCreatureRecommendations = [];
     state.switchingFragmentRecommendations = [];
     state.currentEnchantCharacterKey = '';
     state.currentCreatureCharacterKey = '';
@@ -2485,6 +2519,7 @@ export function installEnchantView(ctx) {
       || state.creatureArtifactGroups.length > 0
       || state.titleUpgradeGroups.length > 0
       || state.switchingTitleRecommendations.length > 0
+      || state.switchingCreatureRecommendations.length > 0
       || state.switchingFragmentRecommendations.length > 0
       || state.auraUpgradeGroups.length > 0
     );
@@ -2629,6 +2664,7 @@ export function installEnchantView(ctx) {
       ...getCreatureArtifactRows(state.creatureArtifactGroups),
       ...getTitleRows(state.titleUpgradeGroups, state.currentTitle),
       ...getSwitchingTitleRows(state.switchingTitleRecommendations),
+      ...getSwitchingCreatureRows(state.switchingCreatureRecommendations),
       ...getSwitchingFragmentRows(state.switchingFragmentRecommendations),
       ...getAuraRows(state.auraUpgradeGroups),
       ...getAvatarRows(state.currentAvatar),
@@ -2653,7 +2689,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -2747,7 +2783,7 @@ export function installEnchantView(ctx) {
         ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(materialAcquisition || isMaterialAcquisition(previousRow) ? (isBufferMetric ? BUFFER_EFFICIENCY_COLOR_STOPS : DAMAGE_EFFICIENCY_COLOR_STOPS)[0].color : isBufferMetric ? getBufferArrowBackground(previousRow.buffCostPerHundredPoints, row.buffCostPerHundredPoints) : getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
-      const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
+      const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
         : row.sourceType === 'blackFang'
@@ -2775,6 +2811,8 @@ export function installEnchantView(ctx) {
         ? formatTitlePurchaseRouteLabel(row)
         : row.sourceType === 'switchingTitle'
           ? row.purchaseRouteLabel || (row.buffSkillName && row.enchantBuffSkillLevelDelta ? `[${row.buffSkillName} +${row.enchantBuffSkillLevelDelta}Lv]` : '')
+        : row.sourceType === 'switchingCreature'
+          ? row.purchaseRouteLabel || ''
         : row.sourceType === 'switchingFragment'
           ? row.purchaseRouteLabel || ''
         : '';
@@ -2784,6 +2822,8 @@ export function installEnchantView(ctx) {
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
         : row.sourceType === 'switchingTitle'
+          ? row.itemName
+        : row.sourceType === 'switchingCreature'
           ? row.itemName
         : row.sourceType === 'switchingFragment'
           ? row.itemName
@@ -2817,7 +2857,7 @@ export function installEnchantView(ctx) {
       const tooltipRows = [
         { text: displayName, className: 'enchant-popover-name' },
         { text: titleRouteLabel, className: 'enchant-popover-muted' },
-        { text: showOptionText || ['switchingTitle', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '', className: 'enchant-popover-muted' },
+        { text: showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '', className: 'enchant-popover-muted' },
         { text: effectText, className: 'enchant-popover-effect' },
         { text: acquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
         { text: acquisitionLabel, className: 'enchant-popover-material' },
@@ -3010,6 +3050,7 @@ export function installEnchantView(ctx) {
     state.currentTitle = payload.title || null;
     state.currentAura = payload.aura || null;
     state.switchingTitleRecommendations = [];
+    state.switchingCreatureRecommendations = [];
     state.switchingFragmentRecommendations = [];
     state.currentEnchantCharacterKey = characterKey;
     state.currentCreatureCharacterKey = characterKey;
@@ -3065,6 +3106,7 @@ export function installEnchantView(ctx) {
     state.currentAura = payload.aura || null;
     state.currentAvatar = payload.avatar || null;
     state.switchingTitleRecommendations = Array.isArray(payload.switchingTitleRecommendations) ? payload.switchingTitleRecommendations : [];
+    state.switchingCreatureRecommendations = Array.isArray(payload.switchingCreatureRecommendations) ? payload.switchingCreatureRecommendations : [];
     state.switchingFragmentRecommendations = Array.isArray(payload.switchingFragmentRecommendations) ? payload.switchingFragmentRecommendations : [];
     state.currentEnchantCharacterKey = characterKey;
     state.currentCreatureCharacterKey = characterKey;
@@ -3221,6 +3263,7 @@ export function installEnchantView(ctx) {
     if (forceRefresh) {
       state.currentAvatar = null;
       state.switchingTitleRecommendations = [];
+      state.switchingCreatureRecommendations = [];
       state.switchingFragmentRecommendations = [];
       state.currentAvatarCharacterKey = '';
     }

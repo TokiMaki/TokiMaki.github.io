@@ -33,7 +33,7 @@ export default function DnfHellToolMarkup() {
             </label>
             <label className={'landing-field landing-name-field'}>
               <span>캐릭터명</span>
-              <input id={'landingCharacterNameInput'} type={'text'} placeholder={'캐릭터명을 입력하세요'} autoComplete={'off'} />
+              <input id={'landingCharacterNameInput'} type={'search'} placeholder={'캐릭터명을 입력하세요'} autoComplete={'off'} enterKeyHint={'search'} />
             </label>
             <button type={'button'} className={'landing-search-button'} id={'landingSearchButton'}>스펙업 분석</button>
           </div>
@@ -83,7 +83,7 @@ export default function DnfHellToolMarkup() {
                   <option value={'anton'}>안톤</option>
                   <option value={'bakal'}>바칼</option>
                 </select>
-                <input id={'characterNameInput'} type={'text'} placeholder={'캐릭터명'} />
+                <input id={'characterNameInput'} type={'search'} placeholder={'캐릭터명'} autoComplete={'off'} enterKeyHint={'search'} />
                 <button type={'button'} className={'ghost-button'} id={'addCharacterButton'}>추가</button>
                 <button type={'button'} className={'ghost-button'} id={'refreshCharactersButton'}>전체 갱신</button>
                 <button type={'button'} className={'ghost-button'} id={'clearCharactersButton'}>목록 초기화</button>
@@ -319,7 +319,7 @@ export default function DnfHellToolMarkup() {
             </div>
             <div className={'field'}>
               <label htmlFor={'enchantCharacterNameInput'}>캐릭터명</label>
-              <input id={'enchantCharacterNameInput'} type={'text'} placeholder={'캐릭터명'} />
+              <input id={'enchantCharacterNameInput'} type={'search'} placeholder={'캐릭터명'} autoComplete={'off'} enterKeyHint={'search'} />
             </div>
             <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>
           </div>
@@ -389,7 +389,7 @@ export default function DnfHellToolMarkup() {
             </div>
             <div className={'field'}>
               <label htmlFor={'supplyCharacterNameInput'}>캐릭터명</label>
-              <input id={'supplyCharacterNameInput'} type={'text'} placeholder={'캐릭터명'} />
+              <input id={'supplyCharacterNameInput'} type={'search'} placeholder={'캐릭터명'} autoComplete={'off'} enterKeyHint={'search'} />
             </div>
           </div>
           <div className={'loader-actions supply-input-actions'}>
