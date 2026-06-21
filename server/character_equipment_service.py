@@ -67,6 +67,8 @@ UPGRADE_MATERIAL_PRICE_ITEMS = {
     "lionCore": {"label": "무결점 라이언 코어", "itemId": "3840051cf487429c5a757c8bdb00e33b"},
     "amplificationProtectionTicket": {"label": "증폭 보호권", "itemId": "55be75a1c024aac3ef84ed3bed5b8db9"},
     "reinforcementProtectionTicket": {"label": "강화 보호권", "itemId": "8bc063c2b80179bc002f7dfb8203c4ab"},
+    "epicSoul": {"label": "에픽 소울 결정", "itemId": "c7d845c65ab9dbcff6e55dc910fbea87"},
+    "legendarySoul": {"label": "레전더리 소울 결정", "itemId": "c6947ff630cc59aebdcbabfb449258d1"},
 }
 BLACK_FANG_MATERIAL_AUCTION_NAME_MAP = {
     "조화의 결정체": "무결점 조화의 결정체",
@@ -479,6 +481,38 @@ def load_character_buffer_skill_levels(server_id: str, character_id: str, job_na
     }
 
 
+def build_equipment_upgrade_payload(equipment: dict) -> dict:
+    slot_name = clean_text(equipment.get("slotName"))
+    slot_id = clean_text(equipment.get("slotId"))
+    reinforce = int(parse_percent_or_number(equipment.get("reinforce")))
+    amplification_name = clean_text(equipment.get("amplificationName"))
+    item_id = clean_text(equipment.get("itemId"))
+    item_name = clean_text(equipment.get("itemName"))
+    item_rarity = clean_text(equipment.get("itemRarity"))
+    tune_rows = [tune for tune in equipment.get("tune") or [] if isinstance(tune, dict)]
+    tune_level = max([int(parse_percent_or_number(tune.get("level"))) for tune in tune_rows] or [0])
+    tune_set_point = sum(parse_percent_or_number(tune.get("setPoint")) for tune in tune_rows)
+    tune_upgradeable = any(tune.get("upgrade") is not False for tune in tune_rows)
+    is_unique_equipment = re.match(r"^고유\s*[:\-]", item_name) is not None
+    is_tune_target = item_rarity in {"에픽", "레전더리"} and not is_unique_equipment
+    tune_remaining = max(0, 3 - tune_level) if is_tune_target and tune_upgradeable else 0
+    return {
+        "slot": slot_name,
+        "slotId": slot_id,
+        "itemId": item_id,
+        "itemName": item_name,
+        "itemRarity": item_rarity,
+        "iconUrl": get_item_icon_url(item_id) if item_id else "",
+        "reinforce": reinforce,
+        "amplificationName": amplification_name,
+        "isAmplified": bool(amplification_name),
+        "tuneLevel": tune_level,
+        "tuneSetPoint": tune_set_point,
+        "tuneUpgradeable": bool(is_tune_target and tune_upgradeable),
+        "tuneRemaining": tune_remaining,
+    }
+
+
 def load_character_enchants(server_id: str, character_id: str) -> dict:
     steps = []
     payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
@@ -486,21 +520,8 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
     equipment_upgrades = []
     for equipment in payload.get("equipment") or []:
         slot_name = clean_text(equipment.get("slotName"))
-        slot_id = clean_text(equipment.get("slotId"))
-        reinforce = int(parse_percent_or_number(equipment.get("reinforce")))
-        amplification_name = clean_text(equipment.get("amplificationName"))
-        item_id = clean_text(equipment.get("itemId"))
         if slot_name:
-            equipment_upgrades.append({
-                "slot": slot_name,
-                "slotId": slot_id,
-                "itemId": item_id,
-                "itemName": clean_text(equipment.get("itemName")),
-                "iconUrl": get_item_icon_url(item_id) if item_id else "",
-                "reinforce": reinforce,
-                "amplificationName": amplification_name,
-                "isAmplified": bool(amplification_name),
-            })
+            equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
         enchant = equipment.get("enchant") or {}
         status_rows = enchant.get("status") or []
         if not slot_name or not status_rows:
@@ -719,16 +740,7 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
         slot_id = clean_text(equipment.get("slotId"))
         item_id = clean_text(equipment.get("itemId"))
         if slot_name:
-            equipment_upgrades.append({
-                "slot": slot_name,
-                "slotId": slot_id,
-                "itemId": item_id,
-                "itemName": clean_text(equipment.get("itemName")),
-                "iconUrl": get_item_icon_url(item_id) if item_id else "",
-                "reinforce": int(parse_percent_or_number(equipment.get("reinforce"))),
-                "amplificationName": clean_text(equipment.get("amplificationName")),
-                "isAmplified": bool(clean_text(equipment.get("amplificationName"))),
-            })
+            equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
         enchant = equipment.get("enchant") or {}
         status_rows = enchant.get("status") or []
         if slot_name and status_rows:

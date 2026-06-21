@@ -61,15 +61,17 @@ const SLOT_ORDER = [
   '무기 아바타',
   '오라 아바타',
   '피부 아바타',
+  '장비 조율',
 ];
 
-const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘', '아바타', '엠블렘'];
+const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘', '아바타', '엠블렘', '조율'];
 const ENCHANT_INCLUDE_GROUPS = [
   { title: '마법부여', items: ['가성비', '준종결', '종결'] },
   { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '오라', '칭호', '크리쳐', '아티팩트'], splitAfter: '플래티넘', breakBefore: true },
   { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '플티'], breakBefore: true },
-  { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'], breakBefore: true },
+  { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
+  { title: '조율', items: ['장비'] },
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
@@ -143,6 +145,8 @@ const UPGRADE_MATERIAL_LABELS = {
   contradictionCrystal: '모순의 결정체',
   colorlessCube: '무색 큐브 조각',
   lionCore: '라이언 코어',
+  epicSoul: '에픽 소울',
+  legendarySoul: '레전더리 소울',
 };
 const UPGRADE_MATERIAL_ICON_IDS = {
   harmonyCrystal: 'ab8eab6848ed81b8bdd65d1c5a6ae8b2',
@@ -151,6 +155,18 @@ const UPGRADE_MATERIAL_ICON_IDS = {
   lionCore: '3840051cf487429c5a757c8bdb00e33b',
   amplificationProtectionTicket: '55be75a1c024aac3ef84ed3bed5b8db9',
   reinforcementProtectionTicket: '8bc063c2b80179bc002f7dfb8203c4ab',
+  epicSoul: 'c7d845c65ab9dbcff6e55dc910fbea87',
+  legendarySoul: 'c6947ff630cc59aebdcbabfb449258d1',
+};
+const EQUIPMENT_TUNE_MIN_SET_POINT = 2550;
+const EQUIPMENT_TUNE_STEP_POINT = 10;
+const EQUIPMENT_TUNE_MEMORY_POINT = 70;
+const EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE = 2;
+const EQUIPMENT_TUNE_MEMORY_BUFF_POWER = 400;
+const EQUIPMENT_TUNE_MAX_LEVEL = 3;
+const EQUIPMENT_TUNE_COST_BY_RARITY = {
+  레전더리: { gold: 600000, materialKey: 'legendarySoul', materialAmount: 20, order: 0 },
+  에픽: { gold: 1000000, materialKey: 'epicSoul', materialAmount: 10, order: 1 },
 };
 const ENCHANT_DAMAGE_BASELINE = {
   stat: 6500,
@@ -254,8 +270,8 @@ function getMaterialGold(materials = []) {
 function getRecommendationGold(row, includeMaterialCosts = false) {
   const baseGold = Number.isFinite(row?.expectedGold) ? row.expectedGold : Number(row?.auction?.minUnitPrice || 0);
   if (!Number.isFinite(baseGold) || baseGold <= 0) return 0;
-  if (!includeMaterialCosts || !['upgrade', 'blackFang'].includes(row?.sourceType)) return baseGold;
-  const materialGold = row.sourceType === 'upgrade'
+  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'equipmentTune'].includes(row?.sourceType)) return baseGold;
+  const materialGold = ['upgrade', 'equipmentTune'].includes(row.sourceType)
     ? getMaterialGold(row.expectedMaterials)
     : getMaterialGold(row.materials);
   return baseGold + materialGold;
@@ -428,6 +444,13 @@ function formatUpgradeState(equipment = {}) {
   return `강화: ${level > 0 ? `${level}강화` : '없음'}`;
 }
 
+function formatTuneState(equipment = {}) {
+  const level = Number(equipment.tuneLevel || 0);
+  const setPoint = Number(equipment.tuneSetPoint || 0);
+  if (!Number.isFinite(setPoint) || setPoint <= 0) return '';
+  return `조율 ${Number.isFinite(level) ? level : 0}회 · 세트 ${setPoint}`;
+}
+
 function getUpgradeDetailLine(equipment = {}) {
   const level = Number(equipment.reinforce || 0);
   if (!Number.isFinite(level) || level <= 0) return null;
@@ -537,6 +560,16 @@ function formatUpgradeEffect(row) {
     parts.unshift(formatEffectValue('finalDamage', finalDamage));
   }
   return parts.join(' / ');
+}
+
+function formatEquipmentTuneEffect(row) {
+  const pointText = `세트포인트 ${formatEffectNumber(row.currentSetPoint)} -> ${formatEffectNumber(row.targetSetPoint)}`;
+  if (row.metricType === 'buffer') {
+    const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
+    return `${pointText} / ${buffPowerText}`;
+  }
+  const damageText = `최종 데미지 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
+  return `${pointText} / ${damageText}`;
 }
 
 function formatLevelOptionName(name, levelOption) {
@@ -684,6 +717,7 @@ function getEnchantIncludeGroups(row = {}) {
     return [`아바타:${row.kind === 'platinumEmblem' ? '플래티넘 엠블렘' : '엠블렘'}`];
   }
   if (row.sourceType === 'blackFang') return ['흑아:흑아'];
+  if (row.sourceType === 'equipmentTune') return ['조율:장비'];
   if (row.tier === '안전증폭' || row.tier === '증폭 전환') {
     return ['강화/증폭:증폭'];
   }
@@ -916,7 +950,7 @@ function getBufferRecommendationRows(
   const bySlotTier = new Map();
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)) return;
+    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'blackFang'].includes(row.sourceType)) return;
     if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
     if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem', 'switchingPlatinumEmblem'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
@@ -928,7 +962,7 @@ function getBufferRecommendationRows(
       }
       : row;
     if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
-    const current = row.sourceType === 'upgrade'
+    const current = ['upgrade', 'equipmentTune'].includes(row.sourceType)
       ? {}
       : row.sourceType === 'blackFang'
         ? { effects: row.currentEffects || {} }
@@ -946,7 +980,7 @@ function getBufferRecommendationRows(
               ? currentAura || {}
               : currentBySlot.get(row.slot) || {};
     if (
-      row.sourceType !== 'upgrade' &&
+      !['upgrade', 'equipmentTune'].includes(row.sourceType) &&
       row.sourceType !== 'blackFang' &&
       current?.itemId &&
       current.itemId === row.itemId &&
@@ -1031,7 +1065,7 @@ function getBufferRecommendationRows(
     const buffCostPerHundredPoints = Number.isFinite(price) && price > 0
       ? price * 100 / incrementalBuffScore
       : 0;
-    const key = row.sourceType === 'upgrade'
+    const key = ['upgrade', 'equipmentTune'].includes(row.sourceType)
       ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(scoringTargetEffects)}`
@@ -1069,7 +1103,7 @@ function getBufferRecommendationRows(
   const bestUpgradeBySlot = new Map();
   const nonUpgradeRows = [];
   [...bySlotTier.values()].forEach((row) => {
-    if (row.sourceType !== 'upgrade') {
+    if (!['upgrade', 'equipmentTune'].includes(row.sourceType)) {
       nonUpgradeRows.push(row);
       return;
     }
@@ -1415,6 +1449,156 @@ function buildUpgradeRow({
   };
 }
 
+function getTuneDetailLine(equipment = {}) {
+  const text = formatTuneState(equipment);
+  return text ? {
+    text,
+    className: 'enchant-portrait-detail-line-effect',
+  } : null;
+}
+
+function isEquipmentTuneCandidate(equipment = {}) {
+  const rarity = String(equipment.itemRarity || '').trim();
+  const itemName = String(equipment.itemName || '').trim();
+  const level = Number(equipment.tuneLevel || 0);
+  if (!EQUIPMENT_TUNE_COST_BY_RARITY[rarity]) return false;
+  if (/^고유\s*[:\-]/.test(itemName)) return false;
+  if (equipment.tuneUpgradeable === false) return false;
+  return Number.isFinite(level) && level < EQUIPMENT_TUNE_MAX_LEVEL;
+}
+
+function getEquipmentTuneStage(point) {
+  const value = Number(point || 0);
+  if (!Number.isFinite(value) || value < EQUIPMENT_TUNE_MIN_SET_POINT) return 0;
+  return Math.floor((value - EQUIPMENT_TUNE_MIN_SET_POINT) / EQUIPMENT_TUNE_MEMORY_POINT);
+}
+
+function addMaterialAmount(materials, key, amount) {
+  const value = Number(amount || 0);
+  if (!Number.isFinite(value) || value <= 0) return;
+  const row = materials.find((material) => material.key === key);
+  if (row) {
+    row.amount += value;
+    return;
+  }
+  materials.push({
+    key,
+    label: UPGRADE_MATERIAL_LABELS[key] || key,
+    amount: value,
+  });
+}
+
+function allocateEquipmentTuneCost(candidates = [], tuneCount = 0) {
+  let remaining = Number(tuneCount || 0);
+  const materials = [];
+  let gold = 0;
+  const sorted = candidates
+    .slice()
+    .sort((a, b) => {
+      const costA = EQUIPMENT_TUNE_COST_BY_RARITY[a.itemRarity] || {};
+      const costB = EQUIPMENT_TUNE_COST_BY_RARITY[b.itemRarity] || {};
+      const orderDiff = Number(costA.order || 0) - Number(costB.order || 0);
+      if (orderDiff) return orderDiff;
+      return SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot);
+    });
+  sorted.forEach((equipment) => {
+    if (remaining <= 0) return;
+    const count = Math.min(remaining, Number(equipment.tuneRemaining || 0));
+    const cost = EQUIPMENT_TUNE_COST_BY_RARITY[equipment.itemRarity];
+    if (!cost || count <= 0) return;
+    remaining -= count;
+    gold += Number(cost.gold || 0) * count;
+    addMaterialAmount(materials, cost.materialKey, Number(cost.materialAmount || 0) * count);
+  });
+  return remaining > 0 ? null : { gold, materials };
+}
+
+function getEquipmentTuneRows(currentEquipmentUpgrades = [], materialPrices = {}, bufferBaseline = null) {
+  const totalSetPoint = (currentEquipmentUpgrades || []).reduce((sum, equipment) => {
+    const setPoint = Number(equipment.tuneSetPoint || 0);
+    return sum + (Number.isFinite(setPoint) ? setPoint : 0);
+  }, 0);
+  if (totalSetPoint < EQUIPMENT_TUNE_MIN_SET_POINT) return [];
+  const candidates = (currentEquipmentUpgrades || [])
+    .filter(isEquipmentTuneCandidate)
+    .map((equipment) => ({
+      ...equipment,
+      tuneRemaining: Math.max(0, Math.min(
+        EQUIPMENT_TUNE_MAX_LEVEL - Number(equipment.tuneLevel || 0),
+        Number.isFinite(Number(equipment.tuneRemaining))
+          ? Number(equipment.tuneRemaining)
+          : EQUIPMENT_TUNE_MAX_LEVEL - Number(equipment.tuneLevel || 0),
+      )),
+    }))
+    .filter((equipment) => equipment.tuneRemaining > 0);
+  const maxTuneCount = candidates.reduce((sum, equipment) => sum + Number(equipment.tuneRemaining || 0), 0);
+  if (maxTuneCount <= 0) return [];
+  const currentStage = getEquipmentTuneStage(totalSetPoint);
+  const maxStage = getEquipmentTuneStage(totalSetPoint + maxTuneCount * EQUIPMENT_TUNE_STEP_POINT);
+  if (maxStage <= currentStage) return [];
+
+  const tuneSteps = [];
+  for (let stage = currentStage + 1; stage <= maxStage; stage += 1) {
+    const threshold = EQUIPMENT_TUNE_MIN_SET_POINT + stage * EQUIPMENT_TUNE_MEMORY_POINT;
+    const tuneCount = Math.ceil((threshold - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT);
+    if (tuneCount <= 0 || tuneCount > maxTuneCount) continue;
+    const cost = allocateEquipmentTuneCost(candidates, tuneCount);
+    if (!cost || cost.gold <= 0) continue;
+    const targetSetPoint = totalSetPoint + tuneCount * EQUIPMENT_TUNE_STEP_POINT;
+    const expectedMaterials = applyUpgradeMaterialPrices(cost.materials, 'equipmentTune', materialPrices)
+      .map((material) => ({
+        ...material,
+        itemName: material.label || material.itemName,
+      }));
+    const finalDamageBefore = currentStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE;
+    const finalDamageAfter = stage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE;
+    const damageMultiplier = (1 + finalDamageAfter / 100) / (1 + finalDamageBefore / 100);
+    const buffPowerBefore = currentStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
+    const buffPowerAfter = stage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
+    const isBuffer = Boolean(bufferBaseline?.isBuffer);
+    tuneSteps.push({
+      index: tuneSteps.length,
+      tuneCount,
+      currentSetPoint: totalSetPoint,
+      targetSetPoint,
+      currentFinalDamage: finalDamageBefore,
+      targetFinalDamage: finalDamageAfter,
+      currentBuffPower: buffPowerBefore,
+      targetBuffPower: buffPowerAfter,
+      expectedGold: cost.gold,
+      expectedMaterials,
+      effects: isBuffer
+        ? { buffPower: buffPowerAfter - buffPowerBefore }
+        : { skillDamageMultiplier: damageMultiplier },
+    });
+  }
+  const first = tuneSteps[0];
+  if (!first) return [];
+  const iconEquipment = candidates.find((equipment) => equipment.iconUrl) || {};
+  return [{
+    sourceType: 'equipmentTune',
+    slot: '장비 조율',
+    tier: '조율',
+    itemName: '장비 조율',
+    itemRarity: '',
+    iconUrl: iconEquipment.iconUrl || '',
+    itemExplain: '',
+    effects: first.effects,
+    auction: { minUnitPrice: first.expectedGold },
+    expectedGold: first.expectedGold,
+    expectedMaterials: first.expectedMaterials,
+    tuneSteps,
+    selectedTuneStepIndex: 0,
+    currentSetPoint: first.currentSetPoint,
+    targetSetPoint: first.targetSetPoint,
+    currentTuneFinalDamage: first.currentFinalDamage,
+    targetTuneFinalDamage: first.targetFinalDamage,
+    currentTuneBuffPower: first.currentBuffPower,
+    targetTuneBuffPower: first.targetBuffPower,
+    tuneCount: first.tuneCount,
+  }];
+}
+
 function getAmplificationCostKey(slot) {
   return slot === '무기' ? 'weapon' : 'nonWeapon';
 }
@@ -1690,7 +1874,7 @@ function getEffectSignature(effects = {}) {
 }
 
 function getRecommendationDamageEffects(row, current) {
-  if (row.sourceType === 'upgrade') return row.effects || {};
+  if (['upgrade', 'equipmentTune'].includes(row.sourceType)) return row.effects || {};
   if (row.sourceType === 'blackFang') {
     return subtractEffects(
       row.targetEffects || addEffects(row.currentEffects, row.effects),
@@ -1916,6 +2100,8 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       : row;
     const current = row.sourceType === 'upgrade'
       ? { effects: {} }
+      : row.sourceType === 'equipmentTune'
+        ? { effects: {} }
       : row.sourceType === 'blackFang'
         ? { effects: {} }
       : row.sourceType === 'avatar'
@@ -1964,7 +2150,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
     ) return;
     if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
-    const isReplacement = !['upgrade', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
+    const isReplacement = !['upgrade', 'equipmentTune', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
     const damageEffects = getRecommendationDamageEffects(row, current);
     const estimatedDamagePercent = isReplacement
       ? getReplacementIncrementalDamagePercent(
@@ -1997,7 +2183,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
-        : row.sourceType === 'upgrade'
+        : ['upgrade', 'equipmentTune'].includes(row.sourceType)
         ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
       : `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`;
     const previous = bySlotTier.get(key);
@@ -2038,7 +2224,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
   const bestUpgradeBySlot = new Map();
   const nonUpgradeRows = [];
   representativeRows.forEach((row) => {
-    if (row.sourceType !== 'upgrade') {
+    if (!['upgrade', 'equipmentTune'].includes(row.sourceType)) {
       nonUpgradeRows.push(row);
       return;
     }
@@ -2075,6 +2261,59 @@ function hasHigherEnchantCandidate(row, recommendationRows) {
     candidate.slot === row.slot &&
     candidate.incrementalDamagePercent > row.incrementalDamagePercent + 0.0001
   ));
+}
+
+function getSelectedEquipmentTuneStep(row = {}, stepIndex = 0) {
+  const steps = Array.isArray(row.tuneSteps) ? row.tuneSteps : [];
+  if (!steps.length) return null;
+  const index = Math.max(0, Math.min(steps.length - 1, Number(stepIndex || 0)));
+  return steps[index] || steps[0] || null;
+}
+
+function applyEquipmentTuneDisplayStep(row = {}, stepIndex = 0, includeMaterialCosts = false, baseline = {}, bufferBaseline = null) {
+  if (row.sourceType !== 'equipmentTune') return row;
+  const step = getSelectedEquipmentTuneStep(row, stepIndex);
+  if (!step) return row;
+  const displayRow = {
+    ...row,
+    itemName: '장비 조율',
+    effects: step.effects || row.effects,
+    auction: { ...(row.auction || {}), minUnitPrice: step.expectedGold },
+    expectedGold: step.expectedGold,
+    expectedMaterials: step.expectedMaterials || [],
+    selectedTuneStepIndex: step.index,
+    currentSetPoint: step.currentSetPoint,
+    targetSetPoint: step.targetSetPoint,
+    currentTuneFinalDamage: step.currentFinalDamage,
+    targetTuneFinalDamage: step.targetFinalDamage,
+    currentTuneBuffPower: step.currentBuffPower,
+    targetTuneBuffPower: step.targetBuffPower,
+    tuneCount: step.tuneCount,
+  };
+  if (displayRow.metricType === 'buffer' && bufferBaseline?.isBuffer) {
+    const currentScore = calculateBufferScore(bufferBaseline);
+    const candidateScore = calculateBufferScore(bufferBaseline, {
+      buffPowerDelta: Number(displayRow.effects?.buffPower || 0),
+    });
+    const incrementalBuffScore = candidateScore - currentScore;
+    const incrementalBuffPercent = currentScore > 0 ? (candidateScore / currentScore - 1) * 100 : 0;
+    displayRow.currentBufferScore = currentScore;
+    displayRow.candidateBufferScore = candidateScore;
+    displayRow.incrementalBuffScore = incrementalBuffScore;
+    displayRow.incrementalBuffPercent = incrementalBuffPercent;
+    displayRow.buffCostPerHundredPoints = incrementalBuffScore > 0
+      ? getRecommendationGold(displayRow, includeMaterialCosts) * 100 / incrementalBuffScore
+      : 0;
+    displayRow.incrementalDamagePercent = incrementalBuffPercent;
+    return displayRow;
+  }
+  const selectedDamage = estimateDamagePercent(displayRow.effects || {}, baseline);
+  displayRow.incrementalDamagePercent = selectedDamage;
+  displayRow.costPerPointOnePercent = getCostPerPointOnePercent({
+    ...displayRow,
+    incrementalDamagePercent: selectedDamage,
+  }, includeMaterialCosts);
+  return displayRow;
 }
 
 function getEfficiencyBand(costPerPointOnePercent) {
@@ -2233,6 +2472,8 @@ export function installEnchantView(ctx) {
   state.enchantLoading = false;
   state.enchantTiming = null;
   state.enchantRequestId = 0;
+  state.equipmentTuneStepIndex = 0;
+  state.equipmentTunePopoverOpen = false;
 
   function buildEnchantPortraitSlotData() {
     const equipmentBySlot = new Map(
@@ -2273,7 +2514,8 @@ export function installEnchantView(ctx) {
           hoverLines: [
             { text: enchantDetailText, className: 'enchant-portrait-detail-line-effect' },
             getUpgradeDetailLine(equipment),
-          ],
+            getTuneDetailLine(equipment),
+          ].filter(Boolean),
         };
       }
     });
@@ -2527,6 +2769,7 @@ export function installEnchantView(ctx) {
     state.currentTitleCharacterKey = '';
     state.currentAuraCharacterKey = '';
     state.currentAvatarCharacterKey = '';
+    state.equipmentTuneStepIndex = 0;
   }
 
   function resetEnchantRecommendationFilters() {
@@ -2698,6 +2941,7 @@ export function installEnchantView(ctx) {
         els.safeAmplificationModeSelect?.value === 'event',
         state.upgradeMaterialPrices,
       ),
+      ...getEquipmentTuneRows(state.currentEquipmentUpgrades, state.upgradeMaterialPrices, state.currentBufferBaseline),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
     ];
     renderEnchantFilters(allRows);
@@ -2711,7 +2955,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'blackFang'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'blackFang'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -2785,6 +3029,7 @@ export function installEnchantView(ctx) {
     }
 
     els.enchantRecommendList.innerHTML = recommendations.map((row, index) => {
+      row = applyEquipmentTuneDisplayStep(row, state.equipmentTuneStepIndex, includeMaterialCosts, state.currentDamageBaseline, state.currentBufferBaseline);
       const isBufferMetric = row.metricType === 'buffer';
       const materialAcquisition = isMaterialAcquisition(row);
       const band = materialAcquisition
@@ -2811,6 +3056,8 @@ export function installEnchantView(ctx) {
         : row.effects;
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
+        : row.sourceType === 'equipmentTune'
+          ? formatEquipmentTuneEffect(row)
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
@@ -2846,6 +3093,8 @@ export function installEnchantView(ctx) {
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
+        : row.sourceType === 'equipmentTune'
+          ? `장비 조율 ${Number(row.tuneCount || 0).toLocaleString('ko-KR')}회`
         : row.sourceType === 'switchingTitle'
           ? row.itemName
         : row.sourceType === 'switchingCreature'
@@ -2861,23 +3110,32 @@ export function installEnchantView(ctx) {
             : row.sourceType === 'avatar'
               ? `${row.itemName}${row.needCount > 1 ? ` x${row.needCount}` : ''}`
             : row.itemName;
+      const displayTitle = row.sourceType === 'equipmentTune'
+        ? '장비 조율'
+        : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
       const acquisitionMarkup = getAcquisitionMarkup(row.acquisition, escapeHtml);
-      const materialParts = row.sourceType === 'upgrade'
+      const materialParts = ['upgrade', 'equipmentTune'].includes(row.sourceType)
         ? getUpgradeMaterialParts(row.expectedMaterials, row.upgradeMode)
         : row.sourceType === 'blackFang'
           ? getBlackFangMaterialParts(row.materials)
           : [];
-      const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
       const rowGold = getRecommendationGold(row, includeMaterialCosts);
-      const priceLabel = includeMaterialCosts && ['upgrade', 'blackFang'].includes(row.sourceType)
+      const priceLabel = includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune'].includes(row.sourceType)
         ? '재료 포함'
-        : ['upgrade', 'blackFang'].includes(row.sourceType) ? '예상 골드' : '최저가';
+        : ['upgrade', 'blackFang', 'equipmentTune'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
       const materialPartsMarkup = materialParts.length
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
           .map((part) => `<span class="enchant-popover-material-part" title="${escapeHtml(part.label)}">${part.iconUrl ? `<img src="${escapeHtml(part.iconUrl)}" alt="${escapeHtml(part.label)}" loading="lazy" />` : ''}<span>${escapeHtml(part.amount)}</span></span>`)
           .join('')}`
+        : '';
+      const tuneStepControls = row.sourceType === 'equipmentTune' && Array.isArray(row.tuneSteps) && row.tuneSteps.length > 1
+        ? `<span class="enchant-tune-step-controls">
+            <span class="enchant-tune-step-button${row.selectedTuneStepIndex <= 0 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="-1" aria-label="이전 조율 단계">-</span>
+            <span class="enchant-tune-step-label">${Number(row.selectedTuneStepIndex || 0) + 1} / ${row.tuneSteps.length}</span>
+            <span class="enchant-tune-step-button${row.selectedTuneStepIndex >= row.tuneSteps.length - 1 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="1" aria-label="다음 조율 단계">+</span>
+          </span>`
         : '';
       const tooltipRows = [
         { text: displayName, className: 'enchant-popover-name' },
@@ -2890,23 +3148,24 @@ export function installEnchantView(ctx) {
         { text: acquisitionLabel ? '' : `${priceLabel} ${formatGold(rowGold)}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
         { text: !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
-        { text: isBufferMetric ? `교체 시 버프점수 +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `교체 상승 ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
+        { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${row.sourceType === 'equipmentTune' ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
         { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
         { text: acquisitionLabel ? '' : isBufferMetric ? `버프점수 100점당 ${formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
       ].filter((item) => item.text || item.html);
       const popover = `
-        <span class="enchant-recommend-popover" role="tooltip">
+        <span class="enchant-recommend-popover${row.sourceType === 'equipmentTune' ? ' has-actions' : ''}" role="tooltip">
           ${hasUpgradeWarning ? '<span class="enchant-recommend-warning">⚠ 상위 마법부여 존재</span>' : ''}
           ${tooltipRows.map((item) => `<span class="${escapeHtml(item.className)}">${item.html || escapeHtml(item.text)}</span>`).join('')}
         </span>
       `;
       return `
-        <span class="enchant-recommend-step">
+        <span class="enchant-recommend-step${row.sourceType === 'equipmentTune' ? ` enchant-recommend-step-tune${state.equipmentTunePopoverOpen ? ' is-tune-popover-open' : ''}` : ''}">
           ${connector}
           <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}"${bandStyle}>
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
-              <span class="enchant-recommend-title">${escapeHtml(row.slot)}</span>
+              <span class="enchant-recommend-title">${escapeHtml(displayTitle)}</span>
               <span class="enchant-recommend-sub">${escapeHtml(tierLabel)}</span>
             </span>
             <span class="enchant-recommend-metric">
@@ -3372,6 +3631,55 @@ export function installEnchantView(ctx) {
       }
     }
   }
+
+  function changeEquipmentTuneStep(delta) {
+    const value = Number(delta || 0);
+    if (!Number.isFinite(value) || value === 0) return;
+    const maxIndex = Math.max(
+      0,
+      ...getEquipmentTuneRows(state.currentEquipmentUpgrades, state.upgradeMaterialPrices, state.currentBufferBaseline)
+        .map((row) => (Array.isArray(row.tuneSteps) ? row.tuneSteps.length - 1 : 0)),
+    );
+    state.equipmentTuneStepIndex = Math.max(0, Math.min(maxIndex, Number(state.equipmentTuneStepIndex || 0) + value));
+    state.equipmentTunePopoverOpen = true;
+    renderEnchantTable();
+  }
+
+  els.enchantRecommendList?.addEventListener('mouseover', (event) => {
+    if (!event.target.closest('.enchant-recommend-step-tune')) return;
+    if (state.equipmentTunePopoverOpen) return;
+    state.equipmentTunePopoverOpen = true;
+    renderEnchantTable();
+  });
+
+  els.enchantRecommendList?.addEventListener('mouseout', (event) => {
+    const step = event.target.closest('.enchant-recommend-step-tune');
+    if (!step) return;
+    const related = event.relatedTarget;
+    if (related && step.contains(related)) return;
+    if (!state.equipmentTunePopoverOpen) return;
+    state.equipmentTunePopoverOpen = false;
+    renderEnchantTable();
+  });
+
+  els.enchantRecommendList?.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-equipment-tune-step]');
+    if (!target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (target.classList.contains('is-disabled')) return;
+    changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0));
+  });
+
+  els.enchantRecommendList?.addEventListener('keydown', (event) => {
+    if (!['Enter', ' '].includes(event.key)) return;
+    const target = event.target.closest('[data-equipment-tune-step]');
+    if (!target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (target.classList.contains('is-disabled')) return;
+    changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0));
+  });
 
   Object.assign(ctx.actions, {
     loadEnchantCards,
