@@ -3103,6 +3103,23 @@ export function installEnchantView(ctx) {
         storedChecked = null;
       }
     }
+    if (storedChecked) {
+      const knownKeys = new Set(storedChecked);
+      let addedNewKey = false;
+      ENCHANT_INCLUDE_ORDER.forEach((key) => {
+        if (!knownKeys.has(key)) {
+          storedChecked.add(key);
+          addedNewKey = true;
+        }
+      });
+      if (addedNewKey && ENCHANT_INCLUDE_FILTER_STORAGE_KEY) {
+        try {
+          localStorage.setItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY, JSON.stringify([...storedChecked]));
+        } catch {
+          // 저장소를 쓸 수 없어도 현재 렌더에서는 신규 항목을 켠다.
+        }
+      }
+    }
     const checked = new Set(
       [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
         .map((input) => input.value),
