@@ -1156,6 +1156,28 @@
       font-size: 11px;
       font-weight: 700;
     }
+    .enchant-oath-stage {
+      font-weight: 900;
+    }
+    .enchant-oath-stage-rare {
+      color: #c4a7ff;
+    }
+    .enchant-oath-stage-unique {
+      color: #ff7ac8;
+    }
+    .enchant-oath-stage-legendary {
+      color: #d98a3a;
+    }
+    .enchant-oath-stage-epic {
+      color: #facc15;
+    }
+    .enchant-oath-stage-primeval {
+      color: #67e8f9;
+      text-shadow: 0 0 7px rgba(45, 212, 191, 0.35);
+    }
+    .enchant-oath-stage-arrow {
+      color: var(--muted);
+    }
     .enchant-popover-price-item {
       color: #e5e7eb;
     }

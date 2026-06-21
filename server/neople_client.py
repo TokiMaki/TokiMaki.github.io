@@ -85,7 +85,7 @@ def request_json(url: str) -> dict[str, Any]:
 
 
 def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 100) -> list:
-    params = {"itemId": item_id, "limit": 100, "apikey": API_KEY}
+    params = {"itemId": item_id, "limit": 100, "sort": "unitPrice:asc", "apikey": API_KEY}
     if limit:
         params["limit"] = limit
     if min_fame is not None:
@@ -147,6 +147,7 @@ def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, in
         params = {
             "itemIds": ",".join(chunk),
             "limit": limit,
+            "sort": "unitPrice:asc",
             "apikey": API_KEY,
         }
         url = f"https://api.neople.co.kr/df/auction?{urlencode(params)}"

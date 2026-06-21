@@ -8,6 +8,7 @@ from .data_store import (
     load_dealer_switching_creature_db,
     load_dealer_switching_title_db,
     load_job_base_stats,
+    load_oath_tune_stage_db,
     load_upgrade_expected_db,
 )
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
@@ -69,6 +70,7 @@ UPGRADE_MATERIAL_PRICE_ITEMS = {
     "reinforcementProtectionTicket": {"label": "강화 보호권", "itemId": "8bc063c2b80179bc002f7dfb8203c4ab"},
     "epicSoul": {"label": "에픽 소울 결정", "itemId": "c7d845c65ab9dbcff6e55dc910fbea87"},
     "legendarySoul": {"label": "레전더리 소울 결정", "itemId": "c6947ff630cc59aebdcbabfb449258d1"},
+    "radiantSoul": {"label": "광휘의 소울 결정", "itemId": "27a5877768a40a3a0eccc493d0a53b9b"},
 }
 BLACK_FANG_MATERIAL_AUCTION_NAME_MAP = {
     "조화의 결정체": "무결점 조화의 결정체",
@@ -513,6 +515,60 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     }
 
 
+def build_oath_upgrade_payload(oath_payload: dict) -> dict:
+    oath = oath_payload.get("oath") or {}
+    info = oath.get("info") or {}
+    set_info = oath.get("setInfo") or {}
+    active = set_info.get("active") or {}
+    set_point = set_info.get("setPoint") or active.get("setPoint") or {}
+    stage_point = parse_percent_or_number(set_point.get("current")) if isinstance(set_point, dict) else 0
+    if not stage_point:
+        stage_point = parse_percent_or_number(info.get("setPoint"))
+        stage_point += sum(parse_percent_or_number(row.get("setPoint")) for row in oath.get("crystal") or [])
+    unique_keyword = clean_text(load_oath_tune_stage_db().get("uniqueCrystalNameKeyword")) or "안개 결정"
+    max_tune_level = int(load_oath_tune_stage_db().get("maxTuneLevel") or 3)
+    crystals = []
+    for index, crystal in enumerate(oath.get("crystal") or []):
+        if not isinstance(crystal, dict):
+            continue
+        item_id = clean_text(crystal.get("itemId"))
+        item_name = clean_text(crystal.get("itemName"))
+        rarity = clean_text(crystal.get("itemRarity"))
+        tune = crystal.get("tune") or {}
+        tune_level = int(parse_percent_or_number(tune.get("level")))
+        is_unique_crystal = unique_keyword in item_name if unique_keyword else False
+        is_tune_target = rarity in {"레어", "유니크", "레전더리", "에픽"} and not is_unique_crystal
+        crystals.append({
+            "index": index,
+            "itemId": item_id,
+            "itemName": item_name,
+            "itemRarity": rarity,
+            "iconUrl": get_item_icon_url(item_id) if item_id else "",
+            "tuneLevel": tune_level,
+            "tuneUpgradeable": is_tune_target,
+            "tuneRemaining": max(0, max_tune_level - tune_level) if is_tune_target else 0,
+        })
+    return {
+        "itemId": clean_text(info.get("itemId")),
+        "itemName": clean_text(info.get("itemName")),
+        "itemRarity": clean_text(info.get("itemRarity")),
+        "iconUrl": get_item_icon_url(clean_text(info.get("itemId"))) if clean_text(info.get("itemId")) else "",
+        "setName": clean_text(set_info.get("setName")),
+        "setRarityName": clean_text(set_info.get("setRarityName")),
+        "setPoint": stage_point,
+        "crystals": crystals,
+    }
+
+
+def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
+    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/oath?apikey={API_KEY}"
+    try:
+        payload = request_json(url)
+    except Exception:
+        return {}
+    return build_oath_upgrade_payload(payload)
+
+
 def load_character_enchants(server_id: str, character_id: str) -> dict:
     steps = []
     payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
@@ -550,6 +606,11 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         lambda: _build_black_fang_recommendations_debug(payload.get("equipment") or []),
     )
     black_fang_recommendations = black_fang_debug.get("recommendations") or []
+    oath_upgrades = _measure_step(
+        steps,
+        "load_character_oath_upgrades",
+        lambda: load_character_oath_upgrades(server_id, character_id),
+    )
     return {
         "serverId": payload.get("serverId"),
         "characterId": payload.get("characterId"),
@@ -559,6 +620,8 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "bufferBaseline": load_character_buffer_baseline(server_id, character_id),
         "enchants": rows,
         "equipmentUpgrades": equipment_upgrades,
+        "oathUpgrades": oath_upgrades,
+        "oathTuneStageDb": load_oath_tune_stage_db(),
         "blackFangRecommendations": black_fang_recommendations,
         "upgradeExpectedDb": load_upgrade_expected_db(),
         "upgradeMaterialPrices": load_upgrade_material_prices(),
@@ -2116,6 +2179,8 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         "bufferBaseline": enchant_payload.get("bufferBaseline"),
         "enchants": enchant_payload.get("enchants") or [],
         "equipmentUpgrades": enchant_payload.get("equipmentUpgrades") or [],
+        "oathUpgrades": enchant_payload.get("oathUpgrades") or {},
+        "oathTuneStageDb": enchant_payload.get("oathTuneStageDb") or {},
         "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
         "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
         "upgradeMaterialPrices": enchant_payload.get("upgradeMaterialPrices"),

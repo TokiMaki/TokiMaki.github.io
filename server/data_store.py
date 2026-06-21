@@ -11,6 +11,7 @@ DEALER_SWITCHING_TITLE_DB_PATH = ROOT / "Docs" / "dealer_switching_title_db.json
 DEALER_SWITCHING_CREATURE_DB_PATH = ROOT / "Docs" / "dealer_switching_creature_db.json"
 AURA_DB_PATH = ROOT / "Docs" / "aura_upgrade_db.json"
 AVATAR_OPTION_DB_PATH = ROOT / "Docs" / "avatar_option_db.json"
+OATH_TUNE_STAGE_DB_PATH = ROOT / "Docs" / "oath_tune_stage_db.json"
 JOB_BASE_STAT_PATH = ROOT / "Docs" / "jobBaseStat.json"
 AMPLIFICATION_EXPECTED_DB_PATH = ROOT / "Docs" / "amplification_expected_db.json"
 REINFORCEMENT_EXPECTED_DB_PATH = ROOT / "Docs" / "reinforcement_expected_db.json"
@@ -21,6 +22,7 @@ _AVATAR_OPTION_DB_CACHE = None
 _DEALER_SWITCHING_BUFF_DB_CACHE = None
 _DEALER_SWITCHING_TITLE_DB_CACHE = None
 _DEALER_SWITCHING_CREATURE_DB_CACHE = None
+_OATH_TUNE_STAGE_DB_CACHE = None
 
 
 def load_upgrade_expected_db() -> dict:
@@ -87,3 +89,14 @@ def load_job_base_stats() -> dict:
         except FileNotFoundError:
             _JOB_BASE_STAT_CACHE = {}
     return _JOB_BASE_STAT_CACHE
+
+
+def load_oath_tune_stage_db() -> dict:
+    global _OATH_TUNE_STAGE_DB_CACHE
+    if _OATH_TUNE_STAGE_DB_CACHE is None:
+        try:
+            with OATH_TUNE_STAGE_DB_PATH.open("r", encoding="utf-8") as handle:
+                _OATH_TUNE_STAGE_DB_CACHE = json.load(handle)
+        except FileNotFoundError:
+            _OATH_TUNE_STAGE_DB_CACHE = {}
+    return _OATH_TUNE_STAGE_DB_CACHE

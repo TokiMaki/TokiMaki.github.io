@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "pointPerTune": 10,
+  "maxTuneLevel": 3,
+  "uniqueCrystalNameKeyword": "안개 결정",
+  "cooldownEquivalentMultiplier": 1.1040808032,
+  "stageRows": [
+    { "name": "레어 I", "rarity": "레어", "requiredPoint": 750, "finalDamagePercent": 0, "buffPower": 0 },
+    { "name": "레어 II", "rarity": "레어", "requiredPoint": 830, "finalDamagePercent": 0, "buffPower": 0 },
+    { "name": "레어 III", "rarity": "레어", "requiredPoint": 910, "finalDamagePercent": 0, "buffPower": 0 },
+    { "name": "레어 IV", "rarity": "레어", "requiredPoint": 990, "finalDamagePercent": 0, "buffPower": 0 },
+    { "name": "레어 V", "rarity": "레어", "requiredPoint": 1070, "finalDamagePercent": 0, "buffPower": 0 },
+    { "name": "유니크 I", "rarity": "유니크", "requiredPoint": 1200, "finalDamagePercent": 25, "buffPower": 4500 },
+    { "name": "유니크 II", "rarity": "유니크", "requiredPoint": 1285, "finalDamagePercent": 45, "buffPower": 6900 },
+    { "name": "유니크 III", "rarity": "유니크", "requiredPoint": 1370, "finalDamagePercent": 65, "buffPower": 9300 },
+    { "name": "유니크 IV", "rarity": "유니크", "requiredPoint": 1455, "finalDamagePercent": 85, "buffPower": 11700 },
+    { "name": "유니크 V", "rarity": "유니크", "requiredPoint": 1540, "finalDamagePercent": 105, "buffPower": 14100 },
+    { "name": "레전더리 I", "rarity": "레전더리", "requiredPoint": 1650, "finalDamagePercent": 140, "buffPower": 17100 },
+    { "name": "레전더리 II", "rarity": "레전더리", "requiredPoint": 1735, "finalDamagePercent": 165, "buffPower": 18900 },
+    { "name": "레전더리 III", "rarity": "레전더리", "requiredPoint": 1820, "finalDamagePercent": 190, "buffPower": 20700 },
+    { "name": "레전더리 IV", "rarity": "레전더리", "requiredPoint": 1905, "finalDamagePercent": 215, "buffPower": 22500 },
+    { "name": "레전더리 V", "rarity": "레전더리", "requiredPoint": 1990, "finalDamagePercent": 240, "buffPower": 24300 },
+    { "name": "에픽 I", "rarity": "에픽", "requiredPoint": 2100, "finalDamagePercent": 290, "buffPower": 27300 },
+    { "name": "에픽 II", "rarity": "에픽", "requiredPoint": 2185, "finalDamagePercent": 325, "buffPower": 28700 },
+    { "name": "에픽 III", "rarity": "에픽", "requiredPoint": 2270, "finalDamagePercent": 360, "buffPower": 30100 },
+    { "name": "에픽 IV", "rarity": "에픽", "requiredPoint": 2355, "finalDamagePercent": 395, "buffPower": 31500 },
+    { "name": "에픽 V", "rarity": "에픽", "requiredPoint": 2440, "finalDamagePercent": 430, "buffPower": 32900 },
+    { "name": "태초", "rarity": "태초", "requiredPoint": 2550, "finalDamagePercent": 500, "buffPower": 35500 }
+  ],
+  "blessingRows": [
+    { "rarity": "레어", "startPoint": 750, "finalDamagePercent": 17, "buffPower": 3300, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": false },
+    { "rarity": "유니크", "startPoint": 1200, "finalDamagePercent": 28, "buffPower": 5060, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": true },
+    { "rarity": "레전더리", "startPoint": 1650, "finalDamagePercent": 39, "buffPower": 6720, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": true },
+    { "rarity": "에픽", "startPoint": 2100, "finalDamagePercent": 50, "buffPower": 8210, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": true },
+    { "rarity": "태초", "startPoint": 2550, "finalDamagePercent": 62, "buffPower": 9700, "stepPoint": 25, "finalDamagePerStep": 1, "buffPowerPerStep": 120, "cooldownEquivalent": true }
+  ],
+  "costByRarity": {
+    "레어": { "gold": 80000, "materialKey": "radiantSoul", "materialLabel": "광휘의 소울", "materialAmount": 15, "order": 0 },
+    "유니크": { "gold": 240000, "materialKey": "radiantSoul", "materialLabel": "광휘의 소울", "materialAmount": 30, "order": 1 },
+    "레전더리": { "gold": 480000, "materialKey": "radiantSoul", "materialLabel": "광휘의 소울", "materialAmount": 60, "order": 2 },
+    "에픽": { "gold": 800000, "materialKey": "radiantSoul", "materialLabel": "광휘의 소울", "materialAmount": 100, "order": 3 }
+  }
+}
