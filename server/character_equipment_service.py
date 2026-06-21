@@ -2120,6 +2120,124 @@ def load_buffer_switching_title_recommendations(
     return recommendations
 
 
+def load_buffer_switching_creature_release_recommendations(
+    server_id: str,
+    character_id: str,
+    buffer_baseline: dict | None = None,
+) -> list:
+    if not buffer_baseline:
+        return []
+    current_rows, switching_rows, buff_payload = get_buffer_switching_rows(server_id, character_id)
+    current_creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    current_creature = current_creature_payload.get("creature") or {}
+    buff_creature_payload = _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+    switching_creature_rows = ((buff_creature_payload.get("skill") or {}).get("buff") or {}).get("creature") or []
+    switching_creature = (
+        switching_creature_rows[0]
+        if isinstance(switching_creature_rows, list) and switching_creature_rows
+        else switching_creature_rows
+    )
+    if not isinstance(current_creature, dict) or not current_creature:
+        return []
+    if not isinstance(switching_creature, dict) or not switching_creature:
+        return []
+
+    job_name = clean_text(buffer_baseline.get("jobName") or buff_payload.get("jobName"))
+    stat_name = clean_text(buffer_baseline.get("statName"))
+    buff_skill_name = clean_text(buffer_baseline.get("buffSkillName"))
+    skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+    required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    if not job_name or not stat_name or not buff_skill_name or required_level <= 0:
+        return []
+
+    release_switching_rows = [*switching_rows[:-1], current_creature] if switching_rows else [current_creature]
+    item_ids = [
+        clean_text(row.get("itemId"))
+        for row in [*current_rows, *switching_rows, *release_switching_rows]
+        if isinstance(row, dict) and clean_text(row.get("itemId"))
+    ]
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    current_metrics = get_buffer_switching_metrics(
+        current_rows,
+        switching_rows,
+        detail_by_id,
+        style_payload,
+        job_name,
+        stat_name,
+        buff_skill_name,
+    )
+    release_metrics = get_buffer_switching_metrics(
+        current_rows,
+        release_switching_rows,
+        detail_by_id,
+        style_payload,
+        job_name,
+        stat_name,
+        buff_skill_name,
+    )
+    switching_creature_id = clean_text(switching_creature.get("itemId"))
+    current_creature_id = clean_text(current_creature.get("itemId"))
+    switching_detail = detail_by_id.get(switching_creature_id) or {}
+    current_detail = detail_by_id.get(current_creature_id) or {}
+    switching_contribution = get_switching_creature_contribution(
+        switching_creature,
+        switching_detail,
+        job_name,
+        buff_skill_name,
+        required_level,
+    )
+    current_contribution = get_switching_creature_contribution(
+        current_creature,
+        current_detail,
+        job_name,
+        buff_skill_name,
+        required_level,
+    )
+    switching_stat_delta = release_metrics.get("switchingStatDelta", 0) - current_metrics.get("switchingStatDelta", 0)
+    switching_amp_delta = (
+        release_metrics.get("switchingBuffAmplificationDelta", 0)
+        - current_metrics.get("switchingBuffAmplificationDelta", 0)
+    )
+    buff_skill_level_delta = current_contribution - switching_contribution
+    if switching_stat_delta <= 0 and switching_amp_delta <= 0 and buff_skill_level_delta <= 0:
+        return []
+
+    switching_name = clean_text(switching_creature.get("itemName"))
+    current_name = clean_text(current_creature.get("itemName"))
+    transition_text = f"{switching_name} -> {current_name}" if switching_name and current_name else "현재 장착 크리쳐 적용"
+    return [{
+        "kind": "switchingCreatureRelease",
+        "slot": "벞강 크리쳐",
+        "tier": "버프강화",
+        "itemId": current_creature_id,
+        "itemName": "버프강화 크리쳐 해제",
+        "itemRarity": clean_text(current_creature.get("itemRarity") or current_detail.get("itemRarity") or "레어"),
+        "iconUrl": get_item_icon_url(current_creature_id),
+        "fame": int(current_detail.get("fame") or current_creature.get("fame") or 0),
+        "auction": {"minUnitPrice": 0},
+        "effects": {},
+        "itemExplain": f"현재 장착 크리쳐 적용: {transition_text}",
+        "buffSkillName": buff_skill_name,
+        "requiredLevel": required_level,
+        "currentCreatureContribution": switching_contribution,
+        "candidateCreatureContribution": current_contribution,
+        "switchingStatDelta": switching_stat_delta,
+        "switchingBuffAmplificationDelta": switching_amp_delta,
+        "bufferBuffSkillLevelDelta": buff_skill_level_delta,
+        "sourceCreatureName": switching_name,
+        "targetCreatureName": current_name,
+        "purchaseRoute": "releaseSwitchingCreature",
+        "purchaseRouteLabel": "",
+        "freeAction": True,
+        "recommendationPriority": -1000,
+    }]
+
+
 def load_character_loadout(server_id: str, character_id: str) -> dict:
     started_at = time.perf_counter()
     steps = []
@@ -2156,11 +2274,15 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
     )
     switching_creature_recommendations = _measure_step(
         steps,
-        "load_dealer_switching_creature_recommendations",
-        lambda: load_dealer_switching_creature_recommendations(
-            server_id,
-            character_id,
-            enchant_payload.get("bufferBaseline"),
+        "load_switching_creature_recommendations",
+        lambda: (
+            load_buffer_switching_creature_release_recommendations(
+                server_id,
+                character_id,
+                enchant_payload.get("bufferBaseline"),
+            )
+            if enchant_payload.get("bufferBaseline")
+            else load_dealer_switching_creature_recommendations(server_id, character_id)
         ),
     )
     damage_baseline = dict(enchant_payload.get("damageBaseline") or {})

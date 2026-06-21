@@ -89,6 +89,10 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         self.send_response(HTTPStatus.NO_CONTENT)
         self.end_headers()
 
+    def do_HEAD(self):
+        self.send_response(HTTPStatus.NOT_FOUND)
+        self.end_headers()
+
     def do_GET(self):
         self._request_started_at = time.time()
         parsed = urlparse(self.path)
@@ -153,7 +157,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/avatar-skill-efficiency":
             return self.handle_avatar_skill_efficiency(parsed)
 
-        return super().do_GET()
+        return self.send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
     def send_json(self, payload: dict, status: int = HTTPStatus.OK):
         body = json_response(payload)

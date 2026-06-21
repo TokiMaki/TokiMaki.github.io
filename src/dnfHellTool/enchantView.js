@@ -286,7 +286,10 @@ function getUpgradeMaterialParts(materials = [], upgradeMode = '') {
     .map((material) => {
       const amount = formatMaterialAmount(material.amount);
       const iconId = getUpgradeMaterialIconId(material, upgradeMode);
-      const iconUrl = material.iconUrl || (iconId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(iconId)}` : '');
+      const useBaseMaterialIcon = material.key === 'radiantSoul' || material.priceKey === 'radiantSoul';
+      const iconUrl = useBaseMaterialIcon && iconId
+        ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(iconId)}`
+        : material.iconUrl || (iconId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(iconId)}` : '');
       return amount ? {
         label: material.itemName || getUpgradeMaterialLabel(material, upgradeMode),
         amount,
@@ -712,6 +715,10 @@ function isMaterialAcquisition(row) {
   return Boolean(row?.acquisition?.label);
 }
 
+function isFreeActionRecommendation(row) {
+  return Boolean(row?.freeAction);
+}
+
 function isMaterialEnchantAcquisition(row) {
   return row?.sourceType === 'enchant' && isMaterialAcquisition(row);
 }
@@ -889,7 +896,7 @@ function getSkillValueDelta(info, field, levelDelta) {
 }
 
 function getBufferItemSkillChanges(row, current, baseline) {
-  if (row.sourceType === 'switchingTitle') {
+  if (['switchingTitle', 'switchingCreature'].includes(row.sourceType)) {
     return {
       switchingStatDelta: Number(row.switchingStatDelta || 0),
       switchingBuffAmplificationDelta: Number(row.switchingBuffAmplificationDelta || 0),
@@ -1002,8 +1009,8 @@ function getBufferRecommendationRows(
           allStat: Number(row.effects?.allStat || 0),
         },
       }
-      : row;
-    if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
+    : row;
+    if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     const current = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
       ? {}
       : row.sourceType === 'blackFang'
@@ -1155,6 +1162,8 @@ function getBufferRecommendationRows(
     }
   });
   return [...nonUpgradeRows, ...bestUpgradeBySlot.values()].sort((a, b) => {
+    const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
+    if (priorityDiff) return priorityDiff;
     const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
     if (materialDiff) return materialDiff;
     if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) return compareMaterialEnchantOrder(a, b);
@@ -1311,11 +1320,16 @@ function getSwitchingCreatureRows(recommendations = []) {
     auction: candidate.auction || {},
     candidateName: candidate.itemName,
     buffSkillName: candidate.buffSkillName || '',
+    switchingStatDelta: Number(candidate.switchingStatDelta || 0),
+    switchingBuffAmplificationDelta: Number(candidate.switchingBuffAmplificationDelta || 0),
+    bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
     currentCreatureContribution: Number(candidate.currentCreatureContribution || 0),
     candidateCreatureContribution: Number(candidate.candidateCreatureContribution || 0),
     purchaseRoute: candidate.purchaseRoute || '',
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
     targetCreatureName: candidate.targetCreatureName || '',
+    freeAction: Boolean(candidate.freeAction),
+    recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
 }
 
@@ -1794,8 +1808,8 @@ function getOathTuneRows(oathUpgrades = {}, oathTuneDb = {}, materialPrices = {}
     if (!cost || cost.gold <= 0) continue;
     const expectedMaterials = applyUpgradeMaterialPrices(cost.materials, 'oathTune', materialPrices);
     const damageMultiplier = targetState.damageMultiplier / currentState.damageMultiplier;
-    const displayCurrentStageName = useStageThresholds ? lastStageName : currentState.stageName;
-    const displayCurrentBuffPower = useStageThresholds ? lastBuffPower : currentBuffPower;
+    const displayCurrentStageName = currentState.stageName;
+    const displayCurrentBuffPower = currentBuffPower;
     tuneSteps.push({
       index: tuneSteps.length,
       tuneCount,
@@ -2390,7 +2404,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
           }
         : currentBySlot.get(row.slot);
     row = getTitleBeadOnlyRow(row, current);
-    if (!isMaterialAcquisition(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
+    if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     if (row.sourceType === 'creature' && current?.itemId && current.itemId === row.itemId) return;
     if (row.sourceType === 'creatureArtifact' && current?.itemId && current.itemId === row.itemId) return;
     if (
@@ -3373,7 +3387,7 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'switchingTitle'
           ? row.purchaseRouteLabel || (row.buffSkillName && row.enchantBuffSkillLevelDelta ? `[${row.buffSkillName} +${row.enchantBuffSkillLevelDelta}Lv]` : '')
         : row.sourceType === 'switchingCreature'
-          ? row.purchaseRouteLabel || ''
+          ? isFreeActionRecommendation(row) ? '' : row.purchaseRouteLabel || ''
         : row.sourceType === 'switchingFragment'
           ? row.purchaseRouteLabel || ''
         : '';
@@ -3410,7 +3424,10 @@ export function installEnchantView(ctx) {
           ? getBlackFangMaterialParts(row.materials)
           : [];
       const rowGold = getRecommendationGold(row, includeMaterialCosts);
-      const priceLabel = includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune', 'oathTune'].includes(row.sourceType)
+      const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
+      const priceLabel = isFreeActionRecommendation(row)
+        ? '비용'
+        : includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? '재료 포함'
         : ['upgrade', 'blackFang', 'equipmentTune', 'oathTune'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
@@ -3436,12 +3453,12 @@ export function installEnchantView(ctx) {
         { text: row.priceWarningText ? `⚠ ${row.priceWarningText}` : '', className: 'enchant-recommend-warning' },
         { text: acquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
         { text: acquisitionLabel, className: 'enchant-popover-material' },
-        { text: acquisitionLabel ? '' : `${priceLabel} ${formatGold(rowGold)}`, className: 'enchant-popover-price' },
+        { text: acquisitionLabel ? '' : `${priceLabel} ${rowGoldText}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
         { text: !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
         { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
         { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
-        { text: acquisitionLabel ? '' : isBufferMetric ? `버프점수 100점당 ${formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { text: acquisitionLabel ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
       ].filter((item) => item.text || item.html);
       const popover = `
@@ -3460,7 +3477,7 @@ export function installEnchantView(ctx) {
               <span class="enchant-recommend-sub">${escapeHtml(tierLabel)}</span>
             </span>
             <span class="enchant-recommend-metric">
-              <strong>${acquisitionMarkup || escapeHtml(formatCompactGold(isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent))}</strong>
+              <strong>${acquisitionMarkup || escapeHtml(isFreeActionRecommendation(row) ? '0' : formatCompactGold(isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent))}</strong>
               ${acquisitionLabel ? '' : `<span>${isBufferMetric ? '100점당' : '0.1%당'}</span>`}
             </span>
             ${popover}
