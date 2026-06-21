@@ -759,14 +759,30 @@ function getBufferEnchantSkillDelta(row, current, baseline) {
   const jobName = baseline?.jobName || '';
   const candidateSkills = row?.reinforceSkill || [];
   const currentSkills = current?.reinforceSkill || [];
+  const hasSkillValue = (info, fields) => fields.some((field) => Number(info?.[field] || 0) !== 0);
   return Object.entries(baseline.currentSelfStatSkills || {}).reduce((changes, [skillName, info]) => {
     const levelDelta = getReinforceSkillLevel(candidateSkills, jobName, [skillName])
       - getReinforceSkillLevel(currentSkills, jobName, [skillName]);
     changes.selfStatSkillDelta += getSkillValueDelta(info, 'Stat', levelDelta);
     changes.auraStatDelta += getSkillValueDelta(info, 'PartyStat', levelDelta);
     changes.auraAttackDelta += getSkillValueDelta(info, 'PartyAttack', levelDelta);
+    if (!levelDelta) return changes;
+    const hasAuraValue = hasSkillValue(info, [
+      'previousPartyStat',
+      'currentPartyStat',
+      'nextPartyStat',
+      'previousPartyAttack',
+      'currentPartyAttack',
+      'nextPartyAttack',
+    ]);
+    const hasPrimaryValue = hasSkillValue(info, ['previousStat', 'currentStat', 'nextStat']);
+    if (hasAuraValue) {
+      changes.auraLevels += levelDelta;
+    } else if (hasPrimaryValue) {
+      changes.primaryLevels += levelDelta;
+    }
     return changes;
-  }, { selfStatSkillDelta: 0, auraStatDelta: 0, auraAttackDelta: 0 });
+  }, { selfStatSkillDelta: 0, auraStatDelta: 0, auraAttackDelta: 0, primaryLevels: 0, auraLevels: 0 });
 }
 
 function getItemSkillLevelBonus(item, baseline, skillName, requiredLevel) {
