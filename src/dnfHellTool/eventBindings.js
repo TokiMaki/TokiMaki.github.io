@@ -188,6 +188,19 @@ export function bindToolEvents(ctx) {
     }
     renderRecentSearches();
   };
+  const formatNoticeDate = (dateText = '') => {
+    const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[2]}-${match[3]}` : String(dateText || '');
+  };
+  const isRecentNotice = (dateText = '') => {
+    const match = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return false;
+    const noticeDate = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const ageMs = todayStart.getTime() - noticeDate.getTime();
+    return ageMs >= 0 && ageMs < 2 * 24 * 60 * 60 * 1000;
+  };
   const renderLandingNotices = (rows = []) => {
     if (!els.landingNoticeList) return;
     const notices = rows
@@ -212,10 +225,19 @@ export function bindToolEvents(ctx) {
       summary.className = 'landing-notice-item-summary';
       const date = document.createElement('span');
       date.className = 'landing-notice-item-date';
-      date.textContent = notice.date ? `[${notice.date}]` : '';
+      date.textContent = notice.date ? `[${formatNoticeDate(notice.date)}]` : '';
       const title = document.createElement('span');
       title.className = 'landing-notice-item-title';
-      title.textContent = notice.title;
+      const titleText = document.createElement('span');
+      titleText.className = 'landing-notice-item-title-text';
+      titleText.textContent = notice.title;
+      title.append(titleText);
+      if (isRecentNotice(notice.date)) {
+        const newBadge = document.createElement('span');
+        newBadge.className = 'landing-notice-item-new';
+        newBadge.textContent = 'NEW';
+        title.append(newBadge);
+      }
       summary.append(date, title);
 
       const body = document.createElement('p');
