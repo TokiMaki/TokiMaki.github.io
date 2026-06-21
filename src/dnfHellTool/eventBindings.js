@@ -217,7 +217,7 @@ export function bindToolEvents(ctx) {
       }));
       return;
     }
-    els.landingNoticeList.replaceChildren(...notices.map((notice) => {
+    els.landingNoticeList.replaceChildren(...notices.map((notice, index) => {
       const item = document.createElement('details');
       item.className = 'landing-notice-item';
 
@@ -232,7 +232,7 @@ export function bindToolEvents(ctx) {
       titleText.className = 'landing-notice-item-title-text';
       titleText.textContent = notice.title;
       title.append(titleText);
-      if (isRecentNotice(notice.date)) {
+      if (index < 2 && isRecentNotice(notice.date)) {
         const newBadge = document.createElement('span');
         newBadge.className = 'landing-notice-item-new';
         newBadge.textContent = 'NEW';
