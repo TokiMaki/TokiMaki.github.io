@@ -304,17 +304,19 @@
       margin-top: 16px;
       padding-top: 16px;
       display: flex;
-      align-items: flex-start;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      gap: 12px;
+      gap: 8px;
       border-top: 1px solid var(--line-white-soft);
       color: var(--muted);
       font-size: 12px;
     }
-    .landing-notice span {
+    .landing-notice > span {
       color: var(--accent-2);
       font-weight: 500;
       letter-spacing: 0.12em;
+      text-align: center;
     }
     .landing-notice p {
       margin: 0;
@@ -362,7 +364,7 @@
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      color: var(--text);
+      color: var(--accent-2);
       font-weight: 600;
       font-size: 13px;
       min-width: 0;
