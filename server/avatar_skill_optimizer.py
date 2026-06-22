@@ -8,6 +8,7 @@ from .neople_client import API_KEY, clean_text, fetch_item_details, request_json
 SKILL_ATTACK_PATTERNS = [
     re.compile(r"스킬\s*공격력[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"스킬\s*데미지[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
+    re.compile(r"크리티컬\s*(?:공격력|데미지)\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"피해\s*증폭률[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"속성\s*공격력\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
@@ -15,6 +16,7 @@ SKILL_ATTACK_PATTERNS = [
 SKILL_ATTACK_OPTION_VALUE_PATTERNS = [
     re.compile(r"스킬\s*공격력[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"스킬\s*데미지[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
+    re.compile(r"크리티컬\s*(?:공격력|데미지)\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"피해\s*증폭률[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"속성\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
@@ -135,11 +137,7 @@ def get_current_non_avatar_skill_bonuses(server_id: str, character_id: str, styl
         detail = detail_by_id.get(clean_text(row.get("itemId"))) or {}
         add_current_setup_skill_bonuses(result, detail.get("itemReinforceSkill") or [], job_name, style_rows)
         add_current_setup_skill_bonuses(result, (row.get("enchant") or {}).get("reinforceSkill") or [], job_name, style_rows)
-        item_buff = detail.get("itemBuff") or {}
-        item_buff_reinforce_skill = item_buff.get("reinforceSkill") or []
-        add_current_setup_skill_bonuses(result, item_buff_reinforce_skill, job_name, style_rows)
-        if not item_buff_reinforce_skill:
-            add_current_setup_explain_skill_bonuses(result, item_buff.get("explain") or "", style_rows)
+        add_current_setup_skill_bonuses(result, (detail.get("itemBuff") or {}).get("reinforceSkill") or [], job_name, style_rows)
     return result
 
 
@@ -200,17 +198,31 @@ def get_level_attack_percent(skill_detail: dict, level: int) -> float | None:
     if not isinstance(level_info, dict):
         return None
     option_value_key = find_skill_attack_option_value_key(level_info.get("optionDesc") or "")
+    try:
+        target_level = int(level)
+    except (TypeError, ValueError):
+        return None
 
     for key in ("rows", "option", "levels"):
         rows = level_info.get(key)
         if not isinstance(rows, list):
             continue
+        row_levels = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            try:
+                row_levels.append(int(row.get("level") or row.get("skillLevel") or 0))
+            except (TypeError, ValueError):
+                continue
+        if row_levels and target_level > max(row_levels):
+            target_level = max(row_levels)
         for row in rows:
             if not isinstance(row, dict):
                 continue
             row_level = row.get("level") or row.get("skillLevel")
             try:
-                if int(row_level) != int(level):
+                if int(row_level) != target_level:
                     continue
             except (TypeError, ValueError):
                 continue

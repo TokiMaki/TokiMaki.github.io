@@ -455,7 +455,7 @@ function formatTuneState(equipment = {}) {
   const level = Number(equipment.tuneLevel || 0);
   const setPoint = Number(equipment.tuneSetPoint || 0);
   if (!Number.isFinite(setPoint) || setPoint <= 0) return '';
-  return `조율 ${Number.isFinite(level) ? level : 0}회 · 세트 ${setPoint}`;
+  return `조율 ${Number.isFinite(level) ? level : 0}회`;
 }
 
 function getUpgradeDetailLine(equipment = {}) {
