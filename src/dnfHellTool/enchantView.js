@@ -1220,7 +1220,7 @@ function getCreatureArtifactRows(groups) {
 }
 
 function getTitleRows(groups, currentTitle) {
-  return (groups || []).flatMap((group) => (group.candidates || [])
+  const titleRows = (groups || []).flatMap((group) => (group.candidates || [])
     .map((candidate) => ({
       sourceType: 'title',
       slot: '칭호',
@@ -1246,6 +1246,10 @@ function getTitleRows(groups, currentTitle) {
       purchaseRouteLabel: candidate.purchaseRouteLabel || '',
       titleBead: candidate.titleBead || null,
     })));
+  return [
+    ...titleRows,
+    ...getCurrentTitleBeadRows(titleRows, currentTitle),
+  ];
 }
 
 function getSwitchingTitleRows(recommendations = []) {
@@ -2287,6 +2291,51 @@ function isPreferredTitleEnchantElement(row, baseline, preferredElement = '') {
 
 function getTitleBaseEffectSignature(title) {
   return getEffectSignature(subtractEffects(title?.effects || {}, title?.enchantEffects || {}));
+}
+
+function getCurrentTitleBeadRows(titleRows = [], currentTitle = null) {
+  if (!currentTitle?.itemId) return [];
+  const beadByElement = new Map();
+  titleRows.forEach((row) => {
+    const bead = row?.titleBead;
+    const element = bead?.element || row?.titleEnchantElement || '';
+    const auction = bead?.auction || {};
+    if (!element || !bead?.itemId || !Number.isFinite(auction.minUnitPrice) || auction.minUnitPrice <= 0) return;
+    const previous = beadByElement.get(element);
+    if (!previous || auction.minUnitPrice < ((previous.auction || {}).minUnitPrice || Number.POSITIVE_INFINITY)) {
+      beadByElement.set(element, bead);
+    }
+  });
+  const currentBaseEffects = subtractEffects(currentTitle.effects || {}, currentTitle.enchantEffects || {});
+  return [...beadByElement.values()].map((bead) => ({
+    sourceType: 'title',
+    slot: '칭호',
+    tier: currentTitle.variant || currentTitle.tier || '일반',
+    itemId: currentTitle.itemId,
+    itemName: bead.itemName,
+    itemRarity: currentTitle.itemRarity || '레어',
+    fame: currentTitle.fame,
+    iconUrl: bead.iconUrl || currentTitle.iconUrl || '',
+    effects: addEffects(currentBaseEffects, bead.effects || {}),
+    itemReinforceSkill: currentTitle.itemReinforceSkill || [],
+    itemBuff: currentTitle.itemBuff || {},
+    itemExplain: currentTitle.itemExplain || '',
+    auction: bead.auction || {},
+    candidateName: currentTitle.itemName,
+    groupName: '칭호 보주',
+    levelTag: currentTitle.levelTag,
+    skillDamagePercent: currentTitle.skillDamagePercent,
+    priceItem: {
+      itemId: bead.itemId,
+      itemName: bead.itemName,
+      iconUrl: bead.iconUrl,
+    },
+    titleEnchantElement: bead.element || '',
+    enchantEffects: bead.effects || {},
+    purchaseRoute: 'titleBeadOnly',
+    purchaseRouteLabel: '칭호 보주 교체',
+    titleBead: bead,
+  }));
 }
 
 function isSameTitleBase(row, currentTitle) {
@@ -3416,7 +3465,9 @@ export function installEnchantView(ctx) {
           ? row.purchaseRouteLabel || ''
         : '';
       const tierLabel = row.sourceType === 'title'
-        ? row.tier === '플래티넘' ? '플래티넘' : '일반'
+        ? row.purchaseRoute === 'titleBeadOnly'
+          ? '보주'
+          : row.tier === '플래티넘' ? '플래티넘' : '일반'
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))

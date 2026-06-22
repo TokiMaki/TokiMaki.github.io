@@ -996,7 +996,16 @@ def get_applied_switching_multiplier(raw_multiplier: float, entry: dict) -> floa
 
 
 def get_damage_application_note(entry: dict) -> str:
-    return clean_text(entry.get("damageApplicationNote"))
+    return clean_text(entry.get("damageApplicationNote")).replace("중독 비율", "중독비율")
+
+
+def append_damage_application_note(text: str, note: str) -> str:
+    note = clean_text(note)
+    if not note:
+        return clean_text(text)
+    if not clean_text(text):
+        return f"({note})"
+    return f"{clean_text(text)} ({note})"
 
 
 def auction_row_to_switching_title_price(row: dict) -> dict:
@@ -1172,7 +1181,7 @@ def load_dealer_switching_fragment_recommendations(
         raw_multiplier = candidate_multiplier / current_multiplier
         skill_damage_multiplier = get_applied_switching_multiplier(raw_multiplier, entry)
         note = get_damage_application_note(entry)
-        item_explain = note if note else ""
+        item_explain = append_damage_application_note("", note)
         recommendations.append({
             "kind": "switchingFragment",
             "slot": "짙편린",
@@ -1691,8 +1700,7 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
         item_id = clean_text(creature_option.get("itemId"))
         note = get_damage_application_note(entry)
         item_explain = f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
-        if note:
-            item_explain = f"{item_explain} · {note}"
+        item_explain = append_damage_application_note(item_explain, note)
         recommendations.append({
             "kind": "switchingCreature",
             "slot": "벞강 크리쳐",
@@ -1945,10 +1953,9 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
         if not (0 < damage_application_ratio <= 1):
             damage_application_ratio = 1
         skill_damage_multiplier = 1 + (raw_skill_damage_multiplier - 1) * damage_application_ratio
-        damage_application_note = clean_text(entry.get("damageApplicationNote"))
+        damage_application_note = get_damage_application_note(entry)
         item_explain = f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
-        if damage_application_note:
-            item_explain = f"{item_explain} · {damage_application_note}"
+        item_explain = append_damage_application_note(item_explain, damage_application_note)
         recommendations.append({
             "kind": "switchingTitle",
             "slot": "벞강 칭호",
@@ -2514,7 +2521,7 @@ def get_emblems_by_color(row: dict, color: str) -> list:
 
 
 def get_avatar_damage_emblems(row: dict, config: dict) -> list:
-    if clean_text(config.get("slotId")) in {"WEAPON", "AURORA", "SKIN"}:
+    if clean_text(config.get("slotId")) in {"WEAPON", "AURORA", "SKIN", "JACKET", "PANTS"}:
         return [
             emblem for emblem in row.get("emblems") or []
             if "플래티넘" not in clean_text(emblem.get("slotColor"))
@@ -3013,7 +3020,7 @@ def build_avatar_emblem_recommendations(
             "iconUrl": item.get("iconUrl"),
             "itemExplain": (
                 f"{clean_text(row.get('slotName')) or config.get('slot')} "
-                f"{config.get('color')} {primary_stat_name} 찬란한 엠블렘 교체"
+                f"{item.get('itemName') or item_name} 교체"
             ),
             "effects": (
                 {"bufferStat": stat_gain}
