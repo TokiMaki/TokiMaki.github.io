@@ -28,6 +28,7 @@ from .neople_client import (
     clean_text,
     fetch_item_details,
     get_auction_rows,
+    get_auction_rows_by_name,
     get_item_explain,
     get_item_icon_url,
     get_lowest_auction_price,
@@ -55,6 +56,11 @@ BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}
 CHARACTER_RESPONSE_CACHE_TTL_SECONDS = 15
 UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS = 300
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
+SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT = 100
+SWITCHING_FRAGMENT_AUCTION_MAX_PAGES = 5
+SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT = 3
+AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
+AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 _CHARACTER_RESPONSE_CACHE_LOCK = threading.Lock()
 _CHARACTER_RESPONSE_CACHE = {}
 _UPGRADE_MATERIAL_PRICE_CACHE_LOCK = threading.Lock()
@@ -71,6 +77,8 @@ UPGRADE_MATERIAL_PRICE_ITEMS = {
     "epicSoul": {"label": "에픽 소울 결정", "itemId": "c7d845c65ab9dbcff6e55dc910fbea87"},
     "legendarySoul": {"label": "레전더리 소울 결정", "itemId": "c6947ff630cc59aebdcbabfb449258d1"},
     "radiantSoul": {"label": "광휘의 소울 결정", "itemId": "27a5877768a40a3a0eccc493d0a53b9b"},
+    "primordialSoul": {"label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888"},
+    "pilgrimSeal": {"label": "순례의 인장(1회 교환 가능)", "itemId": "d7e9443a19fe81a9cc8364c201f6ab55"},
 }
 BLACK_FANG_MATERIAL_AUCTION_NAME_MAP = {
     "조화의 결정체": "무결점 조화의 결정체",
@@ -88,8 +96,8 @@ AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "WEAPON", "slot": "무기 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "AURORA", "slot": "오라 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "SKIN", "slot": "피부 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
-    {"slotId": "JACKET", "slot": "상의 아바타", "color": "녹색빛", "kind": "dual", "targetStat": AVATAR_BRILLIANT_DUAL_STAT},
-    {"slotId": "PANTS", "slot": "하의 아바타", "color": "녹색빛", "kind": "dual", "targetStat": AVATAR_BRILLIANT_DUAL_STAT},
+    {"slotId": "JACKET", "slot": "상의 아바타", "color": "녹색빛", "kind": "green", "targetStat": AVATAR_BRILLIANT_GREEN_STAT},
+    {"slotId": "PANTS", "slot": "하의 아바타", "color": "녹색빛", "kind": "green", "targetStat": AVATAR_BRILLIANT_GREEN_STAT},
 ]
 BUFFER_AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "HEADGEAR", "slot": "모자 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT, "bufferStatScope": "common"},
@@ -600,10 +608,15 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "load_character_damage_baseline",
         lambda: load_character_damage_baseline(server_id, character_id, equipment_base_element),
     )
+    upgrade_material_prices = _measure_step(
+        steps,
+        "load_upgrade_material_prices",
+        load_upgrade_material_prices,
+    )
     black_fang_debug = _measure_step(
         steps,
         "build_black_fang_recommendations",
-        lambda: _build_black_fang_recommendations_debug(payload.get("equipment") or []),
+        lambda: _build_black_fang_recommendations_debug(payload.get("equipment") or [], upgrade_material_prices),
     )
     black_fang_recommendations = black_fang_debug.get("recommendations") or []
     oath_upgrades = _measure_step(
@@ -624,7 +637,7 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "oathTuneStageDb": load_oath_tune_stage_db(),
         "blackFangRecommendations": black_fang_recommendations,
         "upgradeExpectedDb": load_upgrade_expected_db(),
-        "upgradeMaterialPrices": load_upgrade_material_prices(),
+        "upgradeMaterialPrices": upgrade_material_prices,
         "debugTimings": {
             "steps": steps,
             "details": {
@@ -1018,6 +1031,50 @@ def auction_row_to_switching_title_price(row: dict) -> dict:
     }
 
 
+def auction_row_to_item_price(row: dict) -> dict:
+    item_id = clean_text(row.get("itemId"))
+    return {
+        "itemId": item_id,
+        "itemName": clean_item_display_name(row.get("itemName")),
+        "itemRarity": clean_text(row.get("itemRarity")),
+        "iconUrl": get_item_icon_url(item_id),
+        "auction": auction_row_to_switching_title_price(row),
+    }
+
+
+def find_lowest_exact_auction_item_by_name(item_name: str, item_type_detail: str = "", word_type: str = "full") -> dict:
+    item_name = clean_text(item_name)
+    item_type_detail = clean_text(item_type_detail)
+    if not item_name:
+        return {}
+    rows = get_auction_rows_by_name(item_name, word_type=word_type, limit=100)
+    matched = [
+        row for row in rows
+        if clean_text(row.get("itemName")) == item_name
+        and (not item_type_detail or clean_text(row.get("itemTypeDetail")) == item_type_detail)
+        and isinstance(row.get("unitPrice") or row.get("currentPrice"), (int, float))
+        and (row.get("unitPrice") or row.get("currentPrice")) > 0
+    ]
+    row = min(matched, key=lambda item: item.get("unitPrice") or item.get("currentPrice"), default=None)
+    return auction_row_to_item_price(row) if row else {}
+
+
+def find_lowest_auction_item_by_allowed_names(query: str, allowed_names: set[str]) -> dict:
+    query = clean_text(query)
+    allowed_names = {clean_text(name) for name in allowed_names or [] if clean_text(name)}
+    if not query or not allowed_names:
+        return {}
+    rows = get_auction_rows_by_name(query, word_type="full", limit=100)
+    matched = [
+        row for row in rows
+        if clean_text(row.get("itemName")) in allowed_names
+        and isinstance(row.get("unitPrice") or row.get("currentPrice"), (int, float))
+        and (row.get("unitPrice") or row.get("currentPrice")) > 0
+    ]
+    row = min(matched, key=lambda item: item.get("unitPrice") or item.get("currentPrice"), default=None)
+    return auction_row_to_item_price(row) if row else {}
+
+
 SWITCHING_FRAGMENT_SLOT_LABELS = {
     "WEAPON": "무기",
     "JACKET": "상의",
@@ -1036,6 +1093,7 @@ SWITCHING_FRAGMENT_SLOT_ALIASES = {
     "어깨": "머리어깨",
     "완장": "보조장비",
 }
+SWITCHING_FRAGMENT_TARGET_SLOTS = set(SWITCHING_FRAGMENT_SLOT_LABELS.values())
 
 
 def normalize_switching_fragment_slot(value: str) -> str:
@@ -1060,6 +1118,37 @@ def switching_skill_name_matches(text: str, buff_skill_name: str) -> bool:
     return normalize_switching_skill_name(buff_skill_name) in normalize_switching_skill_name(text)
 
 
+def switching_fragment_suffix_matches(item_name: str, buff_skill_name: str) -> bool:
+    item_name = clean_text(item_name)
+    if ":" not in item_name:
+        return False
+    suffix = item_name.rsplit(":", 1)[-1].strip()
+    return normalize_switching_skill_name(suffix) == normalize_switching_skill_name(buff_skill_name)
+
+
+def is_switching_fragment_item_name(item_name: str, buff_skill_name: str) -> bool:
+    item_name = clean_text(item_name)
+    if not (
+        item_name.startswith("짙은 심연의 편린 ")
+        or item_name.startswith("짙은 뒤틀린 심연의 ")
+    ):
+        return False
+    if "제작 레시피" in item_name or "[결투장]" in item_name:
+        return False
+    return switching_fragment_suffix_matches(item_name, buff_skill_name)
+
+
+def get_switching_fragment_search_terms(buff_skill_name: str) -> list[str]:
+    terms = []
+    for term in [
+        clean_text(buff_skill_name),
+        re.sub(r"\s+", "", clean_text(buff_skill_name)),
+    ]:
+        if term and term not in terms:
+            terms.append(term)
+    return terms
+
+
 def get_switching_fragment_coefficients(detail: dict, buff_skill_name: str, coefficient_count: int) -> list[float]:
     text = clean_text(detail.get("itemExplainDetail") or detail.get("itemExplain"))
     if buff_skill_name and not switching_skill_name_matches(text, buff_skill_name):
@@ -1072,6 +1161,60 @@ def get_switching_fragment_coefficients(detail: dict, buff_skill_name: str, coef
     if result:
         result[0] = value
     return result
+
+
+def get_switching_fragment_auction_candidate_groups(buff_skill_name: str, job_name: str, dense_slots: set[str]) -> dict:
+    needed_slots = SWITCHING_FRAGMENT_TARGET_SLOTS - set(dense_slots or [])
+    if not needed_slots:
+        return {}
+    groups = {slot: [] for slot in needed_slots}
+    seen_item_ids = set()
+    for search_term in get_switching_fragment_search_terms(buff_skill_name):
+        for page in range(SWITCHING_FRAGMENT_AUCTION_MAX_PAGES):
+            rows = get_auction_rows_by_name(
+                search_term,
+                word_type="full",
+                limit=SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT,
+                offset=page * SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT,
+            )
+            if not rows:
+                break
+            for row in rows:
+                item_id = clean_text(row.get("itemId"))
+                item_name = clean_text(row.get("itemName"))
+                unit_price = row.get("unitPrice") or row.get("currentPrice")
+                if not item_id or item_id in seen_item_ids:
+                    continue
+                if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+                    continue
+                if clean_text(row.get("itemRarity")) != "유니크":
+                    continue
+                if not item_detail_matches_job(row, job_name):
+                    continue
+                if not is_switching_fragment_item_name(item_name, buff_skill_name):
+                    continue
+                slot = get_switching_fragment_slot(row)
+                if slot not in needed_slots or len(groups.get(slot) or []) >= SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT:
+                    continue
+                seen_item_ids.add(item_id)
+                groups[slot].append({
+                    **row,
+                    "itemId": item_id,
+                    "itemName": item_name,
+                    "auction": auction_row_to_switching_title_price(row),
+                })
+            if all(groups.get(slot) for slot in needed_slots):
+                break
+        if all(groups.get(slot) for slot in needed_slots):
+            break
+    return {slot: rows for slot, rows in groups.items() if rows}
+
+
+def item_detail_matches_job(detail: dict, job_name: str) -> bool:
+    jobs = detail.get("jobs") or []
+    if not jobs:
+        return True
+    return any(clean_text(job.get("jobName")) == clean_text(job_name) for job in jobs)
 
 
 def get_switching_fragment_candidate_items(buff_skill_name: str, job_name: str) -> list:
@@ -1136,24 +1279,34 @@ def load_dealer_switching_fragment_recommendations(
         if "짙은" in clean_text(row.get("itemName")) and "심연" in clean_text(row.get("itemName"))
     }
 
-    candidate_items = get_switching_fragment_candidate_items(buff_skill_name, job_name)
-    candidate_by_slot = {}
-    for row in candidate_items:
-        slot = get_switching_fragment_slot(row)
-        if not slot or slot in dense_slots:
-            continue
-        auction = get_lowest_switching_fragment_auction(clean_text(row.get("itemId")))
-        unit_price = auction.get("minUnitPrice")
-        if not isinstance(unit_price, (int, float)) or unit_price <= 0:
-            continue
-        row = {**row, "auction": auction}
-        previous = candidate_by_slot.get(slot)
-        previous_price = (previous.get("auction") or {}).get("minUnitPrice") if previous else None
-        if not previous or unit_price < previous_price:
-            candidate_by_slot[slot] = row
+    candidate_groups_by_slot = get_switching_fragment_auction_candidate_groups(buff_skill_name, job_name, dense_slots)
+    missing_candidate_slots = SWITCHING_FRAGMENT_TARGET_SLOTS - set(dense_slots) - set(candidate_groups_by_slot)
+    if missing_candidate_slots:
+        candidate_items = get_switching_fragment_candidate_items(buff_skill_name, job_name)
+        candidate_by_slot = {}
+        for row in candidate_items:
+            slot = get_switching_fragment_slot(row)
+            if not slot or slot not in missing_candidate_slots:
+                continue
+            auction = get_lowest_switching_fragment_auction(clean_text(row.get("itemId")))
+            unit_price = auction.get("minUnitPrice")
+            if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+                continue
+            row = {**row, "auction": auction}
+            previous = candidate_by_slot.get(slot)
+            previous_price = (previous.get("auction") or {}).get("minUnitPrice") if previous else None
+            if not previous or unit_price < previous_price:
+                candidate_by_slot[slot] = row
+        for slot, row in candidate_by_slot.items():
+            candidate_groups_by_slot.setdefault(slot, [row])
 
+    candidate_rows = [
+        row
+        for rows in candidate_groups_by_slot.values()
+        for row in rows
+    ]
     item_ids = [
-        *[clean_text(row.get("itemId")) for row in candidate_by_slot.values()],
+        *[clean_text(row.get("itemId")) for row in candidate_rows],
         *[clean_text(row.get("itemId")) for row in current_by_slot.values()],
     ]
     detail_by_id = {
@@ -1163,44 +1316,48 @@ def load_dealer_switching_fragment_recommendations(
     }
     current_multiplier = get_switching_damage_multiplier(current_coefficients)
     recommendations = []
-    for slot, row in candidate_by_slot.items():
-        candidate_detail = detail_by_id.get(clean_text(row.get("itemId"))) or {}
-        candidate_delta = get_switching_fragment_coefficients(candidate_detail, buff_skill_name, len(current_coefficients))
-        if not any(candidate_delta):
-            continue
-        current_row = current_by_slot.get(slot) or {}
-        current_detail = detail_by_id.get(clean_text(current_row.get("itemId"))) or {}
-        current_delta = get_switching_fragment_coefficients(current_detail, buff_skill_name, len(current_coefficients))
-        candidate_coefficients = [
-            current - old + new
-            for current, old, new in zip(current_coefficients, current_delta, candidate_delta)
-        ]
-        candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
-        if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
-            continue
-        raw_multiplier = candidate_multiplier / current_multiplier
-        skill_damage_multiplier = get_applied_switching_multiplier(raw_multiplier, entry)
-        note = get_damage_application_note(entry)
-        item_explain = append_damage_application_note("", note)
-        recommendations.append({
-            "kind": "switchingFragment",
-            "slot": "짙편린",
-            "tier": "버프강화",
-            "itemId": clean_text(row.get("itemId")),
-            "itemName": clean_item_display_name(row.get("itemName")),
-            "itemRarity": clean_text(row.get("itemRarity")) or "유니크",
-            "iconUrl": get_item_icon_url(clean_text(row.get("itemId"))),
-            "fame": row.get("fame"),
-            "auction": row.get("auction") or {},
-            "effects": {"skillDamageMultiplier": skill_damage_multiplier},
-            "skillDamageMultiplier": skill_damage_multiplier,
-            "rawSkillDamageMultiplier": raw_multiplier,
-            "damageApplicationNote": note,
-            "itemExplain": item_explain,
-            "buffSkillName": buff_skill_name,
-            "switchingSlot": slot,
-            "purchaseRouteLabel": "",
-        })
+    for slot, rows in candidate_groups_by_slot.items():
+        for row in rows:
+            candidate_detail = detail_by_id.get(clean_text(row.get("itemId"))) or {}
+            if not item_detail_matches_job(candidate_detail, job_name):
+                continue
+            candidate_delta = get_switching_fragment_coefficients(candidate_detail, buff_skill_name, len(current_coefficients))
+            if not any(candidate_delta):
+                continue
+            current_row = current_by_slot.get(slot) or {}
+            current_detail = detail_by_id.get(clean_text(current_row.get("itemId"))) or {}
+            current_delta = get_switching_fragment_coefficients(current_detail, buff_skill_name, len(current_coefficients))
+            candidate_coefficients = [
+                current - old + new
+                for current, old, new in zip(current_coefficients, current_delta, candidate_delta)
+            ]
+            candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
+            if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
+                continue
+            raw_multiplier = candidate_multiplier / current_multiplier
+            skill_damage_multiplier = get_applied_switching_multiplier(raw_multiplier, entry)
+            note = get_damage_application_note(entry)
+            item_explain = append_damage_application_note("", note)
+            recommendations.append({
+                "kind": "switchingFragment",
+                "slot": "짙편린",
+                "tier": "버프강화",
+                "itemId": clean_text(row.get("itemId")),
+                "itemName": clean_item_display_name(row.get("itemName")),
+                "itemRarity": clean_text(row.get("itemRarity")) or "유니크",
+                "iconUrl": get_item_icon_url(clean_text(row.get("itemId"))),
+                "fame": row.get("fame"),
+                "auction": row.get("auction") or {},
+                "effects": {"skillDamageMultiplier": skill_damage_multiplier},
+                "skillDamageMultiplier": skill_damage_multiplier,
+                "rawSkillDamageMultiplier": raw_multiplier,
+                "damageApplicationNote": note,
+                "itemExplain": item_explain,
+                "buffSkillName": buff_skill_name,
+                "switchingSlot": slot,
+                "purchaseRouteLabel": "",
+            })
+            break
     return recommendations
 
 
@@ -2892,6 +3049,12 @@ def get_avatar_platinum_damage_percent(slot_label: str) -> float:
 
 def find_lowest_exact_item_by_name(item_name: str) -> dict:
     item_name = clean_text(item_name)
+    try:
+        auction_item = find_lowest_exact_auction_item_by_name(item_name)
+        if auction_item:
+            return auction_item
+    except Exception:
+        pass
     rows = search_items_by_name(item_name)
     exact_rows = [
         row for row in rows
@@ -2934,6 +3097,18 @@ def find_exact_item_by_name(item_name: str, item_type_detail: str = "") -> dict:
     return matched[0] if matched else {}
 
 
+def find_exact_item_by_match_name(item_name: str, item_type_detail: str = "", limit: int = 5) -> dict:
+    item_name = clean_text(item_name)
+    item_type_detail = clean_text(item_type_detail)
+    rows = search_items_by_name(item_name, word_type="match", limit=limit)
+    matched = [
+        row for row in rows
+        if clean_text(row.get("itemName")) == item_name
+        and (not item_type_detail or clean_text(row.get("itemTypeDetail")) == item_type_detail)
+    ]
+    return matched[0] if matched else {}
+
+
 def get_avatar_emblem_item_name(stat_name: str, kind: str) -> str:
     if kind == "red":
         return f"찬란한 붉은빛 엠블렘[{stat_name}]"
@@ -2945,34 +3120,88 @@ def get_avatar_emblem_item_name(stat_name: str, kind: str) -> str:
     return f"찬란한 듀얼 엠블렘[{stat_name} + {critical_name}]"
 
 
-def find_lowest_buffer_emblem_item(stat_name: str, kind: str) -> dict:
-    exact_name = get_avatar_emblem_item_name(stat_name, kind)
-    candidates = [find_lowest_exact_item_by_name(exact_name)]
-    if kind == "green" and stat_name == "지능":
-        seen_names = {exact_name}
-        for row in search_items_by_name("찬란한 듀얼 엠블렘[지능"):
-            item_name = clean_text(row.get("itemName"))
-            if item_name.startswith("찬란한 듀얼 엠블렘[지능 +") and item_name not in seen_names:
-                seen_names.add(item_name)
-                candidates.append(find_lowest_exact_item_by_name(item_name))
-    priced = [
-        item for item in candidates
-        if isinstance((item.get("auction") or {}).get("minUnitPrice"), (int, float))
-        and (item.get("auction") or {}).get("minUnitPrice") > 0
-    ]
+def get_avatar_emblem_search_prefixes(kind: str) -> list[str]:
+    if kind == "red":
+        return ["찬란한 붉은빛 엠블렘["]
+    if kind == "yellow":
+        return ["찬란한 옐로우 엠블렘["]
+    if kind == "green":
+        return ["찬란한 그린 엠블렘[", "찬란한 듀얼 엠블렘["]
+    return ["찬란한 듀얼 엠블렘["]
+
+
+def find_lowest_avatar_emblem_by_prefix(stat_name: str, kind: str, debug_steps: list | None = None) -> dict:
+    stat_name = clean_text(stat_name)
+    candidates = []
+    seen_ids = set()
+    for prefix in get_avatar_emblem_search_prefixes(kind):
+        started_at = time.perf_counter()
+        prefix_candidate = {}
+        pages_checked = 0
+        rows_checked = 0
+        for page in range(AVATAR_EMBLEM_AUCTION_MAX_PAGES):
+            try:
+                rows = get_auction_rows_by_name(
+                    prefix,
+                    word_type="front",
+                    limit=AVATAR_EMBLEM_AUCTION_PAGE_LIMIT,
+                    offset=page * AVATAR_EMBLEM_AUCTION_PAGE_LIMIT,
+                )
+            except Exception:
+                rows = []
+            if not rows:
+                break
+            pages_checked += 1
+            rows_checked += len(rows)
+            for row in rows:
+                item_name = clean_text(row.get("itemName"))
+                item_id = clean_text(row.get("itemId"))
+                unit_price = row.get("unitPrice") or row.get("currentPrice")
+                if not item_id or item_id in seen_ids:
+                    continue
+                if clean_text(row.get("itemTypeDetail")) != "엠블렘":
+                    continue
+                if not item_name.startswith(prefix):
+                    continue
+                if f"[{stat_name}" not in item_name and f"+ {stat_name}" not in item_name:
+                    continue
+                if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+                    continue
+                seen_ids.add(item_id)
+                prefix_candidate = auction_row_to_item_price(row)
+                break
+            if prefix_candidate or len(rows) < AVATAR_EMBLEM_AUCTION_PAGE_LIMIT:
+                break
+        if debug_steps is not None:
+            auction = prefix_candidate.get("auction") or {}
+            debug_steps.append({
+                "name": "find_avatar_emblem_prefix_candidate",
+                "ms": round((time.perf_counter() - started_at) * 1000, 1),
+                "prefix": prefix,
+                "stat": stat_name,
+                "kind": clean_text(kind),
+                "pages": pages_checked,
+                "rows": rows_checked,
+                "matched": bool(prefix_candidate),
+                "itemName": clean_text(prefix_candidate.get("itemName")),
+                "minUnitPrice": auction.get("minUnitPrice"),
+            })
+        if prefix_candidate:
+            candidates.append(prefix_candidate)
     return min(
-        priced or candidates,
+        candidates,
         key=lambda item: (item.get("auction") or {}).get("minUnitPrice") or 10**30,
-        default={"itemName": exact_name, "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}},
+        default={},
     )
 
 
-def build_avatar_emblem_recommendations(
+def build_avatar_emblem_recommendations_debug(
     avatar_rows: list,
     primary_stat_name: str,
     configs: list | None = None,
     buffer_mode: bool = False,
-) -> list:
+) -> dict:
+    steps = []
     recommendations = []
     item_cache = {}
     for config in configs or AVATAR_EMBLEM_RECOMMENDATIONS:
@@ -2998,11 +3227,19 @@ def build_avatar_emblem_recommendations(
         item_name = get_avatar_emblem_item_name(primary_stat_name, config.get("kind"))
         item_cache_key = (primary_stat_name, config.get("kind"))
         if item_cache_key not in item_cache:
-            item_cache[item_cache_key] = (
-                find_lowest_buffer_emblem_item(primary_stat_name, config.get("kind"))
-                if buffer_mode
-                else find_lowest_exact_item_by_name(item_name)
-            )
+            lookup_started_at = time.perf_counter()
+            prefix_item = find_lowest_avatar_emblem_by_prefix(primary_stat_name, config.get("kind"), steps)
+            item = prefix_item or find_lowest_exact_item_by_name(item_name)
+            item_cache[item_cache_key] = item
+            steps.append({
+                "name": "find_avatar_emblem_price_item",
+                "ms": round((time.perf_counter() - lookup_started_at) * 1000, 1),
+                "stat": primary_stat_name,
+                "kind": clean_text(config.get("kind")),
+                "source": "prefixAuction" if prefix_item else "exactFallback",
+                "itemName": clean_text(item.get("itemName")),
+                "minUnitPrice": (item.get("auction") or {}).get("minUnitPrice"),
+            })
         item = item_cache[item_cache_key]
         auction = dict(item.get("auction") or {})
         unit_price = auction.get("minUnitPrice")
@@ -3034,7 +3271,21 @@ def build_avatar_emblem_recommendations(
             "bufferStatScope": clean_text(config.get("bufferStatScope")),
             "recommendationPriority": 0,
         })
-    return recommendations
+    return {"recommendations": recommendations, "steps": steps}
+
+
+def build_avatar_emblem_recommendations(
+    avatar_rows: list,
+    primary_stat_name: str,
+    configs: list | None = None,
+    buffer_mode: bool = False,
+) -> list:
+    return build_avatar_emblem_recommendations_debug(
+        avatar_rows,
+        primary_stat_name,
+        configs,
+        buffer_mode,
+    ).get("recommendations") or []
 
 
 def get_buffer_avatar_emblem_configs(switching_rows: list) -> tuple[list, list]:
@@ -3110,25 +3361,56 @@ def format_materials_text(materials: list) -> str:
     return " / ".join(parts)
 
 
-def enrich_black_fang_materials(materials: list) -> list:
+def find_material_price_by_label(material_prices: dict | None, label: str) -> dict:
+    label = clean_text(label)
+    for row in (material_prices or {}).values():
+        if clean_text(row.get("label")) == label:
+            return row
+    return {}
+
+
+def enrich_black_fang_materials(
+    materials: list,
+    material_price_cache: dict | None = None,
+    material_prices: dict | None = None,
+) -> list:
+    material_price_cache = material_price_cache if material_price_cache is not None else {}
     enriched = []
     for material in materials or []:
         label = clean_text(material.get("label"))
         if not label:
             continue
         auction_name = BLACK_FANG_MATERIAL_AUCTION_NAME_MAP.get(label, label)
-        item_id = clean_text(BLACK_FANG_MATERIAL_AUCTION_ITEM_ID_MAP.get(auction_name))
-        item = {} if item_id else find_exact_item_by_name(auction_name)
-        item_id = clean_text(item_id or item.get("itemId"))
-        try:
-            auction = get_lowest_auction_price(item_id) if item_id else {}
-        except Exception:
-            auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+        cached = material_price_cache.get(auction_name)
+        if cached:
+            item_id = clean_text(cached.get("itemId"))
+            item_name = clean_text(cached.get("itemName")) or auction_name
+            auction = dict(cached.get("auction") or {})
+        else:
+            material_price = find_material_price_by_label(material_prices, auction_name)
+            if material_price:
+                item_id = clean_text(material_price.get("itemId"))
+                item_name = clean_text(material_price.get("label")) or auction_name
+                auction = dict(material_price.get("auction") or {})
+            else:
+                item_id = clean_text(BLACK_FANG_MATERIAL_AUCTION_ITEM_ID_MAP.get(auction_name))
+                item = {} if item_id else find_exact_item_by_name(auction_name)
+                item_id = clean_text(item_id or item.get("itemId"))
+                try:
+                    auction = get_lowest_auction_price(item_id) if item_id else {}
+                except Exception:
+                    auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                item_name = clean_text(item.get("itemName")) or auction_name
+            material_price_cache[auction_name] = {
+                "itemId": item_id,
+                "itemName": item_name,
+                "auction": dict(auction or {}),
+            }
         enriched.append({
             "label": label,
             "amount": material.get("amount"),
             "itemId": item_id,
-            "itemName": clean_text(item.get("itemName")) or auction_name,
+            "itemName": item_name,
             "auctionName": auction_name,
             "iconUrl": get_item_icon_url(item_id),
             "auction": auction,
@@ -3141,7 +3423,7 @@ def get_black_fang_scroll_name(set_item_name: str) -> str:
     return f"흑아 태초 변환서 - {set_name}" if set_name else ""
 
 
-def _build_black_fang_recommendations_debug(equipment_rows: list) -> dict:
+def _build_black_fang_recommendations_debug(equipment_rows: list, material_prices: dict | None = None) -> dict:
     steps = []
     targets = [
         equipment for equipment in equipment_rows or []
@@ -3156,9 +3438,17 @@ def _build_black_fang_recommendations_debug(equipment_rows: list) -> dict:
     target_pairs = []
     scroll_names = sorted({get_black_fang_scroll_name(equipment.get("setItemName")) for equipment in targets if get_black_fang_scroll_name(equipment.get("setItemName"))})
     scroll_items = {}
+    scroll_auction_hits = 0
+    scroll_fallback_hits = 0
     scroll_lookup_started_at = time.perf_counter()
     for scroll_name in scroll_names:
-        scroll = find_exact_item_by_name(scroll_name)
+        scroll = find_lowest_exact_auction_item_by_name(scroll_name, word_type="match")
+        if scroll.get("itemId"):
+            scroll_auction_hits += 1
+        else:
+            scroll = find_exact_item_by_name(scroll_name)
+            if scroll.get("itemId"):
+                scroll_fallback_hits += 1
         if scroll.get("itemId"):
             scroll_items[scroll_name] = scroll
             item_ids.append(scroll.get("itemId"))
@@ -3166,11 +3456,21 @@ def _build_black_fang_recommendations_debug(equipment_rows: list) -> dict:
         "name": "find_scroll_items",
         "ms": round((time.perf_counter() - scroll_lookup_started_at) * 1000, 1),
         "count": len(scroll_names),
+        "auctionHitCount": scroll_auction_hits,
+        "fallbackHitCount": scroll_fallback_hits,
     })
     black_item_lookup_started_at = time.perf_counter()
+    black_match_hits = 0
+    black_fallback_hits = 0
     for equipment in targets:
         black_name = f"흑아 : {clean_text(equipment.get('itemName'))}"
-        black_item = find_exact_item_by_name(black_name, clean_text(equipment.get("itemTypeDetail")))
+        black_item = find_exact_item_by_match_name(black_name, clean_text(equipment.get("itemTypeDetail")))
+        if black_item.get("itemId"):
+            black_match_hits += 1
+        else:
+            black_item = find_exact_item_by_name(black_name, clean_text(equipment.get("itemTypeDetail")))
+            if black_item.get("itemId"):
+                black_fallback_hits += 1
         if not black_item.get("itemId"):
             continue
         target_pairs.append((equipment, black_item))
@@ -3179,6 +3479,8 @@ def _build_black_fang_recommendations_debug(equipment_rows: list) -> dict:
         "name": "find_black_items",
         "ms": round((time.perf_counter() - black_item_lookup_started_at) * 1000, 1),
         "count": len(targets),
+        "matchHitCount": black_match_hits,
+        "fallbackHitCount": black_fallback_hits,
     })
 
     details_by_id = _measure_step(
@@ -3193,16 +3495,19 @@ def _build_black_fang_recommendations_debug(equipment_rows: list) -> dict:
     recommendations = []
     auction_lookup_ms = 0.0
     material_enrich_ms = 0.0
+    material_price_cache = {}
     for equipment, black_item in target_pairs:
         scroll_name = get_black_fang_scroll_name(equipment.get("setItemName"))
         scroll_item = scroll_items.get(scroll_name) or {}
         scroll_id = scroll_item.get("itemId")
         if scroll_id not in scroll_price_cache:
             auction_started_at = time.perf_counter()
-            try:
-                auction = get_lowest_auction_price(scroll_id) if scroll_id else {}
-            except Exception:
-                auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+            auction = dict(scroll_item.get("auction") or {})
+            if not isinstance(auction.get("minUnitPrice"), (int, float)):
+                try:
+                    auction = get_lowest_auction_price(scroll_id) if scroll_id else {}
+                except Exception:
+                    auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
             scroll_price_cache[scroll_id] = auction
             auction_lookup_ms += (time.perf_counter() - auction_started_at) * 1000
         auction = dict(scroll_price_cache.get(scroll_id) or {})
@@ -3226,7 +3531,7 @@ def _build_black_fang_recommendations_debug(equipment_rows: list) -> dict:
         if not effects:
             continue
         material_started_at = time.perf_counter()
-        materials = enrich_black_fang_materials(scroll_cost.get("materials") or [])
+        materials = enrich_black_fang_materials(scroll_cost.get("materials") or [], material_price_cache, material_prices)
         material_enrich_ms += (time.perf_counter() - material_started_at) * 1000
         material_text = format_materials_text(materials)
         recommendations.append({
@@ -3256,13 +3561,14 @@ def _build_black_fang_recommendations_debug(equipment_rows: list) -> dict:
             "name": "enrich_material_items",
             "ms": round(material_enrich_ms, 1),
             "count": len(recommendations),
+            "uniqueMaterialCount": len(material_price_cache),
         },
     ])
     return {"recommendations": recommendations, "steps": steps}
 
 
 def build_black_fang_recommendations(equipment_rows: list) -> list:
-    return _build_black_fang_recommendations_debug(equipment_rows).get("recommendations") or []
+    return _build_black_fang_recommendations_debug(equipment_rows, load_upgrade_material_prices()).get("recommendations") or []
 
 
 def find_avatar_option_entry(payload: dict, preferred_role: str = "", preferred_variant: str = "") -> dict:
@@ -3307,6 +3613,12 @@ def find_avatar_option_entry(payload: dict, preferred_role: str = "", preferred_
 
 def find_avatar_platinum_item(skill_name: str) -> dict:
     item_name = f"플래티넘 엠블렘[{clean_text(skill_name)}]"
+    try:
+        auction_item = find_lowest_exact_auction_item_by_name(item_name)
+        if auction_item:
+            return auction_item
+    except Exception:
+        pass
     rows = search_items_by_name(item_name)
     exact_rows = [
         row for row in rows
@@ -3353,6 +3665,15 @@ def find_avatar_platinum_selection_box() -> dict:
     seen_ids = set()
     for item_name in ["플래티넘 엠블렘 선택 상자", "플래티넘 선택 상자", "엠블렘 선택 상자"]:
         try:
+            auction_item = find_lowest_auction_item_by_allowed_names(item_name, selectable_names)
+        except Exception:
+            auction_item = {}
+        if clean_text(auction_item.get("itemName")) in selectable_names:
+            item_id = clean_text(auction_item.get("itemId"))
+            if item_id and item_id not in seen_ids:
+                seen_ids.add(item_id)
+                candidates.append(auction_item)
+        try:
             rows = search_items_by_name(item_name)
         except Exception:
             continue
@@ -3383,6 +3704,7 @@ def find_avatar_platinum_selection_box() -> dict:
 
 
 def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_selection_box: bool = False) -> dict:
+    debug_steps = []
     normalized_skill_names = []
     for skill_name in skill_names or []:
         skill_name = clean_text(skill_name)
@@ -3393,7 +3715,15 @@ def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_
 
     direct_candidates = []
     for skill_name in normalized_skill_names:
+        started_at = time.perf_counter()
         item = find_avatar_platinum_item(skill_name)
+        debug_steps.append({
+            "name": "find_avatar_platinum_item",
+            "ms": round((time.perf_counter() - started_at) * 1000, 1),
+            "skillName": skill_name,
+            "itemName": clean_text(item.get("itemName")),
+            "minUnitPrice": (item.get("auction") or {}).get("minUnitPrice"),
+        })
         direct_candidates.append({
             **item,
             "targetSkillName": skill_name,
@@ -3403,7 +3733,16 @@ def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_
         key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
         default={},
     )
-    selection_box = find_avatar_platinum_selection_box() if allow_selection_box else {}
+    selection_box = {}
+    if allow_selection_box:
+        started_at = time.perf_counter()
+        selection_box = find_avatar_platinum_selection_box()
+        debug_steps.append({
+            "name": "find_avatar_platinum_selection_box",
+            "ms": round((time.perf_counter() - started_at) * 1000, 1),
+            "itemName": clean_text(selection_box.get("itemName")),
+            "minUnitPrice": (selection_box.get("auction") or {}).get("minUnitPrice"),
+        })
     direct_price = direct.get("auction", {}).get("minUnitPrice")
     box_price = selection_box.get("auction", {}).get("minUnitPrice")
     use_box = (
@@ -3425,6 +3764,7 @@ def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_
         "targetSkillName": target_skill_name,
         "equivalentSkillNames": normalized_skill_names,
         "priceWarningText": "선택 상자는 교환불가 아바타에만 사용 가능" if use_box else "",
+        "_debugTimings": debug_steps,
     }
 
 
@@ -3504,6 +3844,7 @@ def get_avatar_platinum_skill_damage_multiplier(
 
 def load_character_avatar(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> dict:
     steps = []
+    timing_details = {}
     payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
     avatar_rows = payload.get("avatar") or []
     jacket = get_avatar_slot(avatar_rows, "JACKET")
@@ -3697,6 +4038,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                             f"choose_avatar_platinum_price_item:buff:{buff_skill_name}",
                             lambda skill_names=equivalent_platinum_skills: choose_avatar_platinum_price_item_from_skills(skill_names, allow_selection_box=True),
                         )
+                        timing_details[f"choose_avatar_platinum_price_item:buff:{buff_skill_name}"] = switching_platinum_item.get("_debugTimings") or []
                     item = switching_platinum_item
                     item_id = clean_text(item.get("itemId"))
                     target_skill_name = clean_text(item.get("targetSkillName")) or buff_skill_name
@@ -3761,6 +4103,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 f"choose_avatar_platinum_price_item:{slot_label}",
                 lambda skill_name=target_platinum_skill: choose_avatar_platinum_price_item(skill_name, allow_selection_box=True),
             )
+            timing_details[f"choose_avatar_platinum_price_item:{slot_label}"] = item.get("_debugTimings") or []
             slot_id = "JACKET" if slot_label == "상의 아바타" else "PANTS"
             platinum_delta = buffer_platinum_deltas.get(slot_id) or {}
             buffer_stat_scope = (
@@ -3827,32 +4170,38 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             })
     if buffer_stat_name:
         current_buffer_configs, switching_buffer_configs = get_buffer_avatar_emblem_configs(switching_rows)
-        recommendations.extend(_measure_step(
+        current_emblem_debug = _measure_step(
             steps,
             "build_buffer_avatar_emblem_recommendations",
-            lambda: build_avatar_emblem_recommendations(
+            lambda: build_avatar_emblem_recommendations_debug(
                 avatar_rows,
                 primary_stat_name,
                 current_buffer_configs,
                 True,
             ),
-        ))
-        recommendations.extend(_measure_step(
+        )
+        timing_details["build_buffer_avatar_emblem_recommendations"] = current_emblem_debug.get("steps") or []
+        recommendations.extend(current_emblem_debug.get("recommendations") or [])
+        switching_emblem_debug = _measure_step(
             steps,
             "build_buffer_switching_avatar_emblem_recommendations",
-            lambda: build_avatar_emblem_recommendations(
+            lambda: build_avatar_emblem_recommendations_debug(
                 switching_rows,
                 primary_stat_name,
                 switching_buffer_configs,
                 True,
             ),
-        ))
+        )
+        timing_details["build_buffer_switching_avatar_emblem_recommendations"] = switching_emblem_debug.get("steps") or []
+        recommendations.extend(switching_emblem_debug.get("recommendations") or [])
     else:
-        recommendations.extend(_measure_step(
+        emblem_debug = _measure_step(
             steps,
             "build_avatar_emblem_recommendations",
-            lambda: build_avatar_emblem_recommendations(avatar_rows, primary_stat_name),
-        ))
+            lambda: build_avatar_emblem_recommendations_debug(avatar_rows, primary_stat_name),
+        )
+        timing_details["build_avatar_emblem_recommendations"] = emblem_debug.get("steps") or []
+        recommendations.extend(emblem_debug.get("recommendations") or [])
     return {
         "serverId": payload.get("serverId"),
         "characterId": payload.get("characterId"),
@@ -3897,5 +4246,6 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         "recommendations": recommendations,
         "debugTimings": {
             "steps": steps,
+            "details": timing_details,
         },
     }

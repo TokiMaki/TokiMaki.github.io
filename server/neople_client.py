@@ -96,6 +96,19 @@ def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 10
     return request_json(url).get("rows") or []
 
 
+def get_auction_rows_by_name(item_name: str, word_type: str = "full", limit: int = 100, offset: int = 0) -> list:
+    params = {
+        "itemName": clean_text(item_name),
+        "wordType": clean_text(word_type) or "full",
+        "limit": limit,
+        "offset": offset,
+        "sort": "unitPrice:asc",
+        "apikey": API_KEY,
+    }
+    url = f"https://api.neople.co.kr/df/auction?{urlencode(params)}"
+    return request_json(url).get("rows") or []
+
+
 def _lowest_auction_price_from_rows(rows: list) -> dict:
     priced_rows = [
         row for row in rows
@@ -180,19 +193,21 @@ def get_item_explain(detail: dict) -> str:
     return clean_text(detail.get("itemExplainDetail") or detail.get("itemExplain"))
 
 
-def search_items_by_name(item_name: str, max_pages: int = 1) -> list:
+def search_items_by_name(item_name: str, max_pages: int = 1, word_type: str = "full", limit: int = 100) -> list:
     max_pages = max(1, int(max_pages or 1))
-    cache_key = f"{clean_text(item_name)}::pages={max_pages}"
+    word_type = clean_text(word_type) or "full"
+    limit = max(1, min(100, int(limit or 100)))
+    cache_key = f"{clean_text(item_name)}::word={word_type}::limit={limit}::pages={max_pages}"
     with _ITEM_SEARCH_CACHE_LOCK:
         cached = _ITEM_SEARCH_CACHE.get(cache_key)
         if cached is not None:
             return [dict(row) for row in cached]
     rows = []
     for page in range(max_pages):
-        offset = page * 100
+        offset = page * limit
         url = (
             "https://api.neople.co.kr/df/items"
-            f"?itemName={quote(item_name)}&wordType=full&limit=100&offset={offset}&apikey={API_KEY}"
+            f"?itemName={quote(item_name)}&wordType={quote(word_type)}&limit={limit}&offset={offset}&apikey={API_KEY}"
         )
         page_rows = request_json(url).get("rows") or []
         rows.extend(page_rows)
