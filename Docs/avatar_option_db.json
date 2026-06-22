@@ -1668,10 +1668,15 @@
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "법력 강화"
+          "법력 강화",
+          "천녀기우제"
         ],
         "platinumEmblems": [
           "법력 강화"
+        ],
+        "platinumCandidates": [
+          "법력 강화",
+          "천녀기우제"
         ],
         "needsReview": false,
         "extractor": "dfmax-avatar-adoption-rank-v1",

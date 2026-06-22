@@ -100,8 +100,10 @@ def start_cache_refresh(cache: dict, refresh_fn, name: str = "price") -> bool:
     return True
 
 
-def start_periodic_price_refresh(refresh_jobs, interval: int = PRICE_REFRESH_INTERVAL_SECONDS):
+def start_periodic_price_refresh(refresh_jobs, interval: int = PRICE_REFRESH_INTERVAL_SECONDS, run_immediately: bool = True):
     def refresh_loop():
+        if not run_immediately:
+            time.sleep(interval)
         while True:
             for job in refresh_jobs:
                 if len(job) == 3:
