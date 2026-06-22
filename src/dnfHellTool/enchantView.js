@@ -2703,7 +2703,13 @@ function formatTitlePurchaseRouteLabel(row) {
 
 export function installEnchantView(ctx) {
   const { els, state } = ctx;
-  const { API_BASE, ENCHANT_INCLUDE_FILTER_STORAGE_KEY, normalizeApiErrorMessage, parseApiJsonResponse } = ctx.constants;
+  const {
+    API_BASE,
+    ENCHANT_INCLUDE_FILTER_STORAGE_KEY,
+    ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY,
+    normalizeApiErrorMessage,
+    parseApiJsonResponse,
+  } = ctx.constants;
   const { bindCharacterAvatars, escapeHtml, getCharacterPortraitMarkup } = ctx.deps;
 
   state.enchantCards = [];
@@ -3118,11 +3124,22 @@ export function installEnchantView(ctx) {
       }
     }
     if (storedChecked) {
-      const knownKeys = new Set(storedChecked);
+      let knownKeys = null;
+      if (ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY) {
+        try {
+          const parsedKnown = JSON.parse(localStorage.getItem(ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY) || 'null');
+          if (Array.isArray(parsedKnown)) knownKeys = new Set(parsedKnown.filter((key) => typeof key === 'string'));
+        } catch {
+          knownKeys = null;
+        }
+      }
+      const hadKnownKeys = Boolean(knownKeys);
+      knownKeys = knownKeys || new Set(ENCHANT_INCLUDE_ORDER);
       let addedNewKey = false;
       ENCHANT_INCLUDE_ORDER.forEach((key) => {
         if (!knownKeys.has(key)) {
           storedChecked.add(key);
+          knownKeys.add(key);
           addedNewKey = true;
         }
       });
@@ -3131,6 +3148,13 @@ export function installEnchantView(ctx) {
           localStorage.setItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY, JSON.stringify([...storedChecked]));
         } catch {
           // 저장소를 쓸 수 없어도 현재 렌더에서는 신규 항목을 켠다.
+        }
+      }
+      if ((!hadKnownKeys || addedNewKey) && ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY) {
+        try {
+          localStorage.setItem(ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY, JSON.stringify([...knownKeys]));
+        } catch {
+          // known 키 저장 실패는 현재 체크 상태에 영향 주지 않는다.
         }
       }
     }
