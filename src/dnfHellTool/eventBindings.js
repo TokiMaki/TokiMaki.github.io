@@ -467,9 +467,10 @@ if (els.enchantTitleBeadOnlyToggle) {
 }
 if (els.enchantMaterialCostToggle) {
   try {
-    els.enchantMaterialCostToggle.checked = localStorage.getItem(ENCHANT_MATERIAL_COST_STORAGE_KEY) === '1';
+    const storedMaterialCost = localStorage.getItem(ENCHANT_MATERIAL_COST_STORAGE_KEY);
+    els.enchantMaterialCostToggle.checked = storedMaterialCost === null ? true : storedMaterialCost === '1';
   } catch {
-    els.enchantMaterialCostToggle.checked = false;
+    els.enchantMaterialCostToggle.checked = true;
   }
   els.enchantMaterialCostToggle.addEventListener('change', () => {
     try {

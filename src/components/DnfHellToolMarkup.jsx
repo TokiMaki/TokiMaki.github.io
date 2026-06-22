@@ -337,7 +337,7 @@ export default function DnfHellToolMarkup() {
               칭호 보주 포함 추천
             </label>
             <label className={'enchant-include-option enchant-route-option'} data-tooltip={'강화, 증폭, 조율, 흑아 재료를 경매장가로 비용에 포함합니다.'}>
-              <input id={'enchantMaterialCostToggle'} type={'checkbox'} />
+              <input id={'enchantMaterialCostToggle'} type={'checkbox'} defaultChecked />
               재료값 포함
             </label>
           </div>
