@@ -342,6 +342,16 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                 }
             )
         except Exception as exc:
+            if "캐릭터를 찾지 못했습니다" in str(exc):
+                return self.send_json(
+                    {
+                        "serverId": server_id,
+                        "characterName": character_name,
+                        "matchCount": 0,
+                        "resolved": {},
+                        "rows": [],
+                    }
+                )
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 
     def handle_avatar_skill_efficiency(self, parsed):
