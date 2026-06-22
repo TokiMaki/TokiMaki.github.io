@@ -3375,8 +3375,27 @@ def find_avatar_platinum_selection_box() -> dict:
     )
 
 
-def choose_avatar_platinum_price_item(skill_name: str, allow_selection_box: bool = False) -> dict:
-    direct = find_avatar_platinum_item(skill_name)
+def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_selection_box: bool = False) -> dict:
+    normalized_skill_names = []
+    for skill_name in skill_names or []:
+        skill_name = clean_text(skill_name)
+        if skill_name and skill_name not in normalized_skill_names:
+            normalized_skill_names.append(skill_name)
+    if not normalized_skill_names:
+        normalized_skill_names = [""]
+
+    direct_candidates = []
+    for skill_name in normalized_skill_names:
+        item = find_avatar_platinum_item(skill_name)
+        direct_candidates.append({
+            **item,
+            "targetSkillName": skill_name,
+        })
+    direct = min(
+        direct_candidates,
+        key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
+        default={},
+    )
     selection_box = find_avatar_platinum_selection_box() if allow_selection_box else {}
     direct_price = direct.get("auction", {}).get("minUnitPrice")
     box_price = selection_box.get("auction", {}).get("minUnitPrice")
@@ -3390,13 +3409,20 @@ def choose_avatar_platinum_price_item(skill_name: str, allow_selection_box: bool
     )
     selected = selection_box if use_box else direct
     selected = dict(selected or {})
+    target_skill_name = clean_text(direct.get("targetSkillName")) if not use_box else normalized_skill_names[0]
     return {
         **selected,
         "priceSource": "selectionBox" if use_box else "direct",
         "directItem": direct,
         "selectionBoxItem": selection_box,
+        "targetSkillName": target_skill_name,
+        "equivalentSkillNames": normalized_skill_names,
         "priceWarningText": "선택 상자는 교환불가 아바타에만 사용 가능" if use_box else "",
     }
+
+
+def choose_avatar_platinum_price_item(skill_name: str, allow_selection_box: bool = False) -> dict:
+    return choose_avatar_platinum_price_item_from_skills([skill_name], allow_selection_box=allow_selection_box)
 
 
 def get_recommended_platinum_skill_by_slot(option_db: dict, default_skill: str, recommended_combo: dict | None = None) -> dict:
@@ -3602,6 +3628,14 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             is_dealer_crusader=is_dealer_crusader,
         )
         if switching_entry and buff_skill_name and clean_text(switching_entry.get("buffSkillName")) == buff_skill_name:
+            equivalent_platinum_skills = [
+                buff_skill_name,
+                *[
+                    clean_text(skill_name)
+                    for skill_name in switching_entry.get("equivalentSwitchingPlatinumSkills") or []
+                    if clean_text(skill_name)
+                ],
+            ]
             per_level_coefficients = [
                 float(row.get("value") or 0)
                 for row in switching_entry.get("damageIncreasePerLevelCoefficients") or []
@@ -3633,7 +3667,11 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         for emblem in get_platinum_emblems(row)
                         if clean_text(extract_platinum_skill_name(emblem.get("itemName")))
                     ]
-                    current_contribution = 1 if any(skill_name_matches(skill, buff_skill_name) for skill in current_platinum_skills) else 0
+                    current_contribution = 1 if any(
+                        skill_name_matches(skill, target_skill)
+                        for skill in current_platinum_skills
+                        for target_skill in equivalent_platinum_skills
+                    ) else 0
                     candidate_contribution = 1
                     if candidate_contribution <= current_contribution:
                         continue
@@ -3650,13 +3688,16 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         switching_platinum_item = _measure_step(
                             steps,
                             f"choose_avatar_platinum_price_item:buff:{buff_skill_name}",
-                            lambda skill_name=buff_skill_name: choose_avatar_platinum_price_item(skill_name, allow_selection_box=True),
+                            lambda skill_names=equivalent_platinum_skills: choose_avatar_platinum_price_item_from_skills(skill_names, allow_selection_box=True),
                         )
                     item = switching_platinum_item
                     item_id = clean_text(item.get("itemId"))
-                    item_explain = f"{slot_label} [{buff_skill_name}] 교체 · {buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
+                    target_skill_name = clean_text(item.get("targetSkillName")) or buff_skill_name
+                    item_explain = f"{slot_label} [{target_skill_name}] 교체"
+                    if target_skill_name != buff_skill_name:
+                        item_explain = f"{item_explain} ({buff_skill_name} +1Lv 대체)"
                     if note:
-                        item_explain = f"{item_explain} · {note}"
+                        item_explain = f"{item_explain} ({note})"
                     recommendations.append({
                         "kind": "switchingPlatinumEmblem",
                         "slot": slot_label,
@@ -3672,7 +3713,8 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         "damageApplicationNote": note,
                         "auction": item.get("auction") or {},
                         "needCount": 1,
-                        "targetSkill": buff_skill_name,
+                        "targetSkill": target_skill_name,
+                        "equivalentTargetSkills": equivalent_platinum_skills,
                         "currentPlatinumSkill": current_platinum_skills[0] if current_platinum_skills else "",
                         "currentSwitchingMultiplier": current_multiplier,
                         "candidateSwitchingMultiplier": candidate_multiplier,

@@ -697,6 +697,9 @@
       "className": "프리스트(남)",
       "jobName": "어벤저",
       "buffSkillName": "추락하는 영혼",
+      "equivalentSwitchingPlatinumSkills": [
+        "데빌 스트라이커"
+      ],
       "damageIncreasePerLevelCoefficients": [
         {
           "label": "딜 증가 계수",
