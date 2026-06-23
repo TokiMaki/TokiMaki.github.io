@@ -82,7 +82,7 @@ def request_json(url: str) -> dict[str, Any]:
     raise RuntimeError(f"API 요청 실패: {url}\n{last_error}")
 
 
-def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 100) -> list:
+def get_auction_rows_from_api(item_id: str, min_fame=None, max_fame=None, limit: int = 100) -> list:
     params = {"itemId": item_id, "limit": 100, "sort": "unitPrice:asc", "apikey": API_KEY}
     if limit:
         params["limit"] = limit
@@ -138,7 +138,7 @@ def _lowest_auction_price_from_rows(rows: list) -> dict:
 
 
 def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
-    return _lowest_auction_price_from_rows(get_auction_rows(item_id, min_fame=min_fame, max_fame=max_fame))
+    return _lowest_auction_price_from_rows(get_auction_rows_from_api(item_id, min_fame=min_fame, max_fame=max_fame))
 
 
 def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, int] | None = None, limit: int = 100) -> dict[str, dict]:

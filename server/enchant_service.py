@@ -13,7 +13,6 @@ from .neople_client import (
     clean_text,
     get_item_explain,
     get_item_icon_url,
-    get_auction_rows,
     get_lowest_auction_price,
     resolve_exact_item_by_name,
     search_items_by_name,
@@ -35,6 +34,7 @@ from .price_cache import (
     save_price_cache_to_disk,
     start_cache_refresh,
 )
+from .repositories.auction_repository import get_auction_rows
 from .repositories.item_repository import fetch_item_details
 from .upgrade_payloads import (
     build_title_payload,
