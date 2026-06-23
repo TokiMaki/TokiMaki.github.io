@@ -525,7 +525,7 @@
     },
     {
       "className": "마법사(남)",
-      "jobName": "블러드메이지",
+      "jobName": "블러드 메이지",
       "buffSkillName": "블러드 번",
       "damageIncreasePerLevelCoefficients": [
         {
@@ -953,7 +953,7 @@
     },
     {
       "className": "마창사",
-      "jobName": "다크랜서",
+      "jobName": "다크 랜서",
       "buffSkillName": "다크니스",
       "damageIncreasePerLevelCoefficients": [
         {
@@ -970,7 +970,7 @@
     },
     {
       "className": "마창사",
-      "jobName": "드래고니안랜서",
+      "jobName": "드래고니안 랜서",
       "buffSkillName": "마나 익스트랙트",
       "damageIncreasePerLevelCoefficients": [
         {
@@ -1021,7 +1021,7 @@
     },
     {
       "className": "총검사",
-      "jobName": "트러블슈터",
+      "jobName": "트러블 슈터",
       "buffSkillName": "역전의 승부사",
       "damageIncreasePerLevelCoefficients": [
         {
