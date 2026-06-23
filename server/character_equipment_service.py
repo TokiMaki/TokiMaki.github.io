@@ -64,6 +64,7 @@ from .presenters.switching_title_presenter import build_switching_title_recommen
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
 from .presenters.switching_platinum_presenter import build_switching_platinum_recommendation_row
 from .presenters.platinum_emblem_presenter import build_platinum_emblem_recommendation_row
+from .presenters.buffer_switching_title_presenter import build_buffer_switching_title_recommendation_row
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -2138,35 +2139,31 @@ def load_buffer_switching_title_recommendations(
             stat_name,
             buff_skill_name,
         )
-        recommendations.append({
-            "kind": "switchingTitle",
-            "slot": "벞강 칭호",
-            "tier": "버프강화",
-            "itemId": candidate_price.get("itemId"),
-            "itemName": candidate_price.get("itemName") or config.get("itemName"),
-            "itemRarity": candidate_price.get("itemRarity") or "레어",
-            "iconUrl": candidate_price.get("iconUrl"),
-            "fame": candidate_price.get("fame"),
-            "auction": candidate_price.get("auction") or {},
-            "effects": {},
-            "itemReinforceSkill": candidate_detail.get("itemReinforceSkill") or [],
-            "itemBuff": candidate_detail.get("itemBuff") or {},
-            "enchantEffects": normalize_enchant_status((candidate_row.get("enchant") or {}).get("status") or []),
-            "itemExplain": f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv",
-            "buffSkillName": buff_skill_name,
-            "requiredLevel": required_level,
-            "titleSkillLevelDelta": int(config.get("titleSkillLevelDelta") or 0),
-            "enchantBuffSkillLevelDelta": int(config.get("enchantBuffSkillLevelDelta") or 0),
-            "currentTitleContribution": current_contribution,
-            "candidateTitleContribution": candidate_contribution,
-            "switchingStatDelta": candidate_metrics.get("switchingStatDelta", 0) - current_metrics.get("switchingStatDelta", 0),
-            "switchingBuffAmplificationDelta": candidate_metrics.get("switchingBuffAmplificationDelta", 0) - current_metrics.get("switchingBuffAmplificationDelta", 0),
-            "bufferBuffSkillLevelDelta": candidate_contribution - current_contribution,
-            "sourceTitleKind": "switchingTitle",
-            "sourceTitleName": clean_text(source_title.get("itemName")),
-            "purchaseRoute": "attachedSwitchingTitle",
-            "purchaseRouteLabel": f"[{buff_skill_name} +{int(config.get('enchantBuffSkillLevelDelta') or 0)}Lv]",
-        })
+        title_skill_level_delta = int(config.get("titleSkillLevelDelta") or 0)
+        enchant_buff_skill_level_delta = int(config.get("enchantBuffSkillLevelDelta") or 0)
+        recommendations.append(build_buffer_switching_title_recommendation_row(
+            candidate_price.get("itemId"),
+            candidate_price.get("itemName") or config.get("itemName"),
+            candidate_price.get("itemRarity") or "레어",
+            candidate_price.get("iconUrl"),
+            candidate_price.get("fame"),
+            candidate_price.get("auction") or {},
+            candidate_detail.get("itemReinforceSkill") or [],
+            candidate_detail.get("itemBuff") or {},
+            normalize_enchant_status((candidate_row.get("enchant") or {}).get("status") or []),
+            f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv",
+            buff_skill_name,
+            required_level,
+            title_skill_level_delta,
+            enchant_buff_skill_level_delta,
+            current_contribution,
+            candidate_contribution,
+            candidate_metrics.get("switchingStatDelta", 0) - current_metrics.get("switchingStatDelta", 0),
+            candidate_metrics.get("switchingBuffAmplificationDelta", 0) - current_metrics.get("switchingBuffAmplificationDelta", 0),
+            candidate_contribution - current_contribution,
+            clean_text(source_title.get("itemName")),
+            f"[{buff_skill_name} +{enchant_buff_skill_level_delta}Lv]",
+        ))
     return recommendations
 
 
