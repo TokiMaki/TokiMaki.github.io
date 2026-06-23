@@ -6,6 +6,7 @@ from ..neople_client import (
     get_item_icon_url,
 )
 from ..repositories.auction_repository import get_auction_rows_by_name
+from ..presenters.avatar_emblem_presenter import build_avatar_emblem_recommendation_row
 
 
 AVATAR_BRILLIANT_RED_STAT = 25
@@ -254,30 +255,31 @@ def build_avatar_emblem_recommendations_debug(
             auction["minUnitPrice"] = unit_price * need_count
             auction["unitPrice"] = unit_price
         stat_gain = sum(config.get("targetStat", 0) - value for value in current_values if value < config.get("targetStat", 0))
-        recommendations.append({
-            "kind": "brilliantEmblem",
-            "slot": config.get("slot"),
-            "tier": "엠블렘",
-            "itemId": item.get("itemId"),
-            "itemName": item.get("itemName") or item_name,
-            "itemRarity": item.get("itemRarity"),
-            "iconUrl": item.get("iconUrl"),
-            "itemExplain": (
+        effects = (
+            {"bufferStat": stat_gain}
+            if buffer_mode
+            else {"int" if primary_stat_name == "지능" else "str": stat_gain}
+        )
+        recommendations.append(build_avatar_emblem_recommendation_row(
+            kind="brilliantEmblem",
+            slot=config.get("slot"),
+            tier="엠블렘",
+            item_id=item.get("itemId"),
+            item_name=item.get("itemName") or item_name,
+            item_rarity=item.get("itemRarity"),
+            icon_url=item.get("iconUrl"),
+            item_explain=(
                 f"{clean_text(row.get('slotName')) or config.get('slot')} "
                 f"{item.get('itemName') or item_name} 교체"
             ),
-            "effects": (
-                {"bufferStat": stat_gain}
-                if buffer_mode
-                else {"int" if primary_stat_name == "지능" else "str": stat_gain}
-            ),
-            "auction": auction,
-            "needCount": need_count,
-            "unitPrice": unit_price,
-            "targetStat": primary_stat_name,
-            "bufferStatScope": clean_text(config.get("bufferStatScope")),
-            "recommendationPriority": 0,
-        })
+            effects=effects,
+            auction=auction,
+            need_count=need_count,
+            unit_price=unit_price,
+            target_stat=primary_stat_name,
+            buffer_stat_scope=clean_text(config.get("bufferStatScope")),
+            recommendation_priority=0,
+        ))
     return {"recommendations": recommendations, "steps": steps}
 
 
