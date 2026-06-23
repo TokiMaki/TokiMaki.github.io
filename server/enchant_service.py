@@ -18,13 +18,11 @@ from .neople_client import (
     search_items_by_name,
 )
 from .price_cache import (
-    AURA_PRICE_CACHE_PATH,
     CREATURE_PRICE_CACHE_PATH,
     ENCHANT_PRICE_CACHE_PATH,
     ENCHANT_PRICE_CACHE_SCHEMA_VERSION,
     PRICE_REFRESH_INTERVAL_SECONDS,
     TITLE_PRICE_CACHE_PATH,
-    _AURA_PRICE_CACHE,
     _CACHE_LOCK,
     _CREATURE_PRICE_CACHE,
     _ENCHANT_PRICE_CACHE,
@@ -34,7 +32,7 @@ from .price_cache import (
     save_price_cache_to_disk,
     start_cache_refresh,
 )
-from .repositories.auction_repository import get_auction_rows
+from .repositories.auction_repository import get_auction_rows, get_aura_price_cache_payload, save_aura_price_cache_payload
 from .repositories.item_repository import fetch_item_details
 from .upgrade_payloads import (
     build_title_payload,
@@ -583,46 +581,14 @@ def load_aura_upgrades_with_prices(
         }
 
     now = time.time()
-    if allow_stale:
-        load_price_cache_from_disk(_AURA_PRICE_CACHE, AURA_PRICE_CACHE_PATH)
-    with _CACHE_LOCK:
-        payload = _AURA_PRICE_CACHE["payload"]
-        expires_at = _AURA_PRICE_CACHE["expires_at"]
-        if payload is not None and payload.get("schemaVersion") != AURA_PRICE_CACHE_SCHEMA_VERSION:
-            payload = None
-            _AURA_PRICE_CACHE["payload"] = None
-            _AURA_PRICE_CACHE["expires_at"] = 0
-
-    if allow_stale and payload is not None:
-        if not force_refresh and expires_at > now:
-            return add_cache_status(payload, _AURA_PRICE_CACHE)
-        start_cache_refresh(
-            _AURA_PRICE_CACHE,
-            lambda: load_aura_upgrades_with_prices(force_refresh=True, allow_stale=False),
-            name="aura",
-        )
-        return add_cache_status(payload, _AURA_PRICE_CACHE, stale=True)
-    if allow_stale and payload is None and _AURA_PRICE_CACHE.get("refreshing"):
-        return add_cache_status({
-            "updatedAt": None,
-            "pricedAt": "",
-            "source": None,
-            "groups": [],
-            "errors": [],
-        }, _AURA_PRICE_CACHE, stale=True)
-    if allow_stale and payload is None:
-        start_cache_refresh(
-            _AURA_PRICE_CACHE,
-            lambda: load_aura_upgrades_with_prices(force_refresh=True, allow_stale=False),
-            name="aura",
-        )
-        return add_cache_status({
-            "updatedAt": None,
-            "pricedAt": "",
-            "source": None,
-            "groups": [],
-            "errors": [],
-        }, _AURA_PRICE_CACHE, stale=True)
+    cached_payload = get_aura_price_cache_payload(
+        force_refresh,
+        allow_stale,
+        AURA_PRICE_CACHE_SCHEMA_VERSION,
+        load_aura_upgrades_with_prices,
+    )
+    if cached_payload is not None:
+        return cached_payload
 
     with AURA_DB_PATH.open("r", encoding="utf-8") as fp:
         aura_db = json.load(fp)
@@ -644,12 +610,7 @@ def load_aura_upgrades_with_prices(
         "groups": groups,
         "errors": errors,
     }
-    expires_at = now + PRICE_REFRESH_INTERVAL_SECONDS
-    with _CACHE_LOCK:
-        _AURA_PRICE_CACHE["payload"] = payload
-        _AURA_PRICE_CACHE["expires_at"] = expires_at
-    save_price_cache_to_disk(AURA_PRICE_CACHE_PATH, payload, expires_at)
-    return add_cache_status(payload, _AURA_PRICE_CACHE)
+    return save_aura_price_cache_payload(payload, now)
 
 
 def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bool = True) -> dict:
