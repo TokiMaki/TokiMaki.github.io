@@ -8,16 +8,10 @@ from .calculators.avatar_skill_calculator import (
     find_skill_attack_option_value_key,
     get_level_attack_percent,
     get_skill_attack_ratio,
+    normalize_skill_key,
     parse_skill_attack_percent,
 )
 from .repositories.item_repository import fetch_item_details
-
-
-def normalize_skill_key(value: str) -> str:
-    text = clean_text(value)
-    text = re.sub(r"\s*스킬\s*Lv\s*\+\s*1\s*$", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"^플래티넘\s*엠블렘\s*\[|\].*$", "", text)
-    return re.sub(r"[\s:!·ㆍ\[\]\(\)]", "", text).lower()
 
 
 def normalize_job_name(value: str) -> str:

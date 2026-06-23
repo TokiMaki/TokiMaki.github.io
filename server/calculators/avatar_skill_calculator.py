@@ -25,6 +25,25 @@ def clean_text(value) -> str:
     return re.sub(r"\s+", " ", str(value)).strip()
 
 
+def parse_percent_or_number(value) -> float:
+    text = clean_text(value).replace(",", "")
+    if not text:
+        return 0
+    if text.endswith("%"):
+        text = text[:-1]
+    try:
+        return float(text)
+    except ValueError:
+        return 0
+
+
+def normalize_skill_key(value: str) -> str:
+    text = clean_text(value)
+    text = re.sub(r"\s*스킬\s*Lv\s*\+\s*1\s*$", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^플래티넘\s*엠블렘\s*\[|\].*$", "", text)
+    return re.sub(r"[\s:!·ㆍ\[\]\(\)]", "", text).lower()
+
+
 def collect_strings(value) -> list[str]:
     if isinstance(value, str):
         return [value]
@@ -142,3 +161,102 @@ def get_skill_attack_ratio(skill_detail: dict, current_level: int, added_level: 
         "multiplier": multiplier,
         "incrementalDamagePercent": (multiplier - 1) * 100,
     }
+
+
+def get_skill_level_stat_value(skill_detail: dict, level: int, stat_name: str) -> float:
+    level_info = skill_detail.get("levelInfo") or {}
+    option_desc = str(level_info.get("optionDesc") or "")
+    value_keys = {
+        key
+        for line in option_desc.splitlines()
+        if stat_name in line
+        for key in re.findall(r"\{(value\d+)\}", line)
+    }
+    if not value_keys:
+        return 0
+    row = next((
+        row for row in level_info.get("rows") or []
+        if int(row.get("level") or 0) == int(level)
+    ), {})
+    option_value = row.get("optionValue") or {}
+    return sum(parse_percent_or_number(option_value.get(key)) for key in value_keys)
+
+
+def get_skill_level_labeled_value(skill_detail: dict, level: int, predicate) -> float:
+    level_info = skill_detail.get("levelInfo") or {}
+    option_desc = str(level_info.get("optionDesc") or "")
+    value_keys = {
+        key
+        for line in option_desc.splitlines()
+        if predicate(clean_text(line))
+        for key in re.findall(r"\{(value\d+)\}", line)
+    }
+    if not value_keys:
+        return 0
+    row = next((
+        row for row in level_info.get("rows") or []
+        if int(row.get("level") or 0) == int(level)
+    ), {})
+    option_value = row.get("optionValue") or {}
+    return sum(parse_percent_or_number(option_value.get(key)) for key in value_keys)
+
+
+def get_avatar_platinum_skill_damage_multiplier(
+    avatar_combo_analysis: dict,
+    slot_label: str,
+    target_platinum_skill: str,
+) -> float:
+    current_avatar = avatar_combo_analysis.get("currentAvatarSkills") or {}
+    skill_infos = avatar_combo_analysis.get("skillInfos") or {}
+    target_skill = clean_text(target_platinum_skill)
+    target_key = normalize_skill_key(target_skill)
+    if not current_avatar or not target_key or not skill_infos:
+        return 0
+
+    current_platinum_skills = [
+        *(current_avatar.get("platinumSlotSkills") or current_avatar.get("platinumSkills") or []),
+    ][:2]
+    while len(current_platinum_skills) < 2:
+        current_platinum_skills.append("")
+    target_index = 0 if slot_label == "상의 아바타" else 1
+    target_platinum_skills = [*current_platinum_skills]
+    target_platinum_skills[target_index] = target_skill
+    top_key = normalize_skill_key(current_avatar.get("topSkill"))
+
+    def count_avatar_skill(skill_key: str, platinum_skills: list[str]) -> int:
+        return (
+            (1 if top_key == skill_key else 0)
+            + sum(1 for skill in platinum_skills if normalize_skill_key(skill) == skill_key)
+        )
+
+    multiplier = 1.0
+    changed_keys = {
+        normalize_skill_key(current_platinum_skills[target_index]),
+        target_key,
+    }
+    for skill_key in changed_keys:
+        if not skill_key:
+            continue
+        current_count = count_avatar_skill(skill_key, current_platinum_skills)
+        target_count = count_avatar_skill(skill_key, target_platinum_skills)
+        level_delta = target_count - current_count
+        if level_delta == 0:
+            continue
+        skill_info = skill_infos.get(skill_key) or {}
+        current_level = int(skill_info.get("currentLevel") or 0) + current_count
+        if current_level <= 0:
+            if skill_key == target_key and level_delta > 0:
+                return 0
+            continue
+        if level_delta > 0:
+            ratio = get_skill_attack_ratio(skill_info.get("detail") or {}, current_level, level_delta)
+            if not ratio.get("calculable"):
+                return 0
+            multiplier *= float(ratio.get("multiplier") or 1)
+        else:
+            target_level = current_level + level_delta
+            ratio = get_skill_attack_ratio(skill_info.get("detail") or {}, target_level, -level_delta)
+            if ratio.get("calculable"):
+                multiplier /= float(ratio.get("multiplier") or 1)
+            # 계산 불가 플티는 딜 상승률 0%로 보고 제거 손실도 0으로 처리한다.
+    return multiplier if multiplier > 0 else 0
