@@ -21,8 +21,8 @@ from server.character_equipment_service import (
     load_character_title,
 )
 from server.character_search_service import search_character_response
+from server.character_summary_service import summarize_character_response
 from server.avatar_skill_optimizer import load_character_avatar_skill_efficiency
-from server.character_summary import summarize_character_by_identity
 from server.enchant_service import (
     load_aura_upgrades_with_prices,
     load_creature_upgrades_with_prices,
@@ -34,7 +34,6 @@ from server.data_store import (
 )
 from server.neople_client import (
     clean_text,
-    search_character,
 )
 from server.ops_log import write_ops_log
 from server.price_cache import (
@@ -540,26 +539,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            resolved = search_character(server_id, character_name)
-            summary = summarize_character_by_identity(
-                resolved["server_id"],
-                resolved["character_id"],
-                resolved["character_name"],
-            )
-            self.send_json(
-                {
-                    "serverId": resolved["server_id"],
-                    "characterId": resolved["character_id"],
-                    "requestedCharacterName": character_name,
-                    "name": summary["name"],
-                    "fame": resolved.get("fame", 0),
-                    "jobId": resolved.get("job_id", ""),
-                    "jobName": resolved.get("job_name", ""),
-                    "jobGrowId": resolved.get("job_grow_id", ""),
-                    "jobGrowName": resolved.get("job_grow_name", ""),
-                    "sets": summary["sets"],
-                }
-            )
+            self.send_json(summarize_character_response(server_id, character_name))
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 
