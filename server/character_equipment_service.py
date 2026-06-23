@@ -36,7 +36,6 @@ from .neople_client import (
     clean_item_display_name,
     clean_text,
     get_auction_rows,
-    get_auction_rows_by_name,
     get_item_explain,
     get_item_icon_url,
     get_lowest_auction_price,
@@ -44,6 +43,7 @@ from .neople_client import (
     request_json,
     search_items_by_name,
 )
+from .repositories.auction_repository import get_auction_rows_by_name
 from .repositories.item_repository import fetch_item_details
 from .upgrade_payloads import (
     build_aura_payload,

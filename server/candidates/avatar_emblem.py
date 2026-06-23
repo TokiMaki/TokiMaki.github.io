@@ -3,9 +3,9 @@ import time
 from ..neople_client import (
     clean_item_display_name,
     clean_text,
-    get_auction_rows_by_name,
     get_item_icon_url,
 )
+from ..repositories.auction_repository import get_auction_rows_by_name
 
 
 AVATAR_BRILLIANT_RED_STAT = 25

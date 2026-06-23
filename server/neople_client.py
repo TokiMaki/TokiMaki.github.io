@@ -94,7 +94,7 @@ def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 10
     return request_json(url).get("rows") or []
 
 
-def get_auction_rows_by_name(item_name: str, word_type: str = "full", limit: int = 100, offset: int = 0) -> list:
+def get_auction_rows_by_name_from_api(item_name: str, word_type: str = "full", limit: int = 100, offset: int = 0) -> list:
     params = {
         "itemName": clean_text(item_name),
         "wordType": clean_text(word_type) or "full",
