@@ -62,6 +62,7 @@ from .repositories.item_repository import fetch_item_details, search_items_by_na
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
+from .presenters.switching_platinum_presenter import build_switching_platinum_recommendation_row
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -3355,30 +3356,25 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         item_explain = f"{item_explain} ({buff_skill_name} +1Lv 대체)"
                     if note:
                         item_explain = f"{item_explain} ({note})"
-                    recommendations.append({
-                        "kind": "switchingPlatinumEmblem",
-                        "slot": slot_label,
-                        "tier": "버프강화",
-                        "itemId": item_id,
-                        "itemName": item.get("itemName") or f"플래티넘 엠블렘[{buff_skill_name}]",
-                        "itemRarity": item.get("itemRarity"),
-                        "iconUrl": item.get("iconUrl") or (get_item_icon_url(item_id) if item_id else ""),
-                        "itemExplain": item_explain,
-                        "effects": {"skillDamageMultiplier": skill_damage_multiplier},
-                        "skillDamageMultiplier": skill_damage_multiplier,
-                        "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
-                        "damageApplicationNote": note,
-                        "auction": item.get("auction") or {},
-                        "needCount": 1,
-                        "targetSkill": target_skill_name,
-                        "equivalentTargetSkills": equivalent_platinum_skills,
-                        "currentPlatinumSkill": current_platinum_skills[0] if current_platinum_skills else "",
-                        "currentSwitchingMultiplier": current_multiplier,
-                        "candidateSwitchingMultiplier": candidate_multiplier,
-                        "priceSource": item.get("priceSource"),
-                        "priceWarningText": item.get("priceWarningText"),
-                        "recommendationPriority": 0,
-                    })
+                    recommendations.append(build_switching_platinum_recommendation_row(
+                        slot_label,
+                        item_id,
+                        item.get("itemName") or f"플래티넘 엠블렘[{buff_skill_name}]",
+                        item.get("itemRarity"),
+                        item.get("iconUrl") or (get_item_icon_url(item_id) if item_id else ""),
+                        item_explain,
+                        skill_damage_multiplier,
+                        raw_skill_damage_multiplier,
+                        note,
+                        item.get("auction") or {},
+                        target_skill_name,
+                        equivalent_platinum_skills,
+                        current_platinum_skills[0] if current_platinum_skills else "",
+                        current_multiplier,
+                        candidate_multiplier,
+                        item.get("priceSource"),
+                        item.get("priceWarningText"),
+                    ))
     buffer_platinum_deltas = {}
     buffer_skill_levels = {}
     if buffer_stat_name and platinum_skill and missing_or_wrong_slots:
