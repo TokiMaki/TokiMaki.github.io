@@ -17,6 +17,8 @@ AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "HEADGEAR", "slot": "모자 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "HAIR", "slot": "머리 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
+    {"slotId": "FACE", "slot": "얼굴 아바타", "color": "노란빛", "kind": "yellow", "targetStat": AVATAR_BRILLIANT_YELLOW_STAT},
+    {"slotId": "BREAST", "slot": "목가슴 아바타", "color": "노란빛", "kind": "yellow", "targetStat": AVATAR_BRILLIANT_YELLOW_STAT},
     {"slotId": "WEAPON", "slot": "무기 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "AURORA", "slot": "오라 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "SKIN", "slot": "피부 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
