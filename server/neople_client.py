@@ -285,6 +285,11 @@ def build_character_detail_url(server_id: str, character_id: str) -> str:
     return f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}"
 
 
+def fetch_character_payload_from_api(server_id: str, character_id: str, path: str) -> dict[str, Any]:
+    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/{path}?apikey={API_KEY}"
+    return request_json(url)
+
+
 def extract_character_job_meta(payload: dict[str, Any]) -> dict[str, str]:
     source = payload.get("character") if isinstance(payload.get("character"), dict) else payload
     if not isinstance(source, dict):

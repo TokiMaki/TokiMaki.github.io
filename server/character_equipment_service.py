@@ -43,6 +43,7 @@ from .neople_client import (
     search_items_by_name,
 )
 from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name
+from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details
 from .upgrade_payloads import (
     build_aura_payload,
@@ -60,7 +61,6 @@ AVATAR_BRILLIANT_YELLOW_STAT = 15
 AVATAR_BRILLIANT_GREEN_STAT = 15
 AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
-CHARACTER_RESPONSE_CACHE_TTL_SECONDS = 15
 UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS = 300
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
 SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT = 100
@@ -68,8 +68,6 @@ SWITCHING_FRAGMENT_AUCTION_MAX_PAGES = 5
 SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT = 3
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
-_CHARACTER_RESPONSE_CACHE_LOCK = threading.Lock()
-_CHARACTER_RESPONSE_CACHE = {}
 _UPGRADE_MATERIAL_PRICE_CACHE_LOCK = threading.Lock()
 _UPGRADE_MATERIAL_PRICE_CACHE = {}
 _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK = threading.Lock()
@@ -125,23 +123,6 @@ def combine_effects(*effect_rows: dict) -> dict:
         for key, value in (effects or {}).items():
             result[key] = result.get(key, 0) + value
     return order_effects(result)
-
-
-def _get_character_cached_payload(server_id: str, character_id: str, resource: str, path: str) -> dict:
-    cache_key = (clean_text(server_id).lower(), clean_text(character_id), resource)
-    now = time.time()
-    with _CHARACTER_RESPONSE_CACHE_LOCK:
-        cached = _CHARACTER_RESPONSE_CACHE.get(cache_key)
-        if cached and float(cached.get("expires_at") or 0) > now:
-            return cached.get("payload") or {}
-    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/{path}?apikey={API_KEY}"
-    payload = request_json(url)
-    with _CHARACTER_RESPONSE_CACHE_LOCK:
-        _CHARACTER_RESPONSE_CACHE[cache_key] = {
-            "payload": payload,
-            "expires_at": now + CHARACTER_RESPONSE_CACHE_TTL_SECONDS,
-        }
-    return payload
 
 
 def _measure_step(steps: list, name: str, fn):
@@ -235,7 +216,7 @@ def get_equipment_base_element_bonus(equipment_rows: list) -> float:
 
 
 def load_character_damage_baseline(server_id: str, character_id: str, equipment_base_element: float = 0) -> dict:
-    payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+    payload = get_character_cached_payload(server_id, character_id, "status", "status")
     status = status_rows_to_map(payload.get("status") or [])
     job_grow_name = clean_text(payload.get("jobGrowName"))
     base_stats = load_job_base_stats().get(job_grow_name) or {}
@@ -277,7 +258,7 @@ def load_character_damage_baseline(server_id: str, character_id: str, equipment_
 
 
 def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | None:
-    payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+    payload = get_character_cached_payload(server_id, character_id, "status", "status")
     status = status_rows_to_map(payload.get("status") or [])
     job_name = clean_text(payload.get("jobName"))
     job_grow_name = clean_text(payload.get("jobGrowName"))
@@ -324,7 +305,7 @@ def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | 
 
 
 def is_male_crusader_dealer_style(server_id: str, character_id: str) -> bool:
-    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     return any(
         clean_text(row.get("name")) == "성령의 메이스"
         and int(row.get("level") or row.get("skillLevel") or 0) > 0
@@ -407,7 +388,7 @@ def get_avatar_awakening_level_bonus(avatar_rows: list, skill_name: str) -> int:
 
 
 def load_character_buffer_skill_levels(server_id: str, character_id: str, job_name: str) -> dict:
-    buff_payload = _get_character_cached_payload(
+    buff_payload = get_character_cached_payload(
         server_id,
         character_id,
         "buff_equipment",
@@ -416,7 +397,7 @@ def load_character_buffer_skill_levels(server_id: str, character_id: str, job_na
     skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
     buff_skill_level = int(((skill_info.get("option") or {}).get("level")) or 0)
 
-    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     awakening_row = next(
         (
             row for row in flatten_skill_rows(style_payload)
@@ -427,9 +408,9 @@ def load_character_buffer_skill_levels(server_id: str, character_id: str, job_na
     awakening_skill_name = clean_text(awakening_row.get("name"))
     awakening_base_level = max(15, int(awakening_row.get("level") or 0)) if awakening_skill_name else 0
 
-    equipment_payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
-    avatar_payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
-    creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    equipment_payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+    avatar_payload = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
+    creature_payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
     equipment_rows = equipment_payload.get("equipment") or []
     avatar_rows = avatar_payload.get("avatar") or []
     creature = creature_payload.get("creature") or {}
@@ -552,7 +533,7 @@ def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
 
 def load_character_enchants(server_id: str, character_id: str) -> dict:
     steps = []
-    payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+    payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
     rows = []
     equipment_upgrades = []
     for equipment in payload.get("equipment") or []:
@@ -623,7 +604,7 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
 
 def load_character_creature(server_id: str, character_id: str) -> dict:
     steps = []
-    payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
     creature = payload.get("creature") or {}
     item_id = clean_text(creature.get("itemId"))
     artifact_rows = creature.get("artifact") or []
@@ -699,7 +680,7 @@ def load_character_creature(server_id: str, character_id: str) -> dict:
 
 def load_character_title(server_id: str, character_id: str) -> dict:
     steps = []
-    payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+    payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
     title = next((
         equipment for equipment in payload.get("equipment") or []
         if clean_text(equipment.get("slotId")) == "TITLE" or clean_text(equipment.get("slotName")) == "칭호"
@@ -730,7 +711,7 @@ def load_character_title(server_id: str, character_id: str) -> dict:
 
 def load_character_aura(server_id: str, character_id: str) -> dict:
     steps = []
-    payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
+    payload = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
     aura = next((
         avatar for avatar in payload.get("avatar") or []
         if "오라" in clean_text(avatar.get("slotName"))
@@ -912,7 +893,7 @@ def get_buff_skill_required_level(server_id: str, character_id: str, skill_info:
         return direct_level
     skill_id = clean_text(skill_info.get("skillId"))
     skill_name = clean_text(skill_info.get("name"))
-    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     for row in flatten_skill_rows(style_payload):
         if skill_id and clean_text(row.get("skillId")) == skill_id:
             return int(row.get("requiredLevel") or 0)
@@ -1341,9 +1322,9 @@ def load_dealer_switching_fragment_recommendations_for_character(
 ) -> list:
     if buffer_baseline:
         return []
-    buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    buff_payload = get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
     if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
-        status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+        status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
         buff_payload = {
             **buff_payload,
             "jobName": clean_text(buff_payload.get("jobName")) or clean_text(status_payload.get("jobName")),
@@ -1657,9 +1638,9 @@ def get_candidate_auction_price(row: dict) -> float:
 def load_dealer_switching_creature_recommendations(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> list:
     if buffer_baseline:
         return []
-    buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    buff_payload = get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
     if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
-        status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+        status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
         buff_payload = {
             **buff_payload,
             "jobName": clean_text(buff_payload.get("jobName")) or clean_text(status_payload.get("jobName")),
@@ -1695,7 +1676,7 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
         return []
 
     current_creature = next(iter(get_switching_creature_rows(
-        _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+        get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
     )), {})
     current_creature_id = clean_text(current_creature.get("itemId"))
     current_detail = (fetch_item_details([current_creature_id]) or [{}])[0] if current_creature_id else {}
@@ -1891,13 +1872,13 @@ def load_switching_title_price_candidate(title_config: dict, job_name: str, buff
 
 
 def get_buffer_switching_rows(server_id: str, character_id: str) -> tuple[list, list, dict]:
-    current_equipment = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment") or []
-    current_avatar = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar") or []
-    current_creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    current_equipment = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment") or []
+    current_avatar = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar") or []
+    current_creature_payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
     current_creature = current_creature_payload.get("creature") or {}
-    buff_equipment_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
-    buff_avatar_payload = _get_character_cached_payload(server_id, character_id, "buff_avatar", "skill/buff/equip/avatar")
-    buff_creature_payload = _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+    buff_equipment_payload = get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    buff_avatar_payload = get_character_cached_payload(server_id, character_id, "buff_avatar", "skill/buff/equip/avatar")
+    buff_creature_payload = get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
     switching_equipment = ((buff_equipment_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
     switching_avatar = ((buff_avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
     switching_creature_rows = ((buff_creature_payload.get("skill") or {}).get("buff") or {}).get("creature") or []
@@ -1991,9 +1972,9 @@ def get_buffer_switching_metrics(
 def load_dealer_switching_title_recommendations(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> list:
     if buffer_baseline:
         return []
-    buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    buff_payload = get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
     if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
-        status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+        status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
         buff_payload = {
             **buff_payload,
             "jobName": clean_text(buff_payload.get("jobName")) or clean_text(status_payload.get("jobName")),
@@ -2036,7 +2017,7 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
     source_title = buff_title
     source_title_kind = "buffTitle" if buff_title else ""
     if not source_title:
-        equipment_payload = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+        equipment_payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
         source_title = next((
             row for row in equipment_payload.get("equipment") or []
             if clean_text(row.get("slotId")) == "TITLE" or clean_text(row.get("slotName")) == "칭호"
@@ -2136,7 +2117,7 @@ def load_buffer_switching_title_recommendations(
 
     source_title = get_title_row(switching_rows)
     source_title_id = clean_text(source_title.get("itemId"))
-    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     title_db = load_dealer_switching_title_db()
     matching_configs = []
     for config in title_db.get("items") or []:
@@ -2265,9 +2246,9 @@ def load_buffer_switching_creature_release_recommendations(
     if not buffer_baseline:
         return []
     current_rows, switching_rows, buff_payload = get_buffer_switching_rows(server_id, character_id)
-    current_creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    current_creature_payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
     current_creature = current_creature_payload.get("creature") or {}
-    buff_creature_payload = _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+    buff_creature_payload = get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
     switching_creature_rows = ((buff_creature_payload.get("skill") or {}).get("buff") or {}).get("creature") or []
     switching_creature = (
         switching_creature_rows[0]
@@ -2298,7 +2279,7 @@ def load_buffer_switching_creature_release_recommendations(
         for detail in fetch_item_details(item_ids)
         if clean_text(detail.get("itemId"))
     }
-    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     current_metrics = get_buffer_switching_metrics(
         current_rows,
         switching_rows,
@@ -2528,7 +2509,7 @@ def resolve_avatar_primary_stat_name(
     server_id: str,
     character_id: str,
 ) -> str:
-    status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+    status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
     status = status_rows_to_map(status_payload.get("status") or [])
     strength = float(status.get("힘") or 0)
     intelligence = float(status.get("지능") or 0)
@@ -2570,7 +2551,7 @@ def get_character_buffer_stat_name(payload: dict, server_id: str, character_id: 
     if stat_name or job_key != ("프리스트(남)", "眞 크루세이더"):
         return stat_name or ""
     avatar_rows = payload.get("avatar") or []
-    switching_payload = _get_character_cached_payload(
+    switching_payload = get_character_cached_payload(
         server_id,
         character_id,
         "buff_avatar",
@@ -2587,7 +2568,7 @@ def get_character_buffer_stat_name(payload: dict, server_id: str, character_id: 
     )
     if vitality_signal != spirit_signal:
         return "체력" if vitality_signal > spirit_signal else "정신력"
-    status_payload = _get_character_cached_payload(server_id, character_id, "status", "status")
+    status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
     status = status_rows_to_map(status_payload.get("status") or [])
     return "체력" if status.get("체력", 0) >= status.get("정신력", 0) else "정신력"
 
@@ -2807,13 +2788,13 @@ def get_buffer_switching_stat_delta(
     buff_skill_name: str,
     awakening_skill_name: str,
 ) -> dict:
-    current_equipment = _get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment") or []
-    current_avatar = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar") or []
-    current_creature_payload = _get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    current_equipment = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment") or []
+    current_avatar = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar") or []
+    current_creature_payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
     current_creature = current_creature_payload.get("creature") or {}
-    buff_equipment_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
-    buff_avatar_payload = _get_character_cached_payload(server_id, character_id, "buff_avatar", "skill/buff/equip/avatar")
-    buff_creature_payload = _get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+    buff_equipment_payload = get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+    buff_avatar_payload = get_character_cached_payload(server_id, character_id, "buff_avatar", "skill/buff/equip/avatar")
+    buff_creature_payload = get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
     switching_equipment = ((buff_equipment_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
     switching_avatar = ((buff_avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
     switching_creature_rows = ((buff_creature_payload.get("skill") or {}).get("buff") or {}).get("creature") or []
@@ -2858,7 +2839,7 @@ def get_buffer_switching_stat_delta(
         - sum(get_row_buff_amplification(row, detail_by_id.get(clean_text(row.get("itemId"))) or {}) for row in current_rows)
     )
 
-    style_payload = _get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     style_rows = flatten_skill_rows(style_payload)
     style_by_name = {clean_text(row.get("name")): row for row in style_rows if clean_text(row.get("name"))}
     current_bonuses = get_setup_skill_bonuses(current_rows, detail_by_id, style_rows, job_name)
@@ -3341,7 +3322,7 @@ def get_avatar_platinum_skill_damage_multiplier(
 def load_character_avatar(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> dict:
     steps = []
     timing_details = {}
-    payload = _get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
+    payload = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
     avatar_rows = payload.get("avatar") or []
     jacket = get_avatar_slot(avatar_rows, "JACKET")
     pants = get_avatar_slot(avatar_rows, "PANTS")
@@ -3394,7 +3375,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
     top_option_matched = skill_name_matches(jacket.get("optionAbility"), top_option)
     switching_rows = []
     if buffer_stat_name:
-        switching_payload = _get_character_cached_payload(
+        switching_payload = get_character_cached_payload(
             server_id,
             character_id,
             "buff_avatar",
@@ -3458,7 +3439,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
     ]
     recommendations = []
     if not buffer_baseline:
-        buff_payload = _get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
+        buff_payload = get_character_cached_payload(server_id, character_id, "buff_equipment", "skill/buff/equip/equipment")
         if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
             buff_payload = {
                 **buff_payload,
@@ -3489,7 +3470,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             if len(per_level_coefficients) == 1 and len(current_coefficients) > 1:
                 per_level_coefficients = per_level_coefficients * len(current_coefficients)
             if per_level_coefficients and len(per_level_coefficients) == len(current_coefficients):
-                switching_avatar_payload = _get_character_cached_payload(
+                switching_avatar_payload = get_character_cached_payload(
                     server_id,
                     character_id,
                     "buff_avatar",
