@@ -20,6 +20,7 @@ from server.character_equipment_service import (
     load_character_preview,
     load_character_title,
 )
+from server.character_search_service import search_character_response
 from server.avatar_skill_optimizer import load_character_avatar_skill_efficiency
 from server.character_summary import summarize_character_by_identity
 from server.enchant_service import (
@@ -321,37 +322,8 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            resolved = search_character(server_id, character_name)
-            self.send_json(
-                {
-                    "serverId": server_id,
-                    "characterName": character_name,
-                    "matchCount": len(resolved["rows"]),
-                    "resolved": {
-                        "serverId": resolved["server_id"],
-                        "characterId": resolved["character_id"],
-                        "characterName": resolved["character_name"],
-                        "adventureName": resolved.get("adventure_name", ""),
-                        "fame": resolved.get("fame", 0),
-                        "jobId": resolved.get("job_id", ""),
-                        "jobName": resolved.get("job_name", ""),
-                        "jobGrowId": resolved.get("job_grow_id", ""),
-                        "jobGrowName": resolved.get("job_grow_name", ""),
-                    },
-                    "rows": resolved["rows"],
-                }
-            )
+            self.send_json(search_character_response(server_id, character_name))
         except Exception as exc:
-            if "캐릭터를 찾지 못했습니다" in str(exc):
-                return self.send_json(
-                    {
-                        "serverId": server_id,
-                        "characterName": character_name,
-                        "matchCount": 0,
-                        "resolved": {},
-                        "rows": [],
-                    }
-                )
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 
     def handle_avatar_skill_efficiency(self, parsed):
