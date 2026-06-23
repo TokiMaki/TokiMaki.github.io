@@ -63,6 +63,7 @@ from .presenters.switching_fragment_presenter import build_switching_fragment_re
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
 from .presenters.switching_platinum_presenter import build_switching_platinum_recommendation_row
+from .presenters.platinum_emblem_presenter import build_platinum_emblem_recommendation_row
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -3433,45 +3434,44 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 else {"finalDamage": get_avatar_platinum_damage_percent(slot_label)}
             )
             item_id = clean_text(item.get("itemId"))
-            recommendations.append({
-                "kind": "platinumEmblem",
-                "slot": slot_label,
-                "tier": "플래티넘",
-                "itemId": item_id,
-                "itemName": item.get("itemName") or f"플래티넘 엠블렘[{target_platinum_skill}]",
-                "itemRarity": item.get("itemRarity"),
-                "iconUrl": item.get("iconUrl") or (get_item_icon_url(item_id) if item_id else ""),
-                "itemExplain": f"{slot_label} [{target_platinum_skill}] 교체",
-                "effects": (
-                    {"bufferStat": platinum_delta.get("statDelta", 0)}
-                    if buffer_stat_name
-                    else dealer_effects
-                ),
-                "skillDamageMultiplier": skill_damage_multiplier or None,
-                "auction": item.get("auction") or {},
-                "needCount": 1,
-                "targetSkill": target_platinum_skill,
-                "bufferSkillStatDeltas": platinum_delta.get("skillDeltas") or {},
-                "bufferSkillLevels": platinum_delta.get("skillLevels") or {},
-                "currentPlatinumSkill": current_platinum_skill,
-                "bufferBuffSkillLevelDelta": (
-                    (1 if target_platinum_skill == buff_skill_name else 0)
-                    - (1 if current_platinum_skill == buff_skill_name else 0)
-                    if buffer_stat_scope == "common"
-                    else 0
-                ),
-                "bufferAwakeningSkillLevelDelta": (
-                    (1 if target_platinum_skill == awakening_skill_name else 0)
-                    - (1 if current_platinum_skill == awakening_skill_name else 0)
-                    if buffer_stat_name
-                    else 0
-                ),
-                "missingSlots": [slot_label],
-                "priceSource": item.get("priceSource"),
-                "priceWarningText": item.get("priceWarningText"),
-                "bufferStatScope": buffer_stat_scope,
-                "recommendationPriority": 0,
-            })
+            effects = (
+                {"bufferStat": platinum_delta.get("statDelta", 0)}
+                if buffer_stat_name
+                else dealer_effects
+            )
+            buffer_buff_skill_level_delta = (
+                (1 if target_platinum_skill == buff_skill_name else 0)
+                - (1 if current_platinum_skill == buff_skill_name else 0)
+                if buffer_stat_scope == "common"
+                else 0
+            )
+            buffer_awakening_skill_level_delta = (
+                (1 if target_platinum_skill == awakening_skill_name else 0)
+                - (1 if current_platinum_skill == awakening_skill_name else 0)
+                if buffer_stat_name
+                else 0
+            )
+            recommendations.append(build_platinum_emblem_recommendation_row(
+                slot_label,
+                item_id,
+                item.get("itemName") or f"플래티넘 엠블렘[{target_platinum_skill}]",
+                item.get("itemRarity"),
+                item.get("iconUrl") or (get_item_icon_url(item_id) if item_id else ""),
+                f"{slot_label} [{target_platinum_skill}] 교체",
+                effects,
+                skill_damage_multiplier or None,
+                item.get("auction") or {},
+                target_platinum_skill,
+                platinum_delta.get("skillDeltas") or {},
+                platinum_delta.get("skillLevels") or {},
+                current_platinum_skill,
+                buffer_buff_skill_level_delta,
+                buffer_awakening_skill_level_delta,
+                [slot_label],
+                item.get("priceSource"),
+                item.get("priceWarningText"),
+                buffer_stat_scope,
+            ))
     if buffer_stat_name:
         current_buffer_configs, switching_buffer_configs = get_buffer_avatar_emblem_configs(switching_rows)
         current_emblem_debug = _measure_step(
