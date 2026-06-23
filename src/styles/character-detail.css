@@ -1044,11 +1044,28 @@
       min-width: 0;
     }
     .enchant-recommend-title {
+      display: block;
+      overflow: hidden;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .enchant-recommend-title-text {
+      display: block;
+      width: max-content;
+      max-width: none;
       font-size: 12px;
       font-weight: 900;
       color: var(--text);
       line-height: 1.15;
+      transform-origin: left center;
       white-space: nowrap;
+    }
+    .enchant-recommend-title.is-ellipsis .enchant-recommend-title-text {
+      overflow: hidden;
+      width: 100%;
+      max-width: 100%;
+      text-overflow: ellipsis;
+      transform: none !important;
     }
     .enchant-recommend-sub {
       overflow: hidden;

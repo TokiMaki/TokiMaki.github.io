@@ -3377,6 +3377,35 @@ export function installEnchantView(ctx) {
       `).join('');
   }
 
+  function fitEnchantRecommendTitles() {
+    if (!els.enchantRecommendList) return;
+    els.enchantRecommendList.querySelectorAll('.enchant-recommend-title').forEach((title) => {
+      const text = title.querySelector('.enchant-recommend-title-text');
+      if (!text) return;
+      title.classList.remove('is-ellipsis');
+      text.style.letterSpacing = '';
+      text.style.transform = '';
+      const availableWidth = title.clientWidth;
+      if (!availableWidth) return;
+      if (text.scrollWidth <= availableWidth) return;
+
+      text.style.letterSpacing = '-0.03em';
+      if (text.scrollWidth <= availableWidth) return;
+
+      text.style.letterSpacing = '-0.05em';
+      if (text.scrollWidth <= availableWidth) return;
+
+      const scale = Math.max(0.95, Math.min(1, availableWidth / text.scrollWidth));
+      if (scale < 1) {
+        text.style.transform = `scaleX(${scale.toFixed(3)})`;
+        if (text.getBoundingClientRect().width <= availableWidth + 0.5) return;
+      }
+
+      text.style.transform = '';
+      title.classList.add('is-ellipsis');
+    });
+  }
+
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
     const recommendations = state.currentBufferBaseline?.isBuffer
@@ -3548,7 +3577,7 @@ export function installEnchantView(ctx) {
           <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}"${bandStyle}>
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
-              <span class="enchant-recommend-title">${escapeHtml(displayTitle)}</span>
+              <span class="enchant-recommend-title" title="${escapeHtml(displayTitle)}"><span class="enchant-recommend-title-text">${escapeHtml(displayTitle)}</span></span>
               <span class="enchant-recommend-sub">${escapeHtml(tierLabel)}</span>
             </span>
             <span class="enchant-recommend-metric">
@@ -3560,6 +3589,7 @@ export function installEnchantView(ctx) {
         </span>
       `;
     }).join('');
+    fitEnchantRecommendTitles();
   }
 
   async function loadCurrentEnchants() {
