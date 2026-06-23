@@ -60,6 +60,7 @@ from .repositories.auction_repository import get_auction_rows, get_auction_rows_
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details, search_items_by_name
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
+from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -2004,35 +2005,30 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
         damage_application_note = get_damage_application_note(entry)
         item_explain = f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
         item_explain = append_damage_application_note(item_explain, damage_application_note)
-        recommendations.append({
-            "kind": "switchingTitle",
-            "slot": "벞강 칭호",
-            "tier": "버프강화",
-            "itemId": candidate_price.get("itemId"),
-            "itemName": candidate_price.get("itemName") or config.get("itemName"),
-            "itemRarity": candidate_price.get("itemRarity") or "레어",
-            "iconUrl": candidate_price.get("iconUrl"),
-            "fame": candidate_price.get("fame"),
-            "auction": candidate_price.get("auction") or {},
-            "effects": {"skillDamageMultiplier": skill_damage_multiplier},
-            "skillDamageMultiplier": skill_damage_multiplier,
-            "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
-            "damageApplicationRatio": damage_application_ratio,
-            "damageApplicationNote": damage_application_note,
-            "itemExplain": item_explain,
-            "buffSkillName": buff_skill_name,
-            "requiredLevel": required_level,
-            "titleSkillLevelDelta": int(config.get("titleSkillLevelDelta") or 0),
-            "enchantBuffSkillLevelDelta": int(config.get("enchantBuffSkillLevelDelta") or 0),
-            "currentTitleContribution": current_contribution,
-            "candidateTitleContribution": candidate_contribution,
-            "currentSwitchingMultiplier": current_multiplier,
-            "candidateSwitchingMultiplier": candidate_multiplier,
-            "sourceTitleKind": source_title_kind,
-            "sourceTitleName": clean_text(source_title.get("itemName")),
-            "purchaseRoute": "attachedSwitchingTitle",
-            "purchaseRouteLabel": f"[{buff_skill_name} +{int(config.get('enchantBuffSkillLevelDelta') or 0)}Lv]",
-        })
+        recommendations.append(build_switching_title_recommendation_row(
+            item_id=candidate_price.get("itemId"),
+            item_name=candidate_price.get("itemName") or config.get("itemName"),
+            item_rarity=candidate_price.get("itemRarity") or "레어",
+            icon_url=candidate_price.get("iconUrl"),
+            fame=candidate_price.get("fame"),
+            auction=candidate_price.get("auction") or {},
+            skill_damage_multiplier=skill_damage_multiplier,
+            raw_skill_damage_multiplier=raw_skill_damage_multiplier,
+            damage_application_ratio=damage_application_ratio,
+            damage_application_note=damage_application_note,
+            item_explain=item_explain,
+            buff_skill_name=buff_skill_name,
+            required_level=required_level,
+            title_skill_level_delta=int(config.get("titleSkillLevelDelta") or 0),
+            enchant_buff_skill_level_delta=int(config.get("enchantBuffSkillLevelDelta") or 0),
+            current_title_contribution=current_contribution,
+            candidate_title_contribution=candidate_contribution,
+            current_switching_multiplier=current_multiplier,
+            candidate_switching_multiplier=candidate_multiplier,
+            source_title_kind=source_title_kind,
+            source_title_name=clean_text(source_title.get("itemName")),
+            purchase_route_label=f"[{buff_skill_name} +{int(config.get('enchantBuffSkillLevelDelta') or 0)}Lv]",
+        ))
     return recommendations
 
 
