@@ -10,6 +10,7 @@ from ..neople_client import (
 )
 from ..repositories.auction_repository import get_auction_rows_by_name
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
+from ..presenters.black_fang_presenter import build_black_fang_recommendation_row
 
 
 BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}
@@ -312,23 +313,21 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
         materials = enrich_black_fang_materials(scroll_cost.get("materials") or [], material_price_cache, material_prices)
         material_enrich_ms += (time.perf_counter() - material_started_at) * 1000
         material_text = format_materials_text(materials)
-        recommendations.append({
-            "slot": clean_text(equipment.get("slotName")),
-            "tier": "흑아",
-            "itemId": scroll_id,
-            "itemName": scroll_item.get("itemName") or scroll_name,
-            "itemRarity": scroll_item.get("itemRarity"),
-            "iconUrl": get_item_icon_url(scroll_id),
-            "itemExplain": f"{clean_text(equipment.get('itemName'))} -> {clean_text(black_item.get('itemName'))}",
-            "effects": effects,
-            "currentEffects": current_effects,
-            "targetEffects": black_effects,
-            "auction": auction,
-            "expectedGold": auction.get("minUnitPrice"),
-            "materials": materials,
-            "materialText": material_text,
-            "targetItemName": clean_text(black_item.get("itemName")),
-        })
+        recommendations.append(build_black_fang_recommendation_row(
+            slot=clean_text(equipment.get("slotName")),
+            item_id=scroll_id,
+            item_name=scroll_item.get("itemName") or scroll_name,
+            item_rarity=scroll_item.get("itemRarity"),
+            icon_url=get_item_icon_url(scroll_id),
+            item_explain=f"{clean_text(equipment.get('itemName'))} -> {clean_text(black_item.get('itemName'))}",
+            effects=effects,
+            current_effects=current_effects,
+            target_effects=black_effects,
+            auction=auction,
+            materials=materials,
+            material_text=material_text,
+            target_item_name=clean_text(black_item.get("itemName")),
+        ))
     steps.extend([
         {
             "name": "get_scroll_auction_prices",
