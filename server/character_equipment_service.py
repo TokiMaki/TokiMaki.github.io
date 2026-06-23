@@ -61,6 +61,7 @@ from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details, search_items_by_name
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
+from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -1750,32 +1751,28 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
         note = get_damage_application_note(entry)
         item_explain = f"{buff_skill_name} +{current_contribution}Lv -> +{candidate_contribution}Lv"
         item_explain = append_damage_application_note(item_explain, note)
-        recommendations.append({
-            "kind": "switchingCreature",
-            "slot": "벞강 크리쳐",
-            "tier": "버프강화",
-            "itemId": purchase_option.get("itemId") or item_id,
-            "itemName": purchase_option.get("itemName") or creature_option.get("itemName"),
-            "itemRarity": purchase_option.get("itemRarity") or creature_option.get("itemRarity") or "레어",
-            "iconUrl": purchase_option.get("iconUrl") or creature_option.get("iconUrl"),
-            "fame": creature_option.get("fame"),
-            "auction": purchase_option.get("auction") or {},
-            "effects": {"skillDamageMultiplier": skill_damage_multiplier},
-            "skillDamageMultiplier": skill_damage_multiplier,
-            "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
-            "damageApplicationNote": note,
-            "itemExplain": item_explain,
-            "buffSkillName": buff_skill_name,
-            "requiredLevel": required_level,
-            "currentCreatureContribution": current_contribution,
-            "candidateCreatureContribution": candidate_contribution,
-            "currentSwitchingMultiplier": current_multiplier,
-            "candidateSwitchingMultiplier": candidate_multiplier,
-            "sourceCreatureName": clean_text(current_creature.get("itemName")),
-            "targetCreatureName": creature_option.get("itemName"),
-            "purchaseRoute": purchase_option.get("purchaseRoute") or "creature",
-            "purchaseRouteLabel": "상자" if purchase_option.get("purchaseRoute") == "box" else "",
-        })
+        recommendations.append(build_switching_creature_recommendation_row(
+            item_id=purchase_option.get("itemId") or item_id,
+            item_name=purchase_option.get("itemName") or creature_option.get("itemName"),
+            item_rarity=purchase_option.get("itemRarity") or creature_option.get("itemRarity") or "레어",
+            icon_url=purchase_option.get("iconUrl") or creature_option.get("iconUrl"),
+            fame=creature_option.get("fame"),
+            auction=purchase_option.get("auction") or {},
+            skill_damage_multiplier=skill_damage_multiplier,
+            raw_skill_damage_multiplier=raw_skill_damage_multiplier,
+            damage_application_note=note,
+            item_explain=item_explain,
+            buff_skill_name=buff_skill_name,
+            required_level=required_level,
+            current_creature_contribution=current_contribution,
+            candidate_creature_contribution=candidate_contribution,
+            current_switching_multiplier=current_multiplier,
+            candidate_switching_multiplier=candidate_multiplier,
+            source_creature_name=clean_text(current_creature.get("itemName")),
+            target_creature_name=creature_option.get("itemName"),
+            purchase_route=purchase_option.get("purchaseRoute") or "creature",
+            purchase_route_label="상자" if purchase_option.get("purchaseRoute") == "box" else "",
+        ))
     return reduce_switching_creature_recommendations(recommendations)
 
 
