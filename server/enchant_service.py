@@ -3,6 +3,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .candidates.aura import build_aura_upgrade_groups
+from .candidates.creature import resolve_creature_upgrade_sources
 from .candidates.title import build_title_upgrade_groups, resolve_title_group_sources
 from .data_store import AURA_DB_PATH, CREATURE_ARTIFACT_DB_PATH, CREATURE_DB_PATH, ENCHANT_DB_PATH, TITLE_DB_PATH
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects
@@ -37,7 +38,6 @@ from .price_cache import (
 )
 from .upgrade_payloads import (
     build_title_payload,
-    creature_item_matches,
     get_title_variant,
     parse_skill_damage_percent,
     parse_title_level_tag,
@@ -381,79 +381,6 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
     return sources or fallback_sources
 
 
-def iter_creature_upgrade_configs(creature_db: dict) -> list[dict]:
-    groups = creature_db.get("groups") or []
-    if groups:
-        return groups
-
-    direct_items = creature_db.get("items") or []
-    if not direct_items:
-        return []
-
-    grouped = {}
-    for item in direct_items:
-        group_name = clean_text(item.get("groupName") or item.get("searchName") or item.get("name"))
-        if not group_name:
-            continue
-        group = grouped.setdefault(group_name, {
-            "groupName": group_name,
-            "searchName": clean_text(item.get("searchName") or group_name),
-            "itemType": clean_text(item.get("itemType")) or "크리쳐",
-            "targetFame": item.get("targetFame"),
-            "candidates": [],
-        })
-        if group.get("targetFame") is None and item.get("targetFame") is not None:
-            group["targetFame"] = item.get("targetFame")
-        group["candidates"].append(item)
-    return list(grouped.values())
-
-
-def normalize_creature_item_specs(candidate: dict, key: str) -> list[dict]:
-    specs = []
-    for item in candidate.get(key) or []:
-        if isinstance(item, str):
-            item_id = clean_text(item)
-            if item_id:
-                specs.append({"itemId": item_id})
-            continue
-        if not isinstance(item, dict):
-            continue
-        item_id = clean_text(item.get("itemId"))
-        item_name = clean_text(item.get("itemName"))
-        if item_id or item_name:
-            specs.append({**item, "itemId": item_id, "itemName": item_name})
-    return specs
-
-
-def creature_search_row_matches(row: dict, search_config: dict) -> bool:
-    item_name = clean_text(row.get("itemName"))
-    if not item_name:
-        return False
-    exact_names = {clean_text(name) for name in search_config.get("includeItemNames") or []}
-    prefixes = [clean_text(prefix) for prefix in search_config.get("includeNamePrefixes") or []]
-    if exact_names and item_name in exact_names:
-        return True
-    if prefixes and any(item_name.startswith(prefix) for prefix in prefixes):
-        return True
-    query = clean_text(search_config.get("query"))
-    return bool(query and query in item_name)
-
-
-def iter_creature_search_configs(candidate: dict, key: str) -> list[dict]:
-    configs = []
-    for search_config in candidate.get(key) or []:
-        if isinstance(search_config, str):
-            query = clean_text(search_config)
-            if query:
-                configs.append({"query": query})
-            continue
-        if isinstance(search_config, dict):
-            query = clean_text(search_config.get("query"))
-            if query:
-                configs.append({**search_config, "query": query})
-    return configs
-
-
 def load_creature_upgrades_with_prices(
     force_refresh: bool = False,
     allow_stale: bool = True,
@@ -522,81 +449,15 @@ def load_creature_upgrades_with_prices(
 
     groups = []
     errors = []
-    for group in iter_creature_upgrade_configs(creature_db):
-        target_fame = group.get("targetFame")
-        group_payload = {key: group.get(key) for key in ("groupName", "searchName", "itemType")}
+    for group_source in resolve_creature_upgrade_sources(creature_db, search_items_by_name):
+        group_payload = group_source.get("groupPayload") or {}
         candidates = []
-        for candidate in group.get("candidates") or []:
-            matched = {}
-            price_only_item_ids = set()
-            candidate_target_fame = candidate.get("targetFame", target_fame)
-            effect_item_ids = set()
-            effect_item_specs = normalize_creature_item_specs(candidate, "effectItems")
-            if not effect_item_specs:
-                effect_item_specs = [
-                    {"itemId": clean_text(item_id)}
-                    for item_id in [
-                        candidate.get("itemId"),
-                        *(candidate.get("itemIds") or []),
-                    ]
-                    if clean_text(item_id)
-                ]
-            for item in effect_item_specs:
-                item_id = clean_text(item.get("itemId"))
-                if not item_id:
-                    continue
-                matched[item_id] = item
-                effect_item_ids.add(item_id)
-
-            price_item_specs = normalize_creature_item_specs(candidate, "priceItems")
-            if not price_item_specs:
-                price_item_specs = [
-                    {"itemId": clean_text(item_id)}
-                    for item_id in candidate.get("priceItemIds") or []
-                    if clean_text(item_id)
-                ]
-            for item in price_item_specs:
-                item_id = clean_text(item.get("itemId"))
-                if not item_id:
-                    continue
-                matched[item_id] = item
-                if item_id not in effect_item_ids:
-                    price_only_item_ids.add(item_id)
-
-            effect_searches = iter_creature_search_configs(candidate, "effectSearches")
-            price_searches = iter_creature_search_configs(candidate, "priceSearches")
-            if not effect_searches and not price_searches:
-                effect_searches = [
-                    {
-                        "query": clean_text(search_name),
-                        "includeItemNames": candidate.get("includeItemNames") or [],
-                        "includeNamePrefixes": candidate.get("includeNamePrefixes") or [],
-                        "legacy": True,
-                    }
-                    for search_name in candidate.get("searchNames") or [candidate.get("name")]
-                    if clean_text(search_name)
-                ]
-            for search_config in effect_searches:
-                try:
-                    for row in search_items_by_name(clean_text(search_config.get("query"))):
-                        if search_config.get("legacy"):
-                            is_match = creature_item_matches(row, candidate, candidate_target_fame)
-                        else:
-                            is_match = creature_search_row_matches(row, search_config)
-                        if is_match:
-                            matched[row["itemId"]] = row
-                            effect_item_ids.add(row["itemId"])
-                except Exception as exc:
-                    errors.append({"name": candidate.get("name"), "searchName": search_config.get("query"), "error": str(exc)})
-            for search_config in price_searches:
-                try:
-                    for row in search_items_by_name(clean_text(search_config.get("query"))):
-                        if creature_search_row_matches(row, search_config):
-                            matched[row["itemId"]] = row
-                            if row["itemId"] not in effect_item_ids:
-                                price_only_item_ids.add(row["itemId"])
-                except Exception as exc:
-                    errors.append({"name": candidate.get("name"), "searchName": search_config.get("query"), "error": str(exc)})
+        for candidate_source in group_source.get("candidateSources") or []:
+            candidate = candidate_source.get("candidate") or {}
+            matched = candidate_source.get("matched") or {}
+            price_only_item_ids = set(candidate_source.get("priceOnlyItemIds") or [])
+            candidate_target_fame = candidate_source.get("candidateTargetFame")
+            errors.extend(candidate_source.get("errors") or [])
 
             detail_by_id = {
                 row.get("itemId"): row
