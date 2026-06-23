@@ -35,7 +35,6 @@ from .neople_client import (
     build_character_detail_url,
     clean_item_display_name,
     clean_text,
-    fetch_item_details,
     get_auction_rows,
     get_auction_rows_by_name,
     get_item_explain,
@@ -45,6 +44,7 @@ from .neople_client import (
     request_json,
     search_items_by_name,
 )
+from .repositories.item_repository import fetch_item_details
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,

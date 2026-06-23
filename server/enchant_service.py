@@ -11,7 +11,6 @@ from .item_skill_option_service import get_character_skill_context, get_item_rei
 from .neople_client import (
     clean_item_display_name,
     clean_text,
-    fetch_item_details,
     get_item_explain,
     get_item_icon_url,
     get_auction_rows,
@@ -36,6 +35,7 @@ from .price_cache import (
     save_price_cache_to_disk,
     start_cache_refresh,
 )
+from .repositories.item_repository import fetch_item_details
 from .upgrade_payloads import (
     build_title_payload,
     get_title_variant,

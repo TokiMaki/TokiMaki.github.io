@@ -5,12 +5,12 @@ from ..effects import normalize_enchant_status, subtract_effects
 from ..neople_client import (
     clean_item_display_name,
     clean_text,
-    fetch_item_details,
     get_auction_rows_by_name,
     get_item_icon_url,
     get_lowest_auction_price,
     search_items_by_name,
 )
+from ..repositories.item_repository import fetch_item_details
 
 
 BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}

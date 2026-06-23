@@ -14,8 +14,6 @@ REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
 _ITEM_SEARCH_CACHE_LOCK = threading.Lock()
 _ITEM_SEARCH_CACHE: dict[str, list] = {}
-_ITEM_DETAIL_CACHE_LOCK = threading.Lock()
-_ITEM_DETAIL_CACHE: dict[str, dict] = {}
 
 
 def require_api_key() -> str:
@@ -218,37 +216,11 @@ def search_items_by_name(item_name: str, max_pages: int = 1, word_type: str = "f
     return rows
 
 
-def fetch_item_details(item_ids: list) -> list:
-    unique_ids = []
-    seen = set()
-    for item_id in item_ids:
-        if item_id and item_id not in seen:
-            unique_ids.append(item_id)
-            seen.add(item_id)
-    if not unique_ids:
+def fetch_item_details_from_api(item_ids: list) -> list:
+    if not item_ids:
         return []
-
-    rows_by_id = {}
-    missing_ids = []
-    with _ITEM_DETAIL_CACHE_LOCK:
-        for item_id in unique_ids:
-            cached = _ITEM_DETAIL_CACHE.get(item_id)
-            if cached is not None:
-                rows_by_id[item_id] = dict(cached)
-            else:
-                missing_ids.append(item_id)
-
-    for index in range(0, len(missing_ids), 20):
-        chunk = missing_ids[index:index + 20]
-        url = f"https://api.neople.co.kr/df/multi/items?itemIds={','.join(chunk)}&apikey={API_KEY}"
-        fetched_rows = request_json(url).get("rows") or []
-        with _ITEM_DETAIL_CACHE_LOCK:
-            for row in fetched_rows:
-                item_id = row.get("itemId")
-                if item_id:
-                    _ITEM_DETAIL_CACHE[item_id] = dict(row)
-                    rows_by_id[item_id] = dict(row)
-    return [rows_by_id[item_id] for item_id in unique_ids if item_id in rows_by_id]
+    url = f"https://api.neople.co.kr/df/multi/items?itemIds={','.join(item_ids)}&apikey={API_KEY}"
+    return request_json(url).get("rows") or []
 
 
 def resolve_exact_item_by_name(item_name: str, item_type_detail: str = "") -> dict:

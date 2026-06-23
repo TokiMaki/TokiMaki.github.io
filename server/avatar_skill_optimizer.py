@@ -2,7 +2,8 @@ import re
 from urllib.parse import quote
 
 from .data_store import load_avatar_option_db
-from .neople_client import API_KEY, clean_text, fetch_item_details, request_json, search_character
+from .neople_client import API_KEY, clean_text, request_json, search_character
+from .repositories.item_repository import fetch_item_details
 
 
 SKILL_ATTACK_PATTERNS = [
