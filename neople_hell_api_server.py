@@ -22,7 +22,7 @@ from server.character_equipment_service import (
 )
 from server.character_search_service import search_character_response
 from server.character_summary_service import summarize_character_response
-from server.avatar_skill_optimizer import load_character_avatar_skill_efficiency
+from server.avatar_skill_optimizer import load_avatar_skill_efficiency_response
 from server.enchant_service import (
     load_aura_upgrades_with_prices,
     load_creature_upgrades_with_prices,
@@ -140,22 +140,6 @@ def load_public_response_body(cache_key: tuple, loader, force_refresh: bool = Fa
                     "expires_at": time.time() + PUBLIC_RESPONSE_CACHE_SECONDS,
                 }
         return body, False
-
-
-def parse_skill_level_overrides(raw_value: str) -> dict:
-    result = {}
-    for chunk in (raw_value or "").split(","):
-        if ":" not in chunk:
-            continue
-        name, level = chunk.rsplit(":", 1)
-        name = clean_text(name)
-        try:
-            parsed_level = int(clean_text(level))
-        except ValueError:
-            continue
-        if name and parsed_level > 0:
-            result[name] = parsed_level
-    return result
 
 
 class HellApiHandler(SimpleHTTPRequestHandler):
@@ -330,7 +314,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         server_id = clean_text((query.get("serverId") or [""])[0]).lower()
         character_id = clean_text((query.get("characterId") or [""])[0])
         character_name = clean_text((query.get("characterName") or [""])[0])
-        skill_level_overrides = parse_skill_level_overrides((query.get("skillLevels") or [""])[0])
+        skill_levels_text = (query.get("skillLevels") or [""])[0]
         if not server_id or not (character_id or character_name):
             return self.send_json(
                 {"error": "serverId와 characterId 또는 characterName을 입력해 주세요."},
@@ -338,11 +322,11 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            self.send_json(load_character_avatar_skill_efficiency(
+            self.send_json(load_avatar_skill_efficiency_response(
                 server_id,
                 character_id,
                 character_name,
-                skill_level_overrides=skill_level_overrides,
+                skill_levels_text=skill_levels_text,
             ))
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)

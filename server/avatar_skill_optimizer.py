@@ -19,6 +19,22 @@ def normalize_job_name(value: str) -> str:
     return re.sub(r"^(眞|진|真)\s*", "", text).strip()
 
 
+def parse_skill_level_overrides(raw_value: str) -> dict:
+    result = {}
+    for chunk in (raw_value or "").split(","):
+        if ":" not in chunk:
+            continue
+        name, level = chunk.rsplit(":", 1)
+        name = clean_text(name)
+        try:
+            parsed_level = int(clean_text(level))
+        except ValueError:
+            continue
+        if name and parsed_level > 0:
+            result[name] = parsed_level
+    return result
+
+
 def flatten_skill_rows(payload: dict) -> list[dict]:
     rows = []
     containers = []
@@ -656,3 +672,17 @@ def load_character_avatar_skill_efficiency(
         "bestCombo": recommended_combo,
         "comboResults": combo_results[:20],
     }
+
+
+def load_avatar_skill_efficiency_response(
+    server_id: str,
+    character_id: str = "",
+    character_name: str = "",
+    skill_levels_text: str = "",
+) -> dict:
+    return load_character_avatar_skill_efficiency(
+        server_id,
+        character_id,
+        character_name,
+        skill_level_overrides=parse_skill_level_overrides(skill_levels_text),
+    )
