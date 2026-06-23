@@ -3,6 +3,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .candidates.aura import build_aura_upgrade_groups
+from .candidates.title import build_title_upgrade_groups, resolve_title_group_sources
 from .data_store import AURA_DB_PATH, CREATURE_ARTIFACT_DB_PATH, CREATURE_DB_PATH, ENCHANT_DB_PATH, TITLE_DB_PATH
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects
 from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect
@@ -40,7 +41,6 @@ from .upgrade_payloads import (
     get_title_variant,
     parse_skill_damage_percent,
     parse_title_level_tag,
-    title_item_matches,
 )
 
 CREATURE_PRICE_CACHE_SCHEMA_VERSION = 6
@@ -847,82 +847,15 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         return auction_cache[item_id]
 
     title_bead_options = load_title_bead_options(get_cached_auction, errors)
-    title_groups = title_db.get("groups") or [
-        {
-            "groupName": keyword,
-            "searchName": keyword,
-            "itemType": "칭호",
-        }
-        for keyword in title_db.get("keywords") or []
-    ]
+    title_groups = build_title_upgrade_groups(title_db)
     for title_group in title_groups:
-        keyword = clean_text(title_group.get("searchName") or title_group.get("groupName"))
+        resolved_sources = resolve_title_group_sources(title_group, fetch_item_details, search_items_by_name)
+        keyword = resolved_sources.get("keyword")
         if not keyword:
             continue
-
-        title_item_ids = [
-            clean_text(item.get("itemId"))
-            for item in title_group.get("titleItems") or []
-            if isinstance(item, dict) and clean_text(item.get("itemId"))
-        ]
-        price_item_ids = [
-            clean_text(item.get("itemId"))
-            for item in title_group.get("priceItems") or []
-            if isinstance(item, dict) and clean_text(item.get("itemId"))
-        ]
-        if title_item_ids:
-            details = fetch_item_details(title_item_ids)
-            title_details = [
-                detail for detail in details
-                if detail.get("itemTypeDetail") == "칭호"
-            ]
-            box_details = [
-                detail for detail in fetch_item_details(price_item_ids)
-                if "칭호 선택 상자" in clean_text(detail.get("itemName"))
-            ] if price_item_ids else []
-        else:
-            matched = {}
-            try:
-                for row in search_items_by_name(keyword):
-                    if title_item_matches(row, keyword):
-                        matched[row["itemId"]] = row
-            except Exception as exc:
-                errors.append({"keyword": keyword, "error": str(exc)})
-
-            details = fetch_item_details(list(matched.keys()))
-            title_details = [
-                detail for detail in details
-                if detail.get("itemTypeDetail") == "칭호" and keyword in clean_text(detail.get("itemName"))
-            ]
-            box_details = [
-                detail for detail in details
-                if "칭호 선택 상자" in clean_text(detail.get("itemName"))
-            ]
-
-        for search_config in title_group.get("priceSearches") or []:
-            if isinstance(search_config, str):
-                search_config = {"query": search_config}
-            if not isinstance(search_config, dict):
-                continue
-            search_query = clean_text(search_config.get("query"))
-            if not search_query:
-                continue
-            try:
-                for row in search_items_by_name(search_query):
-                    item_name = clean_text(row.get("itemName"))
-                    exact_names = {clean_text(name) for name in search_config.get("includeItemNames") or []}
-                    prefixes = [clean_text(prefix) for prefix in search_config.get("includeNamePrefixes") or []]
-                    if (
-                        ("칭호 선택 상자" in item_name)
-                        and (
-                            not exact_names and not prefixes
-                            or item_name in exact_names
-                            or any(item_name.startswith(prefix) for prefix in prefixes)
-                        )
-                    ):
-                        box_details.extend(fetch_item_details([row.get("itemId")]))
-            except Exception as exc:
-                errors.append({"keyword": search_query, "error": str(exc)})
+        title_details = resolved_sources.get("titleDetails") or []
+        box_details = resolved_sources.get("boxDetails") or []
+        errors.extend(resolved_sources.get("errors") or [])
 
         box_prices = []
         with ThreadPoolExecutor(max_workers=8) as executor:
