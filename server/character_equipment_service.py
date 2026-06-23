@@ -59,6 +59,7 @@ from .neople_client import (
 from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details, search_items_by_name
+from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -1232,25 +1233,21 @@ def load_dealer_switching_fragment_recommendations(
             skill_damage_multiplier = get_applied_switching_multiplier(raw_multiplier, entry)
             note = get_damage_application_note(entry)
             item_explain = append_damage_application_note("", note)
-            recommendations.append({
-                "kind": "switchingFragment",
-                "slot": "짙편린",
-                "tier": "버프강화",
-                "itemId": clean_text(row.get("itemId")),
-                "itemName": clean_item_display_name(row.get("itemName")),
-                "itemRarity": clean_text(row.get("itemRarity")) or "유니크",
-                "iconUrl": get_item_icon_url(clean_text(row.get("itemId"))),
-                "fame": row.get("fame"),
-                "auction": row.get("auction") or {},
-                "effects": {"skillDamageMultiplier": skill_damage_multiplier},
-                "skillDamageMultiplier": skill_damage_multiplier,
-                "rawSkillDamageMultiplier": raw_multiplier,
-                "damageApplicationNote": note,
-                "itemExplain": item_explain,
-                "buffSkillName": buff_skill_name,
-                "switchingSlot": slot,
-                "purchaseRouteLabel": "",
-            })
+            item_id = clean_text(row.get("itemId"))
+            recommendations.append(build_switching_fragment_recommendation_row(
+                item_id=item_id,
+                item_name=clean_item_display_name(row.get("itemName")),
+                item_rarity=clean_text(row.get("itemRarity")) or "유니크",
+                icon_url=get_item_icon_url(item_id),
+                fame=row.get("fame"),
+                auction=row.get("auction") or {},
+                skill_damage_multiplier=skill_damage_multiplier,
+                raw_skill_damage_multiplier=raw_multiplier,
+                damage_application_note=note,
+                item_explain=item_explain,
+                buff_skill_name=buff_skill_name,
+                switching_slot=slot,
+            ))
             break
     return recommendations
 
