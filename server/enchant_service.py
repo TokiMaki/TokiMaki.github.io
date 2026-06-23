@@ -14,8 +14,6 @@ from .neople_client import (
     get_item_explain,
     get_item_icon_url,
     get_lowest_auction_price,
-    resolve_exact_item_by_name,
-    search_items_by_name,
 )
 from .price_cache import (
     CREATURE_PRICE_CACHE_PATH,
@@ -33,7 +31,7 @@ from .price_cache import (
     start_cache_refresh,
 )
 from .repositories.auction_repository import get_auction_rows, get_aura_price_cache_payload, save_aura_price_cache_payload
-from .repositories.item_repository import fetch_item_details
+from .repositories.item_repository import fetch_item_details, resolve_exact_item_by_name, search_items_by_name
 from .upgrade_payloads import (
     build_title_payload,
     get_title_variant,

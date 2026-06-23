@@ -8,9 +8,8 @@ from ..neople_client import (
     get_item_explain,
     get_item_icon_url,
     request_json,
-    search_items_by_name,
 )
-from ..repositories.item_repository import fetch_item_details
+from ..repositories.item_repository import fetch_item_details, search_items_by_name
 from ..upgrade_payloads import aura_item_matches, build_aura_payload
 
 

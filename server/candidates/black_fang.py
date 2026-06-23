@@ -7,10 +7,9 @@ from ..neople_client import (
     clean_text,
     get_item_icon_url,
     get_lowest_auction_price,
-    search_items_by_name,
 )
 from ..repositories.auction_repository import get_auction_rows_by_name
-from ..repositories.item_repository import fetch_item_details
+from ..repositories.item_repository import fetch_item_details, search_items_by_name
 
 
 BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}

@@ -40,11 +40,10 @@ from .neople_client import (
     get_lowest_auction_price,
     get_lowest_auction_prices,
     request_json,
-    search_items_by_name,
 )
 from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name
 from .repositories.character_repository import get_character_cached_payload
-from .repositories.item_repository import fetch_item_details
+from .repositories.item_repository import fetch_item_details, search_items_by_name
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
