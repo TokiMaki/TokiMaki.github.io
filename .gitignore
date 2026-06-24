@@ -101,4 +101,6 @@ $RECYCLE.BIN/
 
 ### Documents
 *.md
+!Docs/DEPLOY_LIGHTSAIL.md
 *.txt
+!requirements.txt

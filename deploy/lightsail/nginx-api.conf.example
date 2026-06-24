@@ -1,0 +1,28 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api2.dunpilot.com;
+
+    access_log /var/log/nginx/dunpilot-api.access.log;
+    error_log /var/log/nginx/dunpilot-api.error.log;
+
+    location / {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+}
+
+# HTTPS is expected to terminate at Cloudflare or at this nginx server.
+# If terminating TLS on nginx, add a separate 443 server block with the
+# certificate paths issued for api2.dunpilot.com, then keep the same proxy
+# settings above.
