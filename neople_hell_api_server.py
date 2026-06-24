@@ -33,6 +33,7 @@ from server.data_store import (
     ROOT,
 )
 from server.neople_client import (
+    NeopleMaintenanceError,
     clean_text,
 )
 from server.ops_log import write_ops_log
@@ -306,6 +307,8 @@ class HellApiHandler(SimpleHTTPRequestHandler):
 
         try:
             self.send_json(search_character_response(server_id, character_name))
+        except NeopleMaintenanceError as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 

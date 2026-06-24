@@ -15,6 +15,21 @@ TIMELINE_CODES = "550,551,552,553,554,555,556,557"
 TIMELINE_START_DATE = "2026-03-26 00:00"
 
 
+class NeopleMaintenanceError(RuntimeError):
+    def __init__(
+        self,
+        message: str = "던파 점검중...",
+        *,
+        status_code: int | None = None,
+        error_code: str = "",
+        raw_message: str = "",
+    ):
+        super().__init__(message)
+        self.status_code = status_code
+        self.error_code = error_code
+        self.raw_message = raw_message
+
+
 def require_api_key() -> str:
     if not API_KEY:
         raise RuntimeError("NEOPLE_API_KEY 환경변수를 설정해 주세요.")
@@ -47,13 +62,26 @@ def request_json(url: str) -> dict[str, Any]:
         except HTTPError as exc:
             last_error = exc
             error_text = ""
+            error_code = ""
+            raw_message = ""
             try:
                 error_text = exc.read().decode("utf-8")
             except Exception:
                 error_text = ""
-            if exc.code == 503 or "DNF980" in error_text:
+            try:
+                error_payload = json.loads(error_text)
+                error_status = error_payload.get("error") if isinstance(error_payload.get("error"), dict) else {}
+                error_code = clean_text(error_status.get("code"))
+                raw_message = clean_text(error_status.get("message"))
+            except Exception:
+                pass
+            if exc.code == 503 or error_code == "DNF980" or raw_message == "SYSTEM_INSPECT" or "DNF980" in error_text:
                 write_ops_log("neople_api_maintenance", status=exc.code, url=sanitize_url(url), body=error_text[:500])
-                raise RuntimeError("던파 점검중...") from exc
+                raise NeopleMaintenanceError(
+                    status_code=exc.code,
+                    error_code=error_code,
+                    raw_message=raw_message,
+                ) from exc
             if attempt < MAX_RETRIES:
                 time.sleep(1)
             else:
