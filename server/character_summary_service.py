@@ -1,5 +1,5 @@
 from .character_summary import summarize_character_by_identity
-from .neople_client import search_character
+from .character_search_service import search_character
 
 
 def summarize_character_response(server_id: str, character_name: str) -> dict:

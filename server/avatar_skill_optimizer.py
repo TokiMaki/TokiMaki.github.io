@@ -2,7 +2,8 @@ import re
 from urllib.parse import quote
 
 from .data_store import load_avatar_option_db
-from .neople_client import API_KEY, clean_text, request_json, search_character
+from .character_search_service import search_character
+from .neople_client import API_KEY, clean_text, request_json
 from .calculators.avatar_skill_calculator import (
     estimate_skill_plus_one,
     find_skill_attack_option_value_key,
