@@ -65,6 +65,7 @@ from .presenters.switching_platinum_presenter import build_switching_platinum_re
 from .presenters.platinum_emblem_presenter import build_platinum_emblem_recommendation_row
 from .presenters.buffer_switching_title_presenter import build_buffer_switching_title_recommendation_row
 from .presenters.character_preview_presenter import build_character_preview_payload
+from .presenters.character_avatar_presenter import build_character_avatar_payload
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -3499,50 +3500,46 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         )
         timing_details["build_avatar_emblem_recommendations"] = emblem_debug.get("steps") or []
         recommendations.extend(emblem_debug.get("recommendations") or [])
-    return {
-        "serverId": payload.get("serverId"),
-        "characterId": payload.get("characterId"),
-        "characterName": payload.get("characterName"),
-        "jobName": payload.get("jobName"),
-        "jobGrowName": payload.get("jobGrowName"),
-        "fame": payload.get("fame"),
-        "avatar": {
-            "dbMatched": bool(entry),
-            "primaryStatName": primary_stat_name,
-            "expectedTopOption": top_option,
-            "expectedPlatinumEmblem": platinum_skill,
-            "expectedPlatinumEmblemsBySlot": platinum_skill_by_slot,
-            "recommendedCombo": recommended_avatar_combo,
-            "comboAnalysisError": avatar_combo_analysis.get("error"),
-            "rareAvatarCount": len(rare_slots),
-            "rareAvatarSlots": rare_slots,
-            "rareCloneAvatarCount": len(clone_slots),
-            "rareCloneAvatarSlots": clone_slots,
-            "jacket": {
-                "itemName": clean_text(jacket.get("itemName")),
-                "itemRarity": clean_text(jacket.get("itemRarity")),
-                "isRare": clean_text(jacket.get("itemRarity")) == "레어",
-                "isRareClone": is_rare_clone_avatar(jacket),
-                "optionAbility": clean_text(jacket.get("optionAbility")),
-                "topOptionMatched": top_option_matched,
-            },
-            "pants": {
-                "itemName": clean_text(pants.get("itemName")),
-                "itemRarity": clean_text(pants.get("itemRarity")),
-                "isRare": clean_text(pants.get("itemRarity")) == "레어",
-                "isRareClone": is_rare_clone_avatar(pants),
-            },
-            "platinumCount": len(platinum_slots),
-            "platinumSlots": platinum_slots,
-            "missingOrWrongPlatinumSlots": missing_or_wrong_slots,
-            "needsRareAvatarSet": needs_rare_avatar_set,
-            "missingBaseRareAvatarSlots": missing_base_rare_slots,
-            "rareAvatarSetPurchasable": False,
-            "needsReview": bool(option_db.get("needsReview")),
-        },
-        "recommendations": recommendations,
-        "debugTimings": {
-            "steps": steps,
-            "details": timing_details,
-        },
+    jacket_payload = {
+        "itemName": clean_text(jacket.get("itemName")),
+        "itemRarity": clean_text(jacket.get("itemRarity")),
+        "isRare": clean_text(jacket.get("itemRarity")) == "레어",
+        "isRareClone": is_rare_clone_avatar(jacket),
+        "optionAbility": clean_text(jacket.get("optionAbility")),
+        "topOptionMatched": top_option_matched,
     }
+    pants_payload = {
+        "itemName": clean_text(pants.get("itemName")),
+        "itemRarity": clean_text(pants.get("itemRarity")),
+        "isRare": clean_text(pants.get("itemRarity")) == "레어",
+        "isRareClone": is_rare_clone_avatar(pants),
+    }
+    avatar_payload = {
+        "dbMatched": bool(entry),
+        "primaryStatName": primary_stat_name,
+        "expectedTopOption": top_option,
+        "expectedPlatinumEmblem": platinum_skill,
+        "expectedPlatinumEmblemsBySlot": platinum_skill_by_slot,
+        "recommendedCombo": recommended_avatar_combo,
+        "comboAnalysisError": avatar_combo_analysis.get("error"),
+        "rareAvatarCount": len(rare_slots),
+        "rareAvatarSlots": rare_slots,
+        "rareCloneAvatarCount": len(clone_slots),
+        "rareCloneAvatarSlots": clone_slots,
+        "jacket": jacket_payload,
+        "pants": pants_payload,
+        "platinumCount": len(platinum_slots),
+        "platinumSlots": platinum_slots,
+        "missingOrWrongPlatinumSlots": missing_or_wrong_slots,
+        "needsRareAvatarSet": needs_rare_avatar_set,
+        "missingBaseRareAvatarSlots": missing_base_rare_slots,
+        "rareAvatarSetPurchasable": False,
+        "needsReview": bool(option_db.get("needsReview")),
+    }
+    return build_character_avatar_payload(
+        payload,
+        avatar_payload,
+        recommendations,
+        steps,
+        timing_details,
+    )
