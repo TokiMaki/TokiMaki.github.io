@@ -104,7 +104,7 @@ def get_auction_rows_by_name_from_api(item_name: str, word_type: str = "full", l
     return request_json(url).get("rows") or []
 
 
-def _lowest_auction_price_from_rows(rows: list) -> dict:
+def _lowest_auction_price_from_rows_for_batch(rows: list) -> dict:
     priced_rows = [
         row for row in rows
         if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0
@@ -132,10 +132,6 @@ def _lowest_auction_price_from_rows(rows: list) -> dict:
         "upgradeMax": lowest.get("upgradeMax") if lowest else None,
         "isMaxUpgrade": bool(lowest) and int(lowest.get("upgrade") or 0) == int(lowest.get("upgradeMax") or 0),
     }
-
-
-def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
-    return _lowest_auction_price_from_rows(get_auction_rows_from_api(item_id, min_fame=min_fame, max_fame=max_fame))
 
 
 def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, int] | None = None, limit: int = 100) -> dict[str, dict]:
@@ -172,7 +168,7 @@ def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, in
                 row for row in rows
                 if int(row.get("fame") or 0) == int(target_fame)
             ]
-        prices[item_id] = _lowest_auction_price_from_rows(rows)
+        prices[item_id] = _lowest_auction_price_from_rows_for_batch(rows)
     return prices
 
 

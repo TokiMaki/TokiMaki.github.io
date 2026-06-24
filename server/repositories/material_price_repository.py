@@ -1,7 +1,8 @@
 import threading
 import time
 
-from ..neople_client import clean_text, get_item_icon_url, get_lowest_auction_price
+from ..neople_client import clean_text, get_item_icon_url
+from .auction_repository import get_lowest_auction_price
 from .item_repository import search_items_by_name
 
 
