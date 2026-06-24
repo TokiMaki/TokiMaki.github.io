@@ -158,6 +158,14 @@ def parse_element_bonus_from_text(text: str) -> float:
     return max(values or [0])
 
 
+def get_equipment_detail_base_element_bonus(detail: dict) -> float:
+    effects = normalize_enchant_status(detail.get("itemStatus") or [])
+    explain_element = parse_element_bonus_from_text(
+        detail.get("itemExplainDetail") or detail.get("itemExplain") or ""
+    )
+    return max(effects.get("elementAll", 0), explain_element)
+
+
 def _get_equipment_base_element_bonus_debug(equipment_rows: list) -> dict:
     steps = []
     item_ids = {
@@ -173,11 +181,7 @@ def _get_equipment_base_element_bonus_debug(equipment_rows: list) -> dict:
     total = 0
     parse_started_at = time.perf_counter()
     for detail in details:
-        effects = normalize_enchant_status(detail.get("itemStatus") or [])
-        explain_element = parse_element_bonus_from_text(
-            detail.get("itemExplainDetail") or detail.get("itemExplain") or ""
-        )
-        total += max(effects.get("elementAll", 0), explain_element)
+        total += get_equipment_detail_base_element_bonus(detail)
     steps.append({
         "name": "parse_item_details",
         "ms": round((time.perf_counter() - parse_started_at) * 1000, 1),
