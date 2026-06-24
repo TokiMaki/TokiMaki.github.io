@@ -452,6 +452,27 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     }
 
 
+def build_equipment_enchant_rows_and_upgrades(equipment_rows: list) -> tuple[list, list]:
+    rows = []
+    equipment_upgrades = []
+    for equipment in equipment_rows or []:
+        slot_name = clean_text(equipment.get("slotName"))
+        if slot_name:
+            equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
+        enchant = equipment.get("enchant") or {}
+        status_rows = enchant.get("status") or []
+        if not slot_name or not status_rows:
+            continue
+        rows.append({
+            "slot": slot_name,
+            "itemName": clean_text(equipment.get("itemName")),
+            "effects": normalize_enchant_status(status_rows),
+            "reinforceSkill": enchant.get("reinforceSkill") or [],
+            "rawStatus": status_rows,
+        })
+    return rows, equipment_upgrades
+
+
 def build_oath_upgrade_payload(oath_payload: dict) -> dict:
     oath = oath_payload.get("oath") or {}
     info = oath.get("info") or {}
@@ -508,23 +529,7 @@ def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
 def load_character_enchants(server_id: str, character_id: str) -> dict:
     steps = []
     payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
-    rows = []
-    equipment_upgrades = []
-    for equipment in payload.get("equipment") or []:
-        slot_name = clean_text(equipment.get("slotName"))
-        if slot_name:
-            equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
-        enchant = equipment.get("enchant") or {}
-        status_rows = enchant.get("status") or []
-        if not slot_name or not status_rows:
-            continue
-        rows.append({
-            "slot": slot_name,
-            "itemName": clean_text(equipment.get("itemName")),
-            "effects": normalize_enchant_status(status_rows),
-            "reinforceSkill": enchant.get("reinforceSkill") or [],
-            "rawStatus": status_rows,
-        })
+    rows, equipment_upgrades = build_equipment_enchant_rows_and_upgrades(payload.get("equipment") or [])
     equipment_base_element_debug = _measure_step(
         steps,
         "get_equipment_base_element_bonus",
