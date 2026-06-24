@@ -2,14 +2,12 @@ import re
 from urllib.parse import quote
 
 from .data_store import load_avatar_option_db
-from .neople_client import API_KEY, clean_text, request_json, search_character
+from .character_search_service import search_character
+from .neople_client import API_KEY, clean_text, request_json
 from .calculators.avatar_skill_calculator import (
     estimate_skill_plus_one,
-    find_skill_attack_option_value_key,
-    get_level_attack_percent,
     get_skill_attack_ratio,
     normalize_skill_key,
-    parse_skill_attack_percent,
 )
 from .repositories.item_repository import fetch_item_details
 
@@ -17,6 +15,22 @@ from .repositories.item_repository import fetch_item_details
 def normalize_job_name(value: str) -> str:
     text = clean_text(value)
     return re.sub(r"^(眞|진|真)\s*", "", text).strip()
+
+
+def parse_skill_level_overrides(raw_value: str) -> dict:
+    result = {}
+    for chunk in (raw_value or "").split(","):
+        if ":" not in chunk:
+            continue
+        name, level = chunk.rsplit(":", 1)
+        name = clean_text(name)
+        try:
+            parsed_level = int(clean_text(level))
+        except ValueError:
+            continue
+        if name and parsed_level > 0:
+            result[name] = parsed_level
+    return result
 
 
 def flatten_skill_rows(payload: dict) -> list[dict]:
@@ -68,28 +82,6 @@ def add_current_setup_skill_bonuses(result: dict, reinforce_skill: list, job_nam
                     name = clean_text(skill.get("name"))
                     if name:
                         result[name] = result.get(name, 0) + value
-
-
-def add_current_setup_explain_skill_bonuses(result: dict, explain: str, style_rows: list[dict]) -> None:
-    text = clean_text(explain)
-    for match in re.finditer(r"(\d+)\s*~\s*(\d+)\s*(?:레벨|Lv)[^+\d]*스킬\s*Lv\s*\+\s*(\d+)", text, re.IGNORECASE):
-        minimum = int(match.group(1))
-        maximum = int(match.group(2))
-        value = int(match.group(3))
-        for skill in style_rows:
-            required_level = int(skill.get("requiredLevel") or 0)
-            if minimum <= required_level <= maximum:
-                name = clean_text(skill.get("name"))
-                if name:
-                    result[name] = result.get(name, 0) + value
-    for match in re.finditer(r"(\d+)\s*(?:레벨|Lv)[^+\d]*스킬\s*Lv\s*\+\s*(\d+)", text, re.IGNORECASE):
-        required = int(match.group(1))
-        value = int(match.group(2))
-        for skill in style_rows:
-            if int(skill.get("requiredLevel") or 0) == required:
-                name = clean_text(skill.get("name"))
-                if name:
-                    result[name] = result.get(name, 0) + value
 
 
 def get_current_non_avatar_skill_bonuses(server_id: str, character_id: str, style_rows: list[dict], job_name: str) -> dict:
@@ -656,3 +648,17 @@ def load_character_avatar_skill_efficiency(
         "bestCombo": recommended_combo,
         "comboResults": combo_results[:20],
     }
+
+
+def load_avatar_skill_efficiency_response(
+    server_id: str,
+    character_id: str = "",
+    character_name: str = "",
+    skill_levels_text: str = "",
+) -> dict:
+    return load_character_avatar_skill_efficiency(
+        server_id,
+        character_id,
+        character_name,
+        skill_level_overrides=parse_skill_level_overrides(skill_levels_text),
+    )

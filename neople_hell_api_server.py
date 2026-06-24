@@ -20,8 +20,9 @@ from server.character_equipment_service import (
     load_character_preview,
     load_character_title,
 )
-from server.avatar_skill_optimizer import load_character_avatar_skill_efficiency
-from server.character_summary import summarize_character_by_identity
+from server.character_search_service import search_character_response
+from server.character_summary_service import summarize_character_response
+from server.avatar_skill_optimizer import load_avatar_skill_efficiency_response
 from server.enchant_service import (
     load_aura_upgrades_with_prices,
     load_creature_upgrades_with_prices,
@@ -33,7 +34,6 @@ from server.data_store import (
 )
 from server.neople_client import (
     clean_text,
-    search_character,
 )
 from server.ops_log import write_ops_log
 from server.price_cache import (
@@ -140,22 +140,6 @@ def load_public_response_body(cache_key: tuple, loader, force_refresh: bool = Fa
                     "expires_at": time.time() + PUBLIC_RESPONSE_CACHE_SECONDS,
                 }
         return body, False
-
-
-def parse_skill_level_overrides(raw_value: str) -> dict:
-    result = {}
-    for chunk in (raw_value or "").split(","):
-        if ":" not in chunk:
-            continue
-        name, level = chunk.rsplit(":", 1)
-        name = clean_text(name)
-        try:
-            parsed_level = int(clean_text(level))
-        except ValueError:
-            continue
-        if name and parsed_level > 0:
-            result[name] = parsed_level
-    return result
 
 
 class HellApiHandler(SimpleHTTPRequestHandler):
@@ -321,37 +305,8 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            resolved = search_character(server_id, character_name)
-            self.send_json(
-                {
-                    "serverId": server_id,
-                    "characterName": character_name,
-                    "matchCount": len(resolved["rows"]),
-                    "resolved": {
-                        "serverId": resolved["server_id"],
-                        "characterId": resolved["character_id"],
-                        "characterName": resolved["character_name"],
-                        "adventureName": resolved.get("adventure_name", ""),
-                        "fame": resolved.get("fame", 0),
-                        "jobId": resolved.get("job_id", ""),
-                        "jobName": resolved.get("job_name", ""),
-                        "jobGrowId": resolved.get("job_grow_id", ""),
-                        "jobGrowName": resolved.get("job_grow_name", ""),
-                    },
-                    "rows": resolved["rows"],
-                }
-            )
+            self.send_json(search_character_response(server_id, character_name))
         except Exception as exc:
-            if "캐릭터를 찾지 못했습니다" in str(exc):
-                return self.send_json(
-                    {
-                        "serverId": server_id,
-                        "characterName": character_name,
-                        "matchCount": 0,
-                        "resolved": {},
-                        "rows": [],
-                    }
-                )
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 
     def handle_avatar_skill_efficiency(self, parsed):
@@ -359,7 +314,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         server_id = clean_text((query.get("serverId") or [""])[0]).lower()
         character_id = clean_text((query.get("characterId") or [""])[0])
         character_name = clean_text((query.get("characterName") or [""])[0])
-        skill_level_overrides = parse_skill_level_overrides((query.get("skillLevels") or [""])[0])
+        skill_levels_text = (query.get("skillLevels") or [""])[0]
         if not server_id or not (character_id or character_name):
             return self.send_json(
                 {"error": "serverId와 characterId 또는 characterName을 입력해 주세요."},
@@ -367,11 +322,11 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            self.send_json(load_character_avatar_skill_efficiency(
+            self.send_json(load_avatar_skill_efficiency_response(
                 server_id,
                 character_id,
                 character_name,
-                skill_level_overrides=skill_level_overrides,
+                skill_levels_text=skill_levels_text,
             ))
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
@@ -568,26 +523,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            resolved = search_character(server_id, character_name)
-            summary = summarize_character_by_identity(
-                resolved["server_id"],
-                resolved["character_id"],
-                resolved["character_name"],
-            )
-            self.send_json(
-                {
-                    "serverId": resolved["server_id"],
-                    "characterId": resolved["character_id"],
-                    "requestedCharacterName": character_name,
-                    "name": summary["name"],
-                    "fame": resolved.get("fame", 0),
-                    "jobId": resolved.get("job_id", ""),
-                    "jobName": resolved.get("job_name", ""),
-                    "jobGrowId": resolved.get("job_grow_id", ""),
-                    "jobGrowName": resolved.get("job_grow_name", ""),
-                    "sets": summary["sets"],
-                }
-            )
+            self.send_json(summarize_character_response(server_id, character_name))
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 

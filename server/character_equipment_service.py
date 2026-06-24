@@ -11,17 +11,14 @@ from .data_store import (
     load_oath_tune_stage_db,
     load_upgrade_expected_db,
 )
-from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number, subtract_effects
+from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number
 from .avatar_skill_optimizer import (
-    evaluate_avatar_combo,
     flatten_skill_rows,
     get_avatar_candidate_combos,
-    normalize_skill_key,
     select_best_avatar_combo_for_character,
 )
 from .calculators.avatar_skill_calculator import (
     get_avatar_platinum_skill_damage_multiplier,
-    get_skill_attack_ratio,
     get_skill_level_labeled_value,
     get_skill_level_stat_value,
 )
@@ -31,9 +28,6 @@ from .calculators.switching_calculator import (
     get_switching_damage_multiplier,
     get_switching_fragment_coefficients,
     match_current_switching_coefficients,
-    normalize_switching_skill_name,
-    parse_buff_option_numbers,
-    switching_skill_name_matches,
 )
 from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect, get_item_reinforce_skill_matches
 from .candidates.avatar_emblem import (
@@ -42,29 +36,35 @@ from .candidates.avatar_emblem import (
     build_avatar_emblem_recommendations_debug,
     get_avatar_emblem_item_name,
     get_emblem_stat_value,
-    get_emblems_by_color,
 )
 from .candidates.black_fang import build_black_fang_recommendations_debug
+from .candidates.switching_fragment import (
+    SWITCHING_FRAGMENT_TARGET_SLOTS,
+    get_switching_fragment_auction_candidate_groups,
+    get_switching_fragment_candidate_items,
+    get_switching_fragment_slot,
+    item_detail_matches_job,
+)
 from .neople_client import (
-    API_KEY,
-    build_character_detail_url,
     clean_item_display_name,
     clean_text,
+    fetch_skill_detail_from_api,
     get_item_explain,
     get_item_icon_url,
-    get_lowest_auction_price,
-    get_lowest_auction_prices,
-    request_json,
 )
-from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name
+from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name, get_lowest_auction_price, get_lowest_auction_prices
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details, search_items_by_name
+from .repositories.material_price_repository import load_upgrade_material_prices
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
 from .presenters.switching_platinum_presenter import build_switching_platinum_recommendation_row
 from .presenters.platinum_emblem_presenter import build_platinum_emblem_recommendation_row
 from .presenters.buffer_switching_title_presenter import build_buffer_switching_title_recommendation_row
+from .presenters.character_preview_presenter import build_character_preview_payload
+from .presenters.character_avatar_presenter import build_character_avatar_payload
+from .presenters.character_enchants_presenter import build_character_enchants_payload
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -81,30 +81,11 @@ AVATAR_BRILLIANT_YELLOW_STAT = 15
 AVATAR_BRILLIANT_GREEN_STAT = 15
 AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
-UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS = 300
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
-SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT = 100
-SWITCHING_FRAGMENT_AUCTION_MAX_PAGES = 5
-SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT = 3
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
-_UPGRADE_MATERIAL_PRICE_CACHE_LOCK = threading.Lock()
-_UPGRADE_MATERIAL_PRICE_CACHE = {}
 _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK = threading.Lock()
 _SWITCHING_CREATURE_CANDIDATE_CACHE = {}
-UPGRADE_MATERIAL_PRICE_ITEMS = {
-    "harmonyCrystal": {"label": "무결점 조화의 결정체", "itemId": "ab8eab6848ed81b8bdd65d1c5a6ae8b2"},
-    "contradictionCrystal": {"label": "모순의 결정체", "itemId": "f1afc13118b2b07ec1e3b8c2f1958b03"},
-    "colorlessCube": {"label": "무색 큐브 조각", "itemId": "785e56a0ed4e3efd573da1f56a45217d"},
-    "lionCore": {"label": "무결점 라이언 코어", "itemId": "3840051cf487429c5a757c8bdb00e33b"},
-    "amplificationProtectionTicket": {"label": "증폭 보호권", "itemId": "55be75a1c024aac3ef84ed3bed5b8db9"},
-    "reinforcementProtectionTicket": {"label": "강화 보호권", "itemId": "8bc063c2b80179bc002f7dfb8203c4ab"},
-    "epicSoul": {"label": "에픽 소울 결정", "itemId": "c7d845c65ab9dbcff6e55dc910fbea87"},
-    "legendarySoul": {"label": "레전더리 소울 결정", "itemId": "c6947ff630cc59aebdcbabfb449258d1"},
-    "radiantSoul": {"label": "광휘의 소울 결정", "itemId": "27a5877768a40a3a0eccc493d0a53b9b"},
-    "primordialSoul": {"label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888"},
-    "pilgrimSeal": {"label": "순례의 인장(1회 교환 가능)", "itemId": "d7e9443a19fe81a9cc8364c201f6ab55"},
-}
 BUFFER_SWITCHING_SELF_STAT_SKILLS = {
     "영광의 축복": {"수호의 은총", "보호의 징표", "신념의 오라", "신의 대행자", "디바인 플래쉬"},
     "용맹의 축복": {"계시 : 아리아", "신실한 열정", "라파엘의 축복", "루클렌티스 엔젤"},
@@ -155,38 +136,6 @@ def _measure_step(steps: list, name: str, fn):
     return result
 
 
-def load_upgrade_material_prices() -> dict:
-    now = time.time()
-    with _UPGRADE_MATERIAL_PRICE_CACHE_LOCK:
-        cached = _UPGRADE_MATERIAL_PRICE_CACHE.get("payload")
-        if cached and float(cached.get("expires_at") or 0) > now:
-            return cached.get("payload") or {}
-
-    payload = {}
-    for key, config in UPGRADE_MATERIAL_PRICE_ITEMS.items():
-        item_name = clean_text(config.get("label"))
-        item_id = clean_text(config.get("itemId"))
-        item = {} if item_id else (find_exact_item_by_name(item_name) if item_name else {})
-        item_id = clean_text(item_id or item.get("itemId"))
-        try:
-            auction = get_lowest_auction_price(item_id) if item_id else {}
-        except Exception:
-            auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
-        payload[key] = {
-            "label": clean_text(item.get("itemName")) or item_name,
-            "itemId": item_id,
-            "iconUrl": get_item_icon_url(item_id) if item_id else "",
-            "auction": auction,
-        }
-
-    with _UPGRADE_MATERIAL_PRICE_CACHE_LOCK:
-        _UPGRADE_MATERIAL_PRICE_CACHE["payload"] = {
-            "payload": payload,
-            "expires_at": now + UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS,
-        }
-    return payload
-
-
 def status_rows_to_map(status_rows: list) -> dict:
     return {
         clean_text(status.get("name")): parse_percent_or_number(status.get("value"))
@@ -201,6 +150,14 @@ def parse_element_bonus_from_text(text: str) -> float:
         for match in re.finditer(r"(?:모든\s*)?속성\s*강화\s*\+?\s*([0-9.]+)", clean_text(text))
     ]
     return max(values or [0])
+
+
+def get_equipment_detail_base_element_bonus(detail: dict) -> float:
+    effects = normalize_enchant_status(detail.get("itemStatus") or [])
+    explain_element = parse_element_bonus_from_text(
+        detail.get("itemExplainDetail") or detail.get("itemExplain") or ""
+    )
+    return max(effects.get("elementAll", 0), explain_element)
 
 
 def _get_equipment_base_element_bonus_debug(equipment_rows: list) -> dict:
@@ -218,11 +175,7 @@ def _get_equipment_base_element_bonus_debug(equipment_rows: list) -> dict:
     total = 0
     parse_started_at = time.perf_counter()
     for detail in details:
-        effects = normalize_enchant_status(detail.get("itemStatus") or [])
-        explain_element = parse_element_bonus_from_text(
-            detail.get("itemExplainDetail") or detail.get("itemExplain") or ""
-        )
-        total += max(effects.get("elementAll", 0), explain_element)
+        total += get_equipment_detail_base_element_bonus(detail)
     steps.append({
         "name": "parse_item_details",
         "ms": round((time.perf_counter() - parse_started_at) * 1000, 1),
@@ -235,8 +188,7 @@ def get_equipment_base_element_bonus(equipment_rows: list) -> float:
     return _get_equipment_base_element_bonus_debug(equipment_rows).get("value") or 0
 
 
-def load_character_damage_baseline(server_id: str, character_id: str, equipment_base_element: float = 0) -> dict:
-    payload = get_character_cached_payload(server_id, character_id, "status", "status")
+def build_damage_baseline_from_status_payload(payload: dict, equipment_base_element: float = 0) -> dict:
     status = status_rows_to_map(payload.get("status") or [])
     job_grow_name = clean_text(payload.get("jobGrowName"))
     base_stats = load_job_base_stats().get(job_grow_name) or {}
@@ -275,6 +227,11 @@ def load_character_damage_baseline(server_id: str, character_id: str, equipment_
         "attackIncrease": status.get("공격력 증가", 0),
         "attackAmplification": status.get("공격력 증폭", 0),
     }
+
+
+def load_character_damage_baseline(server_id: str, character_id: str, equipment_base_element: float = 0) -> dict:
+    payload = get_character_cached_payload(server_id, character_id, "status", "status")
+    return build_damage_baseline_from_status_payload(payload, equipment_base_element)
 
 
 def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | None:
@@ -497,6 +454,27 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     }
 
 
+def build_equipment_enchant_rows_and_upgrades(equipment_rows: list) -> tuple[list, list]:
+    rows = []
+    equipment_upgrades = []
+    for equipment in equipment_rows or []:
+        slot_name = clean_text(equipment.get("slotName"))
+        if slot_name:
+            equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
+        enchant = equipment.get("enchant") or {}
+        status_rows = enchant.get("status") or []
+        if not slot_name or not status_rows:
+            continue
+        rows.append({
+            "slot": slot_name,
+            "itemName": clean_text(equipment.get("itemName")),
+            "effects": normalize_enchant_status(status_rows),
+            "reinforceSkill": enchant.get("reinforceSkill") or [],
+            "rawStatus": status_rows,
+        })
+    return rows, equipment_upgrades
+
+
 def build_oath_upgrade_payload(oath_payload: dict) -> dict:
     oath = oath_payload.get("oath") or {}
     info = oath.get("info") or {}
@@ -543,9 +521,8 @@ def build_oath_upgrade_payload(oath_payload: dict) -> dict:
 
 
 def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
-    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/oath?apikey={API_KEY}"
     try:
-        payload = request_json(url)
+        payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath")
     except Exception:
         return {}
     return build_oath_upgrade_payload(payload)
@@ -554,23 +531,7 @@ def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
 def load_character_enchants(server_id: str, character_id: str) -> dict:
     steps = []
     payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
-    rows = []
-    equipment_upgrades = []
-    for equipment in payload.get("equipment") or []:
-        slot_name = clean_text(equipment.get("slotName"))
-        if slot_name:
-            equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
-        enchant = equipment.get("enchant") or {}
-        status_rows = enchant.get("status") or []
-        if not slot_name or not status_rows:
-            continue
-        rows.append({
-            "slot": slot_name,
-            "itemName": clean_text(equipment.get("itemName")),
-            "effects": normalize_enchant_status(status_rows),
-            "reinforceSkill": enchant.get("reinforceSkill") or [],
-            "rawStatus": status_rows,
-        })
+    rows, equipment_upgrades = build_equipment_enchant_rows_and_upgrades(payload.get("equipment") or [])
     equipment_base_element_debug = _measure_step(
         steps,
         "get_equipment_base_element_bonus",
@@ -598,28 +559,23 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "load_character_oath_upgrades",
         lambda: load_character_oath_upgrades(server_id, character_id),
     )
-    return {
-        "serverId": payload.get("serverId"),
-        "characterId": payload.get("characterId"),
-        "characterName": payload.get("characterName"),
-        "fame": payload.get("fame"),
-        "damageBaseline": damage_baseline,
-        "bufferBaseline": load_character_buffer_baseline(server_id, character_id),
-        "enchants": rows,
-        "equipmentUpgrades": equipment_upgrades,
-        "oathUpgrades": oath_upgrades,
-        "oathTuneStageDb": load_oath_tune_stage_db(),
-        "blackFangRecommendations": black_fang_recommendations,
-        "upgradeExpectedDb": load_upgrade_expected_db(),
-        "upgradeMaterialPrices": upgrade_material_prices,
-        "debugTimings": {
-            "steps": steps,
-            "details": {
-                "get_equipment_base_element_bonus": equipment_base_element_debug.get("steps") or [],
-                "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
-            },
+    return build_character_enchants_payload(
+        payload,
+        damage_baseline,
+        load_character_buffer_baseline(server_id, character_id),
+        rows,
+        equipment_upgrades,
+        oath_upgrades,
+        load_oath_tune_stage_db(),
+        black_fang_recommendations,
+        load_upgrade_expected_db(),
+        upgrade_material_prices,
+        steps,
+        {
+            "get_equipment_base_element_bonus": equipment_base_element_debug.get("steps") or [],
+            "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
         },
-    }
+    )
 
 
 def load_character_creature(server_id: str, character_id: str) -> dict:
@@ -771,13 +727,10 @@ def load_character_aura(server_id: str, character_id: str) -> dict:
 
 
 def load_character_preview(server_id: str, character_id: str) -> dict:
-    equipment_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/equipment?apikey={API_KEY}"
-    creature_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/creature?apikey={API_KEY}"
-    avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
-    equipment_payload = request_json(equipment_url)
-    creature_payload = request_json(creature_url)
-    avatar_payload = request_json(avatar_url)
-    detail_payload = request_json(build_character_detail_url(server_id, character_id))
+    equipment_payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+    creature_payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    avatar_payload = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
+    detail_payload = get_character_cached_payload(server_id, character_id, "detail", "")
     detail_source = detail_payload.get("character") if isinstance(detail_payload.get("character"), dict) else detail_payload
     adventure_name = clean_text((detail_source or {}).get("adventureName"))
 
@@ -874,18 +827,15 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
 
     aura = build_aura_payload(aura_item_id, detail_map.get(aura_item_id) or {}) if aura_item_id else None
 
-    return {
-        "serverId": equipment_payload.get("serverId"),
-        "characterId": equipment_payload.get("characterId"),
-        "characterName": equipment_payload.get("characterName"),
-        "adventureName": adventure_name,
-        "fame": equipment_payload.get("fame"),
-        "enchants": enchants,
-        "equipmentUpgrades": equipment_upgrades,
-        "title": title,
-        "creature": creature,
-        "aura": aura,
-    }
+    return build_character_preview_payload(
+        equipment_payload,
+        adventure_name,
+        enchants,
+        equipment_upgrades,
+        title,
+        creature,
+        aura,
+    )
 
 
 def find_dealer_switching_buff_entry(payload: dict, is_dealer_crusader: bool = False) -> dict:
@@ -995,150 +945,6 @@ def find_lowest_auction_item_by_allowed_names(query: str, allowed_names: set[str
     ]
     row = min(matched, key=lambda item: item.get("unitPrice") or item.get("currentPrice"), default=None)
     return auction_row_to_item_price(row) if row else {}
-
-
-SWITCHING_FRAGMENT_SLOT_LABELS = {
-    "WEAPON": "무기",
-    "JACKET": "상의",
-    "PANTS": "하의",
-    "SHOULDER": "머리어깨",
-    "WAIST": "벨트",
-    "SHOES": "신발",
-    "WRIST": "팔찌",
-    "AMULET": "목걸이",
-    "RING": "반지",
-    "SUPPORT": "보조장비",
-    "MAGIC_STON": "마법석",
-    "EARRING": "귀걸이",
-}
-SWITCHING_FRAGMENT_SLOT_ALIASES = {
-    "어깨": "머리어깨",
-    "완장": "보조장비",
-}
-SWITCHING_FRAGMENT_TARGET_SLOTS = set(SWITCHING_FRAGMENT_SLOT_LABELS.values())
-
-
-def normalize_switching_fragment_slot(value: str) -> str:
-    text = clean_text(value)
-    return SWITCHING_FRAGMENT_SLOT_ALIASES.get(text, text)
-
-
-def get_switching_fragment_slot(row: dict) -> str:
-    slot_id = clean_text(row.get("slotId"))
-    if slot_id in SWITCHING_FRAGMENT_SLOT_LABELS:
-        return SWITCHING_FRAGMENT_SLOT_LABELS[slot_id]
-    if clean_text(row.get("itemType")) == "무기":
-        return "무기"
-    return normalize_switching_fragment_slot(row.get("itemTypeDetail") or row.get("slotName"))
-
-
-def switching_fragment_suffix_matches(item_name: str, buff_skill_name: str) -> bool:
-    item_name = clean_text(item_name)
-    if ":" not in item_name:
-        return False
-    suffix = item_name.rsplit(":", 1)[-1].strip()
-    return normalize_switching_skill_name(suffix) == normalize_switching_skill_name(buff_skill_name)
-
-
-def is_switching_fragment_item_name(item_name: str, buff_skill_name: str) -> bool:
-    item_name = clean_text(item_name)
-    if not (
-        item_name.startswith("짙은 심연의 편린 ")
-        or item_name.startswith("짙은 뒤틀린 심연의 ")
-    ):
-        return False
-    if "제작 레시피" in item_name or "[결투장]" in item_name:
-        return False
-    return switching_fragment_suffix_matches(item_name, buff_skill_name)
-
-
-def get_switching_fragment_search_terms(buff_skill_name: str) -> list[str]:
-    terms = []
-    for term in [
-        clean_text(buff_skill_name),
-        re.sub(r"\s+", "", clean_text(buff_skill_name)),
-    ]:
-        if term and term not in terms:
-            terms.append(term)
-    return terms
-
-
-def get_switching_fragment_auction_candidate_groups(buff_skill_name: str, job_name: str, dense_slots: set[str]) -> dict:
-    needed_slots = SWITCHING_FRAGMENT_TARGET_SLOTS - set(dense_slots or [])
-    if not needed_slots:
-        return {}
-    groups = {slot: [] for slot in needed_slots}
-    seen_item_ids = set()
-    for search_term in get_switching_fragment_search_terms(buff_skill_name):
-        for page in range(SWITCHING_FRAGMENT_AUCTION_MAX_PAGES):
-            rows = get_auction_rows_by_name(
-                search_term,
-                word_type="full",
-                limit=SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT,
-                offset=page * SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT,
-            )
-            if not rows:
-                break
-            for row in rows:
-                item_id = clean_text(row.get("itemId"))
-                item_name = clean_text(row.get("itemName"))
-                unit_price = row.get("unitPrice") or row.get("currentPrice")
-                if not item_id or item_id in seen_item_ids:
-                    continue
-                if not isinstance(unit_price, (int, float)) or unit_price <= 0:
-                    continue
-                if clean_text(row.get("itemRarity")) != "유니크":
-                    continue
-                if not item_detail_matches_job(row, job_name):
-                    continue
-                if not is_switching_fragment_item_name(item_name, buff_skill_name):
-                    continue
-                slot = get_switching_fragment_slot(row)
-                if slot not in needed_slots or len(groups.get(slot) or []) >= SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT:
-                    continue
-                seen_item_ids.add(item_id)
-                groups[slot].append({
-                    **row,
-                    "itemId": item_id,
-                    "itemName": item_name,
-                    "auction": auction_row_to_switching_title_price(row),
-                })
-            if all(groups.get(slot) for slot in needed_slots):
-                break
-        if all(groups.get(slot) for slot in needed_slots):
-            break
-    return {slot: rows for slot, rows in groups.items() if rows}
-
-
-def item_detail_matches_job(detail: dict, job_name: str) -> bool:
-    jobs = detail.get("jobs") or []
-    if not jobs:
-        return True
-    return any(clean_text(job.get("jobName")) == clean_text(job_name) for job in jobs)
-
-
-def get_switching_fragment_candidate_items(buff_skill_name: str, job_name: str) -> list:
-    search_names = [
-        f"짙은 심연의 편린 {buff_skill_name}",
-        f"짙은 뒤틀린 심연 {buff_skill_name}",
-    ]
-    seen_ids = set()
-    candidates = []
-    for search_name in search_names:
-        for row in search_items_by_name(search_name):
-            item_id = clean_text(row.get("itemId"))
-            item_name = clean_text(row.get("itemName"))
-            if not item_id or item_id in seen_ids:
-                continue
-            if "짙은" not in item_name or "심연" not in item_name or not switching_skill_name_matches(item_name, buff_skill_name):
-                continue
-            if "제작 레시피" in item_name or "[결투장]" in item_name:
-                continue
-            if not any(clean_text(job.get("jobName")) == job_name for job in row.get("jobs") or []):
-                continue
-            seen_ids.add(item_id)
-            candidates.append(row)
-    return candidates
 
 
 def get_lowest_switching_fragment_auction(item_id: str) -> dict:
@@ -1893,7 +1699,7 @@ def get_buffer_switching_metrics(
         base_level = int(style_row.get("level") or 0)
         if not skill_id or base_level <= 0:
             continue
-        skill_detail = request_json(f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}")
+        skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
         current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
         switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
         skill_delta += switching_value - current_value
@@ -2529,13 +2335,6 @@ def extract_emblem_option_text(item_name: str) -> str:
     return match.group(1).strip() if match else ""
 
 
-def get_avatar_green_stat_total(row: dict, stat_name: str) -> float:
-    return sum(
-        get_emblem_stat_value(emblem.get("itemName"), stat_name, "green")
-        for emblem in get_emblems_by_color(row, "녹색빛")
-    )
-
-
 def get_status_stat_value(status_rows: list, stat_name: str) -> float:
     return sum(
         parse_percent_or_number(row.get("value"))
@@ -2749,7 +2548,7 @@ def get_buffer_switching_stat_delta(
         base_level = int(style_row.get("level") or 0)
         if not skill_id or base_level <= 0:
             continue
-        skill_detail = request_json(f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}")
+        skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
         skill_detail_by_name[name] = skill_detail
         current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
         switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
@@ -2766,9 +2565,7 @@ def get_buffer_switching_stat_delta(
             continue
         skill_detail = skill_detail_by_name.get(name)
         if not skill_detail:
-            skill_detail = request_json(
-                f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}"
-            )
+            skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
         current_level = base_level + current_bonuses.get(name, 0)
         current_self_stat_skills[name] = {
             "level": current_level,
@@ -2901,18 +2698,6 @@ def find_exact_item_by_name(item_name: str, item_type_detail: str = "") -> dict:
     return matched[0] if matched else {}
 
 
-def find_exact_item_by_match_name(item_name: str, item_type_detail: str = "", limit: int = 5) -> dict:
-    item_name = clean_text(item_name)
-    item_type_detail = clean_text(item_type_detail)
-    rows = search_items_by_name(item_name, word_type="match", limit=limit)
-    matched = [
-        row for row in rows
-        if clean_text(row.get("itemName")) == item_name
-        and (not item_type_detail or clean_text(row.get("itemTypeDetail")) == item_type_detail)
-    ]
-    return matched[0] if matched else {}
-
-
 def get_buffer_avatar_emblem_configs(switching_rows: list) -> tuple[list, list]:
     switching_rare_slot_ids = {
         slot_id
@@ -3018,10 +2803,6 @@ def find_avatar_platinum_item(skill_name: str) -> dict:
         key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
         default={"itemName": item_name, "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}},
     )
-
-
-def format_price_label(value) -> str:
-    return f"{int(value):,}골드" if isinstance(value, (int, float)) and value > 0 else "매물 없음"
 
 
 def find_avatar_platinum_selection_box() -> dict:
@@ -3505,50 +3286,46 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         )
         timing_details["build_avatar_emblem_recommendations"] = emblem_debug.get("steps") or []
         recommendations.extend(emblem_debug.get("recommendations") or [])
-    return {
-        "serverId": payload.get("serverId"),
-        "characterId": payload.get("characterId"),
-        "characterName": payload.get("characterName"),
-        "jobName": payload.get("jobName"),
-        "jobGrowName": payload.get("jobGrowName"),
-        "fame": payload.get("fame"),
-        "avatar": {
-            "dbMatched": bool(entry),
-            "primaryStatName": primary_stat_name,
-            "expectedTopOption": top_option,
-            "expectedPlatinumEmblem": platinum_skill,
-            "expectedPlatinumEmblemsBySlot": platinum_skill_by_slot,
-            "recommendedCombo": recommended_avatar_combo,
-            "comboAnalysisError": avatar_combo_analysis.get("error"),
-            "rareAvatarCount": len(rare_slots),
-            "rareAvatarSlots": rare_slots,
-            "rareCloneAvatarCount": len(clone_slots),
-            "rareCloneAvatarSlots": clone_slots,
-            "jacket": {
-                "itemName": clean_text(jacket.get("itemName")),
-                "itemRarity": clean_text(jacket.get("itemRarity")),
-                "isRare": clean_text(jacket.get("itemRarity")) == "레어",
-                "isRareClone": is_rare_clone_avatar(jacket),
-                "optionAbility": clean_text(jacket.get("optionAbility")),
-                "topOptionMatched": top_option_matched,
-            },
-            "pants": {
-                "itemName": clean_text(pants.get("itemName")),
-                "itemRarity": clean_text(pants.get("itemRarity")),
-                "isRare": clean_text(pants.get("itemRarity")) == "레어",
-                "isRareClone": is_rare_clone_avatar(pants),
-            },
-            "platinumCount": len(platinum_slots),
-            "platinumSlots": platinum_slots,
-            "missingOrWrongPlatinumSlots": missing_or_wrong_slots,
-            "needsRareAvatarSet": needs_rare_avatar_set,
-            "missingBaseRareAvatarSlots": missing_base_rare_slots,
-            "rareAvatarSetPurchasable": False,
-            "needsReview": bool(option_db.get("needsReview")),
-        },
-        "recommendations": recommendations,
-        "debugTimings": {
-            "steps": steps,
-            "details": timing_details,
-        },
+    jacket_payload = {
+        "itemName": clean_text(jacket.get("itemName")),
+        "itemRarity": clean_text(jacket.get("itemRarity")),
+        "isRare": clean_text(jacket.get("itemRarity")) == "레어",
+        "isRareClone": is_rare_clone_avatar(jacket),
+        "optionAbility": clean_text(jacket.get("optionAbility")),
+        "topOptionMatched": top_option_matched,
     }
+    pants_payload = {
+        "itemName": clean_text(pants.get("itemName")),
+        "itemRarity": clean_text(pants.get("itemRarity")),
+        "isRare": clean_text(pants.get("itemRarity")) == "레어",
+        "isRareClone": is_rare_clone_avatar(pants),
+    }
+    avatar_payload = {
+        "dbMatched": bool(entry),
+        "primaryStatName": primary_stat_name,
+        "expectedTopOption": top_option,
+        "expectedPlatinumEmblem": platinum_skill,
+        "expectedPlatinumEmblemsBySlot": platinum_skill_by_slot,
+        "recommendedCombo": recommended_avatar_combo,
+        "comboAnalysisError": avatar_combo_analysis.get("error"),
+        "rareAvatarCount": len(rare_slots),
+        "rareAvatarSlots": rare_slots,
+        "rareCloneAvatarCount": len(clone_slots),
+        "rareCloneAvatarSlots": clone_slots,
+        "jacket": jacket_payload,
+        "pants": pants_payload,
+        "platinumCount": len(platinum_slots),
+        "platinumSlots": platinum_slots,
+        "missingOrWrongPlatinumSlots": missing_or_wrong_slots,
+        "needsRareAvatarSet": needs_rare_avatar_set,
+        "missingBaseRareAvatarSlots": missing_base_rare_slots,
+        "rareAvatarSetPurchasable": False,
+        "needsReview": bool(option_db.get("needsReview")),
+    }
+    return build_character_avatar_payload(
+        payload,
+        avatar_payload,
+        recommendations,
+        steps,
+        timing_details,
+    )

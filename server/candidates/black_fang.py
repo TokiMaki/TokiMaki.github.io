@@ -6,9 +6,8 @@ from ..neople_client import (
     clean_item_display_name,
     clean_text,
     get_item_icon_url,
-    get_lowest_auction_price,
 )
-from ..repositories.auction_repository import get_auction_rows_by_name
+from ..repositories.auction_repository import get_auction_rows_by_name, get_lowest_auction_price
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
 from ..presenters.black_fang_presenter import build_black_fang_recommendation_row
 

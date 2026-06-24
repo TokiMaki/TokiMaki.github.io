@@ -13,7 +13,6 @@ from .neople_client import (
     clean_text,
     get_item_explain,
     get_item_icon_url,
-    get_lowest_auction_price,
 )
 from .price_cache import (
     CREATURE_PRICE_CACHE_PATH,
@@ -30,7 +29,7 @@ from .price_cache import (
     save_price_cache_to_disk,
     start_cache_refresh,
 )
-from .repositories.auction_repository import get_auction_rows, get_aura_price_cache_payload, save_aura_price_cache_payload
+from .repositories.auction_repository import get_auction_rows, get_aura_price_cache_payload, get_lowest_auction_price, save_aura_price_cache_payload
 from .repositories.item_repository import fetch_item_details, resolve_exact_item_by_name, search_items_by_name
 from .upgrade_payloads import (
     build_title_payload,
@@ -119,21 +118,6 @@ def lowest_auction_from_rows(rows: list) -> dict:
     ]
     lowest = min(priced_rows, key=lambda row: row.get("unitPrice"), default=None)
     return auction_row_to_price(lowest) if lowest else {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
-
-
-def get_title_bead_element_from_name(item_name: str) -> str:
-    name = clean_text(item_name)
-    if "화속성" in name:
-        return "fire"
-    if "수속성" in name:
-        return "water"
-    if "명속성" in name:
-        return "light"
-    if "암속성" in name:
-        return "dark"
-    if "모든속성" in name or "모든 속성" in name:
-        return "all"
-    return ""
 
 
 def enrich_aura_groups_for_character(groups: list, server_id: str, character_id: str) -> list:

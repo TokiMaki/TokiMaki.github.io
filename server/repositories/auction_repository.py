@@ -1,6 +1,6 @@
 import time
 
-from ..neople_client import get_auction_rows_by_name_from_api, get_auction_rows_from_api
+from ..neople_client import clean_text, get_auction_rows_by_item_ids_from_api, get_auction_rows_by_name_from_api, get_auction_rows_from_api
 from ..price_cache import (
     AURA_PRICE_CACHE_PATH,
     PRICE_REFRESH_INTERVAL_SECONDS,
@@ -19,6 +19,71 @@ def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 10
 
 def get_auction_rows_by_name(item_name: str, word_type: str = "full", limit: int = 100, offset: int = 0) -> list:
     return get_auction_rows_by_name_from_api(item_name, word_type=word_type, limit=limit, offset=offset)
+
+
+def _lowest_auction_price_from_rows(rows: list) -> dict:
+    priced_rows = [
+        row for row in rows
+        if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0
+    ]
+    completed_rows = [
+        row for row in priced_rows
+        if int(row.get("upgrade") or 0) == int(row.get("upgradeMax") or 0)
+    ]
+    if completed_rows:
+        candidate_rows = completed_rows
+    else:
+        max_upgrade = max((int(row.get("upgrade") or 0) for row in priced_rows), default=0)
+        candidate_rows = [
+            row for row in priced_rows
+            if int(row.get("upgrade") or 0) == max_upgrade
+        ]
+
+    lowest = min(candidate_rows, key=lambda row: row.get("unitPrice"), default=None)
+    return {
+        "listingCount": sum(int(row.get("regCount") or 0) for row in candidate_rows),
+        "minUnitPrice": lowest.get("unitPrice") if lowest else None,
+        "averagePrice": lowest.get("averagePrice") if lowest and lowest.get("averagePrice", 0) > 0 else None,
+        "auctionNo": lowest.get("auctionNo") if lowest else None,
+        "upgrade": lowest.get("upgrade") if lowest else None,
+        "upgradeMax": lowest.get("upgradeMax") if lowest else None,
+        "isMaxUpgrade": bool(lowest) and int(lowest.get("upgrade") or 0) == int(lowest.get("upgradeMax") or 0),
+    }
+
+
+def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
+    return _lowest_auction_price_from_rows(get_auction_rows(item_id, min_fame=min_fame, max_fame=max_fame))
+
+
+def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, int] | None = None, limit: int = 100) -> dict[str, dict]:
+    unique_ids = []
+    seen = set()
+    for item_id in item_ids:
+        item_id = clean_text(item_id)
+        if item_id and item_id not in seen:
+            unique_ids.append(item_id)
+            seen.add(item_id)
+    if not unique_ids:
+        return {}
+
+    rows_by_id = {item_id: [] for item_id in unique_ids}
+    for index in range(0, len(unique_ids), 10):
+        chunk = unique_ids[index:index + 10]
+        for row in get_auction_rows_by_item_ids_from_api(chunk, limit=limit):
+            item_id = clean_text(row.get("itemId"))
+            if item_id in rows_by_id:
+                rows_by_id[item_id].append(row)
+
+    prices = {}
+    for item_id, rows in rows_by_id.items():
+        target_fame = (fame_by_item_id or {}).get(item_id)
+        if target_fame is not None:
+            rows = [
+                row for row in rows
+                if int(row.get("fame") or 0) == int(target_fame)
+            ]
+        prices[item_id] = _lowest_auction_price_from_rows(rows)
+    return prices
 
 
 def get_aura_price_cache_payload(force_refresh: bool, allow_stale: bool, schema_version: int, refresh_fn):
