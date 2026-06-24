@@ -31,7 +31,6 @@ from .calculators.switching_calculator import (
     get_switching_damage_multiplier,
     get_switching_fragment_coefficients,
     match_current_switching_coefficients,
-    normalize_switching_skill_name,
     parse_buff_option_numbers,
     switching_skill_name_matches,
 )
@@ -45,6 +44,12 @@ from .candidates.avatar_emblem import (
     get_emblems_by_color,
 )
 from .candidates.black_fang import build_black_fang_recommendations_debug
+from .candidates.switching_fragment import (
+    SWITCHING_FRAGMENT_TARGET_SLOTS,
+    get_switching_fragment_auction_candidate_groups,
+    get_switching_fragment_slot,
+    item_detail_matches_job,
+)
 from .neople_client import (
     API_KEY,
     clean_item_display_name,
@@ -83,9 +88,6 @@ AVATAR_BRILLIANT_GREEN_STAT = 15
 AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
-SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT = 100
-SWITCHING_FRAGMENT_AUCTION_MAX_PAGES = 5
-SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT = 3
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK = threading.Lock()
@@ -936,126 +938,6 @@ def find_lowest_auction_item_by_allowed_names(query: str, allowed_names: set[str
     ]
     row = min(matched, key=lambda item: item.get("unitPrice") or item.get("currentPrice"), default=None)
     return auction_row_to_item_price(row) if row else {}
-
-
-SWITCHING_FRAGMENT_SLOT_LABELS = {
-    "WEAPON": "무기",
-    "JACKET": "상의",
-    "PANTS": "하의",
-    "SHOULDER": "머리어깨",
-    "WAIST": "벨트",
-    "SHOES": "신발",
-    "WRIST": "팔찌",
-    "AMULET": "목걸이",
-    "RING": "반지",
-    "SUPPORT": "보조장비",
-    "MAGIC_STON": "마법석",
-    "EARRING": "귀걸이",
-}
-SWITCHING_FRAGMENT_SLOT_ALIASES = {
-    "어깨": "머리어깨",
-    "완장": "보조장비",
-}
-SWITCHING_FRAGMENT_TARGET_SLOTS = set(SWITCHING_FRAGMENT_SLOT_LABELS.values())
-
-
-def normalize_switching_fragment_slot(value: str) -> str:
-    text = clean_text(value)
-    return SWITCHING_FRAGMENT_SLOT_ALIASES.get(text, text)
-
-
-def get_switching_fragment_slot(row: dict) -> str:
-    slot_id = clean_text(row.get("slotId"))
-    if slot_id in SWITCHING_FRAGMENT_SLOT_LABELS:
-        return SWITCHING_FRAGMENT_SLOT_LABELS[slot_id]
-    if clean_text(row.get("itemType")) == "무기":
-        return "무기"
-    return normalize_switching_fragment_slot(row.get("itemTypeDetail") or row.get("slotName"))
-
-
-def switching_fragment_suffix_matches(item_name: str, buff_skill_name: str) -> bool:
-    item_name = clean_text(item_name)
-    if ":" not in item_name:
-        return False
-    suffix = item_name.rsplit(":", 1)[-1].strip()
-    return normalize_switching_skill_name(suffix) == normalize_switching_skill_name(buff_skill_name)
-
-
-def is_switching_fragment_item_name(item_name: str, buff_skill_name: str) -> bool:
-    item_name = clean_text(item_name)
-    if not (
-        item_name.startswith("짙은 심연의 편린 ")
-        or item_name.startswith("짙은 뒤틀린 심연의 ")
-    ):
-        return False
-    if "제작 레시피" in item_name or "[결투장]" in item_name:
-        return False
-    return switching_fragment_suffix_matches(item_name, buff_skill_name)
-
-
-def get_switching_fragment_search_terms(buff_skill_name: str) -> list[str]:
-    terms = []
-    for term in [
-        clean_text(buff_skill_name),
-        re.sub(r"\s+", "", clean_text(buff_skill_name)),
-    ]:
-        if term and term not in terms:
-            terms.append(term)
-    return terms
-
-
-def get_switching_fragment_auction_candidate_groups(buff_skill_name: str, job_name: str, dense_slots: set[str]) -> dict:
-    needed_slots = SWITCHING_FRAGMENT_TARGET_SLOTS - set(dense_slots or [])
-    if not needed_slots:
-        return {}
-    groups = {slot: [] for slot in needed_slots}
-    seen_item_ids = set()
-    for search_term in get_switching_fragment_search_terms(buff_skill_name):
-        for page in range(SWITCHING_FRAGMENT_AUCTION_MAX_PAGES):
-            rows = get_auction_rows_by_name(
-                search_term,
-                word_type="full",
-                limit=SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT,
-                offset=page * SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT,
-            )
-            if not rows:
-                break
-            for row in rows:
-                item_id = clean_text(row.get("itemId"))
-                item_name = clean_text(row.get("itemName"))
-                unit_price = row.get("unitPrice") or row.get("currentPrice")
-                if not item_id or item_id in seen_item_ids:
-                    continue
-                if not isinstance(unit_price, (int, float)) or unit_price <= 0:
-                    continue
-                if clean_text(row.get("itemRarity")) != "유니크":
-                    continue
-                if not item_detail_matches_job(row, job_name):
-                    continue
-                if not is_switching_fragment_item_name(item_name, buff_skill_name):
-                    continue
-                slot = get_switching_fragment_slot(row)
-                if slot not in needed_slots or len(groups.get(slot) or []) >= SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT:
-                    continue
-                seen_item_ids.add(item_id)
-                groups[slot].append({
-                    **row,
-                    "itemId": item_id,
-                    "itemName": item_name,
-                    "auction": auction_row_to_switching_title_price(row),
-                })
-            if all(groups.get(slot) for slot in needed_slots):
-                break
-        if all(groups.get(slot) for slot in needed_slots):
-            break
-    return {slot: rows for slot, rows in groups.items() if rows}
-
-
-def item_detail_matches_job(detail: dict, job_name: str) -> bool:
-    jobs = detail.get("jobs") or []
-    if not jobs:
-        return True
-    return any(clean_text(job.get("jobName")) == clean_text(job_name) for job in jobs)
 
 
 def get_switching_fragment_candidate_items(buff_skill_name: str, job_name: str) -> list:
