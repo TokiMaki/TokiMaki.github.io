@@ -54,6 +54,7 @@ from .neople_client import (
     API_KEY,
     clean_item_display_name,
     clean_text,
+    fetch_skill_detail_from_api,
     get_item_explain,
     get_item_icon_url,
     request_json,
@@ -2561,7 +2562,7 @@ def get_buffer_switching_stat_delta(
         base_level = int(style_row.get("level") or 0)
         if not skill_id or base_level <= 0:
             continue
-        skill_detail = request_json(f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}")
+        skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
         skill_detail_by_name[name] = skill_detail
         current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
         switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
@@ -2578,9 +2579,7 @@ def get_buffer_switching_stat_delta(
             continue
         skill_detail = skill_detail_by_name.get(name)
         if not skill_detail:
-            skill_detail = request_json(
-                f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}"
-            )
+            skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
         current_level = base_level + current_bonuses.get(name, 0)
         current_self_stat_skills[name] = {
             "level": current_level,

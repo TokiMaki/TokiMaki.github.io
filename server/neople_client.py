@@ -132,6 +132,11 @@ def fetch_item_details_from_api(item_ids: list) -> list:
     return request_json(url).get("rows") or []
 
 
+def fetch_skill_detail_from_api(job_id: str, skill_id: str) -> dict[str, Any]:
+    url = f"https://api.neople.co.kr/df/skills/{clean_text(job_id)}/{clean_text(skill_id)}?apikey={API_KEY}"
+    return request_json(url)
+
+
 def extract_row_list(payload: dict[str, Any], *keys: str) -> list[dict[str, Any]]:
     for key in keys:
         rows = payload.get(key)
