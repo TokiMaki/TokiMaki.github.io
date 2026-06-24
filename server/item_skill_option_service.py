@@ -3,7 +3,7 @@ from threading import Lock
 from urllib.parse import quote
 
 from .avatar_skill_optimizer import flatten_skill_rows, get_skill_attack_ratio, normalize_skill_key
-from .neople_client import API_KEY, clean_text, request_json
+from .neople_client import API_KEY, clean_text, fetch_skill_detail_from_api, request_json
 
 _CHARACTER_SKILL_CONTEXT_TTL_SECONDS = 60
 _CHARACTER_SKILL_CONTEXT_LOCK = Lock()
@@ -103,8 +103,7 @@ def get_item_reinforce_skill_effect(detail: dict, skill_context: dict) -> dict:
         if not skill_id or current_level <= 0:
             continue
         if skill_id not in skill_detail_by_id:
-            detail_url = f"https://api.neople.co.kr/df/skills/{job_id}/{skill_id}?apikey={API_KEY}"
-            skill_detail_by_id[skill_id] = request_json(detail_url)
+            skill_detail_by_id[skill_id] = fetch_skill_detail_from_api(job_id, skill_id)
         ratio = get_skill_attack_ratio(skill_detail_by_id[skill_id], current_level, added_level)
         if not ratio.get("calculable"):
             continue
