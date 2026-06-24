@@ -11,6 +11,8 @@ from .ops_log import sanitize_url, write_ops_log
 API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
+TIMELINE_CODES = "550,551,552,553,554,555,556,557"
+TIMELINE_START_DATE = "2026-03-26 00:00"
 
 
 def require_api_key() -> str:
@@ -147,6 +149,25 @@ def fetch_job_skills_from_api(job_id: str, job_grow_id: str) -> dict[str, Any]:
         f"https://api.neople.co.kr/df/skills/{clean_text(job_id)}"
         f"?jobGrowId={quote(clean_text(job_grow_id))}&apikey={API_KEY}"
     )
+    return request_json(url)
+
+
+def fetch_character_timeline_from_api(
+    server_id: str,
+    character_id: str,
+    end_date: str,
+    next_token: str | None = None,
+) -> dict[str, Any]:
+    parts = [
+        "limit=100",
+        f"code={TIMELINE_CODES}",
+        f"startDate={quote(TIMELINE_START_DATE)}",
+        f"endDate={quote(end_date)}",
+    ]
+    if next_token:
+        parts.append(f"next={quote(next_token)}")
+    query = "&".join(parts)
+    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/timeline?{query}"
     return request_json(url)
 
 

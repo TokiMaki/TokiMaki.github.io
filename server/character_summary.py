@@ -2,12 +2,9 @@ import os
 from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any
-from urllib.parse import quote
 
-from .neople_client import clean_text, request_json
+from .neople_client import clean_text, fetch_character_timeline_from_api
 
-TIMELINE_CODES = "550,551,552,553,554,555,556,557"
-TIMELINE_START_DATE = "2026-03-26 00:00"
 SET_ORDER = [
     "페어리",
     "용투",
@@ -31,25 +28,6 @@ RARITY_HINTS = [
 ]
 
 
-def build_timeline_url(
-    server_id: str,
-    character_id: str,
-    end_date: str,
-    next_token: str | None = None,
-) -> str:
-    parts = [
-        "limit=100",
-        f"code={TIMELINE_CODES}",
-        f"startDate={quote(TIMELINE_START_DATE)}",
-        f"endDate={quote(end_date)}",
-    ]
-    if next_token:
-        parts.append(f"next={quote(next_token)}")
-
-    query = "&".join(parts)
-    return f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/timeline?{query}"
-
-
 def fetch_all_timeline_rows(server_id: str, character_id: str) -> tuple[str, list[dict[str, Any]]]:
     next_token: str | None = None
     rows: list[dict[str, Any]] = []
@@ -60,7 +38,7 @@ def fetch_all_timeline_rows(server_id: str, character_id: str) -> tuple[str, lis
 
     while True:
         page_count += 1
-        payload = request_json(build_timeline_url(server_id, character_id, query_end_date, next_token))
+        payload = fetch_character_timeline_from_api(server_id, character_id, query_end_date, next_token)
         character_name = clean_text(payload.get("characterName")) or character_name
 
         timeline = payload.get("timeline") or {}
