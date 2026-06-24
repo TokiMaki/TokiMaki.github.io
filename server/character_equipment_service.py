@@ -1706,7 +1706,7 @@ def get_buffer_switching_metrics(
         base_level = int(style_row.get("level") or 0)
         if not skill_id or base_level <= 0:
             continue
-        skill_detail = request_json(f"https://api.neople.co.kr/df/skills/{clean_text(style_payload.get('jobId'))}/{skill_id}?apikey={API_KEY}")
+        skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
         current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
         switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
         skill_delta += switching_value - current_value
