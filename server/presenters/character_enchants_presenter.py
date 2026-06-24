@@ -1,0 +1,33 @@
+def build_character_enchants_payload(
+    payload: dict,
+    damage_baseline: dict,
+    buffer_baseline: dict | None,
+    enchants: list,
+    equipment_upgrades: list,
+    oath_upgrades: dict,
+    oath_tune_stage_db: dict,
+    black_fang_recommendations: list,
+    upgrade_expected_db,
+    upgrade_material_prices: dict,
+    steps: list,
+    timing_details: dict,
+) -> dict:
+    return {
+        "serverId": payload.get("serverId"),
+        "characterId": payload.get("characterId"),
+        "characterName": payload.get("characterName"),
+        "fame": payload.get("fame"),
+        "damageBaseline": damage_baseline,
+        "bufferBaseline": buffer_baseline,
+        "enchants": enchants,
+        "equipmentUpgrades": equipment_upgrades,
+        "oathUpgrades": oath_upgrades,
+        "oathTuneStageDb": oath_tune_stage_db,
+        "blackFangRecommendations": black_fang_recommendations,
+        "upgradeExpectedDb": upgrade_expected_db,
+        "upgradeMaterialPrices": upgrade_material_prices,
+        "debugTimings": {
+            "steps": steps,
+            "details": timing_details,
+        },
+    }

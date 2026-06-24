@@ -66,6 +66,7 @@ from .presenters.platinum_emblem_presenter import build_platinum_emblem_recommen
 from .presenters.buffer_switching_title_presenter import build_buffer_switching_title_recommendation_row
 from .presenters.character_preview_presenter import build_character_preview_payload
 from .presenters.character_avatar_presenter import build_character_avatar_payload
+from .presenters.character_enchants_presenter import build_character_enchants_payload
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -599,28 +600,23 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "load_character_oath_upgrades",
         lambda: load_character_oath_upgrades(server_id, character_id),
     )
-    return {
-        "serverId": payload.get("serverId"),
-        "characterId": payload.get("characterId"),
-        "characterName": payload.get("characterName"),
-        "fame": payload.get("fame"),
-        "damageBaseline": damage_baseline,
-        "bufferBaseline": load_character_buffer_baseline(server_id, character_id),
-        "enchants": rows,
-        "equipmentUpgrades": equipment_upgrades,
-        "oathUpgrades": oath_upgrades,
-        "oathTuneStageDb": load_oath_tune_stage_db(),
-        "blackFangRecommendations": black_fang_recommendations,
-        "upgradeExpectedDb": load_upgrade_expected_db(),
-        "upgradeMaterialPrices": upgrade_material_prices,
-        "debugTimings": {
-            "steps": steps,
-            "details": {
-                "get_equipment_base_element_bonus": equipment_base_element_debug.get("steps") or [],
-                "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
-            },
+    return build_character_enchants_payload(
+        payload,
+        damage_baseline,
+        load_character_buffer_baseline(server_id, character_id),
+        rows,
+        equipment_upgrades,
+        oath_upgrades,
+        load_oath_tune_stage_db(),
+        black_fang_recommendations,
+        load_upgrade_expected_db(),
+        upgrade_material_prices,
+        steps,
+        {
+            "get_equipment_base_element_bonus": equipment_base_element_debug.get("steps") or [],
+            "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
         },
-    }
+    )
 
 
 def load_character_creature(server_id: str, character_id: str) -> dict:
