@@ -1,9 +1,8 @@
 import time
 from threading import Lock
-from urllib.parse import quote
 
 from .avatar_skill_optimizer import flatten_skill_rows, get_skill_attack_ratio, normalize_skill_key
-from .neople_client import API_KEY, clean_text, fetch_skill_detail_from_api, request_json
+from .neople_client import clean_text, fetch_character_detail_from_api, fetch_character_skill_style_from_api, fetch_job_skills_from_api, fetch_skill_detail_from_api
 
 _CHARACTER_SKILL_CONTEXT_TTL_SECONDS = 60
 _CHARACTER_SKILL_CONTEXT_LOCK = Lock()
@@ -11,13 +10,11 @@ _CHARACTER_SKILL_CONTEXT_CACHE = {}
 
 
 def _build_character_skill_context(server_id: str, character_id: str) -> dict:
-    detail_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?apikey={API_KEY}"
-    detail = request_json(detail_url)
+    detail = fetch_character_detail_from_api(server_id, character_id)
     job_id = clean_text(detail.get("jobId"))
     job_grow_id = clean_text(detail.get("jobGrowId"))
 
-    style_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/skill/style?apikey={API_KEY}"
-    style = request_json(style_url)
+    style = fetch_character_skill_style_from_api(server_id, character_id)
     style_rows = flatten_skill_rows(style)
     style_by_name = {
         normalize_skill_key(row.get("name")): row
@@ -25,11 +22,7 @@ def _build_character_skill_context(server_id: str, character_id: str) -> dict:
         if clean_text(row.get("name"))
     }
 
-    skill_list_url = (
-        f"https://api.neople.co.kr/df/skills/{job_id}"
-        f"?jobGrowId={quote(job_grow_id)}&apikey={API_KEY}"
-    )
-    skill_list = request_json(skill_list_url)
+    skill_list = fetch_job_skills_from_api(job_id, job_grow_id)
     skill_rows = flatten_skill_rows(skill_list)
     skill_by_name = {
         normalize_skill_key(row.get("name")): row

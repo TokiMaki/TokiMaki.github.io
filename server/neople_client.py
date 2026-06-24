@@ -137,6 +137,19 @@ def fetch_skill_detail_from_api(job_id: str, skill_id: str) -> dict[str, Any]:
     return request_json(url)
 
 
+def fetch_character_skill_style_from_api(server_id: str, character_id: str) -> dict[str, Any]:
+    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/skill/style?apikey={API_KEY}"
+    return request_json(url)
+
+
+def fetch_job_skills_from_api(job_id: str, job_grow_id: str) -> dict[str, Any]:
+    url = (
+        f"https://api.neople.co.kr/df/skills/{clean_text(job_id)}"
+        f"?jobGrowId={quote(clean_text(job_grow_id))}&apikey={API_KEY}"
+    )
+    return request_json(url)
+
+
 def extract_row_list(payload: dict[str, Any], *keys: str) -> list[dict[str, Any]]:
     for key in keys:
         rows = payload.get(key)
