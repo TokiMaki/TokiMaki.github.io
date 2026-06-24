@@ -120,21 +120,6 @@ def lowest_auction_from_rows(rows: list) -> dict:
     return auction_row_to_price(lowest) if lowest else {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
 
 
-def get_title_bead_element_from_name(item_name: str) -> str:
-    name = clean_text(item_name)
-    if "화속성" in name:
-        return "fire"
-    if "수속성" in name:
-        return "water"
-    if "명속성" in name:
-        return "light"
-    if "암속성" in name:
-        return "dark"
-    if "모든속성" in name or "모든 속성" in name:
-        return "all"
-    return ""
-
-
 def enrich_aura_groups_for_character(groups: list, server_id: str, character_id: str) -> list:
     skill_context = get_character_skill_context(server_id, character_id)
     candidate_ids = [

@@ -9,10 +9,6 @@ def parse_title_level_tag(item_name: str):
     return int(match.group(1)) if match else None
 
 
-def normalize_level_option_base_name(item_name: str) -> str:
-    return clean_text(re.sub(r"\[\d+\s*Lv\]", "", clean_text(item_name), flags=re.IGNORECASE))
-
-
 def parse_skill_damage_percent(text: str) -> float:
     match = re.search(r"\d+(?:\s*~\s*\d+)?\s*(?:Lv|레벨)[^%]*?액티브\s*스킬[^%]*?(\d+(?:\.\d+)?)%\s*증가", clean_text(text))
     return float(match.group(1)) if match else 0

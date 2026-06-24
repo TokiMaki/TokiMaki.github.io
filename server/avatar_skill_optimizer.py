@@ -84,28 +84,6 @@ def add_current_setup_skill_bonuses(result: dict, reinforce_skill: list, job_nam
                         result[name] = result.get(name, 0) + value
 
 
-def add_current_setup_explain_skill_bonuses(result: dict, explain: str, style_rows: list[dict]) -> None:
-    text = clean_text(explain)
-    for match in re.finditer(r"(\d+)\s*~\s*(\d+)\s*(?:레벨|Lv)[^+\d]*스킬\s*Lv\s*\+\s*(\d+)", text, re.IGNORECASE):
-        minimum = int(match.group(1))
-        maximum = int(match.group(2))
-        value = int(match.group(3))
-        for skill in style_rows:
-            required_level = int(skill.get("requiredLevel") or 0)
-            if minimum <= required_level <= maximum:
-                name = clean_text(skill.get("name"))
-                if name:
-                    result[name] = result.get(name, 0) + value
-    for match in re.finditer(r"(\d+)\s*(?:레벨|Lv)[^+\d]*스킬\s*Lv\s*\+\s*(\d+)", text, re.IGNORECASE):
-        required = int(match.group(1))
-        value = int(match.group(2))
-        for skill in style_rows:
-            if int(skill.get("requiredLevel") or 0) == required:
-                name = clean_text(skill.get("name"))
-                if name:
-                    result[name] = result.get(name, 0) + value
-
-
 def get_current_non_avatar_skill_bonuses(server_id: str, character_id: str, style_rows: list[dict], job_name: str) -> dict:
     equipment_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/equipment?apikey={API_KEY}"
     avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"

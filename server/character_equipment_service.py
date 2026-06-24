@@ -36,7 +36,6 @@ from .candidates.avatar_emblem import (
     build_avatar_emblem_recommendations_debug,
     get_avatar_emblem_item_name,
     get_emblem_stat_value,
-    get_emblems_by_color,
 )
 from .candidates.black_fang import build_black_fang_recommendations_debug
 from .candidates.switching_fragment import (
@@ -2336,13 +2335,6 @@ def extract_emblem_option_text(item_name: str) -> str:
     return match.group(1).strip() if match else ""
 
 
-def get_avatar_green_stat_total(row: dict, stat_name: str) -> float:
-    return sum(
-        get_emblem_stat_value(emblem.get("itemName"), stat_name, "green")
-        for emblem in get_emblems_by_color(row, "녹색빛")
-    )
-
-
 def get_status_stat_value(status_rows: list, stat_name: str) -> float:
     return sum(
         parse_percent_or_number(row.get("value"))
@@ -2706,18 +2698,6 @@ def find_exact_item_by_name(item_name: str, item_type_detail: str = "") -> dict:
     return matched[0] if matched else {}
 
 
-def find_exact_item_by_match_name(item_name: str, item_type_detail: str = "", limit: int = 5) -> dict:
-    item_name = clean_text(item_name)
-    item_type_detail = clean_text(item_type_detail)
-    rows = search_items_by_name(item_name, word_type="match", limit=limit)
-    matched = [
-        row for row in rows
-        if clean_text(row.get("itemName")) == item_name
-        and (not item_type_detail or clean_text(row.get("itemTypeDetail")) == item_type_detail)
-    ]
-    return matched[0] if matched else {}
-
-
 def get_buffer_avatar_emblem_configs(switching_rows: list) -> tuple[list, list]:
     switching_rare_slot_ids = {
         slot_id
@@ -2823,10 +2803,6 @@ def find_avatar_platinum_item(skill_name: str) -> dict:
         key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
         default={"itemName": item_name, "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}},
     )
-
-
-def format_price_label(value) -> str:
-    return f"{int(value):,}골드" if isinstance(value, (int, float)) and value > 0 else "매물 없음"
 
 
 def find_avatar_platinum_selection_box() -> dict:

@@ -100,11 +100,6 @@ def get_title_enchant_status_summary(status_rows: list) -> dict:
     }
 
 
-def normalize_creature_artifact_status(status_rows: list) -> dict:
-    summary = get_creature_artifact_status_summary(status_rows)
-    return summary["effects"]
-
-
 def get_creature_artifact_status_summary(status_rows: list) -> dict:
     effects = normalize_enchant_status(status_rows)
     all_element = 0
