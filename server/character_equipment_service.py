@@ -545,9 +545,8 @@ def build_oath_upgrade_payload(oath_payload: dict) -> dict:
 
 
 def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
-    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/oath?apikey={API_KEY}"
     try:
-        payload = request_json(url)
+        payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath")
     except Exception:
         return {}
     return build_oath_upgrade_payload(payload)
