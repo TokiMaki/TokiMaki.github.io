@@ -230,7 +230,12 @@ def build_character_detail_url(server_id: str, character_id: str) -> str:
 
 
 def fetch_character_payload_from_api(server_id: str, character_id: str, path: str) -> dict[str, Any]:
-    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/{path}?apikey={API_KEY}"
+    resource_path = clean_text(path).strip("/")
+    url = (
+        f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/{resource_path}?apikey={API_KEY}"
+        if resource_path
+        else f"{build_character_detail_url(server_id, character_id)}?apikey={API_KEY}"
+    )
     return request_json(url)
 
 

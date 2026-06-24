@@ -47,7 +47,6 @@ from .candidates.avatar_emblem import (
 from .candidates.black_fang import build_black_fang_recommendations_debug
 from .neople_client import (
     API_KEY,
-    build_character_detail_url,
     clean_item_display_name,
     clean_text,
     get_item_explain,
@@ -771,13 +770,10 @@ def load_character_aura(server_id: str, character_id: str) -> dict:
 
 
 def load_character_preview(server_id: str, character_id: str) -> dict:
-    equipment_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/equipment?apikey={API_KEY}"
-    creature_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/creature?apikey={API_KEY}"
-    avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
-    equipment_payload = request_json(equipment_url)
-    creature_payload = request_json(creature_url)
-    avatar_payload = request_json(avatar_url)
-    detail_payload = request_json(build_character_detail_url(server_id, character_id))
+    equipment_payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+    creature_payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+    avatar_payload = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
+    detail_payload = get_character_cached_payload(server_id, character_id, "detail", "")
     detail_source = detail_payload.get("character") if isinstance(detail_payload.get("character"), dict) else detail_payload
     adventure_name = clean_text((detail_source or {}).get("adventureName"))
 
