@@ -104,72 +104,15 @@ def get_auction_rows_by_name_from_api(item_name: str, word_type: str = "full", l
     return request_json(url).get("rows") or []
 
 
-def _lowest_auction_price_from_rows_for_batch(rows: list) -> dict:
-    priced_rows = [
-        row for row in rows
-        if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0
-    ]
-    completed_rows = [
-        row for row in priced_rows
-        if int(row.get("upgrade") or 0) == int(row.get("upgradeMax") or 0)
-    ]
-    if completed_rows:
-        candidate_rows = completed_rows
-    else:
-        max_upgrade = max((int(row.get("upgrade") or 0) for row in priced_rows), default=0)
-        candidate_rows = [
-            row for row in priced_rows
-            if int(row.get("upgrade") or 0) == max_upgrade
-        ]
-
-    lowest = min(candidate_rows, key=lambda row: row.get("unitPrice"), default=None)
-    return {
-        "listingCount": sum(int(row.get("regCount") or 0) for row in candidate_rows),
-        "minUnitPrice": lowest.get("unitPrice") if lowest else None,
-        "averagePrice": lowest.get("averagePrice") if lowest and lowest.get("averagePrice", 0) > 0 else None,
-        "auctionNo": lowest.get("auctionNo") if lowest else None,
-        "upgrade": lowest.get("upgrade") if lowest else None,
-        "upgradeMax": lowest.get("upgradeMax") if lowest else None,
-        "isMaxUpgrade": bool(lowest) and int(lowest.get("upgrade") or 0) == int(lowest.get("upgradeMax") or 0),
+def get_auction_rows_by_item_ids_from_api(item_ids: list[str], limit: int = 100) -> list:
+    params = {
+        "itemIds": ",".join(item_ids),
+        "limit": limit,
+        "sort": "unitPrice:asc",
+        "apikey": API_KEY,
     }
-
-
-def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, int] | None = None, limit: int = 100) -> dict[str, dict]:
-    unique_ids = []
-    seen = set()
-    for item_id in item_ids:
-        item_id = clean_text(item_id)
-        if item_id and item_id not in seen:
-            unique_ids.append(item_id)
-            seen.add(item_id)
-    if not unique_ids:
-        return {}
-
-    rows_by_id = {item_id: [] for item_id in unique_ids}
-    for index in range(0, len(unique_ids), 10):
-        chunk = unique_ids[index:index + 10]
-        params = {
-            "itemIds": ",".join(chunk),
-            "limit": limit,
-            "sort": "unitPrice:asc",
-            "apikey": API_KEY,
-        }
-        url = f"https://api.neople.co.kr/df/auction?{urlencode(params)}"
-        for row in request_json(url).get("rows") or []:
-            item_id = clean_text(row.get("itemId"))
-            if item_id in rows_by_id:
-                rows_by_id[item_id].append(row)
-
-    prices = {}
-    for item_id, rows in rows_by_id.items():
-        target_fame = (fame_by_item_id or {}).get(item_id)
-        if target_fame is not None:
-            rows = [
-                row for row in rows
-                if int(row.get("fame") or 0) == int(target_fame)
-            ]
-        prices[item_id] = _lowest_auction_price_from_rows_for_batch(rows)
-    return prices
+    url = f"https://api.neople.co.kr/df/auction?{urlencode(params)}"
+    return request_json(url).get("rows") or []
 
 
 def get_item_icon_url(item_id: str) -> str:

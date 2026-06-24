@@ -51,10 +51,9 @@ from .neople_client import (
     clean_text,
     get_item_explain,
     get_item_icon_url,
-    get_lowest_auction_prices,
     request_json,
 )
-from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name, get_lowest_auction_price
+from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name, get_lowest_auction_price, get_lowest_auction_prices
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details, search_items_by_name
 from .repositories.material_price_repository import load_upgrade_material_prices
