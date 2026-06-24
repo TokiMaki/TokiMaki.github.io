@@ -64,6 +64,7 @@ from .presenters.switching_creature_presenter import build_switching_creature_re
 from .presenters.switching_platinum_presenter import build_switching_platinum_recommendation_row
 from .presenters.platinum_emblem_presenter import build_platinum_emblem_recommendation_row
 from .presenters.buffer_switching_title_presenter import build_buffer_switching_title_recommendation_row
+from .presenters.character_preview_presenter import build_character_preview_payload
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -870,18 +871,15 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
 
     aura = build_aura_payload(aura_item_id, detail_map.get(aura_item_id) or {}) if aura_item_id else None
 
-    return {
-        "serverId": equipment_payload.get("serverId"),
-        "characterId": equipment_payload.get("characterId"),
-        "characterName": equipment_payload.get("characterName"),
-        "adventureName": adventure_name,
-        "fame": equipment_payload.get("fame"),
-        "enchants": enchants,
-        "equipmentUpgrades": equipment_upgrades,
-        "title": title,
-        "creature": creature,
-        "aura": aura,
-    }
+    return build_character_preview_payload(
+        equipment_payload,
+        adventure_name,
+        enchants,
+        equipment_upgrades,
+        title,
+        creature,
+        aura,
+    )
 
 
 def find_dealer_switching_buff_entry(payload: dict, is_dealer_crusader: bool = False) -> dict:
