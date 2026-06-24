@@ -1,5 +1,5 @@
 function resolveApiBase() {
-  const configuredApiBase = import.meta.env.VITE_API_BASE?.trim();
+  const configuredApiBase = import.meta.env?.VITE_API_BASE?.trim();
   if (configuredApiBase) {
     return configuredApiBase.replace(/\/$/, '');
   }
@@ -16,11 +16,14 @@ function resolveApiBase() {
 }
 
 export const API_BASE = resolveApiBase();
-export const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
+export const ENABLE_DEV_MODE = import.meta.env?.DEV || import.meta.env?.VITE_ENABLE_DEV_MODE === '1';
 export const DNF_MAINTENANCE_MESSAGE = '던파 점검중...';
 export const API_SERVER_UNAVAILABLE_MESSAGE = '서버 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.';
 
 export function normalizeApiErrorMessage(errorOrMessage, fallbackMessage = 'API 요청에 실패했습니다.') {
+  if (errorOrMessage?.serverMessage) {
+    return String(errorOrMessage.serverMessage);
+  }
   const message = String(errorOrMessage?.message || errorOrMessage || fallbackMessage);
   if (/DNF980|503|시스템 점검|점검중|점검 중/.test(message)) {
     return DNF_MAINTENANCE_MESSAGE;
@@ -29,6 +32,15 @@ export function normalizeApiErrorMessage(errorOrMessage, fallbackMessage = 'API 
     return API_SERVER_UNAVAILABLE_MESSAGE;
   }
   return message || fallbackMessage;
+}
+
+function createApiHttpError(message, response, payload = null) {
+  const error = new Error(message || `API 요청에 실패했습니다. (${response.status})`);
+  error.name = 'ApiHttpError';
+  error.status = response.status;
+  error.payload = payload;
+  error.serverMessage = message || '';
+  return error;
 }
 
 export async function parseApiJsonResponse(response, fallbackMessage = 'API 요청에 실패했습니다.') {
@@ -46,12 +58,13 @@ export async function parseApiJsonResponse(response, fallbackMessage = 'API 요�
   }
 
   const errorCode = payload?.code || payload?.errorCode || payload?.status?.code;
+  const serverMessage = payload?.error || payload?.message || '';
   if (response.status === 503 || errorCode === 'DNF980') {
-    throw new Error(DNF_MAINTENANCE_MESSAGE);
+    throw createApiHttpError(serverMessage || DNF_MAINTENANCE_MESSAGE, response, payload);
   }
 
-  if (!response.ok || payload?.error) {
-    throw new Error(normalizeApiErrorMessage(payload?.error || payload?.message || `${fallbackMessage} (${response.status})`, fallbackMessage));
+  if (!response.ok || serverMessage) {
+    throw createApiHttpError(serverMessage || `${fallbackMessage} (${response.status})`, response, payload);
   }
 
   return payload;
