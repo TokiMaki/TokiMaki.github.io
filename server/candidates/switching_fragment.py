@@ -1,8 +1,9 @@
 import re
 
-from ..calculators.switching_calculator import normalize_switching_skill_name
+from ..calculators.switching_calculator import normalize_switching_skill_name, switching_skill_name_matches
 from ..neople_client import clean_text
 from ..repositories.auction_repository import get_auction_rows_by_name
+from ..repositories.item_repository import search_items_by_name
 
 
 SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT = 100
@@ -136,3 +137,27 @@ def get_switching_fragment_auction_candidate_groups(buff_skill_name: str, job_na
         if all(groups.get(slot) for slot in needed_slots):
             break
     return {slot: rows for slot, rows in groups.items() if rows}
+
+
+def get_switching_fragment_candidate_items(buff_skill_name: str, job_name: str) -> list:
+    search_names = [
+        f"짙은 심연의 편린 {buff_skill_name}",
+        f"짙은 뒤틀린 심연 {buff_skill_name}",
+    ]
+    seen_ids = set()
+    candidates = []
+    for search_name in search_names:
+        for row in search_items_by_name(search_name):
+            item_id = clean_text(row.get("itemId"))
+            item_name = clean_text(row.get("itemName"))
+            if not item_id or item_id in seen_ids:
+                continue
+            if "짙은" not in item_name or "심연" not in item_name or not switching_skill_name_matches(item_name, buff_skill_name):
+                continue
+            if "제작 레시피" in item_name or "[결투장]" in item_name:
+                continue
+            if not any(clean_text(job.get("jobName")) == job_name for job in row.get("jobs") or []):
+                continue
+            seen_ids.add(item_id)
+            candidates.append(row)
+    return candidates

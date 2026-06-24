@@ -32,7 +32,6 @@ from .calculators.switching_calculator import (
     get_switching_fragment_coefficients,
     match_current_switching_coefficients,
     parse_buff_option_numbers,
-    switching_skill_name_matches,
 )
 from .item_skill_option_service import get_character_skill_context, get_item_reinforce_skill_effect, get_item_reinforce_skill_matches
 from .candidates.avatar_emblem import (
@@ -47,6 +46,7 @@ from .candidates.black_fang import build_black_fang_recommendations_debug
 from .candidates.switching_fragment import (
     SWITCHING_FRAGMENT_TARGET_SLOTS,
     get_switching_fragment_auction_candidate_groups,
+    get_switching_fragment_candidate_items,
     get_switching_fragment_slot,
     item_detail_matches_job,
 )
@@ -938,30 +938,6 @@ def find_lowest_auction_item_by_allowed_names(query: str, allowed_names: set[str
     ]
     row = min(matched, key=lambda item: item.get("unitPrice") or item.get("currentPrice"), default=None)
     return auction_row_to_item_price(row) if row else {}
-
-
-def get_switching_fragment_candidate_items(buff_skill_name: str, job_name: str) -> list:
-    search_names = [
-        f"짙은 심연의 편린 {buff_skill_name}",
-        f"짙은 뒤틀린 심연 {buff_skill_name}",
-    ]
-    seen_ids = set()
-    candidates = []
-    for search_name in search_names:
-        for row in search_items_by_name(search_name):
-            item_id = clean_text(row.get("itemId"))
-            item_name = clean_text(row.get("itemName"))
-            if not item_id or item_id in seen_ids:
-                continue
-            if "짙은" not in item_name or "심연" not in item_name or not switching_skill_name_matches(item_name, buff_skill_name):
-                continue
-            if "제작 레시피" in item_name or "[결투장]" in item_name:
-                continue
-            if not any(clean_text(job.get("jobName")) == job_name for job in row.get("jobs") or []):
-                continue
-            seen_ids.add(item_id)
-            candidates.append(row)
-    return candidates
 
 
 def get_lowest_switching_fragment_auction(item_id: str) -> dict:
