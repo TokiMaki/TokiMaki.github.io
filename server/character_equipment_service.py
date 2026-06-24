@@ -194,8 +194,7 @@ def get_equipment_base_element_bonus(equipment_rows: list) -> float:
     return _get_equipment_base_element_bonus_debug(equipment_rows).get("value") or 0
 
 
-def load_character_damage_baseline(server_id: str, character_id: str, equipment_base_element: float = 0) -> dict:
-    payload = get_character_cached_payload(server_id, character_id, "status", "status")
+def build_damage_baseline_from_status_payload(payload: dict, equipment_base_element: float = 0) -> dict:
     status = status_rows_to_map(payload.get("status") or [])
     job_grow_name = clean_text(payload.get("jobGrowName"))
     base_stats = load_job_base_stats().get(job_grow_name) or {}
@@ -234,6 +233,11 @@ def load_character_damage_baseline(server_id: str, character_id: str, equipment_
         "attackIncrease": status.get("공격력 증가", 0),
         "attackAmplification": status.get("공격력 증폭", 0),
     }
+
+
+def load_character_damage_baseline(server_id: str, character_id: str, equipment_base_element: float = 0) -> dict:
+    payload = get_character_cached_payload(server_id, character_id, "status", "status")
+    return build_damage_baseline_from_status_payload(payload, equipment_base_element)
 
 
 def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | None:
