@@ -17,6 +17,7 @@ def start_api_fanout_trace(route: str, server_id: str = "", character_id: str = 
         "startedAt": time.perf_counter(),
         "apiCalls": {},
         "cache": {},
+        "resolvedPrice": {},
         "multiItems": {
             "calls": 0,
             "requestedIds": 0,
@@ -36,6 +37,7 @@ def finish_api_fanout_trace(token) -> dict:
         "elapsedMs": elapsed_ms,
         "apiCalls": deepcopy(trace.get("apiCalls") or {}),
         "cache": deepcopy(trace.get("cache") or {}),
+        "resolvedPrice": deepcopy(trace.get("resolvedPrice") or {}),
         "multiItems": deepcopy(trace.get("multiItems") or {}),
     }
     _ACTIVE_TRACE.reset(token)
@@ -68,6 +70,22 @@ def record_cache_event(name: str, result: str, count: int = 1):
         return
     cache = trace.setdefault("cache", {})
     bucket = cache.setdefault(name, {})
+    bucket[result] = int(bucket.get(result) or 0) + int(count or 0)
+
+
+def record_resolved_price_cache_event(domain: str, result: str, count: int = 1):
+    trace = _ACTIVE_TRACE.get()
+    if trace is None or int(count or 0) <= 0:
+        return
+    domain = str(domain or "unknown")
+    result = str(result or "")
+    if not result:
+        return
+    resolved_price = trace.setdefault("resolvedPrice", {})
+    total = resolved_price.setdefault("total", {})
+    total[result] = int(total.get(result) or 0) + int(count or 0)
+    by_domain = resolved_price.setdefault("byDomain", {})
+    bucket = by_domain.setdefault(domain, {})
     bucket[result] = int(bucket.get(result) or 0) + int(count or 0)
 
 
