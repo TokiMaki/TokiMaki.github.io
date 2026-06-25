@@ -4,11 +4,13 @@ from ..calculators.switching_calculator import normalize_switching_skill_name, s
 from ..neople_client import clean_text
 from ..repositories.auction_repository import get_auction_rows_by_name
 from ..repositories.item_repository import search_items_by_name
+from ..repositories.resolved_price_repository import get_cached_resolved_price
 
 
 SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT = 100
 SWITCHING_FRAGMENT_AUCTION_MAX_PAGES = 5
 SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT = 3
+SWITCHING_FRAGMENT_RESOLVED_PRICE_CACHE_VERSION = 1
 SWITCHING_FRAGMENT_SLOT_LABELS = {
     "WEAPON": "무기",
     "JACKET": "상의",
@@ -92,10 +94,20 @@ def _auction_row_to_switching_fragment_price(row: dict) -> dict:
     }
 
 
-def get_switching_fragment_auction_candidate_groups(buff_skill_name: str, job_name: str, dense_slots: set[str]) -> dict:
-    needed_slots = SWITCHING_FRAGMENT_TARGET_SLOTS - set(dense_slots or [])
-    if not needed_slots:
-        return {}
+def _has_switching_fragment_price_candidate(groups: dict) -> bool:
+    return any(
+        isinstance((row.get("auction") or {}).get("minUnitPrice"), (int, float))
+        and (row.get("auction") or {}).get("minUnitPrice") > 0
+        for rows in (groups or {}).values()
+        for row in rows or []
+    )
+
+
+def _get_switching_fragment_auction_candidate_groups_uncached(
+    buff_skill_name: str,
+    job_name: str,
+    needed_slots: set[str],
+) -> dict:
     groups = {slot: [] for slot in needed_slots}
     seen_item_ids = set()
     for search_term in get_switching_fragment_search_terms(buff_skill_name):
@@ -137,6 +149,35 @@ def get_switching_fragment_auction_candidate_groups(buff_skill_name: str, job_na
         if all(groups.get(slot) for slot in needed_slots):
             break
     return {slot: rows for slot, rows in groups.items() if rows}
+
+
+def get_switching_fragment_auction_candidate_groups(buff_skill_name: str, job_name: str, dense_slots: set[str]) -> dict:
+    needed_slots = SWITCHING_FRAGMENT_TARGET_SLOTS - set(dense_slots or [])
+    if not needed_slots:
+        return {}
+    search_terms = tuple(get_switching_fragment_search_terms(buff_skill_name))
+    cache_key = (
+        "switching_fragment",
+        SWITCHING_FRAGMENT_RESOLVED_PRICE_CACHE_VERSION,
+        "auction_candidate_groups",
+        normalize_switching_skill_name(buff_skill_name),
+        clean_text(job_name),
+        tuple(sorted(needed_slots)),
+        search_terms,
+        "full",
+        SWITCHING_FRAGMENT_AUCTION_PAGE_LIMIT,
+        SWITCHING_FRAGMENT_AUCTION_MAX_PAGES,
+        SWITCHING_FRAGMENT_CANDIDATES_PER_SLOT,
+    )
+    return get_cached_resolved_price(
+        cache_key,
+        lambda: _get_switching_fragment_auction_candidate_groups_uncached(
+            buff_skill_name,
+            job_name,
+            needed_slots,
+        ),
+        should_cache=_has_switching_fragment_price_candidate,
+    )
 
 
 def get_switching_fragment_candidate_items(buff_skill_name: str, job_name: str) -> list:
