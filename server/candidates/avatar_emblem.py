@@ -6,6 +6,7 @@ from ..neople_client import (
     get_item_icon_url,
 )
 from ..repositories.auction_repository import get_auction_rows_by_name
+from ..repositories.resolved_price_repository import get_cached_resolved_price
 from ..presenters.avatar_emblem_presenter import build_avatar_emblem_recommendation_row
 
 
@@ -15,6 +16,7 @@ AVATAR_BRILLIANT_GREEN_STAT = 15
 AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
+AVATAR_EMBLEM_RESOLVED_PRICE_CACHE_VERSION = 1
 AVATAR_EMBLEM_RECOMMENDATIONS = [
     {"slotId": "HEADGEAR", "slot": "모자 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
     {"slotId": "HAIR", "slot": "머리 아바타", "color": "붉은빛", "kind": "red", "targetStat": AVATAR_BRILLIANT_RED_STAT},
@@ -137,7 +139,7 @@ def get_avatar_emblem_search_prefixes(kind: str) -> list[str]:
     return ["찬란한 듀얼 엠블렘["]
 
 
-def find_lowest_avatar_emblem_by_prefix(stat_name: str, kind: str, debug_steps: list | None = None) -> dict:
+def _find_lowest_avatar_emblem_by_prefix_uncached(stat_name: str, kind: str, debug_steps: list | None = None) -> dict:
     stat_name = clean_text(stat_name)
     candidates = []
     seen_ids = set()
@@ -199,6 +201,25 @@ def find_lowest_avatar_emblem_by_prefix(stat_name: str, kind: str, debug_steps: 
         candidates,
         key=lambda item: (item.get("auction") or {}).get("minUnitPrice") or 10**30,
         default={},
+    )
+
+
+def find_lowest_avatar_emblem_by_prefix(stat_name: str, kind: str, debug_steps: list | None = None) -> dict:
+    stat_name = clean_text(stat_name)
+    kind = clean_text(kind)
+    cache_key = (
+        "avatar_emblem",
+        AVATAR_EMBLEM_RESOLVED_PRICE_CACHE_VERSION,
+        "prefix_lowest",
+        stat_name,
+        kind,
+        tuple(get_avatar_emblem_search_prefixes(kind)),
+        AVATAR_EMBLEM_AUCTION_PAGE_LIMIT,
+        AVATAR_EMBLEM_AUCTION_MAX_PAGES,
+    )
+    return get_cached_resolved_price(
+        cache_key,
+        lambda: _find_lowest_avatar_emblem_by_prefix_uncached(stat_name, kind, debug_steps),
     )
 
 
