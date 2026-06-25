@@ -1,14 +1,14 @@
 import re
-from urllib.parse import quote
 
 from .data_store import load_avatar_option_db
 from .character_search_service import search_character
-from .neople_client import API_KEY, clean_text, request_json
+from .neople_client import clean_text, fetch_character_detail_from_api
 from .calculators.avatar_skill_calculator import (
     estimate_skill_plus_one,
     get_skill_attack_ratio,
     normalize_skill_key,
 )
+from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details
 
 
@@ -85,12 +85,18 @@ def add_current_setup_skill_bonuses(result: dict, reinforce_skill: list, job_nam
 
 
 def get_current_non_avatar_skill_bonuses(server_id: str, character_id: str, style_rows: list[dict], job_name: str) -> dict:
-    equipment_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/equipment?apikey={API_KEY}"
-    avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
-    creature_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/creature?apikey={API_KEY}"
-    equipment_rows = request_json(equipment_url).get("equipment") or []
-    avatar_rows = request_json(avatar_url).get("avatar") or []
-    creature = request_json(creature_url).get("creature") or {}
+    equipment_rows = (
+        get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment")
+        or []
+    )
+    avatar_rows = (
+        get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar")
+        or []
+    )
+    creature = (
+        get_character_cached_payload(server_id, character_id, "creature", "equip/creature").get("creature")
+        or {}
+    )
     aura = next((
         row for row in avatar_rows
         if "오라" in clean_text(row.get("slotName"))
@@ -422,31 +428,17 @@ def get_character_avatar_skill_infos(
     job_id = clean_text(detail.get("jobId"))
     job_grow_id = clean_text(detail.get("jobGrowId"))
     if not job_id or not job_grow_id:
-        detail_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?apikey={API_KEY}"
-        detail = request_json(detail_url)
+        detail = fetch_character_detail_from_api(server_id, character_id)
         job_id = clean_text(detail.get("jobId"))
         job_grow_id = clean_text(detail.get("jobGrowId"))
 
-    style_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/skill/style?apikey={API_KEY}"
-    style = request_json(style_url)
-    style_rows = flatten_skill_rows(style)
-    style_by_name = {
-        normalize_skill_key(row.get("name")): row
-        for row in style_rows
-        if clean_text(row.get("name"))
-    }
+    from .item_skill_option_service import get_character_skill_context
 
-    skill_list_url = (
-        f"https://api.neople.co.kr/df/skills/{job_id}"
-        f"?jobGrowId={quote(job_grow_id)}&apikey={API_KEY}"
-    )
-    skill_list = request_json(skill_list_url)
-    skill_rows = flatten_skill_rows(skill_list)
-    skill_by_name = {
-        normalize_skill_key(row.get("name")): row
-        for row in skill_rows
-        if clean_text(row.get("name"))
-    }
+    skill_context = get_character_skill_context(server_id, character_id)
+    style_by_name = skill_context.get("styleByName") or {}
+    skill_by_name = skill_context.get("skillByName") or {}
+    skill_detail_by_id = skill_context.get("skillDetailById") or {}
+    style_rows = list(style_by_name.values())
     current_setup_bonuses = get_current_non_avatar_skill_bonuses(
         server_id,
         character_id,
@@ -478,8 +470,11 @@ def get_character_avatar_skill_infos(
             "note": "skill/style은 아이템 및 장비 스킬 강화 제외 기준입니다.",
         }
         if skill_id and current_level:
-            skill_detail_url = f"https://api.neople.co.kr/df/skills/{job_id}/{skill_id}?apikey={API_KEY}"
-            skill_detail = request_json(skill_detail_url)
+            if skill_id not in skill_detail_by_id:
+                from .neople_client import fetch_skill_detail_from_api
+
+                skill_detail_by_id[skill_id] = fetch_skill_detail_from_api(job_id, skill_id)
+            skill_detail = skill_detail_by_id[skill_id]
             skill_infos[key] = {
                 "skillName": skill_name,
                 "skillId": skill_id,
@@ -572,13 +567,11 @@ def load_character_avatar_skill_efficiency(
         resolved = search_character(server_id, character_name)
         character_id = resolved["character_id"]
 
-    detail_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?apikey={API_KEY}"
-    detail = request_json(detail_url)
+    detail = fetch_character_detail_from_api(server_id, character_id)
     job_id = clean_text(detail.get("jobId"))
     job_grow_id = clean_text(detail.get("jobGrowId"))
 
-    avatar_url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/equip/avatar?apikey={API_KEY}"
-    avatar = request_json(avatar_url)
+    avatar = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
 
     avatar_payload = {
         "jobName": detail.get("jobName"),
