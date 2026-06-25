@@ -58,6 +58,7 @@ from .repositories.auction_repository import get_auction_rows, get_auction_rows_
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details, search_items_by_name
 from .repositories.material_price_repository import load_upgrade_material_prices
+from .repositories.resolved_price_repository import get_cached_resolved_price
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
@@ -86,6 +87,7 @@ AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHO
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
+AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION = 1
 _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK = threading.Lock()
 _SWITCHING_CREATURE_CANDIDATE_CACHE = {}
 BUFFER_SWITCHING_SELF_STAT_SKILLS = {
@@ -2949,16 +2951,8 @@ def find_avatar_platinum_selection_box() -> dict:
     )
 
 
-def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_selection_box: bool = False) -> dict:
+def _choose_avatar_platinum_price_item_from_skills_uncached(normalized_skill_names: list[str], allow_selection_box: bool = False) -> dict:
     debug_steps = []
-    normalized_skill_names = []
-    for skill_name in skill_names or []:
-        skill_name = clean_text(skill_name)
-        if skill_name and skill_name not in normalized_skill_names:
-            normalized_skill_names.append(skill_name)
-    if not normalized_skill_names:
-        normalized_skill_names = [""]
-
     direct_candidates = []
     for skill_name in normalized_skill_names:
         started_at = time.perf_counter()
@@ -3012,6 +3006,29 @@ def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_
         "priceWarningText": "선택 상자는 교환불가 아바타에만 사용 가능" if use_box else "",
         "_debugTimings": debug_steps,
     }
+
+
+def choose_avatar_platinum_price_item_from_skills(skill_names: list[str], allow_selection_box: bool = False) -> dict:
+    normalized_skill_names = []
+    for skill_name in skill_names or []:
+        skill_name = clean_text(skill_name)
+        if skill_name and skill_name not in normalized_skill_names:
+            normalized_skill_names.append(skill_name)
+    if not normalized_skill_names:
+        normalized_skill_names = [""]
+    cache_key = (
+        "platinum_emblem",
+        AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION,
+        "skill_lowest",
+        tuple(normalized_skill_names),
+        bool(allow_selection_box),
+    )
+    return get_cached_resolved_price(
+        cache_key,
+        lambda: _choose_avatar_platinum_price_item_from_skills_uncached(normalized_skill_names, allow_selection_box),
+        should_cache=lambda item: isinstance((item.get("auction") or {}).get("minUnitPrice"), (int, float))
+        and (item.get("auction") or {}).get("minUnitPrice") > 0,
+    )
 
 
 def choose_avatar_platinum_price_item(skill_name: str, allow_selection_box: bool = False) -> dict:

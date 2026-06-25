@@ -28,7 +28,7 @@ def _prune_resolved_price_cache(now: float):
         _RESOLVED_PRICE_CACHE.pop(key, None)
 
 
-def get_cached_resolved_price(cache_key: tuple, resolver):
+def get_cached_resolved_price(cache_key: tuple, resolver, should_cache=None):
     now = time.time()
     with _RESOLVED_PRICE_CACHE_LOCK:
         cached = _RESOLVED_PRICE_CACHE.get(cache_key)
@@ -39,6 +39,8 @@ def get_cached_resolved_price(cache_key: tuple, resolver):
     record_cache_event("resolved_price", "miss")
     value = resolver()
     if not value:
+        return value
+    if should_cache is not None and not should_cache(value):
         return value
 
     with _RESOLVED_PRICE_CACHE_LOCK:
