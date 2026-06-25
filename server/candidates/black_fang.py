@@ -9,10 +9,12 @@ from ..neople_client import (
 )
 from ..repositories.auction_repository import get_auction_rows_by_name, get_lowest_auction_price
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
+from ..repositories.resolved_price_repository import get_cached_resolved_price
 from ..presenters.black_fang_presenter import build_black_fang_recommendation_row
 
 
 BLACK_FANG_ACCESSORY_SLOT_IDS = {"AMULET", "WRIST", "RING"}
+BLACK_FANG_SCROLL_RESOLVED_PRICE_CACHE_VERSION = 1
 BLACK_FANG_MATERIAL_AUCTION_NAME_MAP = {
     "조화의 결정체": "무결점 조화의 결정체",
     "태초 소울": "태초 소울 결정",
@@ -201,6 +203,48 @@ def get_black_fang_scroll_name(set_item_name: str) -> str:
     return f"흑아 태초 변환서 - {set_name}" if set_name else ""
 
 
+def _find_black_fang_scroll_price_item_uncached(scroll_name: str) -> dict:
+    scroll_name = clean_text(scroll_name)
+    if not scroll_name:
+        return {}
+    scroll = _find_lowest_exact_auction_item_by_name(scroll_name, word_type="match")
+    if scroll.get("itemId"):
+        return {**scroll, "_priceSource": "auction_exact"}
+
+    scroll = _find_exact_item_by_name(scroll_name)
+    scroll_id = clean_text(scroll.get("itemId"))
+    if not scroll_id:
+        return {}
+    try:
+        auction = get_lowest_auction_price(scroll_id)
+    except Exception:
+        auction = {}
+    return {
+        **scroll,
+        "auction": dict(auction or {}),
+        "_priceSource": "item_fallback",
+    }
+
+
+def find_black_fang_scroll_price_item(scroll_name: str) -> dict:
+    scroll_name = clean_text(scroll_name)
+    if not scroll_name:
+        return {}
+    return get_cached_resolved_price(
+        (
+            "black_fang_scroll",
+            BLACK_FANG_SCROLL_RESOLVED_PRICE_CACHE_VERSION,
+            "exact_name_match",
+            scroll_name,
+            "match",
+            100,
+        ),
+        lambda: _find_black_fang_scroll_price_item_uncached(scroll_name),
+        should_cache=lambda item: isinstance((item.get("auction") or {}).get("minUnitPrice"), (int, float))
+        and (item.get("auction") or {}).get("minUnitPrice") > 0,
+    )
+
+
 def build_black_fang_recommendations_debug(equipment_rows: list, material_prices: dict | None = None) -> dict:
     steps = []
     targets = [
@@ -220,12 +264,11 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
     scroll_fallback_hits = 0
     scroll_lookup_started_at = time.perf_counter()
     for scroll_name in scroll_names:
-        scroll = _find_lowest_exact_auction_item_by_name(scroll_name, word_type="match")
+        scroll = find_black_fang_scroll_price_item(scroll_name)
         if scroll.get("itemId"):
-            scroll_auction_hits += 1
-        else:
-            scroll = _find_exact_item_by_name(scroll_name)
-            if scroll.get("itemId"):
+            if scroll.get("_priceSource") == "auction_exact":
+                scroll_auction_hits += 1
+            elif scroll.get("_priceSource") == "item_fallback":
                 scroll_fallback_hits += 1
         if scroll.get("itemId"):
             scroll_items[scroll_name] = scroll
