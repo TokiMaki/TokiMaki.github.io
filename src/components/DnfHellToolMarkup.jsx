@@ -18,7 +18,7 @@ export default function DnfHellToolMarkup() {
           <h1 className={'landing-logo-heading'}>
             <img className={'landing-logo-image'} src={logoImage} alt={'던파일럿'} />
           </h1>
-          <p className={'landing-copy'}>스펙업 순서를 캐릭터 기준으로 분석해 효율 좋은 골드 투자처를 찾아줄게양.</p>
+          <p className={'landing-copy'}>캐릭터에 맞춰 골드 대비 효율 좋은 스펙업 순서를 추천해줄게양.</p>
           <div className={'landing-search-row'}>
             <label className={'landing-field'}>
               <span>서버</span>
