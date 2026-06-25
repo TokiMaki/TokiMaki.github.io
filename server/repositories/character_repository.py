@@ -1,6 +1,7 @@
 import threading
 import time
 
+from ..api_fanout_trace import record_cache_event
 from ..neople_client import clean_text, fetch_character_payload_from_api
 
 
@@ -15,8 +16,10 @@ def get_character_cached_payload(server_id: str, character_id: str, resource: st
     with _CHARACTER_RESPONSE_CACHE_LOCK:
         cached = _CHARACTER_RESPONSE_CACHE.get(cache_key)
         if cached and float(cached.get("expires_at") or 0) > now:
+            record_cache_event("character_payload", "hit")
             return cached.get("payload") or {}
 
+    record_cache_event("character_payload", "miss")
     payload = fetch_character_payload_from_api(server_id, character_id, path)
     with _CHARACTER_RESPONSE_CACHE_LOCK:
         _CHARACTER_RESPONSE_CACHE[cache_key] = {

@@ -11,6 +11,7 @@ from .data_store import (
     load_oath_tune_stage_db,
     load_upgrade_expected_db,
 )
+from .api_fanout_trace import finish_api_fanout_trace, start_api_fanout_trace
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number
 from .avatar_skill_optimizer import (
     flatten_skill_rows,
@@ -52,6 +53,7 @@ from .neople_client import (
     get_item_explain,
     get_item_icon_url,
 )
+from .ops_log import write_ops_log
 from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name, get_lowest_auction_price, get_lowest_auction_prices
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details, search_items_by_name
@@ -2092,92 +2094,96 @@ def load_buffer_switching_creature_release_recommendations(
 
 
 def load_character_loadout(server_id: str, character_id: str) -> dict:
+    trace_token = start_api_fanout_trace("/api/character-loadout", server_id, character_id)
     started_at = time.perf_counter()
-    steps = []
-    enchant_payload = _measure_step(steps, "load_character_enchants", lambda: load_character_enchants(server_id, character_id))
-    creature_payload = _measure_step(steps, "load_character_creature", lambda: load_character_creature(server_id, character_id))
-    title_payload = _measure_step(steps, "load_character_title", lambda: load_character_title(server_id, character_id))
-    aura_payload = _measure_step(steps, "load_character_aura", lambda: load_character_aura(server_id, character_id))
-    avatar_payload = _measure_step(
-        steps,
-        "load_character_avatar",
-        lambda: load_character_avatar(server_id, character_id, enchant_payload.get("bufferBaseline")),
-    )
-    switching_title_recommendations = _measure_step(
-        steps,
-        "load_switching_title_recommendations",
-        lambda: (
-            load_buffer_switching_title_recommendations(
-                server_id,
-                character_id,
-                enchant_payload.get("bufferBaseline"),
-            )
-            if enchant_payload.get("bufferBaseline")
-            else load_dealer_switching_title_recommendations(server_id, character_id)
-        ),
-    )
-    switching_fragment_recommendations = _measure_step(
-        steps,
-        "load_dealer_switching_fragment_recommendations",
-        lambda: load_dealer_switching_fragment_recommendations_for_character(
-            server_id,
-            character_id,
-            enchant_payload.get("bufferBaseline"),
-        ),
-    )
-    switching_creature_recommendations = _measure_step(
-        steps,
-        "load_switching_creature_recommendations",
-        lambda: (
-            load_buffer_switching_creature_release_recommendations(
-                server_id,
-                character_id,
-                enchant_payload.get("bufferBaseline"),
-            )
-            if enchant_payload.get("bufferBaseline")
-            else load_dealer_switching_creature_recommendations(server_id, character_id)
-        ),
-    )
-    damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
-    avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
-    if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
-        damage_baseline["statName"] = avatar_primary_stat_name
-        damage_baseline["baseStat"] = parse_percent_or_number(
-            (load_job_base_stats().get(clean_text(damage_baseline.get("jobGrowName"))) or {}).get(avatar_primary_stat_name)
+    try:
+        steps = []
+        enchant_payload = _measure_step(steps, "load_character_enchants", lambda: load_character_enchants(server_id, character_id))
+        creature_payload = _measure_step(steps, "load_character_creature", lambda: load_character_creature(server_id, character_id))
+        title_payload = _measure_step(steps, "load_character_title", lambda: load_character_title(server_id, character_id))
+        aura_payload = _measure_step(steps, "load_character_aura", lambda: load_character_aura(server_id, character_id))
+        avatar_payload = _measure_step(
+            steps,
+            "load_character_avatar",
+            lambda: load_character_avatar(server_id, character_id, enchant_payload.get("bufferBaseline")),
         )
-    return {
-        "serverId": enchant_payload.get("serverId"),
-        "characterId": enchant_payload.get("characterId"),
-        "characterName": enchant_payload.get("characterName"),
-        "fame": enchant_payload.get("fame"),
-        "damageBaseline": damage_baseline,
-        "bufferBaseline": enchant_payload.get("bufferBaseline"),
-        "enchants": enchant_payload.get("enchants") or [],
-        "equipmentUpgrades": enchant_payload.get("equipmentUpgrades") or [],
-        "oathUpgrades": enchant_payload.get("oathUpgrades") or {},
-        "oathTuneStageDb": enchant_payload.get("oathTuneStageDb") or {},
-        "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
-        "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
-        "upgradeMaterialPrices": enchant_payload.get("upgradeMaterialPrices"),
-        "creature": creature_payload.get("creature"),
-        "title": title_payload.get("title"),
-        "aura": aura_payload.get("aura"),
-        "avatar": avatar_payload,
-        "switchingTitleRecommendations": switching_title_recommendations,
-        "switchingFragmentRecommendations": switching_fragment_recommendations,
-        "switchingCreatureRecommendations": switching_creature_recommendations,
-        "debugTimings": {
-            "totalMs": round((time.perf_counter() - started_at) * 1000, 1),
-            "steps": steps,
-            "details": {
-                "load_character_enchants": enchant_payload.get("debugTimings") or {},
-                "load_character_creature": creature_payload.get("debugTimings") or {},
-                "load_character_title": title_payload.get("debugTimings") or {},
-                "load_character_aura": aura_payload.get("debugTimings") or {},
-                "load_character_avatar": avatar_payload.get("debugTimings") or {},
+        switching_title_recommendations = _measure_step(
+            steps,
+            "load_switching_title_recommendations",
+            lambda: (
+                load_buffer_switching_title_recommendations(
+                    server_id,
+                    character_id,
+                    enchant_payload.get("bufferBaseline"),
+                )
+                if enchant_payload.get("bufferBaseline")
+                else load_dealer_switching_title_recommendations(server_id, character_id)
+            ),
+        )
+        switching_fragment_recommendations = _measure_step(
+            steps,
+            "load_dealer_switching_fragment_recommendations",
+            lambda: load_dealer_switching_fragment_recommendations_for_character(
+                server_id,
+                character_id,
+                enchant_payload.get("bufferBaseline"),
+            ),
+        )
+        switching_creature_recommendations = _measure_step(
+            steps,
+            "load_switching_creature_recommendations",
+            lambda: (
+                load_buffer_switching_creature_release_recommendations(
+                    server_id,
+                    character_id,
+                    enchant_payload.get("bufferBaseline"),
+                )
+                if enchant_payload.get("bufferBaseline")
+                else load_dealer_switching_creature_recommendations(server_id, character_id)
+            ),
+        )
+        damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
+        avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
+        if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
+            damage_baseline["statName"] = avatar_primary_stat_name
+            damage_baseline["baseStat"] = parse_percent_or_number(
+                (load_job_base_stats().get(clean_text(damage_baseline.get("jobGrowName"))) or {}).get(avatar_primary_stat_name)
+            )
+        return {
+            "serverId": enchant_payload.get("serverId"),
+            "characterId": enchant_payload.get("characterId"),
+            "characterName": enchant_payload.get("characterName"),
+            "fame": enchant_payload.get("fame"),
+            "damageBaseline": damage_baseline,
+            "bufferBaseline": enchant_payload.get("bufferBaseline"),
+            "enchants": enchant_payload.get("enchants") or [],
+            "equipmentUpgrades": enchant_payload.get("equipmentUpgrades") or [],
+            "oathUpgrades": enchant_payload.get("oathUpgrades") or {},
+            "oathTuneStageDb": enchant_payload.get("oathTuneStageDb") or {},
+            "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
+            "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
+            "upgradeMaterialPrices": enchant_payload.get("upgradeMaterialPrices"),
+            "creature": creature_payload.get("creature"),
+            "title": title_payload.get("title"),
+            "aura": aura_payload.get("aura"),
+            "avatar": avatar_payload,
+            "switchingTitleRecommendations": switching_title_recommendations,
+            "switchingFragmentRecommendations": switching_fragment_recommendations,
+            "switchingCreatureRecommendations": switching_creature_recommendations,
+            "debugTimings": {
+                "totalMs": round((time.perf_counter() - started_at) * 1000, 1),
+                "steps": steps,
+                "details": {
+                    "load_character_enchants": enchant_payload.get("debugTimings") or {},
+                    "load_character_creature": creature_payload.get("debugTimings") or {},
+                    "load_character_title": title_payload.get("debugTimings") or {},
+                    "load_character_aura": aura_payload.get("debugTimings") or {},
+                    "load_character_avatar": avatar_payload.get("debugTimings") or {},
+                },
             },
-        },
-    }
+        }
+    finally:
+        write_ops_log("api_fanout_summary", **finish_api_fanout_trace(trace_token))
 
 
 def normalize_job_name(value: str) -> str:

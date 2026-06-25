@@ -1,8 +1,10 @@
 import threading
 
+from ..api_fanout_trace import record_cache_event
 from ..neople_client import clean_item_display_name, clean_text, fetch_item_details_from_api, get_item_icon_url, search_items_by_name_from_api
 
 
+MULTI_ITEM_DETAIL_CHUNK_SIZE = 15
 _ITEM_DETAIL_CACHE_LOCK = threading.Lock()
 _ITEM_DETAIL_CACHE: dict[str, dict] = {}
 _ITEM_SEARCH_CACHE_LOCK = threading.Lock()
@@ -28,9 +30,11 @@ def fetch_item_details(item_ids: list) -> list:
                 rows_by_id[item_id] = dict(cached)
             else:
                 missing_ids.append(item_id)
+    record_cache_event("item_detail", "hit", len(unique_ids) - len(missing_ids))
+    record_cache_event("item_detail", "miss", len(missing_ids))
 
-    for index in range(0, len(missing_ids), 20):
-        chunk = missing_ids[index:index + 20]
+    for index in range(0, len(missing_ids), MULTI_ITEM_DETAIL_CHUNK_SIZE):
+        chunk = missing_ids[index:index + MULTI_ITEM_DETAIL_CHUNK_SIZE]
         fetched_rows = fetch_item_details_from_api(chunk)
         with _ITEM_DETAIL_CACHE_LOCK:
             for row in fetched_rows:
@@ -49,7 +53,9 @@ def search_items_by_name(item_name: str, max_pages: int = 1, word_type: str = "f
     with _ITEM_SEARCH_CACHE_LOCK:
         cached = _ITEM_SEARCH_CACHE.get(cache_key)
         if cached is not None:
+            record_cache_event("item_search", "hit")
             return [dict(row) for row in cached]
+    record_cache_event("item_search", "miss")
     rows = []
     for page in range(max_pages):
         offset = page * limit

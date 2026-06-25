@@ -6,6 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
+from .api_fanout_trace import record_neople_api_call
 from .ops_log import sanitize_url, write_ops_log
 
 API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
@@ -54,6 +55,7 @@ def request_json(url: str) -> dict[str, Any]:
     last_error: Exception | None = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
+            record_neople_api_call(url)
             with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             if not isinstance(payload, dict):
