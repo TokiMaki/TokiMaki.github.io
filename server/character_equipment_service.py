@@ -1026,7 +1026,11 @@ def find_lowest_auction_item_by_allowed_names(query: str, allowed_names: set[str
     allowed_names = {clean_text(name) for name in allowed_names or [] if clean_text(name)}
     if not query or not allowed_names:
         return {}
-    rows = get_auction_rows_by_name(query, word_type="full", limit=100)
+    rows = []
+    for allowed_name in sorted(allowed_names):
+        rows.extend(get_auction_rows_by_name(allowed_name, word_type="match", limit=100))
+    if not rows:
+        rows = get_auction_rows_by_name(query, word_type="full", limit=100)
     matched = [
         row for row in rows
         if clean_text(row.get("itemName")) in allowed_names
@@ -2866,7 +2870,7 @@ def find_avatar_option_entry(payload: dict, preferred_role: str = "", preferred_
 def find_avatar_platinum_item(skill_name: str) -> dict:
     item_name = f"플래티넘 엠블렘[{clean_text(skill_name)}]"
     try:
-        auction_item = find_lowest_exact_auction_item_by_name(item_name)
+        auction_item = find_lowest_exact_auction_item_by_name(item_name, word_type="match")
         if auction_item:
             return auction_item
     except Exception:
