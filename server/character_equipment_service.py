@@ -138,6 +138,92 @@ def _measure_step(steps: list, name: str, fn):
     return result
 
 
+def _append_prefetch_item_id(item_ids: list, seen: set, item_id: str):
+    item_id = clean_text(item_id)
+    if item_id and item_id not in seen:
+        seen.add(item_id)
+        item_ids.append(item_id)
+
+
+def _append_equipped_item_ids(item_ids: list, seen: set, rows: list):
+    for row in rows or []:
+        if isinstance(row, dict):
+            _append_prefetch_item_id(item_ids, seen, row.get("itemId"))
+
+
+def _append_creature_item_ids(item_ids: list, seen: set, creature: dict):
+    if not isinstance(creature, dict):
+        return
+    _append_prefetch_item_id(item_ids, seen, creature.get("itemId"))
+    _append_equipped_item_ids(item_ids, seen, creature.get("artifact") or [])
+
+
+def collect_loadout_prefetch_item_ids(payloads: dict) -> list[str]:
+    item_ids = []
+    seen = set()
+
+    equipment_payload = payloads.get("equipment") or {}
+    _append_equipped_item_ids(item_ids, seen, equipment_payload.get("equipment") or [])
+
+    avatar_payload = payloads.get("avatar") or {}
+    aura = next((
+        row for row in avatar_payload.get("avatar") or []
+        if (
+            "오라" in clean_text(row.get("slotName"))
+            or "오라" in clean_text(row.get("itemTypeDetail"))
+            or "오라" in clean_text(row.get("itemName"))
+        )
+    ), {})
+    _append_prefetch_item_id(item_ids, seen, aura.get("itemId"))
+
+    creature_payload = payloads.get("creature") or {}
+    _append_creature_item_ids(item_ids, seen, creature_payload.get("creature") or {})
+
+    buff_equipment_payload = payloads.get("buff_equipment") or {}
+    buff_equipment = ((buff_equipment_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
+    _append_equipped_item_ids(item_ids, seen, buff_equipment)
+
+    buff_creature_payload = payloads.get("buff_creature") or {}
+    buff_creature = ((buff_creature_payload.get("skill") or {}).get("buff") or {}).get("creature") or {}
+    _append_creature_item_ids(item_ids, seen, buff_creature)
+
+    return item_ids
+
+
+def prefetch_loadout_item_details(server_id: str, character_id: str) -> dict:
+    resource_specs = {
+        "equipment": ("equipment", "equip/equipment"),
+        "avatar": ("avatar", "equip/avatar"),
+        "creature": ("creature", "equip/creature"),
+        "buff_equipment": ("buff_equipment", "skill/buff/equip/equipment"),
+        "buff_creature": ("buff_creature", "skill/buff/equip/creature"),
+    }
+    payloads = {}
+    errors = []
+    for name, (resource, path) in resource_specs.items():
+        try:
+            payloads[name] = get_character_cached_payload(server_id, character_id, resource, path)
+        except Exception as error:
+            errors.append({"resource": resource, "error": str(error)})
+
+    item_ids = collect_loadout_prefetch_item_ids(payloads)
+    if item_ids:
+        try:
+            fetch_item_details(item_ids)
+        except Exception as error:
+            errors.append({"resource": "item_details", "error": str(error)})
+    if errors:
+        write_ops_log(
+            "loadout_item_prefetch_error",
+            route="/api/character-loadout",
+            serverId=server_id,
+            characterId=character_id,
+            itemCount=len(item_ids),
+            errors=errors,
+        )
+    return {"itemCount": len(item_ids), "errors": errors}
+
+
 def status_rows_to_map(status_rows: list) -> dict:
     return {
         clean_text(status.get("name")): parse_percent_or_number(status.get("value"))
@@ -2098,6 +2184,11 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
     started_at = time.perf_counter()
     try:
         steps = []
+        _measure_step(
+            steps,
+            "prefetch_loadout_item_details",
+            lambda: prefetch_loadout_item_details(server_id, character_id),
+        )
         enchant_payload = _measure_step(steps, "load_character_enchants", lambda: load_character_enchants(server_id, character_id))
         creature_payload = _measure_step(steps, "load_character_creature", lambda: load_character_creature(server_id, character_id))
         title_payload = _measure_step(steps, "load_character_title", lambda: load_character_title(server_id, character_id))
