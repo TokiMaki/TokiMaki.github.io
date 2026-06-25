@@ -8,7 +8,7 @@ import sys
 import time
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from threading import BoundedSemaphore, Lock
+from threading import BoundedSemaphore, Event, Lock
 from urllib.parse import parse_qs, quote, urlparse
 
 from server.character_equipment_service import (
@@ -58,10 +58,20 @@ HEAVY_REQUEST_LIMIT = int(os.environ.get("HEAVY_REQUEST_LIMIT") or 8)
 HEAVY_REQUEST_WAIT_SECONDS = int(os.environ.get("HEAVY_REQUEST_WAIT_SECONDS") or 15)
 PUBLIC_RESPONSE_CACHE_SECONDS = 60
 MAX_PUBLIC_RESPONSE_CACHE_ENTRIES = 256
+LOADOUT_RESPONSE_CACHE_SECONDS = 15
+MAX_LOADOUT_RESPONSE_CACHE_ENTRIES = 64
+LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS = 60
 _HEAVY_REQUEST_SEMAPHORE = BoundedSemaphore(HEAVY_REQUEST_LIMIT)
 _PUBLIC_RESPONSE_CACHE = {}
 _PUBLIC_RESPONSE_LOCKS = {}
 _PUBLIC_RESPONSE_CACHE_LOCK = Lock()
+_LOADOUT_RESPONSE_CACHE = {}
+_LOADOUT_RESPONSE_INFLIGHT = {}
+_LOADOUT_RESPONSE_CACHE_LOCK = Lock()
+
+
+class HeavyRequestRejected(Exception):
+    pass
 
 
 def json_response(payload: dict) -> bytes:
@@ -143,6 +153,72 @@ def load_public_response_body(cache_key: tuple, loader, force_refresh: bool = Fa
         return body, False
 
 
+def prune_loadout_response_cache(now: float):
+    expired_keys = [
+        key
+        for key, cached in _LOADOUT_RESPONSE_CACHE.items()
+        if cached["expires_at"] <= now
+    ]
+    for key in expired_keys:
+        _LOADOUT_RESPONSE_CACHE.pop(key, None)
+    overflow = len(_LOADOUT_RESPONSE_CACHE) - MAX_LOADOUT_RESPONSE_CACHE_ENTRIES
+    if overflow <= 0:
+        return
+    oldest_keys = [
+        key
+        for key, _ in sorted(
+            _LOADOUT_RESPONSE_CACHE.items(),
+            key=lambda item: item[1]["expires_at"],
+        )[:overflow]
+    ]
+    for key in oldest_keys:
+        _LOADOUT_RESPONSE_CACHE.pop(key, None)
+
+
+def load_character_loadout_response_body(cache_key: tuple, loader) -> tuple[bytes, bool]:
+    now = time.time()
+    with _LOADOUT_RESPONSE_CACHE_LOCK:
+        prune_loadout_response_cache(now)
+        cached = _LOADOUT_RESPONSE_CACHE.get(cache_key)
+        if cached and cached["expires_at"] > now:
+            return cached["body"], True
+
+        inflight = _LOADOUT_RESPONSE_INFLIGHT.get(cache_key)
+        if not inflight:
+            inflight = {"event": Event(), "body": None, "error": None}
+            _LOADOUT_RESPONSE_INFLIGHT[cache_key] = inflight
+            is_owner = True
+        else:
+            is_owner = False
+
+    if not is_owner:
+        if not inflight["event"].wait(LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS):
+            raise TimeoutError("캐릭터 세팅 계산 대기 시간이 초과되었습니다.")
+        if inflight.get("error") is not None:
+            raise inflight["error"]
+        return inflight.get("body") or b"{}", True
+
+    try:
+        payload = loader()
+        body = json_response(payload)
+        with _LOADOUT_RESPONSE_CACHE_LOCK:
+            prune_loadout_response_cache(time.time())
+            _LOADOUT_RESPONSE_CACHE[cache_key] = {
+                "body": body,
+                "expires_at": time.time() + LOADOUT_RESPONSE_CACHE_SECONDS,
+            }
+            inflight["body"] = body
+        return body, False
+    except Exception as exc:
+        with _LOADOUT_RESPONSE_CACHE_LOCK:
+            inflight["error"] = exc
+        raise
+    finally:
+        with _LOADOUT_RESPONSE_CACHE_LOCK:
+            inflight["event"].set()
+            _LOADOUT_RESPONSE_INFLIGHT.pop(cache_key, None)
+
+
 class HellApiHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -189,6 +265,30 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         finally:
             _HEAVY_REQUEST_SEMAPHORE.release()
 
+    def run_heavy_api_operation(self, parsed, operation):
+        started_at = time.time()
+        acquired = _HEAVY_REQUEST_SEMAPHORE.acquire(timeout=HEAVY_REQUEST_WAIT_SECONDS)
+        wait_ms = round((time.time() - started_at) * 1000)
+        if not acquired:
+            write_ops_log(
+                "api_throttle_reject",
+                route=parsed.path,
+                limit=HEAVY_REQUEST_LIMIT,
+                waitMs=wait_ms,
+            )
+            raise HeavyRequestRejected("요청이 많아 잠시 후 다시 시도해 주세요.")
+        try:
+            if wait_ms >= 1000:
+                write_ops_log(
+                    "api_throttle_wait",
+                    route=parsed.path,
+                    limit=HEAVY_REQUEST_LIMIT,
+                    waitMs=wait_ms,
+                )
+            return operation()
+        finally:
+            _HEAVY_REQUEST_SEMAPHORE.release()
+
     def do_GET(self):
         self._request_started_at = time.time()
         parsed = urlparse(self.path)
@@ -224,7 +324,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             return self.run_limited_api_request(parsed, lambda: self.handle_character_enchants(parsed))
 
         if parsed.path == "/api/character-loadout":
-            return self.run_limited_api_request(parsed, lambda: self.handle_character_loadout(parsed))
+            return self.handle_character_loadout(parsed)
 
         if parsed.path == "/api/character-preview":
             return self.run_limited_api_request(parsed, lambda: self.handle_character_preview(parsed))
@@ -375,9 +475,18 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            self.send_json(load_character_loadout(server_id, character_id))
+            body, cache_hit = load_character_loadout_response_body(
+                ("character-loadout", server_id, character_id),
+                lambda: self.run_heavy_api_operation(
+                    parsed,
+                    lambda: load_character_loadout(server_id, character_id),
+                ),
+            )
+            self.send_json_body(body, cache_hit=cache_hit)
         except FileNotFoundError:
             self.send_json({"error": "캐릭터 세팅 DB를 찾을 수 없습니다."}, status=HTTPStatus.NOT_FOUND)
+        except HeavyRequestRejected as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 
