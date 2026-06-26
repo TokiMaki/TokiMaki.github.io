@@ -844,15 +844,20 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
 
 def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: bool = True) -> dict:
     now = time.time()
+    schema_mismatch = False
     if allow_stale:
         load_price_cache_from_disk(_ENCHANT_PRICE_CACHE, ENCHANT_PRICE_CACHE_PATH)
     with _CACHE_LOCK:
         payload = _ENCHANT_PRICE_CACHE["payload"]
         expires_at = _ENCHANT_PRICE_CACHE["expires_at"]
         if payload is not None and payload.get("schemaVersion") != ENCHANT_PRICE_CACHE_SCHEMA_VERSION:
+            schema_mismatch = True
             payload = None
             _ENCHANT_PRICE_CACHE["payload"] = None
             _ENCHANT_PRICE_CACHE["expires_at"] = 0
+
+    if allow_stale and schema_mismatch:
+        return load_enchant_cards_with_prices(force_refresh=True, allow_stale=False)
 
     if allow_stale and payload is not None:
         if not force_refresh and expires_at > now:
