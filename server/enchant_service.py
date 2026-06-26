@@ -361,6 +361,16 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
     return sources or fallback_sources
 
 
+def get_enchant_detail_max_upgrade(detail: dict) -> int:
+    upgrades = []
+    for enchant in ((detail.get("cardInfo") or {}).get("enchant") or []):
+        try:
+            upgrades.append(int(enchant.get("upgrade") or 0))
+        except (TypeError, ValueError):
+            continue
+    return max(upgrades, default=0)
+
+
 def load_creature_upgrades_with_prices(
     force_refresh: bool = False,
     allow_stale: bool = True,
@@ -912,6 +922,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
             if card.get("displayName"):
                 card_with_price["displayName"] = clean_item_display_name(card.get("displayName"))
             card_with_price["sources"] = build_enchant_sources_from_detail(card, detail)
+            card_with_price["_requiresFullUpgradePrice"] = get_enchant_detail_max_upgrade(detail) > 0
         else:
             card_with_price["iconUrl"] = get_item_icon_url(card.get("itemId"))
             card_with_price["sources"] = [
@@ -980,6 +991,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
         for card in cards:
             if card.get("acquisition"):
                 continue
+            requires_full_upgrade_price = bool(card.get("_requiresFullUpgradePrice"))
             price_options = [{
                 "itemId": card.get("itemId"),
                 "itemName": card.get("itemName"),
@@ -991,7 +1003,11 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
                 price_options.append({**bead_item, "kind": "보주"})
             card["priceOptions"] = price_options
             for option in price_options:
-                future_by_option[executor.submit(get_lowest_auction_price, option["itemId"])] = (card, option)
+                future_by_option[executor.submit(
+                    get_lowest_auction_price,
+                    option["itemId"],
+                    require_max_upgrade=requires_full_upgrade_price,
+                )] = (card, option)
 
         for future in as_completed(future_by_option):
             card, option = future_by_option[future]
@@ -1025,6 +1041,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
             "iconUrl": price_item.get("iconUrl"),
             "kind": price_item.get("kind"),
         } if price_item and price_item.get("itemId") != card.get("itemId") else None
+        card.pop("_requiresFullUpgradePrice", None)
 
     payload = {
         "schemaVersion": ENCHANT_PRICE_CACHE_SCHEMA_VERSION,
