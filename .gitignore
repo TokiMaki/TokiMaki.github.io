@@ -60,6 +60,11 @@ Docs/.price_cache/
 .venv-xlsx/
 .codex
 
+### Docs local artifacts
+Docs/*.bak
+Docs/*.formula.bak
+Docs/*.openpyxl.bak
+
 ### Local server scripts
 scripts/start_api_*.sh
 scripts/start_api_*.bat
@@ -101,6 +106,12 @@ $RECYCLE.BIN/
 
 ### Documents
 *.md
+!Docs/README.md
+!Docs/WORK_CONTEXT.md
+!Docs/CODE_STRUCTURE.md
 !Docs/DEPLOY_LIGHTSAIL.md
+!Docs/DUNPILOT_CODE_REVIEW.md
+!Docs/ENCHANT_RECOMMEND_FLOW.md
+!Docs/BUFFER_CALCULATION_NOTES.md
 *.txt
 !requirements.txt
