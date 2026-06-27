@@ -113,5 +113,9 @@ $RECYCLE.BIN/
 !Docs/DUNPILOT_CODE_REVIEW.md
 !Docs/ENCHANT_RECOMMEND_FLOW.md
 !Docs/BUFFER_CALCULATION_NOTES.md
+!Docs/legacy/
+!Docs/legacy/*.md
+!Docs/research/
+!Docs/research/*.md
 *.txt
 !requirements.txt

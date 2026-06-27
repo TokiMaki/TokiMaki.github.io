@@ -27,18 +27,19 @@
 
 다음 문서는 현재 운영 기능의 직접 문서라기보다 과거 설계나 역산 연구 자료다.
 
-- `DNF_HELL_OPTIMIZER_SPEC.md`
-- `EQUIPMENT_SCORE_REVERSE_ENGINE.md`
-- `equipment_score_reverse_notes.md`
-- `OATH_VALUE_REVERSE_TABLE.md`
-- `OATH_VALUE_REVERSE_TABLE*.xlsx`
+- `legacy/DNF_HELL_OPTIMIZER_SPEC.md`
+- `research/EQUIPMENT_SCORE_REVERSE_ENGINE.md`
+- `research/equipment_score_reverse_notes.md`
+- `research/OATH_VALUE_REVERSE_TABLE.md`
+- `research/OATH_VALUE_REVERSE_TABLE_WITH_FORMULAS.xlsx`
+- `OATH_VALUE_REVERSE_TABLE.xlsx`
 - `equipment_score_*`
 
 정리 시 삭제하지 말고 `archive/` 또는 `legacy/` 이동 대상으로 먼저 검토한다.
 
 ## 데이터 파일 주의
 
-`Docs/*.json`, `Docs/*.tsv`, `Docs/*.txt` 중 일부는 서버나 생성 스크립트가 직접 읽는 기준 데이터다.
+`Docs/*.json`, `Docs/*.tsv`, `Docs/*.txt` 중 일부는 서버나 생성 스크립트가 직접 읽는 기준 데이터다. 1차 정리에서는 코드 참조 가능성이 있는 JSON/TSV/TXT 데이터 파일을 이동하지 않는다.
 
 - 임의 이동 금지
 - 임의 수정 금지

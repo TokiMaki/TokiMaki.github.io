@@ -18,7 +18,7 @@ dnf-hell-optimizer-react
 ├─ vite.config.js
 ├─ neople_hell_api_server.py          # 로컬 API 서버 진입점
 ├─ Docs/                              # 규칙, 계산 기준, DB, 캐시
-│  ├─ DNF_HELL_OPTIMIZER_SPEC.md
+│  ├─ legacy/DNF_HELL_OPTIMIZER_SPEC.md
 │  ├─ WORK_CONTEXT.md
 │  ├─ QUESTION_LOG.md
 │  ├─ *_upgrade_db.json
@@ -324,9 +324,9 @@ neople_hell_api_server.py
 ```text
 Docs/
 ├─ 규칙 문서
-│  ├─ DNF_HELL_OPTIMIZER_SPEC.md
+│  ├─ legacy/DNF_HELL_OPTIMIZER_SPEC.md
 │  ├─ ENCHANT_RECOMMEND_FLOW.md
-│  └─ EQUIPMENT_SCORE_REVERSE_ENGINE.md
+│  └─ research/EQUIPMENT_SCORE_REVERSE_ENGINE.md
 ├─ 작업 메모
 │  ├─ WORK_CONTEXT.md
 │  └─ QUESTION_LOG.md
