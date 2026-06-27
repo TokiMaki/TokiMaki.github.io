@@ -10,9 +10,11 @@ from ..neople_client import (
     request_json,
 )
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
+from ..repositories.resolved_price_repository import get_cached_resolved_price
 from ..upgrade_payloads import aura_item_matches, build_aura_payload
 
 
+AURA_RESOLVED_PRICE_CACHE_VERSION = 1
 _AURA_DISCOVERY_SERVER_IDS = ("cain", "diregie", "siroco", "prey", "casillas", "hilder", "anton", "bakal")
 _AURA_DISCOVERY_MIN_FAME = 90000
 _AURA_DISCOVERY_LIMIT = 30
@@ -89,7 +91,7 @@ def find_aura_item_id_from_equipped_avatars(search_names: list[str]) -> str:
     return found_item_id
 
 
-def build_aura_price_item(detail: dict, get_cached_auction, errors: list) -> dict:
+def _build_aura_price_item_uncached(detail: dict, get_cached_auction) -> dict:
     item_id = detail.get("itemId")
     item = {
         "itemId": item_id,
@@ -97,12 +99,35 @@ def build_aura_price_item(detail: dict, get_cached_auction, errors: list) -> dic
         "iconUrl": get_item_icon_url(item_id),
         "itemExplain": get_item_explain(detail),
     }
-    try:
-        item["auction"] = get_cached_auction(item_id)
-    except Exception as exc:
-        item["auction"] = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
-        errors.append({"itemId": item_id, "itemName": item.get("itemName"), "error": str(exc)})
+    item["auction"] = get_cached_auction(item_id)
     return item
+
+
+def build_aura_price_item(detail: dict, get_cached_auction, errors: list) -> dict:
+    item_id = clean_text(detail.get("itemId"))
+    item_name = clean_text(detail.get("itemName"))
+    try:
+        return get_cached_resolved_price(
+            (
+                "aura",
+                AURA_RESOLVED_PRICE_CACHE_VERSION,
+                "price_item",
+                item_id,
+                item_name,
+            ),
+            lambda: _build_aura_price_item_uncached(detail, get_cached_auction),
+            should_cache=lambda item: isinstance((item.get("auction") or {}).get("minUnitPrice"), (int, float))
+            and (item.get("auction") or {}).get("minUnitPrice") > 0,
+        )
+    except Exception as exc:
+        errors.append({"itemId": item_id, "itemName": item_name, "error": str(exc)})
+        return {
+            "itemId": item_id,
+            "itemName": item_name,
+            "iconUrl": get_item_icon_url(item_id),
+            "itemExplain": get_item_explain(detail),
+            "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None},
+        }
 
 
 def build_aura_candidates(aura_details: list[dict], price_items: list[dict], variant: str = "일반") -> list[dict]:
