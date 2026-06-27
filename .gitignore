@@ -106,6 +106,7 @@ $RECYCLE.BIN/
 
 ### Documents
 *.md
+!AGENTS.md
 !Docs/README.md
 !Docs/WORK_CONTEXT.md
 !Docs/architecture/
