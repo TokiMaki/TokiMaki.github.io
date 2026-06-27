@@ -5,7 +5,7 @@
 ## 현재 핵심 문서
 
 - `WORK_CONTEXT.md`: 현재 작업자가 먼저 확인하는 짧은 Active Snapshot.
-- `CODE_STRUCTURE.md`: 프론트/백엔드 주요 파일과 데이터 흐름 요약.
+- `ARCHITECTURE.md`: 현재 서버/프론트 레이어와 작업 원칙 요약.
 - `DEPLOY_LIGHTSAIL.md`: Lightsail 배포와 운영 전환 절차.
 - `DUNPILOT_CODE_REVIEW.md`: 레포지토리 구조 리뷰 기준.
 - `ENCHANT_RECOMMEND_FLOW.md`: 스펙업 순서 탭의 요청/응답 흐름.
