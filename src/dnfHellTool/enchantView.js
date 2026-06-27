@@ -2745,7 +2745,7 @@ function formatTitlePurchaseRouteLabel(row) {
     return elementLabel ? `${elementLabel} 칭호 보주 교체` : '칭호 보주 교체';
   }
   if (row?.purchaseRoute === 'attachedBead') {
-    return elementLabel ? `보주 발린 칭호 · ${elementLabel}` : '보주 발린 칭호';
+    return elementLabel ? `보주 발린 칭호 / ${elementLabel}` : '보주 발린 칭호';
   }
   return row?.purchaseRouteLabel || '';
 }

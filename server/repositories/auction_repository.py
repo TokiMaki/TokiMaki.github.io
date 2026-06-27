@@ -21,23 +21,37 @@ def get_auction_rows_by_name(item_name: str, word_type: str = "full", limit: int
     return get_auction_rows_by_name_from_api(item_name, word_type=word_type, limit=limit, offset=offset)
 
 
-def _lowest_auction_price_from_rows(rows: list) -> dict:
+def _auction_int(value) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _lowest_auction_price_from_rows(rows: list, require_max_upgrade: bool = False) -> dict:
     priced_rows = [
         row for row in rows
         if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0
     ]
-    completed_rows = [
-        row for row in priced_rows
-        if int(row.get("upgrade") or 0) == int(row.get("upgradeMax") or 0)
-    ]
-    if completed_rows:
-        candidate_rows = completed_rows
-    else:
-        max_upgrade = max((int(row.get("upgrade") or 0) for row in priced_rows), default=0)
+    if require_max_upgrade:
         candidate_rows = [
             row for row in priced_rows
-            if int(row.get("upgrade") or 0) == max_upgrade
+            if _auction_int(row.get("upgradeMax")) > 0
+            and _auction_int(row.get("upgrade")) == _auction_int(row.get("upgradeMax"))
         ]
+    else:
+        completed_rows = [
+            row for row in priced_rows
+            if _auction_int(row.get("upgrade")) == _auction_int(row.get("upgradeMax"))
+        ]
+        if completed_rows:
+            candidate_rows = completed_rows
+        else:
+            max_upgrade = max((_auction_int(row.get("upgrade")) for row in priced_rows), default=0)
+            candidate_rows = [
+                row for row in priced_rows
+                if _auction_int(row.get("upgrade")) == max_upgrade
+            ]
 
     lowest = min(candidate_rows, key=lambda row: row.get("unitPrice"), default=None)
     return {
@@ -47,12 +61,15 @@ def _lowest_auction_price_from_rows(rows: list) -> dict:
         "auctionNo": lowest.get("auctionNo") if lowest else None,
         "upgrade": lowest.get("upgrade") if lowest else None,
         "upgradeMax": lowest.get("upgradeMax") if lowest else None,
-        "isMaxUpgrade": bool(lowest) and int(lowest.get("upgrade") or 0) == int(lowest.get("upgradeMax") or 0),
+        "isMaxUpgrade": bool(lowest) and _auction_int(lowest.get("upgrade")) == _auction_int(lowest.get("upgradeMax")),
     }
 
 
-def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None) -> dict:
-    return _lowest_auction_price_from_rows(get_auction_rows(item_id, min_fame=min_fame, max_fame=max_fame))
+def get_lowest_auction_price(item_id: str, min_fame=None, max_fame=None, require_max_upgrade: bool = False) -> dict:
+    return _lowest_auction_price_from_rows(
+        get_auction_rows(item_id, min_fame=min_fame, max_fame=max_fame),
+        require_max_upgrade=require_max_upgrade,
+    )
 
 
 def get_lowest_auction_prices(item_ids: list[str], fame_by_item_id: dict[str, int] | None = None, limit: int = 100) -> dict[str, dict]:
