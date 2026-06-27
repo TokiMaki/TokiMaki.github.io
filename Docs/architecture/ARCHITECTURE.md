@@ -84,8 +84,14 @@ src/
 Docs/
   README.md
   WORK_CONTEXT.md
-  ARCHITECTURE.md
-  DEPLOY_LIGHTSAIL.md
+  architecture/
+    ARCHITECTURE.md
+    DUNPILOT_CODE_REVIEW.md
+  flows/
+    ENCHANT_RECOMMEND_FLOW.md
+    BUFFER_CALCULATION_NOTES.md
+  operations/
+    DEPLOY_LIGHTSAIL.md
   legacy/
   research/
   *.json / *.tsv / *.txt        # 서버/스크립트가 직접 참조할 수 있는 기준 데이터

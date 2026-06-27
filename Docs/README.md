@@ -5,23 +5,23 @@
 ## 현재 핵심 문서
 
 - `WORK_CONTEXT.md`: 현재 작업자가 먼저 확인하는 짧은 Active Snapshot.
-- `ARCHITECTURE.md`: 현재 서버/프론트 레이어와 작업 원칙 요약.
-- `DEPLOY_LIGHTSAIL.md`: Lightsail 배포와 운영 전환 절차.
-- `DUNPILOT_CODE_REVIEW.md`: 레포지토리 구조 리뷰 기준.
-- `ENCHANT_RECOMMEND_FLOW.md`: 스펙업 순서 탭의 요청/응답 흐름.
-- `BUFFER_CALCULATION_NOTES.md`: 버퍼 점수와 스위칭 계산 기준.
+- `architecture/ARCHITECTURE.md`: 현재 서버/프론트 레이어와 작업 원칙 요약.
+- `operations/DEPLOY_LIGHTSAIL.md`: Lightsail 배포와 운영 전환 절차.
+- `architecture/DUNPILOT_CODE_REVIEW.md`: 레포지토리 구조 리뷰 기준.
+- `flows/ENCHANT_RECOMMEND_FLOW.md`: 스펙업 순서 탭의 요청/응답 흐름.
+- `flows/BUFFER_CALCULATION_NOTES.md`: 버퍼 점수와 스위칭 계산 기준.
 
 ## 운영/배포 문서
 
-- `DEPLOY_LIGHTSAIL.md`는 서버 배포, systemd, nginx, Cloudflare 전환 절차를 다룬다.
+- `operations/DEPLOY_LIGHTSAIL.md`는 서버 배포, systemd, nginx, Cloudflare 전환 절차를 다룬다.
 - 실제 secret, API key, cloudflared token, 개인 경로는 문서에 기록하지 않는다.
 - 로컬 실행용 shell/batch 파일은 git 관리 대상이 아니다.
 
 ## 계산/추천 흐름 문서
 
-- `ENCHANT_RECOMMEND_FLOW.md`: 현재 스펙업 추천 화면과 서버 호출 흐름.
-- `BUFFER_CALCULATION_NOTES.md`: 버퍼 계산에서 보존해야 하는 공식과 예외.
-- `DUNPILOT_CODE_REVIEW.md`: Route, Service, Repository, Candidate, Calculator, Presenter 책임 경계.
+- `flows/ENCHANT_RECOMMEND_FLOW.md`: 현재 스펙업 추천 화면과 서버 호출 흐름.
+- `flows/BUFFER_CALCULATION_NOTES.md`: 버퍼 계산에서 보존해야 하는 공식과 예외.
+- `architecture/DUNPILOT_CODE_REVIEW.md`: Route, Service, Repository, Candidate, Calculator, Presenter 책임 경계.
 
 ## 연구/legacy 문서
 
@@ -35,7 +35,7 @@
 - `OATH_VALUE_REVERSE_TABLE.xlsx`
 - `equipment_score_*`
 
-정리 시 삭제하지 말고 `archive/` 또는 `legacy/` 이동 대상으로 먼저 검토한다.
+정리 시 삭제하지 말고 `legacy/` 또는 `research/` 이동 대상으로 먼저 검토한다.
 
 ## 데이터 파일 주의
 

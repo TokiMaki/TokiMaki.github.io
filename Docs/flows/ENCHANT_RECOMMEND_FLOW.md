@@ -350,8 +350,8 @@ cache hit이 늘면 fan-out이 줄어야 한다. 단, character-loadout short re
 
 ## 관련 문서
 
-- `Docs/ARCHITECTURE.md`
-- `Docs/WORK_CONTEXT.md`
-- `Docs/BUFFER_CALCULATION_NOTES.md`
-- `Docs/legacy/DNF_HELL_OPTIMIZER_SPEC.md`
-- `Docs/research/EQUIPMENT_SCORE_REVERSE_ENGINE.md`
+- `../architecture/ARCHITECTURE.md`
+- `../WORK_CONTEXT.md`
+- `BUFFER_CALCULATION_NOTES.md`
+- `../legacy/DNF_HELL_OPTIMIZER_SPEC.md`
+- `../research/EQUIPMENT_SCORE_REVERSE_ENGINE.md`
