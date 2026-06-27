@@ -1,356 +1,357 @@
-# ENCHANT_RECOMMEND_FLOW
+# Enchant and Upgrade Recommendation Flow
 
-## 범위
+## 목적
 
-이 문서는 `스펙업 순서` 탭이 현재 어떻게 동작하는지 설명한다.
+이 문서는 `/api/character-loadout`에서 마법부여와 스펙업 추천 payload가 만들어지는 흐름을 설명한다.
 
-설명 대상:
+대상은 현재 DunPilot의 스펙업 추천 도메인이다.
 
-- 프론트 검색 UI
-- 캐릭터 현재 세팅 조회
-- 시세/추천 데이터 조회
-- 추천 렌더
-- 현재 느린 이유
-
----
-
-## 관련 파일
-
-- 프론트 마크업: `src/components/DnfHellToolMarkup.jsx`
-- 프론트 DOM 참조: `src/dnfHellTool/domRefs.js`
-- 프론트 로직: `src/dnfHellTool/enchantView.js`
-- 캐릭터 portrait 공용 마크업: `src/dnfHellTool/characterPresentation.js`
-- API 서버 라우팅: `neople_hell_api_server.py`
-- 캐릭터 장비/세팅 로딩: `server/character_equipment_service.py`
-- 시세/추천 캐시 로딩: `server/enchant_service.py`
-- 네오플 API 클라이언트: `server/neople_client.py`
-
----
-
-## 1. 화면 구조
-
-`src/components/DnfHellToolMarkup.jsx`
-
-`스펙업 순서` 탭에는 현재 큰 블록이 3개 있다.
-
-1. 검색 패널
-   - 서버 선택
-   - 캐릭터명 입력
-   - 검색 버튼
-
-2. 포함 항목 패널
-   - 마법부여 / 증폭 / 칭호 / 크리쳐 / 오라 / 아바타 등 포함 여부 체크박스
-
-3. 추천 영역
-   - 왼쪽: 캐릭터 카드
-   - 오른쪽: 스펙업 순서 추천 카드 목록
-
----
-
-## 2. 프론트 초기 상태
-
-`src/dnfHellTool/enchantView.js`
-
-탭 로직이 초기화될 때 아래 상태를 들고 시작한다.
-
-- `state.enchantTargetCharacter`
-  - 현재 검색한 캐릭터
-- `state.currentEnchants`
-  - 현재 장비 마부
-- `state.currentEquipmentUpgrades`
-  - 현재 강화/증폭 정보
-- `state.currentCreature`
-  - 현재 크리쳐
-- `state.currentTitle`
-  - 현재 칭호
-- `state.currentAura`
-  - 현재 오라
-- `state.currentAvatar`
-  - 현재 아바타/플티 계산용 데이터
-- `state.currentDamageBaseline`
-  - 속강/공증/최종뎀 비교 계산 기준이 되는 캐릭터 총합값
-- `state.enchantCards`
-  - 마법부여 시세 DB
-- `state.creatureUpgradeGroups`
-  - 크리쳐 시세/추천 DB
-- `state.creatureArtifactGroups`
-  - 크리쳐 아티팩트 시세/추천 DB
-- `state.titleUpgradeGroups`
-  - 칭호 시세/추천 DB
-- `state.auraUpgradeGroups`
-  - 오라 시세/추천 DB
-- `state.enchantPriceLoaded`
-  - 시세 DB를 이미 한 번 불러왔는지 여부
-
-즉 현재 구조는:
-
-- 캐릭터 현재 세팅 데이터
-- 추천 후보 시세 데이터
-
-이 둘을 따로 들고 있다가 마지막에 합쳐서 추천을 만든다.
-
----
-
-## 3. 검색 버튼을 누르면 일어나는 일
-
-핵심 함수: `searchEnchantCharacter()`
-
-### 3-1. 캐릭터 검색
-
-먼저 프론트가 아래 API를 호출한다.
-
-- `GET /api/search?serverId=...&characterName=...`
-
-이 응답에서 받아오는 값:
-
-- `serverId`
-- `characterId`
-- `characterName`
-- `fame`
-- `jobGrowName`
-
-이 값으로 `state.enchantTargetCharacter`를 만든 뒤 portrait를 한 번 먼저 그린다.
-
-이 시점에는 아직 장비/칭호/크리쳐 슬롯 데이터가 없어서 기본 카드만 뜬다.
-
-### 3-2. 현재 캐릭터 세팅 조회
-
-현재는 프론트가 아래 통합 API 1개를 호출한다.
-
-- `GET /api/character-loadout`
-
-이 응답 안에 아래 정보가 한 번에 들어 있다.
-
-- 장비 마부
-- 강화/증폭
-- 흑아 추천용 현재 장비 상태
-- `damageBaseline`
-- 현재 크리쳐
-- 현재 칭호
-- 현재 오라
-- 현재 아바타
-
-이 중에서 추천 계산에 제일 중요한 건 `damageBaseline + 현재 마부/강화/증폭` 묶음이다.
-
-이유:
-
-- 현재 마부와 후보 마부 차이를 계산해야 하고
-- 현재 강화/증폭과 후보 누적값 차이를 계산해야 하고
-- `damageBaseline`이 있어야 속강/공증/최종뎀/공격력 증폭 효율 계산이 가능하기 때문이다.
-
-### 3-3. 시세/추천 DB 조회
-
-현재 캐릭터 세팅 5개가 끝난 뒤에야 프론트가 아래 4개를 부른다.
-
-- `GET /api/enchant-cards`
-- `GET /api/creature-upgrades`
-- `GET /api/title-upgrades`
-- `GET /api/aura-upgrades`
-
-이 응답은 서버가 미리 정리해 둔 추천 후보 목록과 시세 캐시다.
-
-이 데이터는 캐릭터별이 아니라 공용 DB 성격이다.
-
-### 3-4. 추천 렌더
-
-마지막에 `renderEnchantTable()`이 다음 데이터를 합친다.
-
-- 카드 마부 후보
-- 크리쳐 후보
-- 크리쳐 아티팩트 후보
-- 칭호 후보
-- 오라 후보
-- 아바타/플래티넘 후보
-- 강화/증폭 후보
-- 흑아 후보
-
-그 뒤:
-
-1. 포함 항목 필터 적용
-2. 가격/효율 계산
-3. 가성비 기준 정렬
-4. 추천 카드 렌더
-
----
-
-## 4. portrait 카드가 채워지는 방식
-
-핵심 함수: `renderEnchantCharacterPortrait()`
-
-현재 portrait는 검색 직후 한 번 뜨고, 이후 데이터가 들어올 때마다 다시 그린다.
-
-- `loadCurrentEnchants()` 완료 후 다시 그림
-- `loadCurrentCreature()` 완료 후 다시 그림
-- `loadCurrentTitle()` 완료 후 다시 그림
-- `loadCurrentAura()` 완료 후 다시 그림
-
-즉 portrait는 한 번에 완성되는 구조가 아니라 점진적으로 채워진다.
-
----
-
-## 5. 서버 구조
-
-### 5-1. 라우팅
-
-`neople_hell_api_server.py`
-
-프론트 호출은 여기서 받아 각 서비스 함수로 넘긴다.
-
-- `/api/search`
-- `/api/character-enchants`
-- `/api/character-creature`
-- `/api/character-title`
-- `/api/character-aura`
-- `/api/character-avatar`
-- `/api/enchant-cards`
-- `/api/creature-upgrades`
-- `/api/title-upgrades`
-- `/api/aura-upgrades`
-
-### 5-2. 캐릭터 현재 세팅 로딩
-
-`server/character_equipment_service.py`
-
-현재 프론트는 `load_character_loadout()`를 호출하고, 이 함수 안에서 기존 개별 로더들을 조합한다.
-
-- `load_character_enchants()`
-  - `equip/equipment`
-  - `status`
-- `load_character_creature()`
-  - `equip/creature`
-  - 필요 시 아이템 상세 조회
-- `load_character_title()`
-  - 다시 `equip/equipment`
-  - 필요 시 아이템 상세 조회
-- `load_character_aura()`
-  - `equip/avatar`
-  - 필요 시 아이템 상세 조회
-- `load_character_avatar()`
-  - 아바타 세팅 비교용 데이터 조립
-
-추가로 같은 검색 묶음 안에서는 아래 원본 네오플 응답을 15초 TTL 메모리 캐시로 재사용한다.
-
-- `equip/equipment`
-- `equip/avatar`
-- `equip/creature`
-- `status`
-
-### 5-3. 시세/추천 DB 로딩
-
-`server/enchant_service.py`
-
-이쪽은 캐릭터별 요청이 아니라 공용 시세 캐시다.
-
-- 디스크 캐시 사용
-- stale 데이터 즉시 반환 가능
-- 백그라운드 갱신 가능
-
-즉 시세 쪽은 이미 어느 정도 캐시가 있다.
-
-반대로 캐릭터 현재 세팅 쪽은 매 검색마다 네오플 API를 다시 타는 구조다.
-
----
-
-## 6. 지금 느린 이유
-
-현재 느린 이유는 크게 4개다.
-
-### 6-1. 프론트가 두 묶음을 순차 대기함
-
-현재 검색 흐름은 사실상 아래 순서다.
-
-1. `/api/search`
-2. `/api/character-loadout` 완료 대기
-3. `*-upgrades`, `enchant-cards` 4개 완료 대기
-4. 추천 렌더
-
-즉 예전의 `5 + 4` 구조보다는 줄었지만, 아직도 `현재 세팅 묶음`과 `시세 묶음`을 직렬로 기다린다.
-
-### 6-2. 서버가 같은 캐릭터 데이터를 중복 조회함
-
-예를 들면:
-
-- `character-enchants`가 `equip/equipment` 조회
-- `character-title`도 다시 `equip/equipment` 조회
-
-이 부분은 현재 `character-loadout` 도입과 15초 TTL 캐시로 많이 줄었다. 다만 개별 로더 내부의 아이템 상세 조회까지 완전히 합쳐 놓은 상태는 아니다.
-
-### 6-3. `character-enchants` 자체가 무거움
-
-이 API는 단순 마부만 읽는 게 아니라:
-
-- 장비 목록
-- 강화/증폭
-- 흑아 대상 확인
-- 장비 자체 속강 누락분 계산용 정보
-- `status`
-- `damageBaseline`
-
-까지 같이 만든다.
-
-즉 추천 정확도에 필요한 핵심 API지만, 제일 무거운 축이다.
-
-### 6-4. 배포 경로가 길다
-
-현재 배포 구조가:
-
-- 브라우저
-- GitHub Pages
-- Cloudflare Tunnel
-- 로컬 API 서버
-- Neople API
-
-이기 때문에 로컬 개발 환경보다 기본 지연이 더 있다.
-
----
-
-## 7. 지금 구조에서 가장 먼저 손대면 효과 큰 부분
-
-### 7-1. 프론트 요청 순서
-
-현재는 `character-*` 5개를 다 기다린 다음 `시세/추천` 4개를 시작한다.
-
-이건 개선 여지가 크다.
-
-가능한 방향:
-
-- 검색 성공 직후 `character-enchants`와 시세 4개를 더 일찍 병렬 시작
-- 크리쳐/칭호/오라/아바타는 portrait 보강용으로 뒤따라와도 됨
-
-### 7-2. 서버 캐릭터 API 통합
-
-현재는 같은 캐릭터에 대해:
-
-- 장비
+- 마법부여 카드/보주
+- 강화/증폭/장비 조율
+- 서약 조율
+- 흑아/흑아 변환서
 - 칭호
-- 오라
-- 아바타
 - 크리쳐
+- 오라
+- 아바타 엠블렘
+- 플래티넘 엠블렘
+- 버프강화 칭호/크리쳐/플래티넘/짙편린
 
-를 여러 엔드포인트로 쪼개서 다시 읽는다.
+과거 헬 운영, 계시, 초월, 정가 중심 설명은 `Docs/legacy/`와 `Docs/research/` 문서로 분리한다.
 
-효율을 높이려면:
+## 전체 흐름
 
-- 장비/아바타/크리쳐를 한 번 읽고
-- 거기서 title/aura/avatar 정보를 분리 추출하거나
-- 아예 `character-summary` 같은 통합 엔드포인트를 두는 방식
+```text
+Browser
+-> Route: neople_hell_api_server.py
+-> Service: character_equipment_service.py
+-> Repository / Cache
+-> Candidate Resolver
+-> Calculator
+-> Presenter
+-> JSON response
+```
 
-이 더 낫다.
+프론트의 스펙업 순서 탭은 검색 후 `/api/character-loadout`를 중심으로 현재 캐릭터 세팅, 추천 후보, 가격, 계산 결과를 받는다. 일부 공용 가격 endpoint는 유지되지만, 현재 추천 흐름의 핵심은 character-loadout 응답이다.
 
----
+## Route
 
-## 8. 한 줄 요약
+위치: `neople_hell_api_server.py`
 
-현재 구조는:
+Route 책임:
 
-- `캐릭터 현재 세팅 조회`
-- `공용 추천 시세 조회`
+- HTTP query 파라미터 파싱
+- 필수 값 검증
+- HTTP status와 JSON 응답 반환
+- heavy request semaphore 적용
+- `/api/character-loadout` short response cache 확인
+- 같은 `(serverId, characterId)` 요청 single-flight 처리
+- 오류를 HTTP 응답으로 변환
 
-를 합쳐서 추천을 만드는 구조다.
+Route에 두지 않는 책임:
 
-정확도는 높은 편인데, 첫 검색 시:
+- 네오플 API 세부 조회
+- 후보 탐색
+- 딜/버프/효율 계산
+- 추천 row 조립
+- 도메인별 가격 선택 기준
 
-- 프론트가 순차 대기하고
-- 서버가 네오플 API를 중복 호출해서
+## Character Loadout Cache / Single-Flight
 
-체감 속도가 느리다.
+`/api/character-loadout`는 같은 캐릭터 반복/동시 요청을 줄이기 위해 origin 내부 short response cache를 사용한다.
+
+- cache key: `(serverId, characterId)`
+- TTL: 15초
+- 성공 200 body만 캐시
+- 실패 응답은 캐시하지 않음
+- cache hit은 heavy semaphore와 `load_character_loadout()` 계산을 건너뜀
+- 같은 key 계산이 이미 진행 중이면 새 계산을 시작하지 않고 기존 계산 결과를 기다림
+- payload에 `cacheHit` 같은 필드는 추가하지 않음
+
+이 캐시는 최종 응답 body 캐시다. 도메인별 가격 후보를 저장하는 `resolved_price_repository`와 역할이 다르다.
+
+## Service
+
+주요 위치: `server/character_equipment_service.py`
+
+Service 책임:
+
+- 캐릭터 resource payload 조회 흐름 조합
+- 장비/칭호/크리쳐/오라/아바타/버프강화 상태 해석
+- 후보 resolver 호출
+- repository 호출
+- calculator 호출
+- presenter 호출
+- 최종 loadout response 구성
+- debug timing과 fan-out trace 연결
+
+Service는 전체 추천 흐름의 orchestration을 담당한다. 계산식 자체, 원본 API 호출, row dict 조립은 가능한 한 하위 레이어로 분리한다.
+
+## Repository / Cache
+
+### Character Repository
+
+위치: `server/repositories/character_repository.py`
+
+캐릭터 resource payload를 캐시하고 API Client를 통해 원본 payload를 가져온다.
+
+대표 resource:
+
+- `equipment`
+- `avatar`
+- `creature`
+- `status`
+- `buff/equip/*`
+- `oath`
+
+### Item Repository
+
+위치: `server/repositories/item_repository.py`
+
+item detail과 itemName 검색을 담당한다.
+
+- `/df/multi/items`는 15개 단위 chunk로 조회
+- itemId dedupe 후 cache miss만 조회
+- character-loadout 시작 시 현재 착용/버프강화 itemId를 best-effort로 prefetch
+
+prefetch 실패는 전체 loadout 실패로 만들지 않는다. 본 계산 경로에서 필요한 상세 조회는 기존 예외 흐름을 유지한다.
+
+### Auction Repository
+
+위치: `server/repositories/auction_repository.py`
+
+경매장 원본 rows 조회와 중립적인 최저가 요약을 담당한다.
+
+- itemId 기준 rows 조회
+- itemName 기준 rows 조회
+- itemIds batch rows 조회
+- 단일 itemId 최저가 요약
+- batch itemIds 최저가 요약
+
+도메인별 후보 우선순위, 추천 제외, 효율 정렬 같은 정책은 repository가 아니라 service/candidate 쪽에 둔다.
+
+### Material Price Repository
+
+위치: `server/repositories/material_price_repository.py`
+
+강화/증폭/조율/흑아에 쓰는 공통 재료 가격 payload를 300초 memory cache로 관리한다.
+
+개별 재료 가격 조회 실패 시 전체 실패로 만들지 않고 해당 재료만 기존 빈 auction fallback을 사용한다.
+
+### Resolved Price Repository
+
+위치: `server/repositories/resolved_price_repository.py`
+
+raw auction rows가 아니라 도메인별 가격 후보 해석 결과를 캐시한다.
+
+현재 domain:
+
+- `avatar_emblem`
+- `platinum_emblem`
+- `black_fang_scroll`
+- `switching_fragment`
+- `aura`
+
+저장하지 않는 값:
+
+- 캐릭터 현재 상태
+- 추천 여부
+- expectedGold
+- skillDamageMultiplier
+- incrementalDamagePercent
+- 최종 recommendation row 전체
+
+### Aura Final Payload Cache와의 차이
+
+기존 aura final payload cache는 오라 업그레이드 endpoint용 최종 후보 payload cache다.
+
+`resolved_price_repository`의 `aura` cache는 `build_aura_candidates()`에 들어가기 전 price item auction 해석 결과만 보조한다. 캐릭터별 딜/버프 계산이나 최종 aura recommendation row를 저장하지 않는다.
+
+## Candidate Resolver
+
+위치: `server/candidates/`
+
+Candidate Resolver는 비교 후보나 가격 기준 source를 찾는다.
+
+주요 파일:
+
+- `black_fang.py`: 흑아 후보와 변환서/재료 후보 탐색
+- `avatar_emblem.py`: 아바타 엠블렘 후보와 prefix 가격 후보 탐색
+- `aura.py`: 오라 후보와 가격 item 후보 탐색
+- `title.py`: 칭호 후보 원천 탐색
+- `creature.py`: 크리쳐 효과/가격 후보 원천 탐색
+- `switching_fragment.py`: 짙편린 경매장 후보 그룹과 fallback item source 탐색
+
+Candidate Resolver에 두지 않는 책임:
+
+- 현재 장착 상태와 비교한 최종 추천 여부
+- 딜/버프 상승량 계산
+- expectedGold/효율 계산
+- 최종 row payload 조립
+
+## Calculator
+
+위치: `server/calculators/`
+
+Calculator는 입력값만으로 결정되는 순수 계산을 담당한다.
+
+예:
+
+- 스위칭 딜 배율 계산
+- damageApplicationRatio 적용
+- 아바타 스킬 공격력/레벨 배율 계산
+- 플래티넘 스킬 레벨 효과 계산
+
+API 호출, repository 호출, 후보 검색, price cache 조회는 calculator에 두지 않는다.
+
+## Presenter
+
+위치: `server/presenters/`
+
+Presenter는 이미 계산/조회/필터링이 끝난 값을 프론트용 dict로 조립한다.
+
+분리된 row/payload 예:
+
+- black fang recommendation row
+- avatar emblem recommendation row
+- switching fragment row
+- dealer switching title row
+- dealer switching creature row
+- switching platinum row
+- 일반 platinum emblem row
+- buffer switching title row
+- character preview/avatar/enchants final payload
+
+Presenter는 repository, neople_client, service, calculator를 import하지 않는 방향을 유지한다.
+
+## Domain Flow
+
+### 마법부여 카드/보주
+
+1. `Docs/enchant_card_db.json`에서 후보 DB를 읽는다.
+2. 현재 장비 마부와 후보 마부 효과를 비교한다.
+3. 필요한 item detail과 auction 가격을 repository 경유로 조회한다.
+4. 딜러/버퍼 baseline 기준으로 상승량과 expectedGold를 계산한다.
+5. 최종 row는 기존 payload 구조를 유지해 내려준다.
+
+정확도 정책:
+
+- 업그레이드 가능한 카드/보주는 효과를 max upgrade 기준으로 계산한다.
+- 이 경우 가격도 `upgrade == upgradeMax`인 풀업 경매장 row만 인정한다.
+- 풀업 매물이 없으면 lower upgrade 매물 가격으로 fallback하지 않는다.
+- 목적은 풀업 효과와 노업 가격이 섞여 효율이 왜곡되는 것을 막는 것이다.
+
+### 강화/증폭/장비 조율
+
+강화/증폭 기대값 DB와 장비 상태를 비교해 업그레이드 후보를 만든다.
+
+재료 가격은 `material_price_repository`에서 조회한다. 최종 추천 계산과 payload 위치는 service 흐름에 남아 있다.
+
+### 서약 조율
+
+`equip/oath` payload를 character repository 경유로 조회하고, oath stage DB를 기준으로 조율 payload를 만든다.
+
+서약 조율 계산과 최종 response 위치는 기존 loadout 흐름을 유지한다.
+
+### 흑아/흑아 변환서
+
+`candidates/black_fang.py`가 흑아 후보와 변환서 이름을 찾는다.
+
+- 재료 가격: `material_price_repository`
+- 흑아 변환서 가격 후보: `resolved_price_repository` domain `black_fang_scroll`
+- 추천 여부와 expectedGold 계산: service/candidate 흐름
+- row 조립: presenter
+
+### 칭호
+
+칭호 후보 원천은 `candidates/title.py`가 담당한다.
+
+현재 장착 칭호, 보주 여부, 가격 후보, 스킬/효과 비교는 service 흐름에서 조합한다. 버프강화 칭호 row 조립은 presenter로 분리되어 있다.
+
+### 크리쳐
+
+크리쳐 후보 원천은 `candidates/creature.py`가 담당한다.
+
+효과 후보와 가격 후보를 구분하고, 현재 크리쳐와 비교한 추천 여부는 service에서 판단한다. 딜러 switching creature row 조립은 presenter로 분리되어 있으며, 버퍼 크리쳐 해제처럼 구조가 다른 케이스는 service에 남아 있다.
+
+### 오라
+
+오라 후보 원천은 `candidates/aura.py`가 담당한다.
+
+오라 price item auction 해석 결과는 `resolved_price_repository` domain `aura`로 캐시한다. 기존 aura final payload cache는 유지하며, character-loadout의 캐릭터별 계산과 최종 추천 row는 별도로 처리한다.
+
+### 아바타 엠블렘
+
+아바타 엠블렘 후보와 prefix 가격 후보는 `candidates/avatar_emblem.py`가 담당한다.
+
+가격 후보 해석 결과는 `resolved_price_repository` domain `avatar_emblem`으로 캐시한다. 현재 장착 여부, needCount, statGain, 추천 제외 판단은 캐릭터별 흐름에 남아 있다.
+
+### 플래티넘 엠블렘
+
+플래티넘 엠블렘 가격 후보는 스킬명과 선택상자 허용 여부를 기준으로 `resolved_price_repository` domain `platinum_emblem`에 캐시한다.
+
+캐시하지 않는 값:
+
+- changedSlots
+- 현재 장착 여부
+- incrementalDamagePercent
+- skillDamageMultiplier
+- expectedGold
+
+### 짙편린
+
+`candidates/switching_fragment.py`가 자버프명, 직업, slot, suffix 기준으로 경매장 후보 그룹을 만든다.
+
+경매장 후보 그룹 결과는 `resolved_price_repository` domain `switching_fragment`로 캐시한다.
+
+캐시하지 않는 값:
+
+- 현재 스위칭 장비 상태
+- 후보/현재 계수 계산
+- damageApplicationRatio
+- 최종 switchingFragmentRecommendations row
+- `/df/items` fallback 이후 itemId별 최저가 확인
+
+### 버퍼 관련 계산
+
+버퍼 baseline과 스위칭 title/creature 계산은 캐릭터별 상태와 스킬 상세 의존성이 강하다.
+
+스킬 상세 API 호출은 API Client 함수를 경유하고, 계산과 payload 조립은 service/calculator/presenter 경계에 맞춰 점진적으로 정리한다.
+
+## Fan-Out Trace
+
+`api_fanout_summary`는 character-loadout 한 요청에서 실제 네오플 API 호출 수와 cache hit/miss를 요약한다.
+
+확인 항목 예:
+
+- character payload 호출 수
+- multi/items 호출 수
+- item search 호출 수
+- auction itemId/itemName/itemIds 호출 수
+- skill style/list/detail 호출 수
+- item detail cache hit/miss
+- resolvedPrice total/byDomain hit/miss/store/skip/error
+
+cache hit이 늘면 fan-out이 줄어야 한다. 단, character-loadout short response cache hit은 loadout 계산 자체를 건너뛰므로 fan-out summary가 새로 찍히지 않을 수 있다.
+
+## 변경 금지 원칙
+
+스펙업 추천 흐름을 수정할 때는 아래를 지킨다.
+
+- 계산식 변경 금지
+- 추천 기준 변경 금지
+- 추천 개수와 정렬 순서 변경 금지
+- payload 구조 변경 금지
+- 가격 선택 기준 변경 시 별도 fixture/mock 검증 필요
+- `Docs/*.json`, `Docs/*.tsv`, `Docs/*.txt` 이동 금지
+- 프론트 수정 금지 unless requested
+- 한 번에 하나의 도메인만 수정
+- 실시간 가격 변동으로 결과가 흔들리면 mock 또는 fixture로 비교
+
+## 관련 문서
+
+- `Docs/ARCHITECTURE.md`
+- `Docs/WORK_CONTEXT.md`
+- `Docs/BUFFER_CALCULATION_NOTES.md`
+- `Docs/legacy/DNF_HELL_OPTIMIZER_SPEC.md`
+- `Docs/research/EQUIPMENT_SCORE_REVERSE_ENGINE.md`
