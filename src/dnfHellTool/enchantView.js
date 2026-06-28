@@ -593,6 +593,19 @@ function formatOathTuneEffect(row) {
   return `${pointText} / ${damageText}`;
 }
 
+function formatOathTranscendEffect(row, isBuffer = false) {
+  const optionText = formatBlackFangEffect(row, isBuffer);
+  const hasSetPoint = Number.isFinite(row.currentSetPoint) && Number.isFinite(row.targetSetPoint) && row.currentSetPoint !== row.targetSetPoint;
+  if (!hasSetPoint) return optionText;
+  const formatStagePoint = (stageName, setPoint, requiredPoint) => {
+    return `${stageName || '서약'} ${formatEffectNumber(setPoint)}`;
+  };
+  const pointText = row.currentOathStageName || row.targetOathStageName
+    ? `${formatStagePoint(row.currentOathStageName, row.currentSetPoint, row.currentOathStageRequiredPoint)} -> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint, row.targetOathStageRequiredPoint)}`
+    : '';
+  return [pointText, optionText].filter(Boolean).join(' / ');
+}
+
 function getOathStageRarityClass(stageName) {
   const name = String(stageName || '').trim();
   if (name.startsWith('레어')) return 'rare';
@@ -614,6 +627,18 @@ function formatOathTuneEffectHtml(row, escapeHtml) {
     return '';
   }
   return `${formatOathStageNameHtml(row.currentOathStageName, escapeHtml)} <span class="enchant-oath-stage-arrow">-&gt;</span> ${formatOathStageNameHtml(row.targetOathStageName, escapeHtml)}`;
+}
+
+function formatOathTranscendEffectHtml(row, isBuffer, escapeHtml) {
+  const hasSetPoint = Number.isFinite(row.currentSetPoint) && Number.isFinite(row.targetSetPoint) && row.currentSetPoint !== row.targetSetPoint;
+  if (!hasSetPoint || (!row.currentOathStageName && !row.targetOathStageName)) return '';
+  const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
+  const optionText = formatBlackFangEffect(row, isBuffer);
+  const formatStagePoint = (stageName, setPoint, requiredPoint) => {
+    return formatOathStageNameHtml(`${stageName || '서약'} ${formatEffectNumber(setPoint)}`, escape);
+  };
+  const pointHtml = `${formatStagePoint(row.currentOathStageName, row.currentSetPoint, row.currentOathStageRequiredPoint)} <span class="enchant-oath-stage-arrow">-&gt;</span> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint, row.targetOathStageRequiredPoint)}`;
+  return [pointHtml, optionText ? escape(optionText) : ''].filter(Boolean).join(' / ');
 }
 
 function formatLevelOptionName(name, levelOption) {
@@ -1056,9 +1081,12 @@ function getBufferRecommendationRows(
     const buffAmplificationDelta = row.sourceType === 'upgrade'
       ? 0
       : Number(scoringTargetEffects?.buffAmplification || 0) - Number(scoringCurrentEffects?.buffAmplification || 0);
+    const oathSetBuffPowerDelta = row.sourceType === 'oathTranscend'
+      ? Number(row.oathSetBuffPowerDelta || 0)
+      : 0;
     const buffPowerDelta = row.sourceType === 'upgrade'
       ? 0
-      : Number(scoringTargetEffects?.buffPower || 0) - Number(scoringCurrentEffects?.buffPower || 0);
+      : Number(scoringTargetEffects?.buffPower || 0) - Number(scoringCurrentEffects?.buffPower || 0) + oathSetBuffPowerDelta;
     const buffAmplificationChanges = row.sourceType === 'title' && !titleAppliesToSwitching
       ? { currentBuffAmplificationDelta: buffAmplificationDelta }
       : {
@@ -1894,6 +1922,22 @@ function getOathTranscendRows(recommendations = [], materialPrices = {}) {
       effects: candidate.effects || {},
       currentEffects: candidate.currentEffects || {},
       targetEffects: candidate.targetEffects || {},
+      skillDamageMultiplier: candidate.skillDamageMultiplier,
+      oathSetBuffPowerDelta: candidate.oathSetBuffPowerDelta,
+      currentSetPoint: candidate.currentSetPoint,
+      targetSetPoint: candidate.targetSetPoint,
+      currentSlotSetPoint: candidate.currentSlotSetPoint,
+      targetSlotSetPoint: candidate.targetSlotSetPoint,
+      currentTuneFinalDamage: candidate.currentTuneFinalDamage,
+      targetTuneFinalDamage: candidate.targetTuneFinalDamage,
+      currentTuneBuffPower: candidate.currentTuneBuffPower,
+      targetTuneBuffPower: candidate.targetTuneBuffPower,
+      currentOathSetFinalDamage: candidate.currentOathSetFinalDamage,
+      targetOathSetFinalDamage: candidate.targetOathSetFinalDamage,
+      currentOathStageName: candidate.currentOathStageName,
+      targetOathStageName: candidate.targetOathStageName,
+      currentOathStageRequiredPoint: candidate.currentOathStageRequiredPoint,
+      targetOathStageRequiredPoint: candidate.targetOathStageRequiredPoint,
       auction: candidate.auction || { minUnitPrice: candidate.expectedGold || 0 },
       expectedGold: candidate.expectedGold,
       expectedMaterials,
@@ -3509,7 +3553,7 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'oathTune'
           ? formatOathTuneEffect(row)
         : row.sourceType === 'oathTranscend'
-          ? formatBlackFangEffect(row, isBufferMetric)
+          ? formatOathTranscendEffect(row, isBufferMetric)
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
@@ -3530,6 +3574,8 @@ export function installEnchantView(ctx) {
       const effectText = [baseEffectText, bufferSkillEffectText].filter(Boolean).join(' / ');
       const effectHtml = row.sourceType === 'oathTune'
         ? formatOathTuneEffectHtml(row, escapeHtml)
+        : row.sourceType === 'oathTranscend'
+          ? formatOathTranscendEffectHtml(row, isBufferMetric, escapeHtml)
         : '';
       const titleElementLabel = row.sourceType === 'title' && row.titleEnchantElement
         ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement

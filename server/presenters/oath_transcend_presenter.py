@@ -13,8 +13,11 @@ def build_oath_transcend_recommendation_row(
     materials: list,
     material_text: str,
     target_rarity: str,
+    skill_damage_multiplier: float = 1,
+    oath_set_buff_power_delta: float = 0,
+    set_point_context: dict | None = None,
 ) -> dict:
-    return {
+    row = {
         "sourceType": "oathTranscend",
         "kind": "oath_transcend",
         "slot": slot,
@@ -36,3 +39,12 @@ def build_oath_transcend_recommendation_row(
         "materials": materials,
         "materialText": material_text,
     }
+    if skill_damage_multiplier and skill_damage_multiplier > 1:
+        row["skillDamageMultiplier"] = skill_damage_multiplier
+    if oath_set_buff_power_delta and oath_set_buff_power_delta > 0:
+        row["oathSetBuffPowerDelta"] = oath_set_buff_power_delta
+    for key, value in (set_point_context or {}).items():
+        if key in {"skillDamageMultiplier", "oathSetBuffPowerDelta"}:
+            continue
+        row[key] = value
+    return row
