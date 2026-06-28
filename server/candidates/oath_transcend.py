@@ -1,3 +1,5 @@
+import re
+
 from ..effects import normalize_enchant_status, parse_percent_or_number
 from ..neople_client import clean_item_display_name, clean_text, get_item_icon_url
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
@@ -56,6 +58,7 @@ OATH_TRANSCEND_TARGET_NAME_BY_RARITY = {
 
 CREATION_MIST_RING_NAME = "창조의 안개 결정 - 반지"
 CREATION_MIST_RING_DAMAGE_FINAL_DAMAGE = 19
+EQUIPMENT_REINFORCE_BUFF_POWER_PER_STACK = 150
 OATH_TRANSCEND_BUFFER_EFFECT_KEYS = {"buffPower", "buffAmplification", "allStat", "str", "int"}
 OATH_TRANSCEND_DAMAGE_EXCLUDED_EFFECT_KEYS = {"buffPower", "buffAmplification", "bufferStat"}
 
@@ -79,8 +82,67 @@ def get_oath_transcend_role_effects(effects: dict, is_buffer: bool) -> dict:
     }
 
 
-def get_oath_transcend_current_effects(item_name: str, effects: dict, is_buffer: bool) -> dict:
-    if is_buffer or clean_text(item_name) != CREATION_MIST_RING_NAME:
+def get_equipment_reinforce_by_slot(equipment_rows: list) -> dict:
+    return {
+        clean_text(row.get("slotName")): parse_percent_or_number(row.get("reinforce"))
+        for row in equipment_rows or []
+        if isinstance(row, dict) and clean_text(row.get("slotName"))
+    }
+
+
+def get_oath_equipment_reinforce_bonus_config(detail: dict) -> dict:
+    explain = f"{clean_text((detail or {}).get('itemExplain'))} {clean_text((detail or {}).get('itemExplainDetail'))}"
+    if not explain:
+        return {}
+    config_match = re.search(
+        r"(?P<slot>[가-힣]+)\s*장비의\s*강화/증폭\s*수치가\s*(?P<base>\d+)\s*에서\s*1\s*증가할\s*때마다\s*최종\s*데미지\s*(?P<final_damage>[0-9.]+)\s*%\s*증가",
+        explain,
+    )
+    max_stack_match = re.search(r"최대\s*(?P<max_stack>\d+)\s*중첩", explain)
+    if not config_match or not max_stack_match:
+        return {}
+    return {
+        "slot": clean_text(config_match.group("slot")),
+        "baseReinforce": parse_percent_or_number(config_match.group("base")),
+        "finalDamagePerStack": parse_percent_or_number(config_match.group("final_damage")),
+        "maxStack": int(max_stack_match.group("max_stack")),
+    }
+
+
+def get_oath_equipment_reinforce_stack_count(detail: dict, equipment_reinforce_by_slot: dict | None = None) -> int:
+    config = get_oath_equipment_reinforce_bonus_config(detail)
+    if not config:
+        return 0
+    reinforce = parse_percent_or_number((equipment_reinforce_by_slot or {}).get(config.get("slot")))
+    base_reinforce = parse_percent_or_number(config.get("baseReinforce"))
+    max_stack = int(config.get("maxStack") or 0)
+    if reinforce <= base_reinforce or max_stack <= 0:
+        return 0
+    return int(min(max_stack, max(0, reinforce - base_reinforce)))
+
+
+def get_oath_transcend_current_effects(
+    item_name: str,
+    effects: dict,
+    is_buffer: bool,
+    equipment_reinforce_by_slot: dict | None = None,
+    detail: dict | None = None,
+) -> dict:
+    item_name = clean_text(item_name)
+    dynamic_config = get_oath_equipment_reinforce_bonus_config(detail or {})
+    if dynamic_config:
+        normalized_effects = dict(effects or {})
+        stack_count = get_oath_equipment_reinforce_stack_count(detail or {}, equipment_reinforce_by_slot)
+        if stack_count <= 0:
+            return normalized_effects
+        if is_buffer:
+            normalized_effects["buffPower"] = parse_percent_or_number(normalized_effects.get("buffPower")) + stack_count * EQUIPMENT_REINFORCE_BUFF_POWER_PER_STACK
+        else:
+            final_damage_per_stack = parse_percent_or_number(dynamic_config.get("finalDamagePerStack"))
+            if final_damage_per_stack > 0:
+                normalized_effects["finalDamage"] = parse_percent_or_number(normalized_effects.get("finalDamage")) + stack_count * final_damage_per_stack
+        return normalized_effects
+    if is_buffer or item_name != CREATION_MIST_RING_NAME:
         return effects or {}
     normalized_effects = dict(effects or {})
     normalized_effects["finalDamage"] = CREATION_MIST_RING_DAMAGE_FINAL_DAMAGE
@@ -201,11 +263,17 @@ def get_oath_transcend_score(row: dict, is_buffer: bool) -> float:
     return ((1 + final_damage / 100) * skill_damage_multiplier - 1) * 100
 
 
-def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseline: dict | None = None, oath_tune_stage_db: dict | None = None) -> dict:
+def build_oath_transcend_recommendations_debug(
+    oath_payload: dict,
+    buffer_baseline: dict | None = None,
+    oath_tune_stage_db: dict | None = None,
+    equipment_rows: list | None = None,
+) -> dict:
     return build_oath_decision_recommendations_debug(
         oath_payload,
         buffer_baseline,
         oath_tune_stage_db,
+        equipment_rows,
         costs_by_rarity=OATH_TRANSCEND_COSTS,
         source_type="oathTranscend",
         kind="oath_transcend",
@@ -215,11 +283,17 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
     )
 
 
-def build_oath_craft_recommendations_debug(oath_payload: dict, buffer_baseline: dict | None = None, oath_tune_stage_db: dict | None = None) -> dict:
+def build_oath_craft_recommendations_debug(
+    oath_payload: dict,
+    buffer_baseline: dict | None = None,
+    oath_tune_stage_db: dict | None = None,
+    equipment_rows: list | None = None,
+) -> dict:
     return build_oath_decision_recommendations_debug(
         oath_payload,
         buffer_baseline,
         oath_tune_stage_db,
+        equipment_rows,
         costs_by_rarity=OATH_CRAFT_COSTS,
         source_type="oathCraft",
         kind="oath_craft",
@@ -233,6 +307,7 @@ def build_oath_decision_recommendations_debug(
     oath_payload: dict,
     buffer_baseline: dict | None = None,
     oath_tune_stage_db: dict | None = None,
+    equipment_rows: list | None = None,
     costs_by_rarity: dict | None = None,
     source_type: str = "oathTranscend",
     kind: str = "oath_transcend",
@@ -248,6 +323,7 @@ def build_oath_decision_recommendations_debug(
     crystals = oath.get("crystal") or []
     is_buffer = bool((buffer_baseline or {}).get("isBuffer"))
     current_total_set_point = get_oath_total_set_point(oath)
+    equipment_reinforce_by_slot = get_equipment_reinforce_by_slot(equipment_rows or [])
     epic_count = sum(
         1 for crystal in crystals
         if clean_text(crystal.get("itemRarity")) == "에픽"
@@ -279,7 +355,13 @@ def build_oath_decision_recommendations_debug(
         if not current_effects:
             skipped.append({"index": index, "reason": "missing_current_effects"})
             continue
-        current_calculation_effects = get_oath_transcend_current_effects(current_item_name, current_effects, is_buffer)
+        current_calculation_effects = get_oath_transcend_current_effects(
+            current_item_name,
+            current_effects,
+            is_buffer,
+            equipment_reinforce_by_slot,
+            current_detail,
+        )
         for target_rarity in get_oath_transcend_target_rarities(current_rarity, current_item_name, unique_keyword):
             if target_rarity == "에픽" and epic_remaining <= 0:
                 continue

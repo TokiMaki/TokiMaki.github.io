@@ -682,12 +682,12 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
     oath_transcend_debug = _measure_step(
         steps,
         "build_oath_transcend_recommendations",
-        lambda: build_oath_transcend_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db()),
+        lambda: build_oath_transcend_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db(), payload.get("equipment") or []),
     )
     oath_craft_debug = _measure_step(
         steps,
         "build_oath_craft_recommendations",
-        lambda: build_oath_craft_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db()),
+        lambda: build_oath_craft_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db(), payload.get("equipment") or []),
     )
     return build_character_enchants_payload(
         payload,

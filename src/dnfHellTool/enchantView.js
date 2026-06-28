@@ -77,6 +77,7 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
+const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set(['서약:초월', '서약:정가']);
 const EFFECT_ORDER = ['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
 const BUFFER_IRRELEVANT_EFFECT_KEYS = new Set(['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'critical']);
 const DAMAGE_IRRELEVANT_EFFECT_KEYS = new Set(['buffPower', 'buffAmplification', 'bufferStat']);
@@ -3291,7 +3292,9 @@ export function installEnchantView(ctx) {
       let addedNewKey = false;
       ENCHANT_INCLUDE_ORDER.forEach((key) => {
         if (!knownKeys.has(key)) {
-          storedChecked.add(key);
+          if (!DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS.has(key)) {
+            storedChecked.add(key);
+          }
           knownKeys.add(key);
           addedNewKey = true;
         }
@@ -3335,7 +3338,9 @@ export function installEnchantView(ctx) {
               ${options.map(({ item, key }) => {
                 const isChecked = storedChecked
                   ? storedChecked.has(key)
-                  : initialRender || !existingKeys.has(key) || checked.has(key);
+                  : existingKeys.has(key)
+                    ? checked.has(key)
+                    : !DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS.has(key);
                 return `
                   <label class="enchant-include-option">
                     <input type="checkbox" data-enchant-tier="${escapeHtml(key)}" value="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} />
