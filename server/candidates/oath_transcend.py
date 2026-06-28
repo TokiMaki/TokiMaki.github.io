@@ -1,6 +1,7 @@
 from ..effects import normalize_enchant_status, parse_percent_or_number
 from ..neople_client import clean_item_display_name, clean_text, get_item_icon_url
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
+from ..repositories.material_price_repository import build_upgrade_material_display_rows
 from ..presenters.oath_transcend_presenter import build_oath_transcend_recommendation_row
 
 
@@ -9,7 +10,7 @@ OATH_TRANSCEND_COSTS = {
         "gold": 3_750_000,
         "materials": [
             {"key": "radiantSoul", "label": "광휘의 소울", "amount": 200},
-            {"key": "highElementalCrystal", "label": "상급 원소 결정", "amount": 810},
+            {"key": "highElementalCrystal", "label": "상급 원소결정", "amount": 810},
             {"key": "solidSoul", "label": "솔리드 소울", "amount": 150},
         ],
     },
@@ -17,7 +18,7 @@ OATH_TRANSCEND_COSTS = {
         "gold": 15_000_000,
         "materials": [
             {"key": "radiantSoul", "label": "광휘의 소울", "amount": 500},
-            {"key": "highElementalCrystal", "label": "상급 원소 결정", "amount": 810},
+            {"key": "highElementalCrystal", "label": "상급 원소결정", "amount": 810},
             {"key": "solidSoul", "label": "솔리드 소울", "amount": 500},
         ],
     },
@@ -67,6 +68,10 @@ def get_oath_transcend_material_text(materials: list) -> str:
         for material in materials or []
         if clean_text(material.get("label")) and int(material.get("amount") or 0) > 0
     )
+
+
+def build_oath_transcend_materials(materials: list) -> list:
+    return build_upgrade_material_display_rows(materials)
 
 
 def get_oath_crystal_family_name(item_name: str) -> str:
@@ -175,7 +180,7 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
                 continue
             cost = OATH_TRANSCEND_COSTS.get(target_rarity) or {}
             expected_gold = int(cost.get("gold") or 0)
-            materials = [dict(material) for material in cost.get("materials") or []]
+            materials = build_oath_transcend_materials(cost.get("materials") or [])
             row = build_oath_transcend_recommendation_row(
                 slot="서약 결정",
                 item_id=clean_text(target_detail.get("itemId")),
