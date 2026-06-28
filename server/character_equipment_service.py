@@ -16,6 +16,7 @@ from .effects import get_creature_artifact_status_summary, get_title_enchant_sta
 from .avatar_skill_optimizer import (
     flatten_skill_rows,
     get_avatar_candidate_combos,
+    normalize_skill_key,
     select_best_avatar_combo_for_character,
 )
 from .calculators.avatar_skill_calculator import (
@@ -390,6 +391,20 @@ def get_named_skill_level_bonus(reinforce_skill: list, job_name: str, skill_name
     )
 
 
+def get_named_skill_level_bonus_any(reinforce_skill: list, job_name: str, skill_names: list[str]) -> int:
+    target_skill_names = [
+        clean_text(skill_name)
+        for skill_name in skill_names or []
+        if clean_text(skill_name)
+    ]
+    if not target_skill_names:
+        return 0
+    return sum(
+        get_named_skill_level_bonus(reinforce_skill, job_name, skill_name)
+        for skill_name in target_skill_names
+    )
+
+
 def normalize_job_grow_name(value: str) -> str:
     return re.sub(r"^(眞|진|真)\s*", "", clean_text(value)).strip()
 
@@ -420,6 +435,14 @@ def get_item_level_range_skill_bonus(detail: dict, job_name: str, required_level
         if minimum <= required_level <= maximum:
             total += value
     return total
+
+
+def get_item_level_range_skill_bonus_by_required_levels(detail: dict, job_name: str, required_levels: list[int]) -> int:
+    return sum(
+        get_item_level_range_skill_bonus(detail, job_name, int(required_level or 0))
+        for required_level in required_levels or []
+        if int(required_level or 0) > 0
+    )
 
 
 def get_item_awakening_level_bonus(detail: dict, job_name: str, skill_name: str) -> int:
@@ -962,15 +985,53 @@ def get_buff_skill_required_level(server_id: str, character_id: str, skill_info:
     return 0
 
 
-def get_switching_title_contribution(row: dict, detail: dict, job_name: str, buff_skill_name: str, required_level: int) -> int:
+def get_switching_skill_required_levels(
+    server_id: str,
+    character_id: str,
+    skill_info: dict,
+    target_skill_names: list[str],
+) -> list[int]:
+    target_skill_names = [clean_text(skill_name) for skill_name in target_skill_names or [] if clean_text(skill_name)]
+    if not target_skill_names:
+        return []
+    buff_skill_name = clean_text(skill_info.get("name"))
+    buff_required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    skill_context = None
+    required_levels = []
+    for skill_name in target_skill_names:
+        required_level = 0
+        if skill_name == buff_skill_name:
+            required_level = buff_required_level
+        else:
+            if skill_context is None:
+                skill_context = get_character_skill_context(server_id, character_id)
+            skill_key = normalize_skill_key(skill_name)
+            row = (skill_context.get("styleByName") or {}).get(skill_key) or (skill_context.get("skillByName") or {}).get(skill_key) or {}
+            required_level = int(row.get("requiredLevel") or row.get("requiredlevel") or 0)
+        if required_level > 0:
+            required_levels.append(required_level)
+    return required_levels
+
+
+def get_switching_title_contribution(
+    row: dict,
+    detail: dict,
+    job_name: str,
+    buff_skill_name: str,
+    required_level: int,
+    equivalent_skill_names: list[str] | None = None,
+    target_required_levels: list[int] | None = None,
+) -> int:
     if not row:
         return 0
     item_buff = detail.get("itemBuff") or {}
+    target_skill_names = get_switching_creature_target_skill_names(buff_skill_name, equivalent_skill_names)
+    required_levels = target_required_levels if target_required_levels is not None else [required_level]
     return (
-        get_item_level_range_skill_bonus(detail, job_name, required_level)
-        + get_named_skill_level_bonus(detail.get("itemReinforceSkill") or [], job_name, buff_skill_name)
-        + get_named_skill_level_bonus(item_buff.get("reinforceSkill") or [], job_name, buff_skill_name)
-        + get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, buff_skill_name)
+        get_item_level_range_skill_bonus_by_required_levels(detail, job_name, required_levels)
+        + get_named_skill_level_bonus_any(detail.get("itemReinforceSkill") or [], job_name, target_skill_names)
+        + get_named_skill_level_bonus_any(item_buff.get("reinforceSkill") or [], job_name, target_skill_names)
+        + get_named_skill_level_bonus_any((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, target_skill_names)
     )
 
 
@@ -1204,15 +1265,34 @@ def get_switching_creature_rows(buff_payload: dict) -> list:
     return [rows] if isinstance(rows, dict) else []
 
 
-def get_switching_creature_contribution(row: dict, detail: dict, job_name: str, buff_skill_name: str, required_level: int) -> int:
+def get_switching_creature_target_skill_names(buff_skill_name: str, equivalent_skill_names: list[str] | None = None) -> list[str]:
+    target_skill_names = []
+    for skill_name in [buff_skill_name, *(equivalent_skill_names or [])]:
+        skill_name = clean_text(skill_name)
+        if skill_name and skill_name not in target_skill_names:
+            target_skill_names.append(skill_name)
+    return target_skill_names
+
+
+def get_switching_creature_contribution(
+    row: dict,
+    detail: dict,
+    job_name: str,
+    buff_skill_name: str,
+    required_level: int,
+    equivalent_skill_names: list[str] | None = None,
+    target_required_levels: list[int] | None = None,
+) -> int:
     if not row and not detail:
         return 0
     item_buff = detail.get("itemBuff") or {}
+    target_skill_names = get_switching_creature_target_skill_names(buff_skill_name, equivalent_skill_names)
+    required_levels = target_required_levels if target_required_levels is not None else [required_level]
     return (
-        get_item_level_range_skill_bonus(detail, job_name, required_level)
-        + get_named_skill_level_bonus(detail.get("itemReinforceSkill") or [], job_name, buff_skill_name)
-        + get_named_skill_level_bonus(item_buff.get("reinforceSkill") or [], job_name, buff_skill_name)
-        + get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, buff_skill_name)
+        get_item_level_range_skill_bonus_by_required_levels(detail, job_name, required_levels)
+        + get_named_skill_level_bonus_any(detail.get("itemReinforceSkill") or [], job_name, target_skill_names)
+        + get_named_skill_level_bonus_any(item_buff.get("reinforceSkill") or [], job_name, target_skill_names)
+        + get_named_skill_level_bonus_any((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, target_skill_names)
     )
 
 
@@ -1256,6 +1336,8 @@ def get_switching_creature_item_candidates(
     job_name: str = "",
     buff_skill_name: str = "",
     required_level: int = 0,
+    equivalent_skill_names: list[str] | None = None,
+    target_required_levels: list[int] | None = None,
 ) -> list[dict]:
     search_names = [
         clean_text(search_name)
@@ -1281,7 +1363,9 @@ def get_switching_creature_item_candidates(
         max_pages,
         clean_text(job_name),
         clean_text(buff_skill_name),
+        tuple(get_switching_creature_target_skill_names("", equivalent_skill_names)),
         int(required_level or 0),
+        tuple(int(level or 0) for level in target_required_levels or [] if int(level or 0) > 0),
     )
     now = time.time()
     with _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK:
@@ -1342,6 +1426,8 @@ def get_switching_creature_item_candidates(
                 job_name,
                 buff_skill_name,
                 required_level,
+                equivalent_skill_names,
+                target_required_levels,
             )
             if candidate_contribution <= 0:
                 continue
@@ -1502,8 +1588,15 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
     entry = find_dealer_switching_buff_entry(buff_payload, is_dealer_crusader=is_dealer_crusader)
     if not entry or clean_text(entry.get("buffSkillName")) != buff_skill_name:
         return []
+    equivalent_switching_skill_names = [
+        clean_text(skill_name)
+        for skill_name in entry.get("equivalentSwitchingPlatinumSkills") or []
+        if clean_text(skill_name)
+    ]
 
     required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    target_skill_names = get_switching_creature_target_skill_names(buff_skill_name, equivalent_switching_skill_names)
+    target_required_levels = get_switching_skill_required_levels(server_id, character_id, skill_info, target_skill_names)
     per_level_coefficients = [
         float(row.get("value") or 0)
         for row in entry.get("damageIncreasePerLevelCoefficients") or []
@@ -1528,6 +1621,8 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
         job_name,
         buff_skill_name,
         required_level,
+        equivalent_switching_skill_names,
+        target_required_levels,
     )
     base_coefficients = [
         current - current_contribution * per_level
@@ -1590,6 +1685,8 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
                 job_name,
                 buff_skill_name,
                 required_level,
+                equivalent_switching_skill_names,
+                target_required_levels,
             )
             if fame_min <= fame <= fame_max and candidate_contribution > current_contribution:
                 selected_direct = {
@@ -1618,6 +1715,8 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
             job_name=job_name,
             buff_skill_name=buff_skill_name,
             required_level=required_level,
+            equivalent_skill_names=equivalent_switching_skill_names,
+            target_required_levels=target_required_levels,
         ):
             item_id = clean_text(creature_option.get("itemId"))
             if not item_id or item_id in seen_item_ids or item_id == current_creature_id:
@@ -1832,8 +1931,15 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
     entry = find_dealer_switching_buff_entry(buff_payload, is_dealer_crusader=is_dealer_crusader)
     if not entry or clean_text(entry.get("buffSkillName")) != buff_skill_name:
         return []
+    equivalent_switching_skill_names = [
+        clean_text(skill_name)
+        for skill_name in entry.get("equivalentSwitchingPlatinumSkills") or []
+        if clean_text(skill_name)
+    ]
 
     required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    target_skill_names = get_switching_creature_target_skill_names(buff_skill_name, equivalent_switching_skill_names)
+    target_required_levels = get_switching_skill_required_levels(server_id, character_id, skill_info, target_skill_names)
     per_level_coefficients = [
         float(row.get("value") or 0)
         for row in entry.get("damageIncreasePerLevelCoefficients") or []
@@ -1870,6 +1976,8 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
         job_name,
         buff_skill_name,
         required_level,
+        equivalent_switching_skill_names,
+        target_required_levels,
     )
     base_coefficients = [
         current - current_contribution * per_level
