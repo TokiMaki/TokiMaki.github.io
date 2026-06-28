@@ -428,7 +428,12 @@ def build_oath_decision_recommendations_debug(
 
     epic_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "에픽"]
     primeval_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "태초"]
-    row_rank_key = lambda row: (-float(row.get("_score") or 0), int(row.get("expectedGold") or 0), clean_text(row.get("slot")))
+    row_rank_key = lambda row: (
+        -float(row.get("_score") or 0),
+        -(parse_percent_or_number(row.get("targetSetPoint")) - parse_percent_or_number(row.get("currentSetPoint"))),
+        int(row.get("expectedGold") or 0),
+        clean_text(row.get("slot")),
+    )
     epic_rows.sort(key=row_rank_key)
     primeval_rows.sort(key=row_rank_key)
     selected_epic_rows = epic_rows[:1]
