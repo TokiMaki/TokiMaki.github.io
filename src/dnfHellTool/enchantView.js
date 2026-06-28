@@ -72,7 +72,8 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '플티'], breakBefore: true },
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
-  { title: '조율', items: ['장비', '서약'] },
+  { title: '장비', items: ['조율'] },
+  { title: '서약', items: ['조율', '초월', '정가'] },
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
@@ -794,9 +795,10 @@ function getEnchantIncludeGroups(row = {}) {
     return [`아바타:${row.kind === 'platinumEmblem' ? '플래티넘 엠블렘' : '엠블렘'}`];
   }
   if (row.sourceType === 'blackFang') return ['흑아:흑아'];
-  if (row.sourceType === 'equipmentTune') return ['조율:장비'];
-  if (row.sourceType === 'oathTune') return ['조율:서약'];
-  if (row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft') return ['조율:서약'];
+  if (row.sourceType === 'equipmentTune') return ['장비:조율'];
+  if (row.sourceType === 'oathTune') return ['서약:조율'];
+  if (row.sourceType === 'oathTranscend') return ['서약:초월'];
+  if (row.sourceType === 'oathCraft') return ['서약:정가'];
   if (row.tier === '안전증폭' || row.tier === '증폭 전환') {
     return ['강화/증폭:증폭'];
   }
