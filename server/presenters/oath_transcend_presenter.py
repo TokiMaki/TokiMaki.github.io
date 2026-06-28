@@ -18,7 +18,7 @@ def build_oath_transcend_recommendation_row(
         "sourceType": "oathTranscend",
         "kind": "oath_transcend",
         "slot": slot,
-        "tier": "서약 초월",
+        "tier": "초월",
         "itemId": item_id,
         "itemName": item_name,
         "itemRarity": item_rarity,

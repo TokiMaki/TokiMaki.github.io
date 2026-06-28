@@ -177,7 +177,7 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
             expected_gold = int(cost.get("gold") or 0)
             materials = [dict(material) for material in cost.get("materials") or []]
             row = build_oath_transcend_recommendation_row(
-                slot=f"서약 {index + 1}",
+                slot="서약 결정",
                 item_id=clean_text(target_detail.get("itemId")),
                 item_name=clean_item_display_name(target_detail.get("itemName")),
                 item_rarity=clean_text(target_detail.get("itemRarity")),
@@ -195,13 +195,16 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
             row["_score"] = score
             recommendations.append(row)
 
+    epic_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "에픽"]
     primeval_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "태초"]
-    non_primeval_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) != "태초"]
-    primeval_rows.sort(key=lambda row: (-float(row.get("_score") or 0), int(row.get("expectedGold") or 0), clean_text(row.get("slot"))))
+    row_rank_key = lambda row: (-float(row.get("_score") or 0), int(row.get("expectedGold") or 0), clean_text(row.get("slot")))
+    epic_rows.sort(key=row_rank_key)
+    primeval_rows.sort(key=row_rank_key)
+    selected_epic_rows = epic_rows[:1]
     selected_primeval_rows = primeval_rows[:min(1, primeval_remaining)]
     result_rows = [
         {key: value for key, value in row.items() if key != "_score"}
-        for row in [*non_primeval_rows, *selected_primeval_rows]
+        for row in [*selected_epic_rows, *selected_primeval_rows]
     ]
     result_rows.sort(key=lambda row: (
         int(row.get("expectedGold") or 0),
