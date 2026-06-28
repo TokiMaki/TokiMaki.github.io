@@ -54,6 +54,8 @@ OATH_TRANSCEND_TARGET_NAME_BY_RARITY = {
     "태초": "태초의 광휘 결정",
 }
 
+CREATION_MIST_RING_NAME = "창조의 안개 결정 - 반지"
+CREATION_MIST_RING_DAMAGE_FINAL_DAMAGE = 19
 OATH_TRANSCEND_BUFFER_EFFECT_KEYS = {"buffPower", "buffAmplification", "allStat", "str", "int"}
 OATH_TRANSCEND_DAMAGE_EXCLUDED_EFFECT_KEYS = {"buffPower", "buffAmplification", "bufferStat"}
 
@@ -75,6 +77,14 @@ def get_oath_transcend_role_effects(effects: dict, is_buffer: bool) -> dict:
         for key, value in (effects or {}).items()
         if key not in OATH_TRANSCEND_DAMAGE_EXCLUDED_EFFECT_KEYS and parse_percent_or_number(value) > 0
     }
+
+
+def get_oath_transcend_current_effects(item_name: str, effects: dict, is_buffer: bool) -> dict:
+    if is_buffer or clean_text(item_name) != CREATION_MIST_RING_NAME:
+        return effects or {}
+    normalized_effects = dict(effects or {})
+    normalized_effects["finalDamage"] = CREATION_MIST_RING_DAMAGE_FINAL_DAMAGE
+    return normalized_effects
 
 
 def subtract_oath_effects(target_effects: dict, current_effects: dict) -> dict:
@@ -99,6 +109,16 @@ def build_oath_transcend_materials(materials: list) -> list:
     return build_upgrade_material_display_rows(materials)
 
 
+def is_oath_unique_crystal_name(item_name: str, unique_keyword: str = "") -> bool:
+    item_name = clean_text(item_name)
+    if not item_name:
+        return False
+    if "고유" in item_name:
+        return True
+    unique_keyword = clean_text(unique_keyword) or "안개 결정"
+    return bool(unique_keyword and unique_keyword in item_name)
+
+
 def get_oath_crystal_family_name(item_name: str) -> str:
     item_name = clean_text(item_name)
     if " : " not in item_name:
@@ -109,13 +129,25 @@ def get_oath_crystal_family_name(item_name: str) -> str:
     return clean_text(family_name)
 
 
-def get_oath_craft_fragment_label(item_name: str) -> str:
-    family_name = get_oath_crystal_family_name(item_name)
+def get_oath_context_family_name(crystals: list, unique_keyword: str = "") -> str:
+    family_names = {
+        family_name
+        for crystal in crystals or []
+        if isinstance(crystal, dict)
+        if not is_oath_unique_crystal_name(crystal.get("itemName"), unique_keyword)
+        for family_name in [get_oath_crystal_family_name(crystal.get("itemName"))]
+        if family_name
+    }
+    return next(iter(family_names)) if len(family_names) == 1 else ""
+
+
+def get_oath_craft_fragment_label(item_name: str, family_name: str = "") -> str:
+    family_name = clean_text(family_name) or get_oath_crystal_family_name(item_name)
     return f"{family_name} 서약 결정 조각" if family_name else "서약 결정 조각"
 
 
-def get_oath_transcend_target_item_name(item_name: str, target_rarity: str) -> str:
-    family_name = get_oath_crystal_family_name(item_name)
+def get_oath_transcend_target_item_name(item_name: str, target_rarity: str, family_name: str = "") -> str:
+    family_name = clean_text(family_name) or get_oath_crystal_family_name(item_name)
     target_suffix = OATH_TRANSCEND_TARGET_NAME_BY_RARITY.get(clean_text(target_rarity))
     if not family_name or not target_suffix:
         return ""
@@ -128,15 +160,11 @@ def is_oath_transcend_blocked_crystal(crystal: dict, unique_keyword: str = "") -
         return True
     if item_name == "미광의 서약 결정":
         return True
-    if "고유" in item_name:
-        return True
-    if unique_keyword and unique_keyword in item_name:
-        return True
     return False
 
 
-def resolve_oath_transcend_target_detail(current_item_name: str, target_rarity: str) -> dict:
-    target_item_name = get_oath_transcend_target_item_name(current_item_name, target_rarity)
+def resolve_oath_transcend_target_detail(current_item_name: str, target_rarity: str, unique_keyword: str = "", family_name: str = "") -> dict:
+    target_item_name = get_oath_transcend_target_item_name(current_item_name, target_rarity, family_name)
     if not target_item_name:
         return {}
     rows = search_items_by_name(target_item_name, word_type="match", limit=20)
@@ -145,6 +173,7 @@ def resolve_oath_transcend_target_detail(current_item_name: str, target_rarity: 
         if clean_text(row.get("itemName")) == target_item_name
         and clean_text(row.get("itemRarity")) == clean_text(target_rarity)
         and clean_text(row.get("itemTypeDetail")) == "서약결정"
+        and not is_oath_unique_crystal_name(row.get("itemName"), unique_keyword)
     ]
     if len(exact_rows) != 1:
         return {}
@@ -152,11 +181,13 @@ def resolve_oath_transcend_target_detail(current_item_name: str, target_rarity: 
     return (fetch_item_details([item_id]) or [{}])[0] if item_id else {}
 
 
-def get_oath_transcend_target_rarities(current_rarity: str) -> list[str]:
+def get_oath_transcend_target_rarities(current_rarity: str, current_item_name: str = "", unique_keyword: str = "") -> list[str]:
     current_rarity = clean_text(current_rarity)
     if current_rarity in {"유니크", "레전더리"}:
         return ["에픽", "태초"]
     if current_rarity == "에픽":
+        if is_oath_unique_crystal_name(current_item_name, unique_keyword):
+            return ["에픽", "태초"]
         return ["태초"]
     return []
 
@@ -217,8 +248,15 @@ def build_oath_decision_recommendations_debug(
     crystals = oath.get("crystal") or []
     is_buffer = bool((buffer_baseline or {}).get("isBuffer"))
     current_total_set_point = get_oath_total_set_point(oath)
+    epic_count = sum(
+        1 for crystal in crystals
+        if clean_text(crystal.get("itemRarity")) == "에픽"
+        and not is_oath_unique_crystal_name(crystal.get("itemName"), unique_keyword)
+    )
+    epic_remaining = max(0, 8 - epic_count)
     primeval_count = sum(1 for crystal in crystals if clean_text(crystal.get("itemRarity")) == "태초")
     primeval_remaining = max(0, 3 - primeval_count)
+    context_family_name = get_oath_context_family_name(crystals, unique_keyword)
     recommendations = []
     skipped = []
 
@@ -227,8 +265,13 @@ def build_oath_decision_recommendations_debug(
             continue
         current_item_name = clean_item_display_name(crystal.get("itemName"))
         current_rarity = clean_text(crystal.get("itemRarity"))
+        current_is_unique = is_oath_unique_crystal_name(current_item_name, unique_keyword)
+        current_family_name = context_family_name if current_is_unique else get_oath_crystal_family_name(current_item_name)
         if is_oath_transcend_blocked_crystal(crystal, unique_keyword):
             skipped.append({"index": index, "reason": "blocked"})
+            continue
+        if not current_family_name:
+            skipped.append({"index": index, "reason": "missing_set_context"})
             continue
         current_id = clean_text(crystal.get("itemId"))
         current_detail = (fetch_item_details([current_id]) or [{}])[0] if current_id else {}
@@ -236,10 +279,13 @@ def build_oath_decision_recommendations_debug(
         if not current_effects:
             skipped.append({"index": index, "reason": "missing_current_effects"})
             continue
-        for target_rarity in get_oath_transcend_target_rarities(current_rarity):
+        current_calculation_effects = get_oath_transcend_current_effects(current_item_name, current_effects, is_buffer)
+        for target_rarity in get_oath_transcend_target_rarities(current_rarity, current_item_name, unique_keyword):
+            if target_rarity == "에픽" and epic_remaining <= 0:
+                continue
             if target_rarity == "태초" and primeval_remaining <= 0:
                 continue
-            target_detail = resolve_oath_transcend_target_detail(current_item_name, target_rarity)
+            target_detail = resolve_oath_transcend_target_detail(current_item_name, target_rarity, unique_keyword, current_family_name)
             if not target_detail:
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "missing_target"})
                 continue
@@ -253,7 +299,7 @@ def build_oath_decision_recommendations_debug(
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "missing_set_point"})
                 continue
             target_effects = get_oath_transcend_effects(target_detail)
-            current_role_effects = get_oath_transcend_role_effects(current_effects, is_buffer)
+            current_role_effects = get_oath_transcend_role_effects(current_calculation_effects, is_buffer)
             target_role_effects = get_oath_transcend_role_effects(target_effects, is_buffer)
             effects = subtract_oath_effects(target_role_effects, current_role_effects)
             score = get_oath_transcend_score({
@@ -270,7 +316,7 @@ def build_oath_decision_recommendations_debug(
             for material in cost.get("materials") or []:
                 material_row = dict(material)
                 if material_row.get("key") == "oathCrystalFragment":
-                    material_row["label"] = get_oath_craft_fragment_label(current_item_name)
+                    material_row["label"] = get_oath_craft_fragment_label(current_item_name, current_family_name)
                 cost_materials.append(material_row)
             materials = build_oath_transcend_materials(cost_materials)
             row = build_oath_transcend_recommendation_row(
@@ -317,6 +363,8 @@ def build_oath_decision_recommendations_debug(
     steps.append({
         "name": step_name,
         "crystalCount": len(crystals),
+        "epicCount": epic_count,
+        "epicRemaining": epic_remaining,
         "primevalCount": primeval_count,
         "primevalRemaining": primeval_remaining,
         "recommendationCount": len(result_rows),
