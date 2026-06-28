@@ -531,7 +531,7 @@ function getRoleEquipmentBadge(effects = {}, isBuffer = false) {
 }
 
 function formatEffectTransitionValue(key, currentValue, targetValue) {
-  const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'critical'].includes(key) ? '%' : '';
+  const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffAmplification', 'critical'].includes(key) ? '%' : '';
   return `${EFFECT_LABELS[key] || key} ${formatEffectNumber(currentValue)}${suffix} -> ${formatEffectNumber(targetValue)}${suffix}`;
 }
 
@@ -3499,6 +3499,8 @@ export function installEnchantView(ctx) {
           ? formatEquipmentTuneEffect(row)
         : row.sourceType === 'oathTune'
           ? formatOathTuneEffect(row)
+        : row.sourceType === 'oathTranscend'
+          ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
