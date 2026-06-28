@@ -1012,9 +1012,11 @@ function getBufferRecommendationRows(
       }
     : row;
     if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
-    const current = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend'].includes(row.sourceType)
+    const current = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
       ? {}
       : row.sourceType === 'blackFang'
+        ? { effects: row.currentEffects || {} }
+      : row.sourceType === 'oathTranscend'
         ? { effects: row.currentEffects || {} }
       : row.sourceType === 'creature'
         ? currentCreature || {}
@@ -1030,14 +1032,17 @@ function getBufferRecommendationRows(
               ? currentAura || {}
               : currentBySlot.get(row.slot) || {};
     if (
-      !['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend'].includes(row.sourceType) &&
+      !['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType) &&
       row.sourceType !== 'blackFang' &&
+      row.sourceType !== 'oathTranscend' &&
       current?.itemId &&
       current.itemId === row.itemId &&
       getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
     ) return;
     const targetEffects = row.sourceType === 'blackFang'
       ? row.targetEffects || addEffects(row.currentEffects, row.effects)
+      : row.sourceType === 'oathTranscend'
+        ? row.targetEffects || row.effects || {}
       : row.effects || {};
     const scoringTargetEffects = getRoleRelevantEffects(targetEffects, true);
     const scoringCurrentEffects = getRoleRelevantEffects(current.effects || {}, true);
@@ -2443,6 +2448,8 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         ? { effects: {} }
       : row.sourceType === 'blackFang'
         ? { effects: {} }
+      : row.sourceType === 'oathTranscend'
+        ? { effects: row.currentEffects || {} }
       : row.sourceType === 'avatar'
         ? { effects: {} }
       : row.sourceType === 'switchingTitle'
@@ -2489,14 +2496,16 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
     ) return;
     if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
-    const isReplacement = !['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
+    const isReplacement = !['upgrade', 'equipmentTune', 'oathTune', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
     const damageEffects = getRecommendationDamageEffects(row, current);
     const estimatedDamagePercent = isReplacement
       ? getReplacementIncrementalDamagePercent(
         row.sourceType === 'blackFang'
           ? { ...row, effects: row.targetEffects || addEffects(row.currentEffects, row.effects) }
+          : row.sourceType === 'oathTranscend'
+            ? { ...row, effects: row.targetEffects || row.effects || {} }
           : row,
-        row.sourceType === 'blackFang' ? { effects: row.currentEffects || {} } : current,
+        row.sourceType === 'blackFang' || row.sourceType === 'oathTranscend' ? { effects: row.currentEffects || {} } : current,
         baseline,
       )
       : estimateDamagePercent(damageEffects, baseline);
