@@ -575,22 +575,15 @@ function formatEquipmentTuneEffect(row) {
     const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
     return `${pointText} / ${buffPowerText}`;
   }
-  const damageText = `최종 데미지 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
+  const damageText = `최종뎀 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
   return `${pointText} / ${damageText}`;
 }
 
 function formatOathTuneEffect(row) {
-  const stageText = row.currentOathStageName && row.targetOathStageName && row.currentOathStageName !== row.targetOathStageName
-    ? `${row.currentOathStageName} -> ${row.targetOathStageName}`
-    : '';
-  if (stageText) return stageText;
-  const pointText = `서약 포인트 ${formatEffectNumber(row.currentSetPoint)} -> ${formatEffectNumber(row.targetSetPoint)}`;
-  if (row.metricType === 'buffer') {
-    const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
-    return `${pointText} / ${buffPowerText}`;
-  }
-  const damageText = `최종 데미지 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
-  return `${pointText} / ${damageText}`;
+  const formatStagePoint = (stageName, setPoint) => `${stageName || '서약'} ${formatEffectNumber(setPoint)}`;
+  return row.currentOathStageName || row.targetOathStageName
+    ? `${formatStagePoint(row.currentOathStageName, row.currentSetPoint)} -> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint)}`
+    : `${formatEffectNumber(row.currentSetPoint)} -> ${formatEffectNumber(row.targetSetPoint)}`;
 }
 
 function formatOathTranscendEffect(row, isBuffer = false) {
@@ -623,10 +616,10 @@ function formatOathStageNameHtml(stageName, escapeHtml) {
 }
 
 function formatOathTuneEffectHtml(row, escapeHtml) {
-  if (!row.currentOathStageName || !row.targetOathStageName || row.currentOathStageName === row.targetOathStageName) {
-    return '';
-  }
-  return `${formatOathStageNameHtml(row.currentOathStageName, escapeHtml)} <span class="enchant-oath-stage-arrow">-&gt;</span> ${formatOathStageNameHtml(row.targetOathStageName, escapeHtml)}`;
+  if (!row.currentOathStageName && !row.targetOathStageName) return '';
+  const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
+  const formatStagePoint = (stageName, setPoint) => formatOathStageNameHtml(`${stageName || '서약'} ${formatEffectNumber(setPoint)}`, escape);
+  return `${formatStagePoint(row.currentOathStageName, row.currentSetPoint)} <span class="enchant-oath-stage-arrow">-&gt;</span> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint)}`;
 }
 
 function formatOathTranscendEffectHtml(row, isBuffer, escapeHtml) {
