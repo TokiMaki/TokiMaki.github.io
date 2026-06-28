@@ -1873,29 +1873,38 @@ function getOathTuneRows(oathUpgrades = {}, oathTuneDb = {}, materialPrices = {}
   }];
 }
 
-function getOathTranscendRows(recommendations = []) {
-  return (recommendations || []).map((candidate) => ({
-    sourceType: 'oathTranscend',
-    kind: candidate.kind || 'oath_transcend',
-    slot: candidate.slot || '서약 초월',
-    tier: candidate.tier || '서약 초월',
-    itemId: candidate.itemId || '',
-    itemName: candidate.itemName || candidate.targetItemName || '서약 초월',
-    itemRarity: candidate.itemRarity || candidate.targetRarity || '',
-    iconUrl: candidate.iconUrl || '',
-    itemExplain: candidate.itemExplain || '',
-    effects: candidate.effects || {},
-    currentEffects: candidate.currentEffects || {},
-    targetEffects: candidate.targetEffects || {},
-    auction: candidate.auction || { minUnitPrice: candidate.expectedGold || 0 },
-    expectedGold: candidate.expectedGold,
-    materials: candidate.materials || [],
-    materialText: candidate.materialText || '',
-    currentItemName: candidate.currentItemName || '',
-    currentRarity: candidate.currentRarity || '',
-    targetItemName: candidate.targetItemName || candidate.itemName || '',
-    targetRarity: candidate.targetRarity || candidate.itemRarity || '',
-  }));
+function getOathTranscendRows(recommendations = [], materialPrices = {}) {
+  return (recommendations || []).map((candidate) => {
+    const materials = candidate.materials || [];
+    const expectedMaterials = applyUpgradeMaterialPrices(
+      materials.filter((material) => material?.key !== 'solidSoul'),
+      'oathTranscend',
+      materialPrices,
+    );
+    return {
+      sourceType: 'oathTranscend',
+      kind: candidate.kind || 'oath_transcend',
+      slot: candidate.slot || '서약 초월',
+      tier: candidate.tier || '서약 초월',
+      itemId: candidate.itemId || '',
+      itemName: candidate.itemName || candidate.targetItemName || '서약 초월',
+      itemRarity: candidate.itemRarity || candidate.targetRarity || '',
+      iconUrl: candidate.iconUrl || '',
+      itemExplain: candidate.itemExplain || '',
+      effects: candidate.effects || {},
+      currentEffects: candidate.currentEffects || {},
+      targetEffects: candidate.targetEffects || {},
+      auction: candidate.auction || { minUnitPrice: candidate.expectedGold || 0 },
+      expectedGold: candidate.expectedGold,
+      expectedMaterials,
+      materials,
+      materialText: candidate.materialText || '',
+      currentItemName: candidate.currentItemName || '',
+      currentRarity: candidate.currentRarity || '',
+      targetItemName: candidate.targetItemName || candidate.itemName || '',
+      targetRarity: candidate.targetRarity || candidate.itemRarity || '',
+    };
+  });
 }
 
 function getAmplificationCostKey(slot) {
@@ -3348,7 +3357,7 @@ export function installEnchantView(ctx) {
       ),
       ...getEquipmentTuneRows(state.currentEquipmentUpgrades, state.upgradeMaterialPrices, state.currentBufferBaseline),
       ...getOathTuneRows(state.currentOathUpgrades, state.oathTuneStageDb, state.upgradeMaterialPrices, state.currentEquipmentUpgrades, state.currentBufferBaseline),
-      ...getOathTranscendRows(state.currentOathTranscendRecommendations),
+      ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
     ];
     renderEnchantFilters(allRows);
