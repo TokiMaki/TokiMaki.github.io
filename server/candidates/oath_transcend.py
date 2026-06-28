@@ -28,9 +28,27 @@ OATH_TRANSCEND_TARGET_NAME_BY_RARITY = {
     "태초": "태초의 광휘 결정",
 }
 
+OATH_TRANSCEND_BUFFER_EFFECT_KEYS = {"buffPower", "buffAmplification", "allStat", "str", "int"}
+OATH_TRANSCEND_DAMAGE_EXCLUDED_EFFECT_KEYS = {"buffPower", "buffAmplification", "bufferStat"}
+
 
 def get_oath_transcend_effects(detail: dict) -> dict:
     return normalize_enchant_status((detail or {}).get("itemStatus") or [])
+
+
+def get_oath_transcend_role_effects(effects: dict, is_buffer: bool) -> dict:
+    if is_buffer:
+        allowed_keys = OATH_TRANSCEND_BUFFER_EFFECT_KEYS
+        return {
+            key: value
+            for key, value in (effects or {}).items()
+            if key in allowed_keys and parse_percent_or_number(value) > 0
+        }
+    return {
+        key: value
+        for key, value in (effects or {}).items()
+        if key not in OATH_TRANSCEND_DAMAGE_EXCLUDED_EFFECT_KEYS and parse_percent_or_number(value) > 0
+    }
 
 
 def subtract_oath_effects(target_effects: dict, current_effects: dict) -> dict:
@@ -148,7 +166,9 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "missing_target"})
                 continue
             target_effects = get_oath_transcend_effects(target_detail)
-            effects = subtract_oath_effects(target_effects, current_effects)
+            current_role_effects = get_oath_transcend_role_effects(current_effects, is_buffer)
+            target_role_effects = get_oath_transcend_role_effects(target_effects, is_buffer)
+            effects = subtract_oath_effects(target_role_effects, current_role_effects)
             score = get_oath_transcend_score({"effects": effects}, is_buffer)
             if score <= 0:
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "no_gain"})
@@ -164,8 +184,8 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
                 icon_url=get_item_icon_url(clean_text(target_detail.get("itemId"))),
                 current_item_name=current_item_name,
                 current_rarity=current_rarity,
-                current_effects=current_effects,
-                target_effects=target_effects,
+                current_effects=current_role_effects,
+                target_effects=target_role_effects,
                 effects=effects,
                 expected_gold=expected_gold,
                 materials=materials,

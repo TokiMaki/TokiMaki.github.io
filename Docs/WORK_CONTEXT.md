@@ -13,7 +13,7 @@
 - 최근 계측 구조: `/api/character-loadout`의 `api_fanout_summary`는 API fan-out과 `resolvedPrice.total`, `resolvedPrice.byDomain`을 기록한다. domain별 hit/miss/store/skip/error만 남기고 itemName, skillName, scrollName 원문 key는 로그에 남기지 않는다.
 - 최근 마부 정책: 업그레이드 가능한 마법부여 카드/보주는 효과를 max upgrade 기준으로 쓰므로 가격도 `upgrade == upgradeMax`인 풀업 경매장 row만 인정한다. 풀업 매물이 없으면 노업 가격으로 효율을 계산하지 않고 기존 가격 없음 흐름을 탄다.
 - 최근 버프강화 정책: 딜러 스위칭 칭호/크리쳐 contribution 계산은 `buffSkillName`과 `equivalentSwitchingPlatinumSkills`를 함께 인정한다. 레벨 범위형 효과는 target skill별 requiredLevel을 독립 합산하고, 추천 실효 상승량은 스위칭 레벨 cap 7을 적용한다.
-- 최근 서약 정책: `서약 결정 초월` 추천은 `oathTranscendRecommendations` 별도 필드와 `oathTranscend` sourceType으로 기존 `oathUpgrades`/서약 조율과 분리한다. target 서약 결정은 exact item search/detail 검증 후 생성하고, 에픽/태초 초월 골드 비용과 태초 3칸 cap만 반영한다.
+- 최근 서약 정책: `서약 결정 초월` 추천은 `oathTranscendRecommendations` 별도 필드와 `oathTranscend` sourceType으로 기존 `oathUpgrades`/서약 조율과 분리한다. target 서약 결정은 exact item search/detail 검증 후 생성하고, 딜러/버퍼별 유효 옵션만 표시하며, 에픽/태초 초월 골드 비용과 태초 3칸 cap만 반영한다.
 - 운영 주의사항: 운영 서버 포트 `8787`은 임의 종료/재시작하지 않는다. 검증 서버는 `8799`만 사용한다. `pkill -f neople_hell_api_server.py`는 금지한다.
 - 운영 주의사항: 8799 검증 서버를 종료해야 하면 먼저 해당 PID가 8799를 점유하는지 확인하고 그 PID만 종료한다. 8787 재시작/종료가 필요하면 실행하지 말고 먼저 보고한다.
 - Docs 주의사항: `Docs/*.json`, `Docs/*.tsv`, `Docs/*.txt` 중 일부는 서버/스크립트가 직접 읽는 기준 데이터다. 문서 정리 중 이동하거나 수정하지 않는다.
