@@ -274,8 +274,8 @@ function getMaterialGold(materials = []) {
 function getRecommendationGold(row, includeMaterialCosts = false) {
   const baseGold = Number.isFinite(row?.expectedGold) ? row.expectedGold : Number(row?.auction?.minUnitPrice || 0);
   if (!Number.isFinite(baseGold) || baseGold <= 0) return 0;
-  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend'].includes(row?.sourceType)) return baseGold;
-  const materialGold = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend'].includes(row.sourceType)
+  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row?.sourceType)) return baseGold;
+  const materialGold = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)
     ? getMaterialGold(row.expectedMaterials)
     : getMaterialGold(row.materials);
   return baseGold + materialGold;
@@ -796,7 +796,7 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'blackFang') return ['흑아:흑아'];
   if (row.sourceType === 'equipmentTune') return ['조율:장비'];
   if (row.sourceType === 'oathTune') return ['조율:서약'];
-  if (row.sourceType === 'oathTranscend') return ['조율:서약'];
+  if (row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft') return ['조율:서약'];
   if (row.tier === '안전증폭' || row.tier === '증폭 전환') {
     return ['강화/증폭:증폭'];
   }
@@ -1029,7 +1029,7 @@ function getBufferRecommendationRows(
   const bySlotTier = new Map();
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'blackFang'].includes(row.sourceType)) return;
+    if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang'].includes(row.sourceType)) return;
     if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
     if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem', 'switchingPlatinumEmblem'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
@@ -1045,7 +1045,7 @@ function getBufferRecommendationRows(
       ? {}
       : row.sourceType === 'blackFang'
         ? { effects: row.currentEffects || {} }
-      : row.sourceType === 'oathTranscend'
+      : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? { effects: row.currentEffects || {} }
       : row.sourceType === 'creature'
         ? currentCreature || {}
@@ -1064,13 +1064,14 @@ function getBufferRecommendationRows(
       !['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType) &&
       row.sourceType !== 'blackFang' &&
       row.sourceType !== 'oathTranscend' &&
+      row.sourceType !== 'oathCraft' &&
       current?.itemId &&
       current.itemId === row.itemId &&
       getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
     ) return;
     const targetEffects = row.sourceType === 'blackFang'
       ? row.targetEffects || addEffects(row.currentEffects, row.effects)
-      : row.sourceType === 'oathTranscend'
+      : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? row.targetEffects || row.effects || {}
       : row.effects || {};
     const scoringTargetEffects = getRoleRelevantEffects(targetEffects, true);
@@ -1085,7 +1086,7 @@ function getBufferRecommendationRows(
     const buffAmplificationDelta = row.sourceType === 'upgrade'
       ? 0
       : Number(scoringTargetEffects?.buffAmplification || 0) - Number(scoringCurrentEffects?.buffAmplification || 0);
-    const oathSetBuffPowerDelta = row.sourceType === 'oathTranscend'
+    const oathSetBuffPowerDelta = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
       ? Number(row.oathSetBuffPowerDelta || 0)
       : 0;
     const buffPowerDelta = row.sourceType === 'upgrade'
@@ -1905,19 +1906,22 @@ function getOathTuneRows(oathUpgrades = {}, oathTuneDb = {}, materialPrices = {}
   }];
 }
 
-function getOathTranscendRows(recommendations = [], materialPrices = {}) {
+function getOathTranscendRows(recommendations = [], materialPrices = {}, sourceType = 'oathTranscend') {
   return (recommendations || []).map((candidate) => {
     const materials = candidate.materials || [];
+    const pricedMaterials = sourceType === 'oathCraft'
+      ? materials.filter((material) => material?.key === 'radiantSoul')
+      : materials.filter((material) => material?.key !== 'solidSoul');
     const expectedMaterials = applyUpgradeMaterialPrices(
-      materials.filter((material) => material?.key !== 'solidSoul'),
-      'oathTranscend',
+      pricedMaterials,
+      sourceType,
       materialPrices,
     );
     return {
-      sourceType: 'oathTranscend',
-      kind: candidate.kind || 'oath_transcend',
-      slot: candidate.slot || '서약 초월',
-      tier: candidate.tier || '서약 초월',
+      sourceType,
+      kind: candidate.kind || (sourceType === 'oathCraft' ? 'oath_craft' : 'oath_transcend'),
+      slot: candidate.slot || (sourceType === 'oathCraft' ? '서약 정가' : '서약 초월'),
+      tier: candidate.tier || (sourceType === 'oathCraft' ? '정가' : '서약 초월'),
       itemId: candidate.itemId || '',
       itemName: candidate.itemName || candidate.targetItemName || '서약 초월',
       itemRarity: candidate.itemRarity || candidate.targetRarity || '',
@@ -2230,7 +2234,7 @@ function getEffectSignature(effects = {}) {
 }
 
 function getRecommendationDamageEffects(row, current) {
-  if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend'].includes(row.sourceType)) return row.effects || {};
+  if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
   if (row.sourceType === 'blackFang') {
     return subtractEffects(
       row.targetEffects || addEffects(row.currentEffects, row.effects),
@@ -2505,7 +2509,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
         ? { effects: {} }
       : row.sourceType === 'blackFang'
         ? { effects: {} }
-      : row.sourceType === 'oathTranscend'
+      : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? { effects: row.currentEffects || {} }
       : row.sourceType === 'avatar'
         ? { effects: {} }
@@ -2559,10 +2563,10 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       ? getReplacementIncrementalDamagePercent(
         row.sourceType === 'blackFang'
           ? { ...row, effects: row.targetEffects || addEffects(row.currentEffects, row.effects) }
-          : row.sourceType === 'oathTranscend'
+          : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
             ? { ...row, effects: row.targetEffects || row.effects || {} }
           : row,
-        row.sourceType === 'blackFang' || row.sourceType === 'oathTranscend' ? { effects: row.currentEffects || {} } : current,
+        row.sourceType === 'blackFang' || row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft' ? { effects: row.currentEffects || {} } : current,
         baseline,
       )
       : estimateDamagePercent(damageEffects, baseline);
@@ -2870,6 +2874,7 @@ export function installEnchantView(ctx) {
   state.currentEquipmentUpgrades = [];
   state.currentOathUpgrades = null;
   state.currentOathTranscendRecommendations = [];
+  state.currentOathCraftRecommendations = [];
   state.oathTuneStageDb = null;
   state.currentBlackFangRecommendations = [];
   state.upgradeExpectedDb = null;
@@ -3174,6 +3179,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = [];
     state.currentOathUpgrades = null;
     state.currentOathTranscendRecommendations = [];
+    state.currentOathCraftRecommendations = [];
     state.oathTuneStageDb = null;
     state.currentBlackFangRecommendations = [];
     state.upgradeExpectedDb = null;
@@ -3213,6 +3219,7 @@ export function installEnchantView(ctx) {
       || state.switchingCreatureRecommendations.length > 0
       || state.switchingFragmentRecommendations.length > 0
       || state.currentOathTranscendRecommendations.length > 0
+      || state.currentOathCraftRecommendations.length > 0
       || state.auraUpgradeGroups.length > 0
     );
   }
@@ -3406,6 +3413,7 @@ export function installEnchantView(ctx) {
       ...getEquipmentTuneRows(state.currentEquipmentUpgrades, state.upgradeMaterialPrices, state.currentBufferBaseline),
       ...getOathTuneRows(state.currentOathUpgrades, state.oathTuneStageDb, state.upgradeMaterialPrices, state.currentEquipmentUpgrades, state.currentBufferBaseline),
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
+      ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
     ];
     renderEnchantFilters(allRows);
@@ -3419,7 +3427,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'blackFang'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -3556,7 +3564,7 @@ export function installEnchantView(ctx) {
           ? formatEquipmentTuneEffect(row)
         : row.sourceType === 'oathTune'
           ? formatOathTuneEffect(row)
-        : row.sourceType === 'oathTranscend'
+        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? formatOathTranscendEffect(row, isBufferMetric)
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
@@ -3580,7 +3588,7 @@ export function installEnchantView(ctx) {
         ? formatEquipmentTuneEffectHtml(row, escapeHtml)
         : row.sourceType === 'oathTune'
           ? formatOathTuneEffectHtml(row, escapeHtml)
-        : row.sourceType === 'oathTranscend'
+        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? formatOathTranscendEffectHtml(row, isBufferMetric, escapeHtml)
         : '';
       const titleElementLabel = row.sourceType === 'title' && row.titleEnchantElement
@@ -3626,7 +3634,7 @@ export function installEnchantView(ctx) {
       const acquisitionMarkup = getAcquisitionMarkup(row.acquisition, escapeHtml);
       const materialParts = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? getUpgradeMaterialParts(row.expectedMaterials, row.upgradeMode)
-        : row.sourceType === 'oathTranscend'
+        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? getBlackFangMaterialParts(row.materials)
         : row.sourceType === 'blackFang'
           ? getBlackFangMaterialParts(row.materials)
@@ -3635,9 +3643,9 @@ export function installEnchantView(ctx) {
       const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
-        : includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend'].includes(row.sourceType)
+        : includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)
         ? '재료 포함'
-        : ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend'].includes(row.sourceType) ? '예상 골드' : '최저가';
+        : ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
       const materialPartsMarkup = materialParts.length
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
@@ -3703,6 +3711,7 @@ export function installEnchantView(ctx) {
       state.currentEquipmentUpgrades = [];
       state.currentOathUpgrades = null;
       state.currentOathTranscendRecommendations = [];
+      state.currentOathCraftRecommendations = [];
       state.oathTuneStageDb = null;
       state.currentBlackFangRecommendations = [];
       state.upgradeExpectedDb = null;
@@ -3728,6 +3737,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
     state.currentOathUpgrades = payload.oathUpgrades || null;
     state.currentOathTranscendRecommendations = Array.isArray(payload.oathTranscendRecommendations) ? payload.oathTranscendRecommendations : [];
+    state.currentOathCraftRecommendations = Array.isArray(payload.oathCraftRecommendations) ? payload.oathCraftRecommendations : [];
     state.oathTuneStageDb = payload.oathTuneStageDb || null;
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
@@ -3856,6 +3866,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
     state.currentOathUpgrades = null;
     state.currentOathTranscendRecommendations = [];
+    state.currentOathCraftRecommendations = [];
     state.oathTuneStageDb = null;
     state.currentCreature = payload.creature || null;
     state.currentTitle = payload.title || null;
@@ -3909,6 +3920,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
     state.currentOathUpgrades = payload.oathUpgrades || null;
     state.currentOathTranscendRecommendations = Array.isArray(payload.oathTranscendRecommendations) ? payload.oathTranscendRecommendations : [];
+    state.currentOathCraftRecommendations = Array.isArray(payload.oathCraftRecommendations) ? payload.oathCraftRecommendations : [];
     state.oathTuneStageDb = payload.oathTuneStageDb || null;
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;

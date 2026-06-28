@@ -30,6 +30,25 @@ OATH_TRANSCEND_COSTS = {
     },
 }
 
+OATH_CRAFT_COSTS = {
+    "에픽": {
+        "gold": 2_000_000,
+        "materials": [
+            {"key": "oathCrystalFragment", "label": "서약 결정 조각", "amount": 1000},
+            {"key": "epicSoul", "label": "에픽 소울", "amount": 20},
+            {"key": "radiantSoul", "label": "광휘의 소울", "amount": 200},
+        ],
+    },
+    "태초": {
+        "gold": 7_500_000,
+        "materials": [
+            {"key": "oathCrystalFragment", "label": "서약 결정 조각", "amount": 1500},
+            {"key": "primordialSoul", "label": "태초 소울", "amount": 5},
+            {"key": "radiantSoul", "label": "광휘의 소울", "amount": 1000},
+        ],
+    },
+}
+
 OATH_TRANSCEND_TARGET_NAME_BY_RARITY = {
     "에픽": "완전한 광휘 결정",
     "태초": "태초의 광휘 결정",
@@ -90,6 +109,11 @@ def get_oath_crystal_family_name(item_name: str) -> str:
     return clean_text(family_name)
 
 
+def get_oath_craft_fragment_label(item_name: str) -> str:
+    family_name = get_oath_crystal_family_name(item_name)
+    return f"{family_name} 서약 결정 조각" if family_name else "서약 결정 조각"
+
+
 def get_oath_transcend_target_item_name(item_name: str, target_rarity: str) -> str:
     family_name = get_oath_crystal_family_name(item_name)
     target_suffix = OATH_TRANSCEND_TARGET_NAME_BY_RARITY.get(clean_text(target_rarity))
@@ -147,8 +171,47 @@ def get_oath_transcend_score(row: dict, is_buffer: bool) -> float:
 
 
 def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseline: dict | None = None, oath_tune_stage_db: dict | None = None) -> dict:
+    return build_oath_decision_recommendations_debug(
+        oath_payload,
+        buffer_baseline,
+        oath_tune_stage_db,
+        costs_by_rarity=OATH_TRANSCEND_COSTS,
+        source_type="oathTranscend",
+        kind="oath_transcend",
+        slot="서약 결정",
+        tier="초월",
+        step_name="build_oath_transcend_recommendations",
+    )
+
+
+def build_oath_craft_recommendations_debug(oath_payload: dict, buffer_baseline: dict | None = None, oath_tune_stage_db: dict | None = None) -> dict:
+    return build_oath_decision_recommendations_debug(
+        oath_payload,
+        buffer_baseline,
+        oath_tune_stage_db,
+        costs_by_rarity=OATH_CRAFT_COSTS,
+        source_type="oathCraft",
+        kind="oath_craft",
+        slot="서약 정가",
+        tier="정가",
+        step_name="build_oath_craft_recommendations",
+    )
+
+
+def build_oath_decision_recommendations_debug(
+    oath_payload: dict,
+    buffer_baseline: dict | None = None,
+    oath_tune_stage_db: dict | None = None,
+    costs_by_rarity: dict | None = None,
+    source_type: str = "oathTranscend",
+    kind: str = "oath_transcend",
+    slot: str = "서약 결정",
+    tier: str = "초월",
+    step_name: str = "build_oath_transcend_recommendations",
+) -> dict:
     steps = []
     db = oath_tune_stage_db or {}
+    costs_by_rarity = costs_by_rarity or OATH_TRANSCEND_COSTS
     unique_keyword = clean_text(db.get("uniqueCrystalNameKeyword")) or "안개 결정"
     oath = oath_payload.get("oath") or {}
     crystals = oath.get("crystal") or []
@@ -201,11 +264,17 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
             if score <= 0:
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "no_gain"})
                 continue
-            cost = OATH_TRANSCEND_COSTS.get(target_rarity) or {}
+            cost = costs_by_rarity.get(target_rarity) or {}
             expected_gold = int(cost.get("gold") or 0)
-            materials = build_oath_transcend_materials(cost.get("materials") or [])
+            cost_materials = []
+            for material in cost.get("materials") or []:
+                material_row = dict(material)
+                if material_row.get("key") == "oathCrystalFragment":
+                    material_row["label"] = get_oath_craft_fragment_label(current_item_name)
+                cost_materials.append(material_row)
+            materials = build_oath_transcend_materials(cost_materials)
             row = build_oath_transcend_recommendation_row(
-                slot="서약 결정",
+                slot=slot,
                 item_id=clean_text(target_detail.get("itemId")),
                 item_name=clean_item_display_name(target_detail.get("itemName")),
                 item_rarity=clean_text(target_detail.get("itemRarity")),
@@ -222,6 +291,9 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
                 skill_damage_multiplier=set_point_context.get("skillDamageMultiplier"),
                 oath_set_buff_power_delta=set_point_context.get("oathSetBuffPowerDelta"),
                 set_point_context=set_point_context,
+                source_type=source_type,
+                kind=kind,
+                tier=tier,
             )
             row["_score"] = score
             recommendations.append(row)
@@ -243,7 +315,7 @@ def build_oath_transcend_recommendations_debug(oath_payload: dict, buffer_baseli
         clean_text(row.get("slot")),
     ))
     steps.append({
-        "name": "build_oath_transcend_recommendations",
+        "name": step_name,
         "crystalCount": len(crystals),
         "primevalCount": primeval_count,
         "primevalRemaining": primeval_remaining,

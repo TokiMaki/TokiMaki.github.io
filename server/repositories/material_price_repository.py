@@ -27,6 +27,7 @@ UPGRADE_MATERIAL_DISPLAY_ITEMS = {
     "radiantSoul": {"label": "광휘의 소울", "itemId": "6307b8165444a9bd5c4c4aa2d7eae41d"},
     "highElementalCrystal": {"label": "상급 원소결정", "itemId": "b682af8902d22554c7b90386abd18762"},
     "solidSoul": {"label": "솔리드 소울", "iconUrl": "/asset/soul/solidSoul.png"},
+    "oathCrystalFragment": {"label": "서약 결정 조각", "iconUrl": "/asset/oath/oathCrystalFragment.png"},
 }
 
 

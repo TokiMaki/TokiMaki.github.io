@@ -16,12 +16,15 @@ def build_oath_transcend_recommendation_row(
     skill_damage_multiplier: float = 1,
     oath_set_buff_power_delta: float = 0,
     set_point_context: dict | None = None,
+    source_type: str = "oathTranscend",
+    kind: str = "oath_transcend",
+    tier: str = "초월",
 ) -> dict:
     row = {
-        "sourceType": "oathTranscend",
-        "kind": "oath_transcend",
+        "sourceType": source_type,
+        "kind": kind,
         "slot": slot,
-        "tier": "초월",
+        "tier": tier,
         "itemId": item_id,
         "itemName": item_name,
         "itemRarity": item_rarity,
