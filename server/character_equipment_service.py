@@ -86,6 +86,7 @@ AVATAR_BRILLIANT_GREEN_STAT = 15
 AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
+SWITCHING_LEVEL_CAP = 7
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION = 1
@@ -1563,6 +1564,92 @@ def get_candidate_auction_price(row: dict) -> float:
     return float(price) if isinstance(price, (int, float)) and price > 0 else float("inf")
 
 
+def get_capped_switching_level_delta(
+    current_total: int,
+    current_slot_contribution: int,
+    candidate_slot_contribution: int,
+) -> int:
+    current_total = int(current_total or 0)
+    current_slot_contribution = int(current_slot_contribution or 0)
+    candidate_slot_contribution = int(candidate_slot_contribution or 0)
+    new_total = current_total - current_slot_contribution + candidate_slot_contribution
+    return min(SWITCHING_LEVEL_CAP, new_total) - min(SWITCHING_LEVEL_CAP, current_total)
+
+
+def get_switching_avatar_skill_level_contribution(avatar_rows: list, target_skill_names: list[str]) -> int:
+    target_skill_names = [clean_text(skill_name) for skill_name in target_skill_names or [] if clean_text(skill_name)]
+    if not target_skill_names:
+        return 0
+    total = 0
+    for row in avatar_rows or []:
+        option_ability = clean_text(row.get("optionAbility"))
+        if any(skill_name_matches(option_ability, skill_name) for skill_name in target_skill_names):
+            total += 1
+        for emblem in get_platinum_emblems(row):
+            platinum_skill = clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+            if any(skill_name_matches(platinum_skill, skill_name) for skill_name in target_skill_names):
+                total += 1
+    return total
+
+
+def get_current_dealer_switching_level_total(
+    server_id: str,
+    character_id: str,
+    buff_payload: dict,
+    job_name: str,
+    buff_skill_name: str,
+    required_level: int,
+    equivalent_skill_names: list[str],
+    target_required_levels: list[int],
+    title_row: dict | None = None,
+    title_detail: dict | None = None,
+    creature_row: dict | None = None,
+    creature_detail: dict | None = None,
+    avatar_rows: list | None = None,
+) -> int:
+    target_skill_names = get_switching_creature_target_skill_names(buff_skill_name, equivalent_skill_names)
+    if title_row is None:
+        buff_equipment_rows = ((buff_payload.get("skill") or {}).get("buff") or {}).get("equipment") or []
+        title_row = next((
+            row for row in buff_equipment_rows
+            if clean_text(row.get("slotId")) == "TITLE" or clean_text(row.get("slotName")) == "칭호"
+        ), {})
+    if title_detail is None:
+        title_id = clean_text((title_row or {}).get("itemId"))
+        title_detail = (fetch_item_details([title_id]) or [{}])[0] if title_id else {}
+    if creature_row is None:
+        creature_row = next(iter(get_switching_creature_rows(
+            get_character_cached_payload(server_id, character_id, "buff_creature", "skill/buff/equip/creature")
+        )), {})
+    if creature_detail is None:
+        creature_id = clean_text((creature_row or {}).get("itemId"))
+        creature_detail = (fetch_item_details([creature_id]) or [{}])[0] if creature_id else {}
+    if avatar_rows is None:
+        avatar_payload = get_character_cached_payload(server_id, character_id, "buff_avatar", "skill/buff/equip/avatar")
+        avatar_rows = ((avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+    return (
+        get_switching_title_contribution(
+            title_row or {},
+            title_detail or {},
+            job_name,
+            buff_skill_name,
+            required_level,
+            equivalent_skill_names,
+            target_required_levels,
+        )
+        + get_switching_creature_contribution(
+            creature_row or {},
+            creature_detail or {},
+            job_name,
+            buff_skill_name,
+            required_level,
+            equivalent_skill_names,
+            target_required_levels,
+        )
+        + get_switching_avatar_skill_level_contribution(avatar_rows, target_skill_names)
+    )
+
+
 def load_dealer_switching_creature_recommendations(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> list:
     if buffer_baseline:
         return []
@@ -1624,10 +1711,18 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
         equivalent_switching_skill_names,
         target_required_levels,
     )
-    base_coefficients = [
-        current - current_contribution * per_level
-        for current, per_level in zip(current_coefficients, per_level_coefficients)
-    ]
+    current_switching_level_total = get_current_dealer_switching_level_total(
+        server_id,
+        character_id,
+        buff_payload,
+        job_name,
+        buff_skill_name,
+        required_level,
+        equivalent_switching_skill_names,
+        target_required_levels,
+        creature_row=current_creature,
+        creature_detail=current_detail,
+    )
     current_multiplier = get_switching_damage_multiplier(current_coefficients)
     creature_db = load_dealer_switching_creature_db()
     fame_range = (creature_db.get("metadata") or {}).get("fameRange") or {}
@@ -1688,7 +1783,12 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
                 equivalent_switching_skill_names,
                 target_required_levels,
             )
-            if fame_min <= fame <= fame_max and candidate_contribution > current_contribution:
+            effective_level_delta = get_capped_switching_level_delta(
+                current_switching_level_total,
+                current_contribution,
+                candidate_contribution,
+            )
+            if fame_min <= fame <= fame_max and candidate_contribution > current_contribution and effective_level_delta > 0:
                 selected_direct = {
                     **selected_direct,
                     "itemName": clean_item_display_name(selected_detail.get("itemName") or selected_direct.get("itemName")),
@@ -1724,6 +1824,13 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
             candidate_contribution = int(creature_option.get("candidateCreatureContribution") or 0)
             if candidate_contribution <= current_contribution:
                 continue
+            effective_level_delta = get_capped_switching_level_delta(
+                current_switching_level_total,
+                current_contribution,
+                candidate_contribution,
+            )
+            if effective_level_delta <= 0:
+                continue
             purchase_option = select_switching_creature_purchase_option(creature_option, box_options)
             if not purchase_option:
                 continue
@@ -1740,9 +1847,16 @@ def load_dealer_switching_creature_recommendations(server_id: str, character_id:
     for candidate_contribution, selected in best_candidates.items():
         creature_option = selected.get("creatureOption") or {}
         purchase_option = selected.get("purchaseOption") or {}
+        effective_level_delta = get_capped_switching_level_delta(
+            current_switching_level_total,
+            current_contribution,
+            candidate_contribution,
+        )
+        if effective_level_delta <= 0:
+            continue
         candidate_coefficients = [
-            base + candidate_contribution * per_level
-            for base, per_level in zip(base_coefficients, per_level_coefficients)
+            current + effective_level_delta * per_level
+            for current, per_level in zip(current_coefficients, per_level_coefficients)
         ]
         candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
         if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
@@ -1979,10 +2093,18 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
         equivalent_switching_skill_names,
         target_required_levels,
     )
-    base_coefficients = [
-        current - current_contribution * per_level
-        for current, per_level in zip(current_coefficients, per_level_coefficients)
-    ]
+    current_switching_level_total = get_current_dealer_switching_level_total(
+        server_id,
+        character_id,
+        buff_payload,
+        job_name,
+        buff_skill_name,
+        required_level,
+        equivalent_switching_skill_names,
+        target_required_levels,
+        title_row=source_title,
+        title_detail=source_detail,
+    )
     current_multiplier = get_switching_damage_multiplier(current_coefficients)
     title_db = load_dealer_switching_title_db()
     recommendations = []
@@ -1995,12 +2117,19 @@ def load_dealer_switching_title_recommendations(server_id: str, character_id: st
         candidate_contribution = int(config.get("totalBuffSkillLevelDelta") or 0)
         if candidate_contribution <= current_contribution:
             continue
+        effective_level_delta = get_capped_switching_level_delta(
+            current_switching_level_total,
+            current_contribution,
+            candidate_contribution,
+        )
+        if effective_level_delta <= 0:
+            continue
         candidate_price = load_switching_title_price_candidate(config, job_name, buff_skill_name)
         if not candidate_price:
             continue
         candidate_coefficients = [
-            base + candidate_contribution * per_level
-            for base, per_level in zip(base_coefficients, per_level_coefficients)
+            current + effective_level_delta * per_level
+            for current, per_level in zip(current_coefficients, per_level_coefficients)
         ]
         candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
         if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
@@ -3314,6 +3443,23 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     "skill/buff/equip/avatar",
                 )
                 dealer_switching_rows = ((switching_avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+                target_required_levels = get_switching_skill_required_levels(
+                    server_id,
+                    character_id,
+                    buff_skill_info,
+                    equivalent_platinum_skills,
+                )
+                current_switching_level_total = get_current_dealer_switching_level_total(
+                    server_id,
+                    character_id,
+                    buff_payload,
+                    clean_text(buff_payload.get("jobName")),
+                    buff_skill_name,
+                    target_required_levels[0] if target_required_levels else 0,
+                    equivalent_platinum_skills[1:],
+                    target_required_levels,
+                    avatar_rows=dealer_switching_rows,
+                )
                 current_multiplier = get_switching_damage_multiplier(current_coefficients)
                 switching_platinum_item = None
                 note = get_damage_application_note(switching_entry)
@@ -3337,8 +3483,15 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     candidate_contribution = 1
                     if candidate_contribution <= current_contribution:
                         continue
+                    effective_level_delta = get_capped_switching_level_delta(
+                        current_switching_level_total,
+                        current_contribution,
+                        candidate_contribution,
+                    )
+                    if effective_level_delta <= 0:
+                        continue
                     candidate_coefficients = [
-                        current + (candidate_contribution - current_contribution) * per_level
+                        current + effective_level_delta * per_level
                         for current, per_level in zip(current_coefficients, per_level_coefficients)
                     ]
                     candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
