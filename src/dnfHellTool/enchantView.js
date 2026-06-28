@@ -570,7 +570,7 @@ function formatUpgradeEffect(row) {
 }
 
 function formatEquipmentTuneEffect(row) {
-  const pointText = `세트포인트 ${formatEffectNumber(row.currentSetPoint)} -> ${formatEffectNumber(row.targetSetPoint)}`;
+  const pointText = `태초 ${formatEffectNumber(row.currentSetPoint)} -> 태초 ${formatEffectNumber(row.targetSetPoint)}`;
   if (row.metricType === 'buffer') {
     const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
     return `${pointText} / ${buffPowerText}`;
@@ -620,6 +620,17 @@ function formatOathTuneEffectHtml(row, escapeHtml) {
   const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
   const formatStagePoint = (stageName, setPoint) => formatOathStageNameHtml(`${stageName || '서약'} ${formatEffectNumber(setPoint)}`, escape);
   return `${formatStagePoint(row.currentOathStageName, row.currentSetPoint)} <span class="enchant-oath-stage-arrow">-&gt;</span> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint)}`;
+}
+
+function formatEquipmentTuneEffectHtml(row, escapeHtml) {
+  const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
+  const currentPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.currentSetPoint)}`, escape);
+  const targetPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.targetSetPoint)}`, escape);
+  const pointHtml = `${currentPoint} <span class="enchant-oath-stage-arrow">-&gt;</span> ${targetPoint}`;
+  const tuneText = row.metricType === 'buffer'
+    ? `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`
+    : `최종뎀 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
+  return `${pointHtml} / ${escape(tuneText)}`;
 }
 
 function formatOathTranscendEffectHtml(row, isBuffer, escapeHtml) {
@@ -3565,8 +3576,10 @@ export function installEnchantView(ctx) {
         ].filter(Boolean).join(' / ')
         : '';
       const effectText = [baseEffectText, bufferSkillEffectText].filter(Boolean).join(' / ');
-      const effectHtml = row.sourceType === 'oathTune'
-        ? formatOathTuneEffectHtml(row, escapeHtml)
+      const effectHtml = row.sourceType === 'equipmentTune'
+        ? formatEquipmentTuneEffectHtml(row, escapeHtml)
+        : row.sourceType === 'oathTune'
+          ? formatOathTuneEffectHtml(row, escapeHtml)
         : row.sourceType === 'oathTranscend'
           ? formatOathTranscendEffectHtml(row, isBufferMetric, escapeHtml)
         : '';
