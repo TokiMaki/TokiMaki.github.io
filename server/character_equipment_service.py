@@ -40,6 +40,7 @@ from .candidates.avatar_emblem import (
     get_emblem_stat_value,
 )
 from .candidates.black_fang import build_black_fang_recommendations_debug
+from .candidates.oath_transcend import build_oath_transcend_recommendations_debug
 from .candidates.switching_fragment import (
     SWITCHING_FRAGMENT_TARGET_SLOTS,
     get_switching_fragment_auction_candidate_groups,
@@ -673,13 +674,24 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "load_character_oath_upgrades",
         lambda: load_character_oath_upgrades(server_id, character_id),
     )
+    buffer_baseline = load_character_buffer_baseline(server_id, character_id)
+    try:
+        oath_payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath") if oath_upgrades else {}
+    except Exception:
+        oath_payload = {}
+    oath_transcend_debug = _measure_step(
+        steps,
+        "build_oath_transcend_recommendations",
+        lambda: build_oath_transcend_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db()),
+    )
     return build_character_enchants_payload(
         payload,
         damage_baseline,
-        load_character_buffer_baseline(server_id, character_id),
+        buffer_baseline,
         rows,
         equipment_upgrades,
         oath_upgrades,
+        oath_transcend_debug.get("recommendations") or [],
         load_oath_tune_stage_db(),
         black_fang_recommendations,
         load_upgrade_expected_db(),
@@ -688,6 +700,7 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         {
             "get_equipment_base_element_bonus": equipment_base_element_debug.get("steps") or [],
             "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
+            "build_oath_transcend_recommendations": oath_transcend_debug.get("steps") or [],
         },
     )
 
@@ -2493,6 +2506,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             "enchants": enchant_payload.get("enchants") or [],
             "equipmentUpgrades": enchant_payload.get("equipmentUpgrades") or [],
             "oathUpgrades": enchant_payload.get("oathUpgrades") or {},
+            "oathTranscendRecommendations": enchant_payload.get("oathTranscendRecommendations") or [],
             "oathTuneStageDb": enchant_payload.get("oathTuneStageDb") or {},
             "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
             "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
