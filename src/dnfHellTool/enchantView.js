@@ -2732,6 +2732,14 @@ function applyEquipmentTuneDisplayStep(row = {}, stepIndex = 0, includeMaterialC
   return displayRow;
 }
 
+function getTuneStepIndexBySource(state = {}, sourceType = 'equipmentTune') {
+  const bySource = state.tuneStepIndexBySource || {};
+  if (Object.prototype.hasOwnProperty.call(bySource, sourceType)) {
+    return Number(bySource[sourceType] || 0);
+  }
+  return sourceType === 'equipmentTune' ? Number(state.equipmentTuneStepIndex || 0) : 0;
+}
+
 function getEfficiencyBand(costPerPointOnePercent) {
   if (Number(costPerPointOnePercent || 0) > DAMAGE_EFFICIENCY_COLOR_STOPS.at(-1).value) return 'rainbow';
   return 'scale';
@@ -3538,7 +3546,7 @@ export function installEnchantView(ctx) {
 
     els.enchantRecommendList.innerHTML = recommendations.map((row, index) => {
       const tuneStepIndex = TUNE_SOURCE_TYPES.has(row.sourceType)
-        ? Number(state.tuneStepIndexBySource?.[row.sourceType] ?? state.equipmentTuneStepIndex ?? 0)
+        ? getTuneStepIndexBySource(state, row.sourceType)
         : state.equipmentTuneStepIndex;
       row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, state.currentDamageBaseline, state.currentBufferBaseline);
       const isBufferMetric = row.metricType === 'buffer';
@@ -4195,7 +4203,7 @@ export function installEnchantView(ctx) {
       ...getTuneRowsBySource(sourceType)
         .map((row) => (Array.isArray(row.tuneSteps) ? row.tuneSteps.length - 1 : 0)),
     );
-    const currentIndex = Number(state.tuneStepIndexBySource?.[sourceType] ?? state.equipmentTuneStepIndex ?? 0);
+    const currentIndex = getTuneStepIndexBySource(state, sourceType);
     state.tuneStepIndexBySource = {
       ...(state.tuneStepIndexBySource || {}),
       [sourceType]: Math.max(0, Math.min(maxIndex, currentIndex + value)),
