@@ -408,9 +408,9 @@
       white-space: nowrap;
     }
     .supply-detail-portrait-sub {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
-      color: var(--muted);
+      color: color-mix(in srgb, var(--muted) 76%, var(--bg-deep));
       line-height: 1.2;
       min-width: 0;
       max-width: 100%;
