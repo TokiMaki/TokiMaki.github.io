@@ -386,18 +386,18 @@
       align-items: center;
       justify-content: center;
       gap: 3px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
       color: #f2d66b;
       line-height: 1.2;
     }
     .supply-detail-portrait-fame img {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       object-fit: contain;
     }
     .supply-detail-portrait-name {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 800;
       line-height: 1.25;
       color: var(--text);

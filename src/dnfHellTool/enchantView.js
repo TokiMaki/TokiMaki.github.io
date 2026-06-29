@@ -17,6 +17,7 @@ const EFFECT_LABELS = {
   int: '지능',
   critical: '크리',
 };
+const BUFFER_SCORE_ICON_URL = new URL('../../이미지/bufferScore.png', import.meta.url).href;
 const UPGRADE_SLOT_LABELS = {
   무기: 'weapon',
   상의: 'armor',
@@ -3140,7 +3141,7 @@ export function installEnchantView(ctx) {
       if (meta && Number.isFinite(bufferScore) && bufferScore > 0) {
         meta.insertAdjacentHTML('beforeend', `
           <div class="enchant-portrait-buffer-score">
-            <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다.">버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}</strong>
+            <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다." title="버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}" aria-label="버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}"><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}</strong>
           </div>
         `);
       }

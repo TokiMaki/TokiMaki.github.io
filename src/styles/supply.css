@@ -497,11 +497,20 @@
     }
     .enchant-portrait-buffer-score strong {
       position: relative;
-      color: var(--text-accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: #a7e86f;
       font-size: 11px;
       font-weight: 900;
       cursor: help;
       outline: none;
+    }
+    .enchant-portrait-buffer-score strong img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
     }
     .enchant-portrait-buffer-score strong::after {
       content: attr(data-tooltip);
