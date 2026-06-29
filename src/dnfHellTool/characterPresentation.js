@@ -2,6 +2,7 @@ import { CHARACTER_AVATAR_CLASS_BY_JOB } from '../data/supplyConstants.js';
 import { escapeHtml, fmtInt, getServerLabel } from '../logic/formatters.js';
 
 const CHARACTER_PORTRAIT_BG_URL = new URL('../../이미지/bg3.jpg', import.meta.url).href;
+const CHARACTER_FAME_ICON_URL = new URL('../../이미지/fame.png', import.meta.url).href;
 
 export function getCharacterAvatarClass(character) {
   const jobName = String(character?.jobName ?? '').trim();
@@ -79,7 +80,7 @@ export function getCharacterPortraitMarkup(character, options = {}) {
       </span>
       ${showName ? `
         <span class="supply-detail-portrait-meta">
-          <span class="supply-detail-portrait-fame">명성 ${escapeHtml(fameLabel)}</span>
+          <span class="supply-detail-portrait-fame" title="명성 ${escapeHtml(fameLabel)}" aria-label="명성 ${escapeHtml(fameLabel)}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(fameLabel)}</span>
           ${adventureName ? `<span class="supply-detail-portrait-adventure">${escapeHtml(adventureName)}</span>` : ''}
           <span class="supply-detail-portrait-name">${escapeHtml(nameLabel)}</span>
           ${serverJobLabel ? `<span class="supply-detail-portrait-sub">${escapeHtml(serverJobLabel)}</span>` : ''}

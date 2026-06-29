@@ -382,10 +382,19 @@
       text-align: center;
     }
     .supply-detail-portrait-fame {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
       font-size: 11px;
       font-weight: 700;
-      color: var(--accent-soft);
+      color: #f2d66b;
       line-height: 1.2;
+    }
+    .supply-detail-portrait-fame img {
+      width: 14px;
+      height: 14px;
+      object-fit: contain;
     }
     .supply-detail-portrait-name {
       font-size: 14px;
