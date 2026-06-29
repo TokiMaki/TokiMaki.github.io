@@ -473,6 +473,7 @@ if (els.enchantMaterialCostToggle) {
     els.enchantMaterialCostToggle.checked = true;
   }
   els.enchantMaterialCostToggle.addEventListener('change', () => {
+    els.enchantMaterialCostToggle.blur();
     try {
       localStorage.setItem(ENCHANT_MATERIAL_COST_STORAGE_KEY, els.enchantMaterialCostToggle.checked ? '1' : '0');
     } catch {
