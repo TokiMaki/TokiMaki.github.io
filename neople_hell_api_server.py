@@ -3,9 +3,11 @@
 import argparse
 import errno
 import json
+import logging
 import os
 import sys
 import time
+import uuid
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from threading import BoundedSemaphore, Event, Lock
@@ -37,6 +39,7 @@ from server.neople_client import (
     clean_text,
 )
 from server.ops_log import write_ops_log
+from server.api_fanout_trace import finish_request_stats, start_request_stats
 from server.price_cache import (
     AURA_PRICE_CACHE_PATH,
     CREATURE_PRICE_CACHE_PATH,
@@ -68,6 +71,9 @@ _PUBLIC_RESPONSE_CACHE_LOCK = Lock()
 _LOADOUT_RESPONSE_CACHE = {}
 _LOADOUT_RESPONSE_INFLIGHT = {}
 _LOADOUT_RESPONSE_CACHE_LOCK = Lock()
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
+REQUEST_LOGGER = logging.getLogger("dunpilot.request")
 
 
 class HeavyRequestRejected(Exception):
@@ -76,6 +82,168 @@ class HeavyRequestRejected(Exception):
 
 def json_response(payload: dict) -> bytes:
     return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+
+
+def truncate_log_text(value: str, limit: int = 24) -> str:
+    text = clean_text(value)
+    return text if len(text) <= limit else f"{text[:limit]}..."
+
+
+def load_json_log_payload(body: bytes) -> dict:
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def count_response_recommendations(payload: dict) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    total = 0
+    for key, value in payload.items():
+        if key == "recommendations" or key.endswith("Recommendations"):
+            if isinstance(value, list):
+                total += len(value)
+    return total
+
+
+def count_search_results(payload: dict) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    for key in ("rows", "characters", "results"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return len(value)
+    return 1 if payload.get("characterId") else 0
+
+
+def get_auction_api_call_count(api_calls: dict) -> int:
+    return sum(
+        int(count or 0)
+        for name, count in (api_calls or {}).items()
+        if str(name).startswith("auction_")
+    )
+
+
+def format_route_cache_hit(cache_hit: bool | None) -> str:
+    if cache_hit is True:
+        return "hit"
+    if cache_hit is False:
+        return "miss"
+    return "-"
+
+
+def get_request_route_name(route: str) -> str:
+    route_names = {
+        "/api/character-loadout": "loadout",
+        "/api/search": "search",
+        "/api/aura-upgrades": "aura",
+        "/api/creature-upgrades": "creature",
+        "/api/title-upgrades": "title",
+        "/api/enchant-cards": "enchant",
+    }
+    return route_names.get(route, route.removeprefix("/api/") or route or "-")
+
+
+def format_short_character_cache(char_cache: dict) -> str:
+    parts = []
+    for key, suffix in (("mem", "mem"), ("sqlite", "sql"), ("api", "api")):
+        count = int((char_cache or {}).get(key) or 0)
+        if count > 0:
+            parts.append(f"{count}{suffix}")
+    return "+".join(parts)
+
+
+def should_log_request_summary(stats: dict, status: int, duration_ms: int | None, cache_hit: bool | None, neople_api_count: int, auction_api_count: int) -> tuple[bool, str]:
+    duration = int(duration_ms or 0)
+    if int(status) >= 400 or duration >= 1500:
+        return True, "[SLOW]" if int(status) < 400 else "[WARN]"
+    route = clean_text(stats.get("route"))
+    if cache_hit is True and duration < 200:
+        return False, "[REQ]"
+    character_id = clean_text(stats.get("characterId"))
+    if route in {"/api/search", "/api/character-loadout"}:
+        return True, "[REQ]"
+    if character_id and cache_hit is False:
+        return True, "[REQ]"
+    if neople_api_count > 0 or auction_api_count > 0:
+        return True, "[REQ]"
+    if duration >= 200:
+        return True, "[REQ]"
+    return False, "[REQ]"
+
+
+def format_request_summary_log(
+    stats: dict,
+    status: int,
+    duration_ms: int | None,
+    request_id: str,
+    cache_hit: bool | None,
+    recommendation_count: int,
+    search_result_count: int = 0,
+    response_character_name: str = "",
+) -> tuple[str, bool]:
+    api_calls = stats.get("apiCalls") or {}
+    char_cache = stats.get("charCache") or {}
+    neople_api_count = sum(int(count or 0) for count in api_calls.values())
+    auction_api_count = get_auction_api_call_count(api_calls)
+    should_log, prefix = should_log_request_summary(
+        stats,
+        status,
+        duration_ms,
+        cache_hit,
+        neople_api_count,
+        auction_api_count,
+    )
+    if not should_log:
+        return "", False
+    route = clean_text(stats.get("route"))
+    route_name = get_request_route_name(route)
+    parts = [
+        prefix,
+        route_name,
+        str(int(status)),
+        f"{int(duration_ms or 0)}ms",
+    ]
+    server_id = clean_text(stats.get("serverId"))
+    character_id = clean_text(stats.get("characterId"))
+    character_name = clean_text(stats.get("characterName")) or clean_text(response_character_name)
+    if server_id and character_id:
+        parts.append(f"{server_id}/{character_id[:8]}")
+    elif server_id:
+        parts.append(server_id)
+    if character_name:
+        parts.append(f"name={truncate_log_text(character_name)}")
+    if cache_hit is not None:
+        parts.append(f"route={format_route_cache_hit(cache_hit)}")
+    char_cache_text = format_short_character_cache(char_cache)
+    if char_cache_text:
+        parts.append(f"char={char_cache_text}")
+    if neople_api_count > 0:
+        parts.append(f"api={neople_api_count}")
+    if auction_api_count > 0:
+        parts.append(f"auction={auction_api_count}")
+    if recommendation_count > 0:
+        parts.append(f"recommend={int(recommendation_count)}")
+    if route == "/api/search" and search_result_count > 0:
+        parts.append(f"results={int(search_result_count)}")
+    if prefix != "[REQ]":
+        parts.append(f"rid={request_id}")
+    return " ".join(parts), prefix != "[REQ]"
+
+
+def get_payload_character_name(payload: dict) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    for key in ("characterName", "name"):
+        value = clean_text(payload.get(key))
+        if value:
+            return value
+    character = payload.get("character")
+    if isinstance(character, dict):
+        return clean_text(character.get("characterName") or character.get("name"))
+    return ""
 
 
 def get_public_response_cache_key(name: str, query: dict, include_character: bool = False) -> tuple:
@@ -223,6 +391,17 @@ class HellApiHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def log_message(self, format, *args):
+        status = 0
+        if len(args) >= 2:
+            try:
+                status = int(args[1])
+            except Exception:
+                status = 0
+        if 200 <= status < 400:
+            return
+        super().log_message(format, *args)
+
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
@@ -292,7 +471,20 @@ class HellApiHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         self._request_started_at = time.time()
         parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+        self._request_id = uuid.uuid4().hex[:8]
+        self._request_stats_token = None
         if parsed.path.startswith("/api/"):
+            server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+            character_id = clean_text((query.get("characterId") or [""])[0])
+            character_name = clean_text((query.get("characterName") or [""])[0])
+            self._request_stats_token = start_request_stats(
+                parsed.path,
+                method="GET",
+                server_id=server_id,
+                character_id=character_id,
+                character_name=character_name,
+            )
             write_ops_log("api_request_start", route=parsed.path)
 
         if parsed.path in {"/", "/index.html"}:
@@ -380,6 +572,18 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             started_at = getattr(self, "_request_started_at", None)
             elapsed_ms = round((time.time() - started_at) * 1000) if started_at else None
             route = urlparse(self.path).path
+            request_stats = {}
+            request_token = getattr(self, "_request_stats_token", None)
+            if request_token is not None:
+                try:
+                    request_stats = finish_request_stats(request_token)
+                except Exception:
+                    request_stats = {}
+                finally:
+                    self._request_stats_token = None
+            log_payload = load_json_log_payload(body)
+            recommendation_count = count_response_recommendations(log_payload)
+            search_result_count = count_search_results(log_payload) if route == "/api/search" else 0
             write_ops_log(
                 "api_response",
                 route=route,
@@ -389,6 +593,23 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                 clientAborted=client_aborted,
                 cacheHit=cache_hit,
             )
+            if request_stats:
+                request_id = clean_text(getattr(self, "_request_id", "")) or uuid.uuid4().hex[:8]
+                line, warn = format_request_summary_log(
+                    request_stats,
+                    int(status),
+                    elapsed_ms,
+                    request_id,
+                    cache_hit,
+                    recommendation_count,
+                    search_result_count,
+                    get_payload_character_name(log_payload),
+                )
+                if line:
+                    if warn:
+                        REQUEST_LOGGER.warning(line)
+                    else:
+                        REQUEST_LOGGER.info(line)
 
     def send_json(self, payload: dict, status: int = HTTPStatus.OK):
         body = json_response(payload)

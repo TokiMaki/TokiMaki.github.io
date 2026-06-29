@@ -7,6 +7,30 @@ from urllib.parse import parse_qs, urlparse
 
 
 _ACTIVE_TRACE: ContextVar[dict | None] = ContextVar("neople_api_fanout_trace", default=None)
+_ACTIVE_REQUEST_STATS: ContextVar[dict | None] = ContextVar("dunpilot_request_stats", default=None)
+
+
+def start_request_stats(route: str, method: str = "GET", server_id: str = "", character_id: str = "", character_name: str = ""):
+    payload = {
+        "route": route,
+        "method": method,
+        "serverId": server_id,
+        "characterId": character_id,
+        "characterName": character_name,
+        "apiCalls": {},
+        "charCache": {
+            "mem": 0,
+            "sqlite": 0,
+            "api": 0,
+        },
+    }
+    return _ACTIVE_REQUEST_STATS.set(payload)
+
+
+def finish_request_stats(token) -> dict:
+    stats = deepcopy(_ACTIVE_REQUEST_STATS.get() or {})
+    _ACTIVE_REQUEST_STATS.reset(token)
+    return stats
 
 
 def start_api_fanout_trace(route: str, server_id: str = "", character_id: str = ""):
@@ -45,10 +69,15 @@ def finish_api_fanout_trace(token) -> dict:
 
 
 def record_neople_api_call(url: str):
+    category = categorize_neople_api_url(url)
+    request_stats = _ACTIVE_REQUEST_STATS.get()
+    if request_stats is not None:
+        api_calls = request_stats.setdefault("apiCalls", {})
+        api_calls[category] = int(api_calls.get(category) or 0) + 1
+
     trace = _ACTIVE_TRACE.get()
     if trace is None:
         return
-    category = categorize_neople_api_url(url)
     api_calls = trace.setdefault("apiCalls", {})
     api_calls[category] = int(api_calls.get(category) or 0) + 1
     if category == "multi_items":
@@ -71,6 +100,17 @@ def record_cache_event(name: str, result: str, count: int = 1):
     cache = trace.setdefault("cache", {})
     bucket = cache.setdefault(name, {})
     bucket[result] = int(bucket.get(result) or 0) + int(count or 0)
+
+
+def record_character_response_cache_source(source: str, count: int = 1):
+    request_stats = _ACTIVE_REQUEST_STATS.get()
+    if request_stats is None or int(count or 0) <= 0:
+        return
+    source = str(source or "")
+    if source not in {"mem", "sqlite", "api"}:
+        return
+    char_cache = request_stats.setdefault("charCache", {})
+    char_cache[source] = int(char_cache.get(source) or 0) + int(count or 0)
 
 
 def record_resolved_price_cache_event(domain: str, result: str, count: int = 1):
