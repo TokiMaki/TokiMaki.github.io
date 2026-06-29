@@ -8,6 +8,7 @@
 - 최근 구조 분리: Candidate Resolver, Repository/Cache, Calculator, Presenter 1차 분리를 완료했다. Route/Service 경계도 `/api/search`, `/api/summarize`, `/api/avatar-skill-efficiency`부터 얇게 정리했다.
 - 최근 성능 구조: `/api/character-loadout`에는 origin 내부 15초 response cache와 같은 `(serverId, characterId)` 요청 single-flight가 있다. 성공 200 body만 최대 64개 메모리에 저장하고, cache hit/대기 요청은 heavy semaphore와 loadout 계산을 건너뛴다.
 - 최근 성능 구조: `load_character_loadout()` 시작 시 현재 장비/오라/크리쳐/아티팩트/버프강화 장비·크리쳐 itemId를 모아 `fetch_item_details()`를 best-effort로 예열한다. 실패해도 본 계산 경로는 기존처럼 진행한다.
+- 최근 성능 구조: `character_repository`는 캐릭터 원본 payload에 대해 기존 15초 메모리 TTL cache를 먼저 보고, miss 시 `cache/character-response-cache.sqlite`의 60초 SQLite cache를 확인한다. SQLite hit은 메모리 cache를 다시 채우며, API 성공 payload만 디스크에 저장한다.
 - 최근 캐시 구조: `server/repositories/resolved_price_repository.py`는 300초 TTL, 최대 512개 memory-only resolved price cache를 제공한다. raw auction rows가 아니라 가격 후보로 해석 완료된 결과만 저장한다.
 - resolved price cache 적용 domain: `avatar_emblem`, `platinum_emblem`, `black_fang_scroll`, `switching_fragment`, `aura`.
 - 최근 계측 구조: `/api/character-loadout`의 `api_fanout_summary`는 API fan-out과 `resolvedPrice.total`, `resolvedPrice.byDomain`을 기록한다. domain별 hit/miss/store/skip/error만 남기고 itemName, skillName, scrollName 원문 key는 로그에 남기지 않는다.

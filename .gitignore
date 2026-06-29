@@ -57,6 +57,7 @@ dist/
 
 ### Local project cache
 Docs/.price_cache/
+cache/
 .venv-xlsx/
 .codex
 
