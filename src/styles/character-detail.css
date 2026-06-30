@@ -376,7 +376,7 @@
     .supply-detail-portrait-meta {
       display: grid;
       justify-items: center;
-      gap: 1px;
+      gap: 2px;
       width: 100%;
       padding: 2px 4px 0;
       text-align: center;
@@ -386,14 +386,14 @@
       align-items: center;
       justify-content: center;
       gap: 3px;
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 700;
       color: #f2d66b;
       line-height: 1.2;
     }
     .supply-detail-portrait-fame img {
-      width: 16px;
-      height: 16px;
+      width: 13px;
+      height: 13px;
       object-fit: contain;
     }
     .supply-detail-portrait-name {

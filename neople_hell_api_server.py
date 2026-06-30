@@ -24,6 +24,7 @@ from server.character_equipment_service import (
 )
 from server.character_search_service import search_character_response
 from server.character_summary_service import summarize_character_response
+from server.repositories.equipment_score_repository import load_official_equipment_score
 from server.avatar_skill_optimizer import load_avatar_skill_efficiency_response
 from server.enchant_service import (
     load_aura_upgrades_with_prices,
@@ -142,6 +143,7 @@ def get_request_route_name(route: str) -> str:
         "/api/creature-upgrades": "creature",
         "/api/title-upgrades": "title",
         "/api/enchant-cards": "enchant",
+        "/api/equipment-score": "equip-score",
     }
     return route_names.get(route, route.removeprefix("/api/") or route or "-")
 
@@ -521,6 +523,9 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/character-preview":
             return self.run_limited_api_request(parsed, lambda: self.handle_character_preview(parsed))
 
+        if parsed.path == "/api/equipment-score":
+            return self.run_limited_api_request(parsed, lambda: self.handle_equipment_score(parsed))
+
         if parsed.path == "/api/creature-upgrades":
             return self.run_limited_api_request(parsed, lambda: self.handle_creature_upgrades(parsed))
 
@@ -725,6 +730,30 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             self.send_json(load_character_preview(server_id, character_id))
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_equipment_score(self, parsed):
+        query = parse_qs(parsed.query)
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_name = clean_text((query.get("characterName") or [""])[0])
+        if not server_id or not character_name:
+            return self.send_json(
+                {"error": "serverId와 characterName을 입력해 주세요."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+
+        try:
+            self.send_json(load_official_equipment_score(server_id, character_name))
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception:
+            self.send_json({
+                "equipmentScore": None,
+                "officialCharacterKey": None,
+                "officialProfileUrl": None,
+                "source": "df.nexon.com",
+                "cached": False,
+                "stale": False,
+            })
 
     def handle_creature_upgrades(self, parsed):
         query = parse_qs(parsed.query)

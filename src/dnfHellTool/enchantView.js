@@ -18,6 +18,7 @@ const EFFECT_LABELS = {
   critical: '크리',
 };
 const BUFFER_SCORE_ICON_URL = new URL('../../이미지/bufferScore.png', import.meta.url).href;
+const EQUIPMENT_SCORE_ICON_URL = new URL('../../이미지/equipmentScore.png', import.meta.url).href;
 const UPGRADE_SLOT_LABELS = {
   무기: 'weapon',
   상의: 'armor',
@@ -144,6 +145,7 @@ const BUFFER_SCORE_CONFIG = {
     jobCoefficient: 1.025, buffMultiplier: 1.12,
   },
 };
+const BUFFER_JOB_GROW_NAMES = new Set(['眞 크루세이더', '眞 인챈트리스', '眞 뮤즈', '眞 패러메딕']);
 const UPGRADE_MATERIAL_LABELS = {
   harmonyCrystal: '조화의 결정체',
   contradictionCrystal: '모순의 결정체',
@@ -2955,6 +2957,10 @@ export function installEnchantView(ctx) {
   state.upgradeMaterialPrices = {};
   state.currentDamageBaseline = null;
   state.currentBufferBaseline = null;
+  state.currentBufferScoreStatus = 'idle';
+  state.currentOfficialEquipmentScore = null;
+  state.currentOfficialEquipmentScoreStatus = 'idle';
+  state.currentOfficialEquipmentScoreCharacterKey = '';
   state.currentEnchantCharacterKey = '';
   state.currentCreatureCharacterKey = '';
   state.currentTitleCharacterKey = '';
@@ -3197,16 +3203,34 @@ export function installEnchantView(ctx) {
         </div>
       `);
     }
+    const meta = els.enchantCharacterPortrait.querySelector('.enchant-character-portrait .supply-detail-portrait-meta');
     if (state.currentBufferBaseline?.isBuffer) {
-      const meta = els.enchantCharacterPortrait.querySelector('.enchant-character-portrait .supply-detail-portrait-meta');
       const bufferScore = calculateBufferScore(state.currentBufferBaseline);
       if (meta && Number.isFinite(bufferScore) && bufferScore > 0) {
-        meta.insertAdjacentHTML('beforeend', `
+        meta.insertAdjacentHTML('afterbegin', `
           <div class="enchant-portrait-buffer-score">
             <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다." title="버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}" aria-label="버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}"><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}</strong>
           </div>
         `);
       }
+    } else if (meta && state.currentBufferScoreStatus === 'loading') {
+      meta.insertAdjacentHTML('afterbegin', `
+        <div class="enchant-portrait-buffer-score">
+          <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다." title="버프점수 계산 중" aria-label="버프점수 계산 중"><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />계산 중</strong>
+        </div>
+      `);
+    } else if (meta && state.currentOfficialEquipmentScoreStatus !== 'idle') {
+      const score = Number(state.currentOfficialEquipmentScore);
+      const scoreText = state.currentOfficialEquipmentScoreStatus === 'loading'
+        ? '확인 중'
+        : Number.isFinite(score) && score > 0
+          ? score.toLocaleString('ko-KR')
+          : '확인 불가';
+      meta.insertAdjacentHTML('afterbegin', `
+        <div class="enchant-portrait-equipment-score">
+          <strong><img src="${escapeHtml(EQUIPMENT_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(scoreText)}</strong>
+        </div>
+      `);
     }
     bindCharacterAvatars(els.enchantCharacterPortrait);
     bindEnchantPortraitDetailPanel();
@@ -3224,6 +3248,11 @@ export function installEnchantView(ctx) {
       || results[0]
       || activeCharacters[0]
       || null;
+  }
+
+  function isLikelyBufferCharacter(character) {
+    const jobGrowName = String(character?.jobGrowName || '').trim();
+    return BUFFER_JOB_GROW_NAMES.has(jobGrowName);
   }
 
   function setEnchantCharacterStatus(text) {
@@ -3260,6 +3289,10 @@ export function installEnchantView(ctx) {
     state.upgradeMaterialPrices = {};
     state.currentDamageBaseline = null;
     state.currentBufferBaseline = null;
+    state.currentBufferScoreStatus = 'idle';
+    state.currentOfficialEquipmentScore = null;
+    state.currentOfficialEquipmentScoreStatus = 'idle';
+    state.currentOfficialEquipmentScoreCharacterKey = '';
     state.currentCreature = null;
     state.currentTitle = null;
     state.currentAura = null;
@@ -3829,6 +3862,7 @@ export function installEnchantView(ctx) {
     state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
     state.currentBufferBaseline = payload.bufferBaseline || null;
+    state.currentBufferScoreStatus = state.currentBufferBaseline?.isBuffer ? 'ready' : 'idle';
     state.currentEnchantCharacterKey = characterKey;
     state.enchantTargetCharacter = {
       ...state.enchantTargetCharacter,
@@ -3974,6 +4008,41 @@ export function installEnchantView(ctx) {
     renderEnchantCharacterPortrait();
   }
 
+  async function loadCurrentOfficialEquipmentScore(requestId = state.enchantRequestId) {
+    const character = getSelectedEnchantCharacter();
+    const characterName = character?.name || character?.characterName || '';
+    if (!character?.serverId || !characterName || state.currentBufferBaseline?.isBuffer) {
+      state.currentOfficialEquipmentScore = null;
+      state.currentOfficialEquipmentScoreStatus = 'idle';
+      state.currentOfficialEquipmentScoreCharacterKey = '';
+      renderEnchantCharacterPortrait();
+      return;
+    }
+    const characterKey = `${character.serverId}:${characterName}`;
+    state.currentOfficialEquipmentScore = null;
+    state.currentOfficialEquipmentScoreStatus = 'loading';
+    state.currentOfficialEquipmentScoreCharacterKey = characterKey;
+    renderEnchantCharacterPortrait();
+
+    try {
+      const query = new URLSearchParams({
+        serverId: character.serverId,
+        characterName,
+      });
+      const response = await fetch(`${API_BASE}/api/equipment-score?${query.toString()}`, { cache: 'no-store' });
+      const payload = await parseApiJsonResponse(response, '장비점수 조회에 실패했습니다.');
+      if (requestId !== state.enchantRequestId || state.currentOfficialEquipmentScoreCharacterKey !== characterKey) return;
+      const score = Number(payload.equipmentScore);
+      state.currentOfficialEquipmentScore = Number.isFinite(score) && score > 0 ? score : null;
+      state.currentOfficialEquipmentScoreStatus = state.currentOfficialEquipmentScore ? 'ready' : 'error';
+    } catch {
+      if (requestId !== state.enchantRequestId || state.currentOfficialEquipmentScoreCharacterKey !== characterKey) return;
+      state.currentOfficialEquipmentScore = null;
+      state.currentOfficialEquipmentScoreStatus = 'error';
+    }
+    renderEnchantCharacterPortrait();
+  }
+
   async function loadCurrentCharacterLoadout(requestId = state.enchantRequestId) {
     const character = getSelectedEnchantCharacter();
     if (!character?.serverId || !character?.characterId) {
@@ -3991,6 +4060,13 @@ export function installEnchantView(ctx) {
       && state.currentEnchants.length
     ) {
       return;
+    }
+    if (isLikelyBufferCharacter(character)) {
+      state.currentBufferScoreStatus = 'loading';
+      state.currentOfficialEquipmentScore = null;
+      state.currentOfficialEquipmentScoreStatus = 'idle';
+      state.currentOfficialEquipmentScoreCharacterKey = '';
+      renderEnchantCharacterPortrait();
     }
 
     const query = new URLSearchParams({
@@ -4012,6 +4088,7 @@ export function installEnchantView(ctx) {
     state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
     state.currentBufferBaseline = payload.bufferBaseline || null;
+    state.currentBufferScoreStatus = state.currentBufferBaseline?.isBuffer ? 'ready' : 'idle';
     state.currentCreature = payload.creature || null;
     state.currentTitle = payload.title || null;
     state.currentAura = payload.aura || null;
@@ -4034,6 +4111,7 @@ export function installEnchantView(ctx) {
       jobGrowName: payload.damageBaseline?.jobGrowName || state.enchantTargetCharacter?.jobGrowName || '',
     };
     renderEnchantCharacterPortrait();
+    void loadCurrentOfficialEquipmentScore(requestId);
     const label = payload.characterName || character.name || character.characterName || character.characterId;
     setEnchantCharacterStatus(state.isDevMode
       ? `${label} 기준 · 현재 마부 ${state.currentEnchants.length}부위 · 강화/증폭 ${state.currentEquipmentUpgrades.length}부위 · 흑아 ${state.currentBlackFangRecommendations.length}부위`
@@ -4090,7 +4168,9 @@ export function installEnchantView(ctx) {
       flushEnchantTiming('complete');
     } catch (error) {
       if (requestId !== state.enchantRequestId) return;
+      state.currentBufferScoreStatus = 'idle';
       state.enchantRecommendationLoading = false;
+      renderEnchantCharacterPortrait();
       renderEnchantRecommendLoading(normalizeApiErrorMessage(error, '스펙업 순서 추천을 불러오지 못했습니다.'));
       flushEnchantTiming('error');
     }
@@ -4138,6 +4218,12 @@ export function installEnchantView(ctx) {
         jobGrowName: resolved.jobGrowName || '',
       };
       resetCurrentEnchantCharacterState();
+      if (isLikelyBufferCharacter(state.enchantTargetCharacter)) {
+        state.currentBufferScoreStatus = 'loading';
+      } else {
+        state.currentOfficialEquipmentScoreStatus = 'loading';
+        state.currentOfficialEquipmentScoreCharacterKey = `${state.enchantTargetCharacter.serverId}:${state.enchantTargetCharacter.name}`;
+      }
       resetEnchantRecommendationFilters();
       renderEnchantCharacterPortrait();
       renderEnchantRecommendLoading();

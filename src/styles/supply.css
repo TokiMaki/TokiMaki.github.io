@@ -484,32 +484,42 @@
       min-height: 64px;
       align-content: start;
     }
-    .enchant-portrait-buffer-score {
+    .enchant-portrait-buffer-score,
+    .enchant-portrait-equipment-score {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 4px;
-      margin-top: 3px;
+      margin: 0;
       color: var(--muted);
       font-size: 8px;
       line-height: 1.2;
       text-align: center;
     }
-    .enchant-portrait-buffer-score strong {
+    .enchant-portrait-buffer-score strong,
+    .enchant-portrait-equipment-score strong {
       position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 3px;
+      gap: 4px;
       color: #a7e86f;
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 900;
       cursor: help;
       outline: none;
     }
-    .enchant-portrait-buffer-score strong img {
-      width: 16px;
-      height: 16px;
+    .enchant-portrait-equipment-score strong {
+      color: #6996ff;
+      cursor: default;
+    }
+    .enchant-portrait-buffer-score strong:not([data-tooltip]) {
+      cursor: default;
+    }
+    .enchant-portrait-buffer-score strong img,
+    .enchant-portrait-equipment-score strong img {
+      width: 18px;
+      height: 18px;
       object-fit: contain;
     }
     .enchant-portrait-buffer-score strong::after {
