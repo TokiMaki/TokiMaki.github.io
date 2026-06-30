@@ -88,6 +88,7 @@ AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
 SWITCHING_LEVEL_CAP = 7
+EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF = 2550
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION = 1
@@ -569,6 +570,16 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     }
 
 
+def get_equipment_total_set_point(equipment_rows: list) -> float:
+    return sum(
+        parse_percent_or_number(tune.get("setPoint"))
+        for equipment in equipment_rows or []
+        if isinstance(equipment, dict)
+        for tune in equipment.get("tune") or []
+        if isinstance(tune, dict)
+    )
+
+
 def build_equipment_enchant_rows_and_upgrades(equipment_rows: list) -> tuple[list, list]:
     rows = []
     equipment_upgrades = []
@@ -679,16 +690,27 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         oath_payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath") if oath_upgrades else {}
     except Exception:
         oath_payload = {}
-    oath_transcend_debug = _measure_step(
-        steps,
-        "build_oath_transcend_recommendations",
-        lambda: build_oath_transcend_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db(), payload.get("equipment") or []),
-    )
-    oath_craft_debug = _measure_step(
-        steps,
-        "build_oath_craft_recommendations",
-        lambda: build_oath_craft_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db(), payload.get("equipment") or []),
-    )
+    equipment_set_point = get_equipment_total_set_point(payload.get("equipment") or [])
+    allow_oath_decision_recommendations = equipment_set_point >= EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF
+    if allow_oath_decision_recommendations:
+        oath_transcend_debug = _measure_step(
+            steps,
+            "build_oath_transcend_recommendations",
+            lambda: build_oath_transcend_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db(), payload.get("equipment") or []),
+        )
+        oath_craft_debug = _measure_step(
+            steps,
+            "build_oath_craft_recommendations",
+            lambda: build_oath_craft_recommendations_debug(oath_payload, buffer_baseline, load_oath_tune_stage_db(), payload.get("equipment") or []),
+        )
+    else:
+        skip_step = {
+            "reason": "equipment_set_point_below_primeval_cutoff",
+            "equipmentSetPoint": equipment_set_point,
+            "requiredSetPoint": EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF,
+        }
+        oath_transcend_debug = {"recommendations": [], "steps": [skip_step]}
+        oath_craft_debug = {"recommendations": [], "steps": [skip_step]}
     return build_character_enchants_payload(
         payload,
         damage_baseline,
