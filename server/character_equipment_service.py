@@ -307,12 +307,18 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
         status.get("마법 공격", 0),
         status.get("독립 공격", 0),
     )
+    attack_source = "physical"
+    if attack_value == status.get("마법 공격", 0):
+        attack_source = "magical"
+    if attack_value == status.get("독립 공격", 0):
+        attack_source = "independent"
     return {
         "stat": status.get(selected_stat_name, 0),
         "statName": selected_stat_name,
         "baseStat": parse_percent_or_number(base_stats.get(selected_stat_name)),
         "jobGrowName": job_grow_name,
         "attack": attack_value,
+        "attackSource": attack_source,
         "element": element_strength,
         "elementName": top_elements[0] if top_elements else "",
         "elementNames": top_elements,
@@ -542,6 +548,7 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     slot_name = clean_text(equipment.get("slotName"))
     slot_id = clean_text(equipment.get("slotId"))
     reinforce = int(parse_percent_or_number(equipment.get("reinforce")))
+    refine = int(parse_percent_or_number(equipment.get("refine")))
     amplification_name = clean_text(equipment.get("amplificationName"))
     item_id = clean_text(equipment.get("itemId"))
     item_name = clean_text(equipment.get("itemName"))
@@ -561,6 +568,7 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
         "itemRarity": item_rarity,
         "iconUrl": get_item_icon_url(item_id) if item_id else "",
         "reinforce": reinforce,
+        "refine": refine,
         "amplificationName": amplification_name,
         "isAmplified": bool(amplification_name),
         "tuneLevel": tune_level,
