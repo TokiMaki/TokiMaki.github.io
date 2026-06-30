@@ -313,6 +313,28 @@ function getBlackFangMaterialParts(materials = []) {
     .filter(Boolean);
 }
 
+function isMaterialEnchantRecommendation(row) {
+  if (row?.sourceType !== 'enchant') return false;
+  const acquisition = row.acquisition || {};
+  return Boolean(acquisition.materialLabel || acquisition.materialItemName || acquisition.materialName || acquisition.materialIconUrl || acquisition.materialItemId);
+}
+
+function getMaterialEnchantMaterialParts(row) {
+  if (Array.isArray(row?.materials) && row.materials.length > 0) {
+    return getBlackFangMaterialParts(row.materials);
+  }
+  const acquisition = row?.acquisition || {};
+  const label = acquisition.materialLabel || acquisition.materialItemName || acquisition.materialName || acquisition.label || '';
+  const amount = Number(acquisition.amount || 0);
+  if (!label || !Number.isFinite(amount) || amount <= 0) return [];
+  return getBlackFangMaterialParts([{
+    label,
+    amount,
+    itemId: acquisition.materialItemId,
+    iconUrl: acquisition.materialIconUrl,
+  }]);
+}
+
 function formatEffectNumber(value) {
   if (!Number.isFinite(value)) return value;
   const roundedInteger = Math.round(value);
@@ -3647,9 +3669,13 @@ export function installEnchantView(ctx) {
         ? row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'
         : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
-      const acquisitionMarkup = getAcquisitionMarkup(row.acquisition, escapeHtml);
+      const isMaterialEnchant = isMaterialEnchantRecommendation(row);
+      const legacyAcquisitionLabel = isMaterialEnchant ? '' : acquisitionLabel;
+      const acquisitionMarkup = legacyAcquisitionLabel || isMaterialEnchant ? getAcquisitionMarkup(row.acquisition, escapeHtml) : '';
       const materialParts = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? getUpgradeMaterialParts(row.expectedMaterials, row.upgradeMode)
+        : isMaterialEnchant
+          ? getMaterialEnchantMaterialParts(row)
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? getBlackFangMaterialParts(row.materials)
         : row.sourceType === 'blackFang'
@@ -3683,14 +3709,14 @@ export function installEnchantView(ctx) {
           ? { html: effectHtml, className: 'enchant-popover-effect' }
           : { text: effectText, className: 'enchant-popover-effect' },
         { text: row.priceWarningText ? `⚠ ${row.priceWarningText}` : '', className: 'enchant-recommend-warning' },
-        { text: acquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
-        { text: acquisitionLabel, className: 'enchant-popover-material' },
-        { text: acquisitionLabel ? '' : `${priceLabel} ${rowGoldText}`, className: 'enchant-popover-price' },
+        { text: legacyAcquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
+        { text: legacyAcquisitionLabel, className: 'enchant-popover-material' },
+        { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : `${priceLabel} ${rowGoldText}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
         { text: !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
         { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
         { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
-        { text: acquisitionLabel ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
       ].filter((item) => item.text || item.html);
       const popover = `
@@ -3710,7 +3736,7 @@ export function installEnchantView(ctx) {
             </span>
             <span class="enchant-recommend-metric">
               <strong>${acquisitionMarkup || escapeHtml(isFreeActionRecommendation(row) ? '0' : formatCompactGold(isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent))}</strong>
-              ${acquisitionLabel ? '' : `<span>${isBufferMetric ? '100점당' : '0.1%당'}</span>`}
+              ${legacyAcquisitionLabel || isMaterialEnchant ? '' : `<span>${isBufferMetric ? '100점당' : '0.1%당'}</span>`}
             </span>
             ${popover}
           </button>
