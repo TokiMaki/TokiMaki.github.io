@@ -510,6 +510,17 @@ function getUpgradeBadge(equipment = {}) {
   return { text: `+${level}`, kind: 'reinforce' };
 }
 
+function getEquipmentTuneBadge(equipment = {}) {
+  const level = Number(equipment.tuneLevel || 0);
+  if (!Number.isFinite(level) || level <= 0) return null;
+  const displayLevel = Math.max(1, Math.min(3, Math.floor(level)));
+  return {
+    level,
+    displayLevel,
+    label: `조율 ${level}회`,
+  };
+}
+
 function getEnchantBadge(effects = {}, reinforceSkill = [], bufferBaseline = null) {
   if (bufferBaseline?.isBuffer) {
     const parts = [];
@@ -3016,10 +3027,10 @@ export function installEnchantView(ctx) {
             state.currentBufferBaseline,
           ),
           upgradeBadge: getUpgradeBadge(equipment),
+          tuneBadge: getEquipmentTuneBadge(equipment),
           hoverLines: [
             { text: enchantDetailText, className: 'enchant-portrait-detail-line-effect' },
             getUpgradeDetailLine(equipment),
-            getTuneDetailLine(equipment),
           ].filter(Boolean),
         };
       }
@@ -3116,6 +3127,9 @@ export function installEnchantView(ctx) {
             : ''}
           ${data?.upgradeBadge
             ? `<span class="enchant-character-slot-badge enchant-character-slot-badge-${escapeHtml(data.upgradeBadge.kind)}">${escapeHtml(data.upgradeBadge.text)}</span>`
+            : ''}
+          ${data?.tuneBadge
+            ? `<span class="enchant-character-slot-tune-mark" role="img" title="${escapeHtml(data.tuneBadge.label)}" aria-label="${escapeHtml(data.tuneBadge.label)}">${Array.from({ length: data.tuneBadge.displayLevel }).map(() => '<span class="enchant-character-slot-tune-bar" aria-hidden="true"></span>').join('')}</span>`
             : ''}
         </span>
       </span>
