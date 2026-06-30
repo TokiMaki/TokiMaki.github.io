@@ -586,6 +586,36 @@ function formatEnchantTransitionEffect(row) {
   return parts.length ? parts.join(' / ') : formatEffects(row.effects);
 }
 
+function getTitleBeadDisplayEffects(effects = {}, element = '') {
+  const displayEffects = { ...(effects || {}) };
+  const elementKey = ELEMENT_EFFECT_KEY_BY_NAME[element];
+  const elementAll = Number(displayEffects.elementAll || 0);
+  if (elementKey && Number.isFinite(elementAll) && elementAll !== 0) {
+    delete displayEffects.elementAll;
+    displayEffects[elementKey] = Number(displayEffects[elementKey] || 0) + elementAll;
+  }
+  return displayEffects;
+}
+
+function formatTitleBeadTransitionEffect(row, isBuffer = false) {
+  const currentEffects = getRoleRelevantEffects(
+    getTitleBeadDisplayEffects(row.currentTitleEnchantEffects || {}, row.currentTitleEnchantElement || ''),
+    isBuffer,
+  );
+  const targetEffects = getRoleRelevantEffects(
+    getTitleBeadDisplayEffects(row.targetTitleEnchantEffects || row.enchantEffects || {}, row.titleEnchantElement || ''),
+    isBuffer,
+  );
+  const changedKeys = EFFECT_ORDER
+    .filter((key) => Number.isFinite(currentEffects[key]) || Number.isFinite(targetEffects[key]))
+    .filter((key) => Number(currentEffects[key] || 0) !== Number(targetEffects[key] || 0))
+    .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int'].includes(key)))
+    .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int'].includes(key)));
+  const parts = changedKeys
+    .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
+  return parts.length ? parts.join(' / ') : formatEffects(targetEffects);
+}
+
 function formatUpgradeEffect(row) {
   const parts = formatEffects(row.effects).split(' / ').filter(Boolean);
   const finalDamage = row.effects?.finalDamage;
@@ -2454,6 +2484,9 @@ function getCurrentTitleBeadRows(titleRows = [], currentTitle = null) {
     },
     titleEnchantElement: bead.element || '',
     enchantEffects: bead.effects || {},
+    currentTitleEnchantElement: currentTitle.titleEnchantElement || '',
+    currentTitleEnchantEffects: currentTitle.enchantEffects || {},
+    targetTitleEnchantEffects: bead.effects || {},
     purchaseRoute: 'titleBeadOnly',
     purchaseRouteLabel: '칭호 보주 교체',
     titleBead: bead,
@@ -2483,6 +2516,9 @@ function getTitleBeadOnlyRow(row, currentTitle) {
       itemName: row.titleBead.itemName,
       iconUrl: row.titleBead.iconUrl,
     },
+    currentTitleEnchantElement: currentTitle.titleEnchantElement || '',
+    currentTitleEnchantEffects: currentTitle.enchantEffects || {},
+    targetTitleEnchantEffects: row.titleBead.effects || row.enchantEffects || {},
     purchaseRoute: 'titleBeadOnly',
     purchaseRouteLabel: '칭호 보주 교체',
   };
@@ -3596,7 +3632,8 @@ export function installEnchantView(ctx) {
         ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(materialAcquisition || isMaterialAcquisition(previousRow) ? (isBufferMetric ? BUFFER_EFFICIENCY_COLOR_STOPS : DAMAGE_EFFICIENCY_COLOR_STOPS)[0].color : isBufferMetric ? getBufferArrowBackground(previousRow.buffCostPerHundredPoints, row.buffCostPerHundredPoints) : getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
-      const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
+      const isTitleBeadOnly = row.sourceType === 'title' && row.purchaseRoute === 'titleBeadOnly';
+      const showOptionText = isTitleBeadOnly || !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const displayEffects = row.sourceType === 'avatar'
         ? Object.fromEntries(Object.entries(row.effects || {}).filter(([key]) => key !== 'skillDamageMultiplier'))
         : row.effects;
@@ -3614,6 +3651,8 @@ export function installEnchantView(ctx) {
           ? formatEnchantTransitionEffect(row)
         : row.sourceType === 'creatureArtifact'
           ? formatEnchantTransitionEffect(row)
+        : isTitleBeadOnly
+          ? formatTitleBeadTransitionEffect(row, isBufferMetric)
         : showOptionText ? formatEffects(displayEffects) : '';
       const bufferSkillEffectText = isBufferMetric
         ? [
