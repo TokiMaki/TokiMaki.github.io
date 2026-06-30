@@ -1577,6 +1577,12 @@ function shouldApplyWeaponRefineIndependentAttack(equipment = {}, baseline = {},
     && Number(equipment?.refine || 0) > 0;
 }
 
+function shouldCompareIndependentWeaponAmplification(equipment = {}, baseline = {}, isBuffer = false) {
+  return shouldApplyWeaponRefineIndependentAttack(equipment, baseline, isBuffer)
+    && !equipment?.isAmplified
+    && Number(equipment?.reinforce || 0) < 12;
+}
+
 function getCumulativeUpgradeEffectsForEquipment(
   equipment = {},
   level = 0,
@@ -1614,6 +1620,29 @@ function getUpgradeEffectsForEquipment(
     getCumulativeUpgradeEffectsForEquipment(equipment, targetLevel, mode, upgradeDb, baseline, isBuffer),
     getCumulativeUpgradeEffectsForEquipment(equipment, currentLevel, mode, upgradeDb, baseline, isBuffer),
   );
+}
+
+function getUpgradeRowEfficiency(row = {}) {
+  const damage = Number(row.incrementalDamagePercent || 0);
+  const price = Number(row.expectedGold || row.auction?.minUnitPrice || 0);
+  if (!Number.isFinite(damage) || damage <= 0) return Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(price) || price <= 0) return Number.POSITIVE_INFINITY;
+  return price / damage;
+}
+
+function chooseBestUpgradeChoice(rows = [], baseline = {}) {
+  return rows
+    .filter(Boolean)
+    .map((row) => {
+      const incrementalDamagePercent = estimateDamagePercent(row.effects || {}, baseline);
+      return { ...row, incrementalDamagePercent };
+    })
+    .filter((row) => Number(row.incrementalDamagePercent || 0) > 0.0001)
+    .sort((a, b) => {
+      const efficiencyDelta = getUpgradeRowEfficiency(a) - getUpgradeRowEfficiency(b);
+      if (Math.abs(efficiencyDelta) > 0.000001) return efficiencyDelta;
+      return Number(b.incrementalDamagePercent || 0) - Number(a.incrementalDamagePercent || 0);
+    })[0] || null;
 }
 
 function addEffectValue(effects, key, value) {
@@ -2239,6 +2268,40 @@ function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, basel
     }) || null;
 }
 
+function buildIndependentWeaponAmplificationChoiceRow({
+  equipment,
+  currentLevel,
+  upgradeDb,
+  baseline,
+  isBuffer,
+  safeAmplificationRows,
+  materialPrices,
+}) {
+  const conversionRow = findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, baseline, isBuffer);
+  if (!conversionRow) return null;
+  const conversionLevel = Number(conversionRow.level);
+  const costKey = getAmplificationCostKey(equipment.slot);
+  const safeConversionRow = conversionLevel <= 10
+    ? safeAmplificationRows.find((row) => Number(row.level) === conversionLevel)
+    : null;
+  const expectedFromZero = safeConversionRow
+    ? getSafeAmplificationExpectedFromZero(conversionLevel, costKey, safeAmplificationRows)
+    : getHybridAmplificationExpectedFromZero(conversionLevel, costKey, upgradeDb, safeAmplificationRows);
+  if (!expectedFromZero) return null;
+  const currentEffects = getCumulativeUpgradeEffectsForEquipment(equipment, currentLevel, 'reinforcement', upgradeDb, baseline, isBuffer);
+  const conversionEffects = getCumulativeUpgradeEffectsForEquipment(equipment, conversionLevel, 'amplification', upgradeDb, baseline, isBuffer);
+  return buildUpgradeRow({
+    equipment,
+    targetLevel: conversionLevel,
+    mode: conversionLevel <= 10 ? 'safeAmplification' : 'amplification',
+    dbRow: conversionRow,
+    stepCost: expectedFromZero,
+    effects: subtractEffects(conversionEffects, currentEffects),
+    itemName: `${equipment.slot} ${currentLevel}강화->${conversionLevel}증폭`,
+    materialPrices,
+  });
+}
+
 function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline = {}, bufferBaseline = null, safeAmplificationEventEnabled = false, materialPrices = {}) {
   upgradeDb = upgradeDb || {};
   const reinforcementRows = upgradeDb.reinforcement?.reinforcement || [];
@@ -2259,6 +2322,7 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
     const allowReinforcement = REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey);
     const isSafeAmplification = treatAsAmplified && targetLevel <= 10;
     const isBuffer = Boolean(bufferBaseline?.isBuffer);
+    const shouldCompareWeaponAmplification = shouldCompareIndependentWeaponAmplification(equipment, baseline, isBuffer);
     const dbRow = treatAsAmplified
       ? (isSafeAmplification ? safeAmplificationRows : amplificationRows)
         .find((row) => Number(row.level) === targetLevel)
@@ -2291,7 +2355,21 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
         itemName: `${equipment.slot} ${currentLevel}->${targetLevel} ${isSafeAmplification ? '안전증폭' : treatAsAmplified ? '증폭' : isSafeReinforcement ? '안전강화' : '강화'}`,
         materialPrices,
       });
-      if ((treatAsAmplified || isSafeReinforcement) && nextUpgradeRow) rows.push(nextUpgradeRow);
+      if (shouldCompareWeaponAmplification && isSafeReinforcement) {
+        const amplificationChoiceRow = buildIndependentWeaponAmplificationChoiceRow({
+          equipment,
+          currentLevel,
+          upgradeDb,
+          baseline,
+          isBuffer,
+          safeAmplificationRows,
+          materialPrices,
+        });
+        const bestChoice = chooseBestUpgradeChoice([nextUpgradeRow, amplificationChoiceRow], baseline);
+        if (bestChoice) rows.push(bestChoice);
+      } else if ((treatAsAmplified || isSafeReinforcement) && nextUpgradeRow) {
+        rows.push(nextUpgradeRow);
+      }
     }
 
     if (!treatAsAmplified && !isSafeReinforcement) {
