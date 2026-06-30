@@ -1067,7 +1067,6 @@ function getBufferRecommendationRows(
         },
       }
     : row;
-    if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     const current = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
       ? {}
       : row.sourceType === 'blackFang'
@@ -1087,6 +1086,8 @@ function getBufferRecommendationRows(
               : row.sourceType === 'aura'
               ? currentAura || {}
               : currentBySlot.get(row.slot) || {};
+    row = getTitleBeadOnlyRow(row, current);
+    if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     if (
       !['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType) &&
       row.sourceType !== 'blackFang' &&
