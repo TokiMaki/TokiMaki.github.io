@@ -170,6 +170,7 @@ const EQUIPMENT_TUNE_MEMORY_POINT = 70;
 const EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE = 2;
 const EQUIPMENT_TUNE_MEMORY_BUFF_POWER = 400;
 const EQUIPMENT_TUNE_MAX_LEVEL = 3;
+const MIN_RECOMMENDED_AMPLIFICATION_LEVEL = 10;
 const EQUIPMENT_TUNE_COST_BY_RARITY = {
   레전더리: { gold: 600000, materialKey: 'legendarySoul', materialAmount: 20, order: 0 },
   에픽: { gold: 1000000, materialKey: 'epicSoul', materialAmount: 10, order: 1 },
@@ -2116,6 +2117,7 @@ function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, basel
       .slice()
       .sort((a, b) => Number(a.level) - Number(b.level))
       .find((row) => {
+        if (Number(row.level) < MIN_RECOMMENDED_AMPLIFICATION_LEVEL) return false;
         const conversionEffects = getCumulativeUpgradeEffects(equipment.slot, Number(row.level), 'amplification', upgradeDb);
         return Number(conversionEffects.allStat || 0) > Number(currentEffects.allStat || 0);
       }) || null;
@@ -2125,6 +2127,7 @@ function findBetterAmplificationTarget(equipment, currentLevel, upgradeDb, basel
     .slice()
     .sort((a, b) => Number(a.level) - Number(b.level))
     .find((row) => {
+      if (Number(row.level) < MIN_RECOMMENDED_AMPLIFICATION_LEVEL) return false;
       const conversionEffects = getCumulativeUpgradeEffects(equipment.slot, Number(row.level), 'amplification', upgradeDb);
       return estimateDamageMultiplier(conversionEffects, baseline) > currentMultiplier + 0.000001;
     }) || null;
@@ -2145,7 +2148,7 @@ function getUpgradeRows(currentEquipmentUpgrades = [], upgradeDb = {}, baseline 
     const treatAsAmplified = isAmplified || (currentLevel === 0 && equipment.slot !== '무기');
     const targetLevel = !treatAsAmplified && equipment.slot === '무기' && currentLevel < 12
       ? 12
-      : treatAsAmplified && currentLevel < 10 ? 10 : currentLevel + 1;
+      : treatAsAmplified && currentLevel < MIN_RECOMMENDED_AMPLIFICATION_LEVEL ? MIN_RECOMMENDED_AMPLIFICATION_LEVEL : currentLevel + 1;
     const rows = [];
     const allowReinforcement = REINFORCEMENT_RECOMMEND_SLOT_KEYS.has(slotKey);
     const isSafeAmplification = treatAsAmplified && targetLevel <= 10;
