@@ -650,9 +650,14 @@ function formatEquipmentTuneEffect(row) {
 
 function formatOathTuneEffect(row) {
   const formatStagePoint = (stageName, setPoint) => `${stageName || '서약'} ${formatEffectNumber(setPoint)}`;
-  return row.currentOathStageName || row.targetOathStageName
+  const pointText = row.currentOathStageName || row.targetOathStageName
     ? `${formatStagePoint(row.currentOathStageName, row.currentSetPoint)} -> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint)}`
     : `${formatEffectNumber(row.currentSetPoint)} -> ${formatEffectNumber(row.targetSetPoint)}`;
+  if (Number(row.currentSetPoint || 0) < EQUIPMENT_TUNE_MIN_SET_POINT) return pointText;
+  const tuneText = row.metricType === 'buffer'
+    ? `버프력 ${formatEffectNumber(row.currentTuneBuffPower)} -> ${formatEffectNumber(row.targetTuneBuffPower)}`
+    : `최종뎀 ${formatEffectNumber(row.currentTuneFinalDamage)}% -> ${formatEffectNumber(row.targetTuneFinalDamage)}%`;
+  return `${pointText} / ${tuneText}`;
 }
 
 function formatOathTranscendEffect(row, isBuffer = false) {
@@ -688,7 +693,12 @@ function formatOathTuneEffectHtml(row, escapeHtml) {
   if (!row.currentOathStageName && !row.targetOathStageName) return '';
   const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
   const formatStagePoint = (stageName, setPoint) => formatOathStageNameHtml(`${stageName || '서약'} ${formatEffectNumber(setPoint)}`, escape);
-  return `${formatStagePoint(row.currentOathStageName, row.currentSetPoint)} <span class="enchant-oath-stage-arrow">-&gt;</span> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint)}`;
+  const pointHtml = `${formatStagePoint(row.currentOathStageName, row.currentSetPoint)} <span class="enchant-oath-stage-arrow">-&gt;</span> ${formatStagePoint(row.targetOathStageName, row.targetSetPoint)}`;
+  if (Number(row.currentSetPoint || 0) < EQUIPMENT_TUNE_MIN_SET_POINT) return pointHtml;
+  const tuneText = row.metricType === 'buffer'
+    ? `버프력 ${formatEffectNumber(row.currentTuneBuffPower)} -> ${formatEffectNumber(row.targetTuneBuffPower)}`
+    : `최종뎀 ${formatEffectNumber(row.currentTuneFinalDamage)}% -> ${formatEffectNumber(row.targetTuneFinalDamage)}%`;
+  return `${pointHtml} / ${escape(tuneText)}`;
 }
 
 function formatEquipmentTuneEffectHtml(row, escapeHtml) {
