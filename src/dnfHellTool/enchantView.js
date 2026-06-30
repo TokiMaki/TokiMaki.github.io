@@ -3125,13 +3125,13 @@ export function installEnchantView(ctx) {
           ${data?.enchantBadge
             ? `<span class="enchant-character-slot-enchant-badges"><span class="enchant-character-slot-enchant-badge">${escapeHtml(data.enchantBadge.text)}</span></span>`
             : ''}
-          ${data?.upgradeBadge
-            ? `<span class="enchant-character-slot-badge enchant-character-slot-badge-${escapeHtml(data.upgradeBadge.kind)}">${escapeHtml(data.upgradeBadge.text)}</span>`
-            : ''}
-          ${data?.tuneBadge
-            ? `<span class="enchant-character-slot-tune-mark" role="img" title="${escapeHtml(data.tuneBadge.label)}" aria-label="${escapeHtml(data.tuneBadge.label)}">${Array.from({ length: data.tuneBadge.displayLevel }).map(() => '<span class="enchant-character-slot-tune-bar" aria-hidden="true"></span>').join('')}</span>`
-            : ''}
         </span>
+        ${data?.upgradeBadge
+          ? `<span class="enchant-character-slot-badge enchant-character-slot-badge-${escapeHtml(data.upgradeBadge.kind)}">${escapeHtml(data.upgradeBadge.text)}</span>`
+          : ''}
+        ${data?.tuneBadge
+          ? `<span class="enchant-character-slot-tune-mark" role="img" title="${escapeHtml(data.tuneBadge.label)}" aria-label="${escapeHtml(data.tuneBadge.label)}">${Array.from({ length: data.tuneBadge.displayLevel }).map(() => '<span class="enchant-character-slot-tune-bar" aria-hidden="true"></span>').join('')}</span>`
+          : ''}
       </span>
     `;
   }

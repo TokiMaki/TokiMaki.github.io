@@ -369,6 +369,8 @@
     }
     .enchant-character-slot-wrap {
       position: absolute;
+      width: 34px;
+      height: 34px;
       pointer-events: auto;
     }
     .enchant-character-slot {
@@ -434,8 +436,8 @@
     }
     .enchant-character-slot-badge {
       position: absolute;
-      left: 1px;
-      bottom: 1px;
+      left: 0;
+      bottom: 0;
       z-index: 4;
       min-width: 0;
       height: 11px;
@@ -462,8 +464,8 @@
     }
     .enchant-character-slot-tune-mark {
       position: absolute;
-      right: 2px;
-      bottom: 1px;
+      right: 0;
+      bottom: 0;
       z-index: 4;
       display: inline-flex;
       align-items: flex-end;
@@ -481,11 +483,22 @@
     }
     .enchant-character-slot-tune-bar {
       display: block;
-      width: 2px;
+      width: 1px;
       height: 8px;
       border-radius: 1px;
-      background: #f6d56a;
-      box-shadow: 0 0 4px rgb(246 213 106 / 0.35);
+      background: linear-gradient(
+        to bottom,
+        #fffef2 0%,
+        #f8ee8a 25%,
+        #f0c83c 55%,
+        #d88916 100%
+      );
+    }
+    .enchant-character-slot-tune-bar:first-child {
+      margin-left: 1px;
+    }
+    .enchant-character-slot-tune-bar:last-child {
+      margin-right: 1px;
     }
     .enchant-character-slot-tooltip {
       display: none;
