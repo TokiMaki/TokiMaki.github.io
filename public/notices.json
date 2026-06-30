@@ -230,6 +230,14 @@
     "title": "버퍼 칭호 보주 추천 오류 수정",
     "body": "버퍼 캐릭터의 칭호 보주가 종결 옵션이 아닐 때,\n칭호 교체 없이 보주만 교체하는 추천이 누락되던 문제를 수정했습니다.",
     "visible": true
+  },
+  {
+    "id": "2026-06-30-officialEquipmentScoreDisplay",
+    "date": "2026-06-30",
+    "type": "update",
+    "title": "딜러 장비점수 표시 추가",
+    "body": "딜러 캐릭터 조회 시 장비점수를 표기하도록 추가했습니다.",
+    "visible": true
   }
 ]
 
