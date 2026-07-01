@@ -672,6 +672,61 @@
         justify-self: center;
       }
     }
+    @media (max-width: 767px) {
+      .tool-shell,
+      #enchantPanel,
+      #enchantPanel > .panel,
+      #enchantPanel > .enchant-recommend-layout,
+      .enchant-search-panel,
+      .enchant-include-card,
+      .enchant-recommend-stack,
+      .enchant-recommend-grid {
+        box-sizing: border-box;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+      }
+      #enchantPanel {
+        justify-items: stretch;
+      }
+      #enchantPanel > .enchant-recommend-layout {
+        justify-self: stretch;
+      }
+      .enchant-recommend-layout {
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+      }
+      .enchant-character-portrait-card,
+      .enchant-recommend-stack {
+        justify-self: stretch;
+      }
+      .enchant-input-row {
+        grid-template-columns: 86px minmax(0, 1fr);
+        gap: 8px;
+      }
+      .enchant-input-row > * {
+        min-width: 0;
+        width: 100%;
+      }
+      .enchant-search-button {
+        grid-column: 1 / -1;
+        min-width: 0;
+        padding-inline: 0;
+      }
+      .enchant-include-group-options.is-split {
+        width: auto;
+        max-width: 100%;
+      }
+      .enchant-recommend-title-text {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap !important;
+        overflow-wrap: normal !important;
+        transform: none !important;
+      }
+    }
     .supply-roster-block {
       margin-bottom: 14px;
     }
