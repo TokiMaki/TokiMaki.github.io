@@ -124,6 +124,10 @@
     .enchant-search-panel {
       padding: 12px 14px;
     }
+    #enchantPanel > .enchant-search-panel {
+      width: min(100%, 620px);
+      max-width: 620px;
+    }
     .enchant-search-panel .supply-input-row {
       margin-top: 0;
     }
