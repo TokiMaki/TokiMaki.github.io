@@ -794,11 +794,33 @@
     }
     @container enchant-recommend-stack (max-width: 644px) {
       .enchant-recommend-grid {
+        width: 645px;
+        max-width: none;
+        grid-template-columns: repeat(5, 129px);
+        zoom: calc(100cqw / 645px);
+      }
+    }
+    @container enchant-recommend-stack (max-width: 547px) {
+      .enchant-recommend-grid {
+        width: 100%;
+        max-width: 100%;
+        zoom: 1;
         grid-template-columns: repeat(4, 129px);
       }
     }
     @container enchant-recommend-stack (max-width: 515px) {
       .enchant-recommend-grid {
+        width: 516px;
+        max-width: none;
+        grid-template-columns: repeat(4, 129px);
+        zoom: calc(100cqw / 516px);
+      }
+    }
+    @container enchant-recommend-stack (max-width: 438px) {
+      .enchant-recommend-grid {
+        width: 100%;
+        max-width: 100%;
+        zoom: 1;
         grid-template-columns: repeat(3, 129px);
       }
     }
