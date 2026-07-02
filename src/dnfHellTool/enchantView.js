@@ -3794,6 +3794,8 @@ export function installEnchantView(ctx) {
     );
     if (!viewportWidth) return;
     const rect = popover.getBoundingClientRect();
+    const renderedScaleX = popover.offsetWidth > 0 ? rect.width / popover.offsetWidth : 1;
+    const cssPixelRatio = renderedScaleX > 0 ? renderedScaleX : 1;
     let shiftX = 0;
     const overflowRight = rect.right - (viewportWidth - margin);
     if (overflowRight > 0) {
@@ -3804,7 +3806,7 @@ export function installEnchantView(ctx) {
       shiftX += overflowLeft;
     }
     if (Math.abs(shiftX) > 0.5) {
-      popover.style.setProperty('--popover-shift-x', `${Math.round(shiftX)}px`);
+      popover.style.setProperty('--popover-shift-x', `${Math.round(shiftX / cssPixelRatio)}px`);
     }
   }
 
