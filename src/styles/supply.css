@@ -700,6 +700,9 @@
       .enchant-recommend-stack {
         justify-self: stretch;
       }
+      .enchant-recommend-stack {
+        container: enchant-recommend-stack / inline-size;
+      }
       .enchant-input-row {
         grid-template-columns: 86px minmax(0, 1fr);
         gap: 8px;
@@ -719,24 +722,25 @@
       }
       .enchant-recommend-grid {
         display: grid !important;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: clamp(4px, 1.4vw, 6px);
+        grid-template-columns: repeat(5, 129px);
+        gap: 8px 0;
         align-items: stretch;
+        justify-content: center;
       }
       .enchant-recommend-grid > .table-empty-cell {
         grid-column: 1 / -1;
       }
       .enchant-recommend-step {
         display: grid !important;
-        grid-template-columns: 6px minmax(0, 1fr);
-        gap: 2px;
+        grid-template-columns: 14px minmax(0, 1fr);
+        gap: 5px;
         align-items: stretch;
         min-width: 0;
       }
       .enchant-recommend-connector {
-        width: 6px;
-        height: 3px;
-        flex-basis: 6px;
+        width: 14px;
+        height: 4px;
+        flex-basis: 14px;
         align-self: center;
       }
       .enchant-recommend-item {
@@ -786,6 +790,24 @@
         width: 10px;
         height: 10px;
         border-radius: 2px;
+      }
+    }
+    @container enchant-recommend-stack (max-width: 644px) {
+      .enchant-recommend-grid {
+        grid-template-columns: repeat(4, 129px);
+      }
+    }
+    @container enchant-recommend-stack (max-width: 515px) {
+      .enchant-recommend-grid {
+        grid-template-columns: repeat(3, 129px);
+      }
+    }
+    @container enchant-recommend-stack (max-width: 386px) {
+      .enchant-recommend-grid {
+        width: 387px;
+        max-width: none;
+        grid-template-columns: repeat(3, 129px);
+        zoom: calc(100cqw / 387px);
       }
     }
     .supply-roster-block {
