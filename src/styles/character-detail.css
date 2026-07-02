@@ -1163,7 +1163,7 @@
       font-weight: 800;
     }
     .enchant-popover-name {
-      color: var(--text);
+      color: #fff6df;
       font-size: 12px;
       font-weight: 800;
     }
@@ -1176,13 +1176,14 @@
     }
     .enchant-popover-muted,
     .enchant-popover-label {
-      color: var(--muted);
+      color: #c4b9a8;
       font-size: 11px;
+      font-weight: 400;
     }
     .enchant-popover-effect {
-      color: #c4b5fd;
+      color: #b99cff;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 600;
     }
     .enchant-oath-stage {
       font-weight: 900;
@@ -1207,12 +1208,12 @@
       color: var(--muted);
     }
     .enchant-popover-price-item {
-      color: #e5e7eb;
+      color: #e8ddc5;
     }
     .enchant-popover-material {
-      color: #a7f3d0;
+      color: #5ee6a8;
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 700;
     }
     .enchant-popover-material-list {
       display: flex;
@@ -1241,12 +1242,12 @@
     }
     .enchant-popover-price {
       display: block;
-      color: #fb7185;
+      color: #ff6f61;
       font-size: 11px;
       font-weight: 700;
     }
     .enchant-popover-gain {
-      color: #38bdf8;
+      color: #42d7ff;
       font-size: 12px;
       font-weight: 800;
     }
