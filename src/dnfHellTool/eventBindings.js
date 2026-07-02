@@ -165,14 +165,9 @@ export function bindToolEvents(ctx) {
       item.append(searchButton, removeButton);
       return item;
     });
-    [
-      [els.landingRecentSearches, els.landingRecentSearchList],
-      [els.resultRecentSearches, els.resultRecentSearchList],
-    ].forEach(([section, list]) => {
-      if (!section || !list) return;
-      section.hidden = rows.length === 0;
-      list.replaceChildren(...createRecentSearchItems());
-    });
+    if (!els.landingRecentSearches || !els.landingRecentSearchList) return;
+    els.landingRecentSearches.hidden = rows.length === 0;
+    els.landingRecentSearchList.replaceChildren(...createRecentSearchItems());
   };
   const saveRecentSearch = (serverId, characterName) => {
     const nextRows = [
@@ -440,7 +435,6 @@ const bindRecentSearchList = (list) => {
   });
 };
 bindRecentSearchList(els.landingRecentSearchList);
-bindRecentSearchList(els.resultRecentSearchList);
 window.addEventListener('popstate', applyLocation);
 renderRecentSearches();
 loadLandingNotices();

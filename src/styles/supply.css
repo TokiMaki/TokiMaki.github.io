@@ -150,8 +150,8 @@
       background: color-mix(in srgb, var(--panel-2) 72%, transparent);
     }
     .enchant-include-title {
-      color: var(--muted);
-      font-size: 13px;
+      color: var(--text);
+      font-size: 17px;
       font-weight: 700;
     }
     .enchant-include-controls {

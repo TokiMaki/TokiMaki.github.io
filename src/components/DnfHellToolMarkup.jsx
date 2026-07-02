@@ -93,10 +93,6 @@ export default function DnfHellToolMarkup() {
             </div>
             <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>
           </div>
-          <section className={'landing-recent result-recent'} id={'resultRecentSearches'} hidden>
-            <div className={'landing-recent-title'}>최근 검색</div>
-            <div className={'landing-recent-list'} id={'resultRecentSearchList'}></div>
-          </section>
         </aside>
         <section className={'panel enchant-include-card'}>
           <div className={'enchant-include-title'}>포함 항목</div>
