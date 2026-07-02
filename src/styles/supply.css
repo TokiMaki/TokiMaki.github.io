@@ -118,15 +118,15 @@
     .enchant-input-row {
       grid-template-columns: 96px minmax(280px, 1fr) auto;
       align-items: end;
-      width: min(100%, 560px);
+      width: 100%;
       margin: 0 auto;
     }
     .enchant-search-panel {
       padding: 12px 14px;
     }
     #enchantPanel > .enchant-search-panel {
-      width: min(100%, 620px);
-      max-width: 620px;
+      width: min(100%, 720px);
+      max-width: 720px;
     }
     .enchant-search-panel .supply-input-row {
       margin-top: 0;
