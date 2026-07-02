@@ -289,8 +289,7 @@
       background: color-mix(in srgb, var(--accent-2) 14%, transparent);
     }
     .landing-recent-button {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
+      display: flex;
       gap: 6px;
       align-items: center;
       flex: 1 1 auto;
@@ -307,15 +306,31 @@
       cursor: pointer;
     }
     .landing-recent-server {
-      color: color-mix(in srgb, var(--muted) 76%, transparent);
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 4px;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 18%, transparent);
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--bg-deep) 32%, transparent);
+      color: color-mix(in srgb, var(--muted) 82%, transparent);
       font-size: 10px;
+      line-height: 1;
       white-space: nowrap;
     }
+    .landing-recent-server::before {
+      content: "[";
+    }
+    .landing-recent-server::after {
+      content: "]";
+    }
     .landing-recent-character {
+      flex: 1 1 auto;
       min-width: 0;
       overflow: hidden;
       color: var(--muted);
-      text-align: center;
+      text-align: left;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
