@@ -718,9 +718,7 @@
         width: 100%;
       }
       .enchant-search-button {
-        grid-column: 1 / -1;
-        min-width: 0;
-        padding-inline: 0;
+        display: none;
       }
       .enchant-include-group-options.is-split {
         width: auto;
