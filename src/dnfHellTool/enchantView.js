@@ -3457,8 +3457,19 @@ export function installEnchantView(ctx) {
       if (sub) sub.textContent = '캐릭터 장비와 스펙업 효율을 계산하고 있어양.';
     } else if (isError) {
       if (title) title.textContent = message || '분석에 실패했어요.';
-      if (sub) sub.textContent = '캐릭터명이나 서버를 확인한 뒤 다시 검색해 주세요.';
+      if (sub) sub.textContent = getEnchantAnalysisErrorSubtext(message);
     }
+  }
+
+  function getEnchantAnalysisErrorSubtext(message) {
+    const text = String(message || '');
+    if (/점검|503|DNF980/.test(text)) {
+      return '던파 점검 중이에양. 끝나고 찾아오세양.';
+    }
+    if (/서버 연결|API 서버/.test(text)) {
+      return '서버 업데이트나 재시작 중일 수 있어요. 잠시만 양해 부탁드려요.';
+    }
+    return '캐릭터명이나 서버를 확인한 뒤 다시 검색해 주세요.';
   }
 
   function showEnchantAnalysisLoading() {
