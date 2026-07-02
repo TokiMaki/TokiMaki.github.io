@@ -143,16 +143,7 @@ export function bindToolEvents(ctx) {
       searchButton.className = 'landing-recent-button';
       searchButton.dataset.serverId = row.serverId;
       searchButton.dataset.characterName = row.characterName;
-
-      const serverLabel = document.createElement('span');
-      serverLabel.className = 'landing-recent-server';
-      serverLabel.textContent = getServerLabel(row.serverId);
-
-      const characterName = document.createElement('span');
-      characterName.className = 'landing-recent-character';
-      characterName.textContent = row.characterName;
-
-      searchButton.append(serverLabel, characterName);
+      searchButton.textContent = `${getServerLabel(row.serverId)} / ${row.characterName}`;
 
       const removeButton = document.createElement('button');
       removeButton.type = 'button';
