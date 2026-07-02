@@ -288,14 +288,9 @@ export function bindToolEvents(ctx) {
     if (els.landingCharacterNameInput) els.landingCharacterNameInput.value = normalizedName;
     if (els.landingSearchStatus) els.landingSearchStatus.textContent = '';
     state.enchantRecommendationLoading = true;
-    if (els.enchantCharacterPortrait) {
-      els.enchantCharacterPortrait.innerHTML = '<div class="table-empty-cell">캐릭터 정보를 불러오는 중입니다...</div>';
-    }
+    ctx.actions.showEnchantAnalysisLoading?.();
     if (els.enchantCharacterStatus) {
       els.enchantCharacterStatus.textContent = `${normalizedName} 검색 중...`;
-    }
-    if (els.enchantRecommendList) {
-      els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">스펙업 순서 추천을 불러오는 중입니다...</div>';
     }
     setScreen('results');
     setActiveTab('enchantPanel');

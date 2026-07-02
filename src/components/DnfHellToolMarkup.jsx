@@ -94,7 +94,7 @@ export default function DnfHellToolMarkup() {
             <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>
           </div>
         </aside>
-        <section className={'panel enchant-include-card'}>
+        <section className={'panel enchant-include-card'} id={'enchantIncludeCard'}>
           <div className={'enchant-include-title'}>포함 항목</div>
           <div className={'enchant-include-controls'} id={'enchantIncludeControls'}></div>
           <div className={'enchant-route-options'}>
@@ -115,7 +115,18 @@ export default function DnfHellToolMarkup() {
             </select>
           </label>
         </section>
-        <main className={'enchant-recommend-layout'}>
+        <section className={'panel enchant-analysis-loading'} id={'enchantAnalysisLoading'} hidden aria-live={'polite'}>
+          <div className={'enchant-analysis-loading-title'}>
+            <span>분석중이에양</span>
+            <span className={'enchant-analysis-loading-dots'} aria-hidden={'true'}>
+              <span>.</span>
+              <span>.</span>
+              <span>.</span>
+            </span>
+          </div>
+          <div className={'enchant-analysis-loading-sub'}>캐릭터 장비와 스펙업 효율을 계산하고 있어양.</div>
+        </section>
+        <main className={'enchant-recommend-layout'} id={'enchantResultLayout'}>
           <div className={'card supply-detail-portrait-card enchant-character-portrait-card'} id={'enchantCharacterPortrait'}>
             <div className={'table-empty-cell'}>캐릭터 검색을 해주세요.</div>
           </div>

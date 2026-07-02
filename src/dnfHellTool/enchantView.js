@@ -3435,6 +3435,44 @@ export function installEnchantView(ctx) {
     els.enchantRecommendList.innerHTML = `<div class="table-empty-cell">${escapeHtml(text)}</div>`;
   }
 
+  function setEnchantAnalysisPanel(mode, message = '') {
+    const isLoading = mode === 'loading';
+    const isError = mode === 'error';
+    const showMessage = isLoading || isError;
+    if (els.enchantIncludeCard) {
+      els.enchantIncludeCard.hidden = showMessage;
+    }
+    if (els.enchantResultLayout) {
+      els.enchantResultLayout.hidden = showMessage;
+    }
+    if (!els.enchantAnalysisLoading) return;
+    els.enchantAnalysisLoading.hidden = !showMessage;
+    els.enchantAnalysisLoading.classList.toggle('is-error', isError);
+    const title = els.enchantAnalysisLoading.querySelector('.enchant-analysis-loading-title');
+    const sub = els.enchantAnalysisLoading.querySelector('.enchant-analysis-loading-sub');
+    if (isLoading) {
+      if (title) {
+        title.innerHTML = '<span>분석중이에양</span><span class="enchant-analysis-loading-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>';
+      }
+      if (sub) sub.textContent = '캐릭터 장비와 스펙업 효율을 계산하고 있어양.';
+    } else if (isError) {
+      if (title) title.textContent = message || '분석에 실패했어요.';
+      if (sub) sub.textContent = '캐릭터명이나 서버를 확인한 뒤 다시 검색해 주세요.';
+    }
+  }
+
+  function showEnchantAnalysisLoading() {
+    setEnchantAnalysisPanel('loading');
+  }
+
+  function showEnchantAnalysisError(message) {
+    setEnchantAnalysisPanel('error', message);
+  }
+
+  function showEnchantAnalysisResults() {
+    setEnchantAnalysisPanel('ready');
+  }
+
   function renderEnchantCharacterMessage(text) {
     if (!els.enchantCharacterPortrait) return;
     els.enchantCharacterPortrait.innerHTML = `<div class="table-empty-cell">${escapeHtml(text)}</div>`;
@@ -3661,7 +3699,7 @@ export function installEnchantView(ctx) {
 
   function renderEnchantTable() {
     if (state.enchantRecommendationLoading) {
-      renderEnchantRecommendLoading();
+      showEnchantAnalysisLoading();
       return;
     }
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
@@ -3712,6 +3750,7 @@ export function installEnchantView(ctx) {
       .sort(sortByPriceAsc);
 
     renderEnchantRecommendations(rows, allRows, includeMaterialCosts);
+    showEnchantAnalysisResults();
     recordEnchantTimingStep('renderEnchantTable', renderStartedAt, {
       rows: rows.length,
       allRows: allRows.length,
@@ -4379,14 +4418,16 @@ export function installEnchantView(ctx) {
       }
       if (requestId !== state.enchantRequestId) return;
       state.enchantRecommendationLoading = false;
+      renderEnchantCharacterPortrait();
       renderEnchantTable();
       flushEnchantTiming('complete');
     } catch (error) {
       if (requestId !== state.enchantRequestId) return;
       state.currentBufferScoreStatus = 'idle';
       state.enchantRecommendationLoading = false;
-      renderEnchantCharacterPortrait();
-      renderEnchantRecommendLoading(normalizeApiErrorMessage(error, '스펙업 순서 추천을 불러오지 못했습니다.'));
+      const errorMessage = normalizeApiErrorMessage(error, '스펙업 순서 추천을 불러오지 못했습니다.');
+      showEnchantAnalysisError(errorMessage);
+      setEnchantCharacterStatus(errorMessage);
       flushEnchantTiming('error');
     }
   }
@@ -4405,8 +4446,7 @@ export function installEnchantView(ctx) {
     state.enchantRequestId = requestId;
     state.enchantTargetCharacter = null;
     resetCurrentEnchantCharacterState();
-    renderEnchantCharacterMessage('캐릭터 정보를 불러오는 중입니다...');
-    renderEnchantRecommendLoading();
+    showEnchantAnalysisLoading();
     if (els.loadEnchantCharacterButton) els.loadEnchantCharacterButton.disabled = true;
     setEnchantCharacterStatus(`${characterName} 검색 중...`);
     beginEnchantTiming(`${serverId}:${characterName}`);
@@ -4440,8 +4480,7 @@ export function installEnchantView(ctx) {
         state.currentOfficialEquipmentScoreCharacterKey = `${state.enchantTargetCharacter.serverId}:${state.enchantTargetCharacter.name}`;
       }
       resetEnchantRecommendationFilters();
-      renderEnchantCharacterPortrait();
-      renderEnchantRecommendLoading();
+      showEnchantAnalysisLoading();
       void loadEnchantRecommendationsAsync(requestId);
       return {
         serverId: state.enchantTargetCharacter.serverId,
@@ -4453,8 +4492,7 @@ export function installEnchantView(ctx) {
         ? '캐릭터를 찾지 못했습니다.'
         : normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
       state.enchantRecommendationLoading = false;
-      renderEnchantRecommendLoading(errorMessage);
-      renderEnchantCharacterMessage(errorMessage);
+      showEnchantAnalysisError(errorMessage);
       setEnchantCharacterStatus(errorMessage);
       flushEnchantTiming('error');
     } finally {
@@ -4658,6 +4696,7 @@ export function installEnchantView(ctx) {
     loadCurrentCharacterPreview,
     loadCurrentCharacterLoadout,
     searchEnchantCharacter,
+    showEnchantAnalysisLoading,
     renderEnchantTable,
     renderEnchantRecommendations,
   });
