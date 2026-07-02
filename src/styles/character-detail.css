@@ -873,7 +873,7 @@
       display: inline-flex;
       flex: 0 0 auto;
       align-items: center;
-      gap: 5px;
+      gap: 0;
       min-width: 0;
     }
     .enchant-efficiency-legend {
@@ -1019,9 +1019,10 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 14px;
+      width: 15px;
       height: 4px;
-      flex: 0 0 14px;
+      flex: 0 0 15px;
+      margin-inline: 2px;
       border: 0;
       border-radius: 999px;
       opacity: 0.9;

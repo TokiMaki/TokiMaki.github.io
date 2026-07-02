@@ -732,15 +732,12 @@
       }
       .enchant-recommend-step {
         display: grid !important;
-        grid-template-columns: 14px minmax(0, 1fr);
-        gap: 5px;
+        grid-template-columns: 19px minmax(0, 1fr);
+        gap: 0;
         align-items: stretch;
         min-width: 0;
       }
       .enchant-recommend-connector {
-        width: 14px;
-        height: 4px;
-        flex-basis: 14px;
         align-self: center;
       }
       .enchant-recommend-item {
