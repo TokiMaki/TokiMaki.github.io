@@ -191,6 +191,9 @@
       color: var(--muted);
       font-size: 15px;
     }
+    .landing-copy span + span::before {
+      content: " ";
+    }
     .landing-search-row {
       display: grid;
       grid-template-columns: 116px minmax(0, 1fr) auto;
@@ -474,6 +477,18 @@
       }
       .landing-kicker {
         letter-spacing: 0.16em;
+      }
+      .landing-copy {
+        font-size: clamp(11px, 3.7vw, 15px);
+        line-height: 1.45;
+      }
+      .landing-copy span {
+        display: block;
+        white-space: nowrap;
+        word-break: keep-all;
+      }
+      .landing-copy span + span::before {
+        content: none;
       }
       .landing-search-row {
         grid-template-columns: 92px minmax(0, 1fr);
