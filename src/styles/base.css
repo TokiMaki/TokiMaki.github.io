@@ -199,6 +199,8 @@
       grid-template-columns: 116px minmax(0, 1fr) auto;
       gap: 18px;
       align-items: end;
+      width: min(100%, 560px);
+      margin: 0 auto;
     }
     .landing-field {
       display: grid;
