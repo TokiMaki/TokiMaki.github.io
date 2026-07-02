@@ -3784,6 +3784,56 @@ export function installEnchantView(ctx) {
     });
   }
 
+  function adjustRecommendPopoverShift(popover) {
+    if (!popover) return;
+    const margin = 8;
+    popover.style.setProperty('--popover-shift-x', '0px');
+    const viewportWidth = Math.min(
+      window.innerWidth || document.documentElement.clientWidth || 0,
+      document.documentElement.clientWidth || window.innerWidth || 0,
+    );
+    if (!viewportWidth) return;
+    const rect = popover.getBoundingClientRect();
+    let shiftX = 0;
+    const overflowRight = rect.right - (viewportWidth - margin);
+    if (overflowRight > 0) {
+      shiftX -= overflowRight;
+    }
+    const overflowLeft = margin - (rect.left + shiftX);
+    if (overflowLeft > 0) {
+      shiftX += overflowLeft;
+    }
+    if (Math.abs(shiftX) > 0.5) {
+      popover.style.setProperty('--popover-shift-x', `${Math.round(shiftX)}px`);
+    }
+  }
+
+  function scheduleRecommendPopoverShift(target) {
+    const host = target?.closest?.('.enchant-recommend-item, .enchant-recommend-step-tune');
+    const popover = host?.querySelector?.('.enchant-recommend-popover');
+    if (!popover) return;
+    window.requestAnimationFrame(() => adjustRecommendPopoverShift(popover));
+  }
+
+  function scheduleOpenTunePopoverShift() {
+    window.requestAnimationFrame(() => {
+      const popover = els.enchantRecommendList?.querySelector('.enchant-recommend-step-tune.is-tune-popover-open .enchant-recommend-popover');
+      adjustRecommendPopoverShift(popover);
+    });
+  }
+
+  function resetRecommendPopoverShift(target) {
+    const host = target?.closest?.('.enchant-recommend-item, .enchant-recommend-step-tune');
+    host?.querySelector?.('.enchant-recommend-popover')?.style.removeProperty('--popover-shift-x');
+  }
+
+  function isLeavingRecommendPopoverHost(event) {
+    const host = event.target?.closest?.('.enchant-recommend-step-tune, .enchant-recommend-item');
+    if (!host) return false;
+    const related = event.relatedTarget;
+    return !(related && host.contains(related));
+  }
+
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
     const recommendations = state.currentBufferBaseline?.isBuffer
@@ -4533,19 +4583,30 @@ export function installEnchantView(ctx) {
     state.equipmentTunePopoverOpen = true;
     state.equipmentTunePopoverSource = sourceType;
     renderEnchantTable();
+    scheduleOpenTunePopoverShift();
   }
 
   els.enchantRecommendList?.addEventListener('mouseover', (event) => {
     const step = event.target.closest('.enchant-recommend-step-tune');
-    if (!step) return;
+    if (!step) {
+      scheduleRecommendPopoverShift(event.target);
+      return;
+    }
     const sourceType = step.dataset.tuneSource || 'equipmentTune';
-    if (state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === sourceType) return;
+    if (state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === sourceType) {
+      scheduleRecommendPopoverShift(step);
+      return;
+    }
     state.equipmentTunePopoverOpen = true;
     state.equipmentTunePopoverSource = sourceType;
     renderEnchantTable();
+    scheduleOpenTunePopoverShift();
   });
 
   els.enchantRecommendList?.addEventListener('mouseout', (event) => {
+    if (isLeavingRecommendPopoverHost(event)) {
+      resetRecommendPopoverShift(event.target);
+    }
     const step = event.target.closest('.enchant-recommend-step-tune');
     if (!step) return;
     const related = event.relatedTarget;
@@ -4554,6 +4615,16 @@ export function installEnchantView(ctx) {
     state.equipmentTunePopoverOpen = false;
     state.equipmentTunePopoverSource = '';
     renderEnchantTable();
+  });
+
+  els.enchantRecommendList?.addEventListener('focusin', (event) => {
+    scheduleRecommendPopoverShift(event.target);
+  });
+
+  els.enchantRecommendList?.addEventListener('focusout', (event) => {
+    if (isLeavingRecommendPopoverHost(event)) {
+      resetRecommendPopoverShift(event.target);
+    }
   });
 
   els.enchantRecommendList?.addEventListener('click', (event) => {

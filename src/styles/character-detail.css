@@ -1141,6 +1141,7 @@
       font-size: 12px;
       line-height: 1.55;
       text-align: left;
+      transform: translateX(var(--popover-shift-x, 0px));
       word-break: keep-all;
       overflow-wrap: normal;
       pointer-events: none;
