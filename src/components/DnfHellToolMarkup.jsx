@@ -19,7 +19,8 @@ export default function DnfHellToolMarkup() {
             <img className={'landing-logo-image'} src={logoImage} alt={'던파일럿'} />
           </h1>
           <p className={'landing-copy'}>
-            던파일럿이 캐릭터에 맞는 스펙업 순서를 골드 효율 기준으로 추천해줄게양.
+            <span>던파일럿이 캐릭터에 맞는 스펙업 순서를</span>
+            <span>골드 효율 기준으로 추천해줄게양.</span>
           </p>
           <div className={'landing-search-row'} data-nosnippet>
             <label className={'landing-field'}>

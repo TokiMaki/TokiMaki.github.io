@@ -191,11 +191,16 @@
       color: var(--muted);
       font-size: 15px;
     }
+    .landing-copy span + span::before {
+      content: " ";
+    }
     .landing-search-row {
       display: grid;
       grid-template-columns: 116px minmax(0, 1fr) auto;
       gap: 18px;
       align-items: end;
+      width: min(100%, 560px);
+      margin: 0 auto;
     }
     .landing-field {
       display: grid;
@@ -254,22 +259,29 @@
       display: none;
     }
     .landing-recent-title {
+      width: min(100%, 460px);
       margin-bottom: 8px;
+      margin-left: auto;
+      margin-right: auto;
       color: var(--muted);
       font-size: 11px;
       letter-spacing: 0.08em;
     }
     .landing-recent-list {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 7px;
+      width: min(100%, 460px);
+      margin: 0 auto;
     }
     .landing-recent-item {
-      display: inline-flex;
+      display: flex;
       align-items: center;
+      min-width: 0;
+      max-width: 100%;
       overflow: hidden;
       border: 1px solid var(--line-white-soft);
-      border-radius: 999px;
+      border-radius: 7px;
       background: color-mix(in srgb, var(--accent-2) 7%, transparent);
     }
     .landing-recent-item:hover {
@@ -277,24 +289,51 @@
       background: color-mix(in srgb, var(--accent-2) 14%, transparent);
     }
     .landing-recent-button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 6px;
+      align-items: center;
+      flex: 1 1 auto;
+      min-width: 0;
       border: 0;
-      padding: 7px 6px 7px 11px;
+      padding: 5px 5px 5px 9px;
+      overflow: hidden;
       background: transparent;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       cursor: pointer;
+    }
+    .landing-recent-server {
+      color: color-mix(in srgb, var(--muted) 76%, transparent);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .landing-recent-character {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--muted);
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .landing-recent-button:hover {
       color: var(--text);
     }
+    .landing-recent-button:hover .landing-recent-character {
+      color: var(--text);
+    }
     .landing-recent-remove {
-      width: 25px;
+      width: 22px;
+      flex: 0 0 22px;
       align-self: stretch;
       border: 0;
-      padding: 0 7px 1px 3px;
+      padding: 0 6px 1px 2px;
       background: transparent;
       color: color-mix(in srgb, var(--muted) 58%, transparent);
-      font-size: 15px;
+      font-size: 14px;
       cursor: pointer;
     }
     .landing-recent-remove:hover {
@@ -440,6 +479,18 @@
       }
       .landing-kicker {
         letter-spacing: 0.16em;
+      }
+      .landing-copy {
+        font-size: clamp(11px, 3.7vw, 15px);
+        line-height: 1.45;
+      }
+      .landing-copy span {
+        display: block;
+        white-space: nowrap;
+        word-break: keep-all;
+      }
+      .landing-copy span + span::before {
+        content: none;
       }
       .landing-search-row {
         grid-template-columns: 92px minmax(0, 1fr);
