@@ -1276,9 +1276,10 @@ function getBufferRecommendationRows(
       });
     }
   });
+  const efficiencyFilteredRows = removeInefficientLowerTierEnchants([...bySlotTier.values()], true);
   const bestUpgradeBySlot = new Map();
   const nonUpgradeRows = [];
-  [...bySlotTier.values()].forEach((row) => {
+  efficiencyFilteredRows.forEach((row) => {
     if (!['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)) {
       nonUpgradeRows.push(row);
       return;
@@ -2492,6 +2493,48 @@ function isPreferredDuplicateRecommendation(row, previous, includeMaterialCosts 
   return false;
 }
 
+function getEnchantTierRank(row = {}) {
+  if (isMaterialEnchantAcquisition(row)) return 0;
+  const tier = String(row.tier || '').trim();
+  if (tier === '가성비') return 0;
+  if (tier === '준종결') return 1;
+  if (tier === '종결') return 2;
+  return null;
+}
+
+function getEnchantEfficiencyValue(row = {}, isBuffer = false) {
+  const value = isBuffer ? Number(row.buffCostPerHundredPoints || 0) : Number(row.costPerPointOnePercent || 0);
+  return Number.isFinite(value) && value > 0 ? value : Number.POSITIVE_INFINITY;
+}
+
+function removeInefficientLowerTierEnchants(rows = [], isBuffer = false) {
+  const enchantRows = rows.filter((row) => row.sourceType === 'enchant');
+  if (enchantRows.length <= 1) return rows;
+  const groups = new Map();
+  enchantRows.forEach((row) => {
+    const tierRank = getEnchantTierRank(row);
+    if (tierRank === null) return;
+    const key = row.slot || '';
+    const list = groups.get(key) || [];
+    list.push({ row, tierRank, efficiency: getEnchantEfficiencyValue(row, isBuffer) });
+    groups.set(key, list);
+  });
+  const excluded = new Set();
+  groups.forEach((items) => {
+    items.forEach((item) => {
+      if (item.tierRank >= 2 || !Number.isFinite(item.efficiency)) return;
+      const hasMoreEfficientHigherTier = items.some((candidate) => (
+        candidate.tierRank > item.tierRank &&
+        Number.isFinite(candidate.efficiency) &&
+        candidate.efficiency + 0.000001 < item.efficiency
+      ));
+      if (hasMoreEfficientHigherTier) excluded.add(item.row);
+    });
+  });
+  if (!excluded.size) return rows;
+  return rows.filter((row) => !excluded.has(row));
+}
+
 function getRecommendationDamageEffects(row, current) {
   if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
   if (row.sourceType === 'blackFang') {
@@ -2899,9 +2942,10 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       ...row,
       costPerPointOnePercent: getCostPerPointOnePercent(row, includeMaterialCosts),
     }));
+  const efficiencyFilteredRows = removeInefficientLowerTierEnchants(representativeRows, false);
   const bestUpgradeBySlot = new Map();
   const nonUpgradeRows = [];
-  representativeRows.forEach((row) => {
+  efficiencyFilteredRows.forEach((row) => {
     if (!['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)) {
       nonUpgradeRows.push(row);
       return;
