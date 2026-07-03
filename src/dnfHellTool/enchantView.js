@@ -586,16 +586,66 @@ function formatBlackFangEffect(row, isBuffer = false) {
   return parts.length ? parts.join(' / ') : formatEffects(changedEffects);
 }
 
-function formatEnchantTransitionEffect(row) {
-  const currentEffects = row.currentEnchant?.displayEffects || row.currentEnchant?.effects || {};
-  const targetEffects = row.displayEffects || row.effects || {};
+function getDealerPrimaryStatKey(baseline = {}) {
+  if (baseline?.statName === '힘') return 'str';
+  if (baseline?.statName === '지능') return 'int';
+  return '';
+}
+
+function normalizeDealerEnchantDisplayEffects(effects = {}, baseline = {}) {
+  const primaryKey = getDealerPrimaryStatKey(baseline);
+  if (!primaryKey) return effects || {};
+  const normalized = { ...(effects || {}) };
+  const hasPrimaryStat = Number.isFinite(Number(effects?.[primaryKey]));
+  const hasAllStat = Number.isFinite(Number(effects?.allStat));
+  const primaryValue = Number(effects?.[primaryKey] || 0);
+  const allStatValue = Number(effects?.allStat || 0);
+  if (hasPrimaryStat || hasAllStat) {
+    normalized[primaryKey] =
+      (Number.isFinite(primaryValue) ? primaryValue : 0) +
+      (Number.isFinite(allStatValue) ? allStatValue : 0);
+  }
+  delete normalized.allStat;
+  delete normalized[primaryKey === 'str' ? 'int' : 'str'];
+  return normalized;
+}
+
+function formatEnchantTransitionEffect(row, isBuffer = false, baseline = {}) {
+  let currentEffects = row.currentEnchant?.displayEffects || row.currentEnchant?.effects || {};
+  let targetEffects = row.displayEffects || row.effects || {};
+  if (!isBuffer && row.sourceType === 'enchant') {
+    currentEffects = normalizeDealerEnchantDisplayEffects(currentEffects, baseline);
+    targetEffects = normalizeDealerEnchantDisplayEffects(targetEffects, baseline);
+  }
   const changedKeys = EFFECT_ORDER
     .filter((key) => Number.isFinite(currentEffects[key]) || Number.isFinite(targetEffects[key]))
     .filter((key) => Number(currentEffects[key] || 0) !== Number(targetEffects[key] || 0))
+    .filter((key) => !(
+      isBuffer &&
+      row.sourceType === 'enchant' &&
+      key === 'allStat' &&
+      Number.isFinite(row.bufferStatDelta) &&
+      Math.abs(Number(row.bufferStatDelta || 0)) <= 0.000001
+    ))
+    .filter((key) => !(
+      isBuffer &&
+      row.sourceType === 'enchant' &&
+      key === 'buffPower' &&
+      Number.isFinite(row.bufferBuffPowerDelta) &&
+      Math.abs(Number(row.bufferBuffPowerDelta || 0)) <= 0.000001
+    ))
+    .filter((key) => !(
+      isBuffer &&
+      row.sourceType === 'enchant' &&
+      key === 'buffAmplification' &&
+      Number.isFinite(row.bufferBuffAmplificationDelta) &&
+      Math.abs(Number(row.bufferBuffAmplificationDelta || 0)) <= 0.000001
+    ))
     .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int'].includes(key)))
     .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int'].includes(key)));
   const parts = changedKeys
     .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
+  if (row.sourceType === 'enchant' && (isBuffer || getDealerPrimaryStatKey(baseline))) return parts.join(' / ');
   return parts.length ? parts.join(' / ') : formatEffects(row.effects);
 }
 
@@ -1272,6 +1322,9 @@ function getBufferRecommendationRows(
         incrementalBuffPercent,
         buffCostPerHundredPoints,
         bufferSkillDelta: skillDelta,
+        bufferStatDelta: statDelta,
+        bufferBuffPowerDelta: buffPowerDelta,
+        bufferBuffAmplificationDelta: buffAmplificationDelta,
         incrementalDamagePercent: incrementalBuffPercent,
       });
     }
@@ -4031,7 +4084,7 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
-          ? formatEnchantTransitionEffect(row)
+          ? formatEnchantTransitionEffect(row, isBufferMetric, state.currentDamageBaseline)
         : row.sourceType === 'creatureArtifact'
           ? formatEnchantTransitionEffect(row)
         : isTitleBeadOnly
