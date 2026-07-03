@@ -609,7 +609,7 @@ def build_equipment_enchant_rows_and_upgrades(equipment_rows: list) -> tuple[lis
     return rows, equipment_upgrades
 
 
-def build_oath_upgrade_payload(oath_payload: dict) -> dict:
+def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: dict | None = None) -> dict:
     oath = oath_payload.get("oath") or {}
     info = oath.get("info") or {}
     set_info = oath.get("setInfo") or {}
@@ -621,6 +621,17 @@ def build_oath_upgrade_payload(oath_payload: dict) -> dict:
         stage_point += sum(parse_percent_or_number(row.get("setPoint")) for row in oath.get("crystal") or [])
     unique_keyword = clean_text(load_oath_tune_stage_db().get("uniqueCrystalNameKeyword")) or "안개 결정"
     max_tune_level = int(load_oath_tune_stage_db().get("maxTuneLevel") or 3)
+    oath_item_id = clean_text(info.get("itemId"))
+    crystal_item_ids = [
+        clean_text(crystal.get("itemId"))
+        for crystal in oath.get("crystal") or []
+        if isinstance(crystal, dict) and clean_text(crystal.get("itemId"))
+    ]
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details([oath_item_id, *crystal_item_ids])
+        if clean_text(detail.get("itemId"))
+    }
     crystals = []
     for index, crystal in enumerate(oath.get("crystal") or []):
         if not isinstance(crystal, dict):
@@ -638,15 +649,23 @@ def build_oath_upgrade_payload(oath_payload: dict) -> dict:
             "itemName": item_name,
             "itemRarity": rarity,
             "iconUrl": get_item_icon_url(item_id) if item_id else "",
+            "effects": normalize_enchant_status((detail_by_id.get(item_id) or {}).get("itemStatus") or []),
             "tuneLevel": tune_level,
             "tuneUpgradeable": is_tune_target,
             "tuneRemaining": max(0, max_tune_level - tune_level) if is_tune_target else 0,
         })
+    oath_effects = normalize_enchant_status((detail_by_id.get(oath_item_id) or {}).get("itemStatus") or [])
+    if "안개" in clean_text(info.get("itemName")):
+        mist_assimilation = (mist_assimilation_payload or {}).get("mistAssimilation") or {}
+        mist_effects = normalize_enchant_status(mist_assimilation.get("status") or [])
+        if mist_effects:
+            oath_effects = mist_effects
     return {
-        "itemId": clean_text(info.get("itemId")),
+        "itemId": oath_item_id,
         "itemName": clean_text(info.get("itemName")),
         "itemRarity": clean_text(info.get("itemRarity")),
-        "iconUrl": get_item_icon_url(clean_text(info.get("itemId"))) if clean_text(info.get("itemId")) else "",
+        "iconUrl": get_item_icon_url(oath_item_id) if oath_item_id else "",
+        "effects": oath_effects,
         "setName": clean_text(set_info.get("setName")),
         "setOptionName": clean_text(set_info.get("setOptionName")),
         "setRarityName": clean_text(set_info.get("setRarityName")),
@@ -660,7 +679,19 @@ def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
         payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath")
     except Exception:
         return {}
-    return build_oath_upgrade_payload(payload)
+    info = ((payload.get("oath") or {}).get("info") or {})
+    mist_assimilation_payload = None
+    if "안개" in clean_text(info.get("itemName")):
+        try:
+            mist_assimilation_payload = get_character_cached_payload(
+                server_id,
+                character_id,
+                "mist_assimilation",
+                "equip/mist-assimilation",
+            )
+        except Exception:
+            mist_assimilation_payload = None
+    return build_oath_upgrade_payload(payload, mist_assimilation_payload)
 
 
 def load_character_enchants(server_id: str, character_id: str) -> dict:
