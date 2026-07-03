@@ -1235,7 +1235,17 @@ function getBufferRecommendationRows(
     const buffCostPerHundredPoints = Number.isFinite(price) && price > 0
       ? price * 100 / incrementalBuffScore
       : 0;
-    const key = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
+    const key = row.sourceType === 'enchant'
+      ? [
+        row.sourceType,
+        row.slot,
+        getEffectSignature(scoringCurrentEffects),
+        getEffectSignature(scoringTargetEffects),
+        getRoundedMetricKey(incrementalBuffScore),
+        getStableObjectSignature(skillDelta),
+        getStableObjectSignature(itemSkillChanges),
+      ].join(':')
+      : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
       ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(scoringTargetEffects)}`
@@ -1244,17 +1254,13 @@ function getBufferRecommendationRows(
       : `${row.sourceType}:${row.slot}:${row.tier}:${getEffectSignature(row.effects)}:${bufferStatScope}:${JSON.stringify(skillDelta)}:${JSON.stringify(itemSkillChanges)}`;
     const previous = bySlotTier.get(key);
     if (
-      !previous ||
-      (
-        row.sourceType === 'creature' &&
-        buffCostPerHundredPoints > 0 &&
-        (!previous.buffCostPerHundredPoints || buffCostPerHundredPoints < previous.buffCostPerHundredPoints)
-      ) ||
-      (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
-      (
-        isMaterialAcquisition(row) === isMaterialAcquisition(previous) &&
-        getRecommendationGold(row, includeMaterialCosts) < getRecommendationGold(previous, includeMaterialCosts)
-      )
+      row.sourceType === 'creature'
+        ? (
+          !previous ||
+          buffCostPerHundredPoints > 0 &&
+            (!previous.buffCostPerHundredPoints || buffCostPerHundredPoints < previous.buffCostPerHundredPoints)
+        )
+        : isPreferredDuplicateRecommendation(row, previous, includeMaterialCosts)
     ) {
       bySlotTier.set(key, {
         ...row,
@@ -2455,6 +2461,37 @@ function getEffectSignature(effects = {}) {
     .join('|');
 }
 
+function getStableObjectSignature(value = {}) {
+  if (!value || typeof value !== 'object') return String(value ?? '');
+  return Object.keys(value)
+    .sort()
+    .map((key) => `${key}:${typeof value[key] === 'object' ? getStableObjectSignature(value[key]) : String(value[key] ?? '')}`)
+    .join('|');
+}
+
+function getRoundedMetricKey(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number.toFixed(6) : '0.000000';
+}
+
+function getComparableRecommendationGold(row, includeMaterialCosts = false) {
+  if (isFreeActionRecommendation(row)) return 0;
+  const gold = getRecommendationGold(row, includeMaterialCosts);
+  return Number.isFinite(gold) && gold > 0 ? gold : Number.POSITIVE_INFINITY;
+}
+
+function isPreferredDuplicateRecommendation(row, previous, includeMaterialCosts = false) {
+  if (!previous) return true;
+  const isMaterial = isMaterialAcquisition(row);
+  const previousIsMaterial = isMaterialAcquisition(previous);
+  if (isMaterial !== previousIsMaterial) return isMaterial;
+  if (isMaterial && previousIsMaterial) return false;
+  const price = getComparableRecommendationGold(row, includeMaterialCosts);
+  const previousPrice = getComparableRecommendationGold(previous, includeMaterialCosts);
+  if (Math.abs(price - previousPrice) > 1) return price < previousPrice;
+  return false;
+}
+
 function getRecommendationDamageEffects(row, current) {
   if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
   if (row.sourceType === 'blackFang') {
@@ -2808,7 +2845,16 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     const itemSkillKey = ['creature', 'aura'].includes(row.sourceType)
       ? `${row.reinforceSkillName || ''}:${Number(row.reinforceSkillLevel || 0)}:${Number(row.skillDamageMultiplier || 1).toFixed(8)}`
       : '';
-    const key = row.sourceType === 'creatureArtifact'
+    const key = row.sourceType === 'enchant'
+      ? [
+        row.sourceType,
+        row.slot,
+        getEffectSignature(getRoleRelevantEffects(current?.effects || {}, false)),
+        getEffectSignature(getRoleRelevantEffects(row.effects || {}, false)),
+        getEffectSignature(getRoleRelevantEffects(damageEffects || {}, false)),
+        getRoundedMetricKey(incrementalDamagePercent),
+      ].join(':')
+      : row.sourceType === 'creatureArtifact'
       ? `${row.sourceType}:${row.slot}:${row.tier}`
       : row.sourceType === 'switchingCreature'
         ? `${row.sourceType}:${row.itemId || row.itemName}:${getEffectSignature(row.effects)}`
@@ -2836,12 +2882,7 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
           getCostPerPointOnePercent({ ...row, incrementalDamagePercent }, includeMaterialCosts) <
             getCostPerPointOnePercent(previous, includeMaterialCosts)
         )
-      : !previous ||
-      (isMaterialAcquisition(row) && !isMaterialAcquisition(previous)) ||
-      (
-        isMaterialAcquisition(row) === isMaterialAcquisition(previous) &&
-        getRecommendationGold(row, includeMaterialCosts) < getRecommendationGold(previous, includeMaterialCosts)
-      );
+      : isPreferredDuplicateRecommendation(row, previous, includeMaterialCosts);
     if (shouldReplace) {
       bySlotTier.set(key, {
         ...row,
