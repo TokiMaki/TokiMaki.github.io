@@ -648,6 +648,7 @@ def build_oath_upgrade_payload(oath_payload: dict) -> dict:
         "itemRarity": clean_text(info.get("itemRarity")),
         "iconUrl": get_item_icon_url(clean_text(info.get("itemId"))) if clean_text(info.get("itemId")) else "",
         "setName": clean_text(set_info.get("setName")),
+        "setOptionName": clean_text(set_info.get("setOptionName")),
         "setRarityName": clean_text(set_info.get("setRarityName")),
         "setPoint": stage_point,
         "crystals": crystals,

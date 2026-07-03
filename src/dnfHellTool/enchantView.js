@@ -19,6 +19,49 @@ const EFFECT_LABELS = {
 };
 const BUFFER_SCORE_ICON_URL = new URL('../../이미지/bufferScore.png', import.meta.url).href;
 const EQUIPMENT_SCORE_ICON_URL = new URL('../../이미지/equipmentScore.png', import.meta.url).href;
+const OATH_BOARD_BG_URL = new URL('../../이미지/oathbg.png', import.meta.url).href;
+const OATH_SYMBOL_ASSETS = import.meta.glob('../../이미지/Oath/*/*.{png,webp}', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+});
+const OATH_SYMBOL_SET_FOLDERS = {
+  basic: '00basic',
+  shadow: '01shadow',
+  fairy: '02fairy',
+  gold: '03gold',
+  dragon: '04dragon',
+  purify: '05purify',
+  serendipity: '06serendipity',
+  limitless: '07limitless',
+  nature: '08nature',
+  valkyrie: '09valkyrie',
+  fox: '10etherial',
+  wolf: '11wolf',
+  realm: '12realm',
+};
+const OATH_SYMBOL_FILES_BY_RARITY = {
+  rare: 'rare.png',
+  unique: 'unique.png',
+  legendary: 'legendary.png',
+  epic: 'epic.png',
+  primeval: 'primeval.webp',
+};
+const OATH_SYMBOL_SET_KEYWORDS = [
+  ['안개', 'basic'],
+  ['그림자', 'shadow'],
+  ['페어리', 'fairy'],
+  ['황금', 'gold'],
+  ['용투', 'dragon'],
+  ['정화', 'purify'],
+  ['행운', 'serendipity'],
+  ['한계', 'limitless'],
+  ['자연', 'nature'],
+  ['발키리', 'valkyrie'],
+  ['여우', 'fox'],
+  ['무리', 'wolf'],
+  ['마력', 'realm'],
+];
 const UPGRADE_SLOT_LABELS = {
   무기: 'weapon',
   상의: 'armor',
@@ -100,6 +143,8 @@ const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '귀걸이', key: 'earring', side: 'right' },
   { slot: '마법석', key: 'magic-stone', side: 'right' },
 ];
+const OATH_LOADOUT_SIDE_SLOT_COUNT = 4;
+const OATH_LOADOUT_BOTTOM_SLOT_COUNT = 3;
 const ELEMENT_EFFECT_KEY_BY_NAME = {
   fire: 'elementFire',
   water: 'elementWater',
@@ -737,6 +782,21 @@ function formatOathStageNameHtml(stageName, escapeHtml) {
   const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
   const rarityClass = getOathStageRarityClass(stageName);
   return `<span class="enchant-oath-stage enchant-oath-stage-${escape(rarityClass)}">${escape(stageName)}</span>`;
+}
+
+function formatOathStageRomanSuffix(stageName) {
+  const name = String(stageName || '').trim();
+  if (!name || name.startsWith('태초')) return '';
+  const match = name.match(/(?:레어|유니크|레전더리|에픽)\s*([IV]+|[ⅠⅡⅢⅣⅤ]+)/i);
+  const value = match?.[1] || '';
+  const romanByGlyph = {
+    'Ⅰ': 'I',
+    'Ⅱ': 'II',
+    'Ⅲ': 'III',
+    'Ⅳ': 'IV',
+    'Ⅴ': 'V',
+  };
+  return romanByGlyph[value] || value.toUpperCase();
 }
 
 function formatOathTuneEffectHtml(row, escapeHtml) {
@@ -3247,6 +3307,7 @@ export function installEnchantView(ctx) {
   state.switchingFragmentRecommendations = [];
   state.currentEquipmentUpgrades = [];
   state.currentOathUpgrades = null;
+  state.enchantLoadoutTab = 'equipment';
   state.currentOathTranscendRecommendations = [];
   state.currentOathCraftRecommendations = [];
   state.oathTuneStageDb = null;
@@ -3428,6 +3489,166 @@ export function installEnchantView(ctx) {
     return ENCHANT_PORTRAIT_SLOT_LAYOUT.map((layout) => renderEnchantPortraitSlotMarkup(layout, slotData)).join('');
   }
 
+  function isPrimevalOathCrystal(crystal) {
+    const rarity = String(crystal?.itemRarity || '').trim();
+    const itemName = String(crystal?.itemName || '').trim();
+    return rarity.includes('태초') || itemName.includes('태초의 광휘 결정');
+  }
+
+  function getOathLoadoutSlots() {
+    const crystals = Array.isArray(state.currentOathUpgrades?.crystals)
+      ? state.currentOathUpgrades.crystals.filter(Boolean)
+      : [];
+    const selectedForBottom = new Set();
+    const bottom = [];
+
+    crystals.forEach((crystal, index) => {
+      if (bottom.length >= OATH_LOADOUT_BOTTOM_SLOT_COUNT) return;
+      if (!isPrimevalOathCrystal(crystal)) return;
+      bottom.push(crystal);
+      selectedForBottom.add(index);
+    });
+
+    crystals.forEach((crystal, index) => {
+      if (bottom.length >= OATH_LOADOUT_BOTTOM_SLOT_COUNT) return;
+      if (selectedForBottom.has(index)) return;
+      bottom.push(crystal);
+      selectedForBottom.add(index);
+    });
+
+    const sideCrystals = crystals.filter((_, index) => !selectedForBottom.has(index));
+    const fillSlots = (items, count) => Array.from({ length: count }, (_, index) => items[index] || null);
+
+    return {
+      left: fillSlots(sideCrystals.slice(0, OATH_LOADOUT_SIDE_SLOT_COUNT), OATH_LOADOUT_SIDE_SLOT_COUNT),
+      right: fillSlots(sideCrystals.slice(OATH_LOADOUT_SIDE_SLOT_COUNT, OATH_LOADOUT_SIDE_SLOT_COUNT * 2), OATH_LOADOUT_SIDE_SLOT_COUNT),
+      bottom: fillSlots(bottom, OATH_LOADOUT_BOTTOM_SLOT_COUNT),
+    };
+  }
+
+  function getOathCrystalRarityClass(crystal) {
+    const rarity = String(crystal?.itemRarity || '').trim();
+    if (rarity.includes('레어')) return 'is-rare';
+    if (rarity.includes('태초')) return 'is-primeval';
+    if (rarity.includes('에픽')) return 'is-epic';
+    if (rarity.includes('레전더리')) return 'is-legendary';
+    if (rarity.includes('유니크')) return 'is-unique';
+    return '';
+  }
+
+  function renderOathLoadoutSlot(crystal, index, area) {
+    const itemName = String(crystal?.itemName || '').trim();
+    const rarity = String(crystal?.itemRarity || '').trim();
+    const iconUrl = String(crystal?.iconUrl || '').trim();
+    const title = itemName || `빈 서약 슬롯 ${index + 1}`;
+    const rarityClass = getOathCrystalRarityClass(crystal);
+    return `
+      <span class="enchant-oath-slot${iconUrl ? '' : ' is-empty'} ${escapeHtml(rarityClass)}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" data-oath-area="${escapeHtml(area)}">
+        ${iconUrl
+          ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
+          : '<span class="enchant-oath-slot-placeholder" aria-hidden="true"></span>'}
+      </span>
+    `;
+  }
+
+  function renderOathLoadoutColumn(slots, area) {
+    return `
+      <div class="enchant-oath-column enchant-oath-column-${escapeHtml(area)}">
+        ${slots.map((crystal, index) => renderOathLoadoutSlot(crystal, index, area)).join('')}
+      </div>
+    `;
+  }
+
+  function getOathSymbolSetKey(oath = {}) {
+    const text = String(oath.itemName || '');
+    const match = OATH_SYMBOL_SET_KEYWORDS.find(([keyword]) => text.includes(keyword));
+    return match?.[1] || '';
+  }
+
+  function getOathSymbolRarityKey(oath = {}) {
+    const rarity = String(oath.itemRarity || '').trim();
+    if (rarity.includes('레어')) return 'rare';
+    if (rarity.includes('태초')) return 'primeval';
+    if (rarity.includes('에픽')) return 'epic';
+    if (rarity.includes('레전더리')) return 'legendary';
+    if (rarity.includes('유니크')) return 'unique';
+    return '';
+  }
+
+  function getLocalOathSymbolIconUrl(oath = {}) {
+    const setKey = getOathSymbolSetKey(oath);
+    const rarityKey = getOathSymbolRarityKey(oath);
+    const folder = OATH_SYMBOL_SET_FOLDERS[setKey];
+    const fileName = OATH_SYMBOL_FILES_BY_RARITY[rarityKey];
+    if (!folder || !fileName) return '';
+    return OATH_SYMBOL_ASSETS[`../../이미지/Oath/${folder}/${fileName}`] || '';
+  }
+
+  function renderOathLoadoutBoard() {
+    const oath = state.currentOathUpgrades || {};
+    const slots = getOathLoadoutSlots();
+    const setName = String(oath.setName || '').trim();
+    const setOptionName = String(oath.setOptionName || '').trim();
+    const setRarityName = String(oath.setRarityName || oath.itemRarity || '').trim();
+    const setOptionSuffix = formatOathStageRomanSuffix(setRarityName);
+    const setOptionTitle = setOptionName
+      ? [setOptionName, setOptionSuffix].filter(Boolean).join(' ')
+      : '';
+    const setOptionRarityClass = getOathStageRarityClass(setRarityName);
+    const setPoint = Number(oath.setPoint || 0);
+    const oathIconUrl = getLocalOathSymbolIconUrl(oath) || String(oath.iconUrl || '').trim();
+    const hasCrystals = Array.isArray(oath.crystals) && oath.crystals.length > 0;
+    return `
+      <div class="enchant-oath-board" aria-label="서약 결정 장착 정보">
+        <img class="enchant-oath-board-bg" src="${escapeHtml(OATH_BOARD_BG_URL)}" alt="" loading="lazy" decoding="async" aria-hidden="true" />
+        ${renderOathLoadoutColumn(slots.left, 'left')}
+        <div class="enchant-oath-center">
+          ${oathIconUrl
+            ? `<span class="enchant-oath-symbol"><img src="${escapeHtml(oathIconUrl)}" alt="" loading="lazy" decoding="async" data-oath-symbol-image /><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>`
+            : '<span class="enchant-oath-symbol is-fallback"><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>'}
+          <strong class="enchant-oath-center-name enchant-oath-stage-${escapeHtml(setOptionRarityClass)}">${escapeHtml(setOptionTitle || (hasCrystals ? '' : '서약 정보 없음'))}</strong>
+          ${Number.isFinite(setPoint) && setPoint > 0
+            ? `<span class="enchant-oath-center-point">세트 포인트 ${escapeHtml(setPoint.toLocaleString('ko-KR'))}</span>`
+            : ''}
+        </div>
+        ${renderOathLoadoutColumn(slots.right, 'right')}
+        <div class="enchant-oath-bottom">
+          ${slots.bottom.map((crystal, index) => renderOathLoadoutSlot(crystal, index, 'bottom')).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderEnchantLoadoutTabs(activeTab) {
+    const tabs = [
+      ['equipment', '장비'],
+      ['oath', '서약'],
+    ];
+    return `
+      <div class="enchant-loadout-tabs" role="tablist" aria-label="캐릭터 로드아웃">
+        ${tabs.map(([value, label]) => `
+          <button type="button" class="enchant-loadout-tab${activeTab === value ? ' is-active' : ''}" role="tab" aria-selected="${activeTab === value ? 'true' : 'false'}" data-enchant-loadout-tab="${escapeHtml(value)}">
+            ${escapeHtml(label)}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function bindOathSymbolFallback() {
+    els.enchantCharacterPortrait?.querySelectorAll('[data-oath-symbol-image]').forEach((img) => {
+      const showFallback = () => {
+        img.hidden = true;
+        img.closest('.enchant-oath-symbol')?.classList.add('is-fallback');
+      };
+      if (img.complete && img.naturalWidth === 0) {
+        showFallback();
+        return;
+      }
+      img.addEventListener('error', showFallback, { once: true });
+    });
+  }
+
   function resetEnchantPortraitDetailPanel() {
     const portraitRoot = els.enchantCharacterPortrait?.querySelector('.enchant-character-portrait');
     const panel = els.enchantCharacterPortrait?.querySelector('[data-enchant-portrait-detail]');
@@ -3486,17 +3707,24 @@ export function installEnchantView(ctx) {
       els.enchantCharacterPortrait.innerHTML = '<div class="table-empty-cell">캐릭터 검색을 해주세요.</div>';
       return;
     }
-    const slotItemsMarkup = buildEnchantPortraitSlotMarkup();
-    els.enchantCharacterPortrait.innerHTML = `
+    const activeTab = state.enchantLoadoutTab === 'oath' ? 'oath' : 'equipment';
+    const loadoutMarkup = `
       <div class="supply-detail-portrait enchant-character-portrait">
         ${getCharacterPortraitMarkup(character, {
           zoom: 1,
-          slotItemsHtml: slotItemsMarkup,
+          slotItemsHtml: activeTab === 'equipment' ? buildEnchantPortraitSlotMarkup() : '',
+          cropHtml: activeTab === 'oath' ? renderOathLoadoutBoard() : '',
         })}
       </div>
     `;
+    els.enchantCharacterPortrait.innerHTML = `
+      ${renderEnchantLoadoutTabs(activeTab)}
+      <div class="enchant-loadout-panel enchant-loadout-panel-${escapeHtml(activeTab)}">
+        ${loadoutMarkup}
+      </div>
+    `;
     const characterName = els.enchantCharacterPortrait.querySelector('.enchant-character-portrait .character-name');
-    if (characterName) {
+    if (activeTab === 'equipment' && characterName) {
       characterName.insertAdjacentHTML('beforeend', `
         <div class="enchant-portrait-detail-panel" data-enchant-portrait-detail>
           <div class="enchant-portrait-detail-title" data-enchant-portrait-detail-title>장비 상세</div>
@@ -3534,7 +3762,11 @@ export function installEnchantView(ctx) {
       `);
     }
     bindCharacterAvatars(els.enchantCharacterPortrait);
-    bindEnchantPortraitDetailPanel();
+    if (activeTab === 'oath') {
+      bindOathSymbolFallback();
+    } else {
+      bindEnchantPortraitDetailPanel();
+    }
   }
 
   function getSelectedEnchantCharacter() {
@@ -3631,6 +3863,7 @@ export function installEnchantView(ctx) {
     state.currentEnchants = [];
     state.currentEquipmentUpgrades = [];
     state.currentOathUpgrades = null;
+    state.enchantLoadoutTab = 'equipment';
     state.currentOathTranscendRecommendations = [];
     state.currentOathCraftRecommendations = [];
     state.oathTuneStageDb = null;
@@ -4833,6 +5066,16 @@ export function installEnchantView(ctx) {
     event.stopPropagation();
     if (target.classList.contains('is-disabled')) return;
     changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
+  });
+
+  els.enchantCharacterPortrait?.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-enchant-loadout-tab]');
+    if (!target) return;
+    event.preventDefault();
+    const nextTab = target.dataset.enchantLoadoutTab === 'oath' ? 'oath' : 'equipment';
+    if (state.enchantLoadoutTab === nextTab) return;
+    state.enchantLoadoutTab = nextTab;
+    renderEnchantCharacterPortrait();
   });
 
   Object.assign(ctx.actions, {
