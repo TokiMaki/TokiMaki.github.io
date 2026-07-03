@@ -57,7 +57,11 @@ from .neople_client import (
 )
 from .ops_log import write_ops_log
 from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name, get_lowest_auction_price, get_lowest_auction_prices
-from .repositories.character_repository import get_character_cached_payload
+from .repositories.character_repository import (
+    get_character_cached_computed_payload,
+    get_character_cached_payload,
+    save_character_cached_computed_payload,
+)
 from .repositories.item_repository import fetch_item_details, search_items_by_name
 from .repositories.material_price_repository import load_upgrade_material_prices
 from .repositories.resolved_price_repository import get_cached_resolved_price
@@ -675,6 +679,9 @@ def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: di
 
 
 def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
+    cached_payload = get_character_cached_computed_payload(server_id, character_id, "oathUpgrades")
+    if cached_payload is not None:
+        return cached_payload
     try:
         payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath")
     except Exception:
@@ -691,7 +698,9 @@ def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
             )
         except Exception:
             mist_assimilation_payload = None
-    return build_oath_upgrade_payload(payload, mist_assimilation_payload)
+    oath_upgrades = build_oath_upgrade_payload(payload, mist_assimilation_payload)
+    save_character_cached_computed_payload(server_id, character_id, "oathUpgrades", oath_upgrades)
+    return oath_upgrades
 
 
 def load_character_enchants(server_id: str, character_id: str) -> dict:

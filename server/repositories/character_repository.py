@@ -171,3 +171,34 @@ def get_character_cached_payload(server_id: str, character_id: str, resource: st
     _save_character_memory_cached_payload(cache_key, payload, now)
     _save_character_sqlite_cached_payload(cache_key, payload, int(time.time() * 1000))
     return payload
+
+
+def get_character_cached_computed_payload(server_id: str, character_id: str, resource: str) -> dict | None:
+    cache_key = _get_character_cache_key(server_id, character_id, resource)
+    now = time.time()
+    with _CHARACTER_RESPONSE_CACHE_LOCK:
+        cached = _CHARACTER_RESPONSE_CACHE.get(cache_key)
+        if cached and float(cached.get("expires_at") or 0) > now:
+            record_cache_event("character_payload", "hit")
+            record_character_response_cache_source("mem")
+            payload = cached.get("payload")
+            return payload if isinstance(payload, dict) else None
+
+    sqlite_payload = _get_character_sqlite_cached_payload(cache_key, int(now * 1000))
+    if sqlite_payload is not None:
+        _save_character_memory_cached_payload(cache_key, sqlite_payload, now)
+        record_cache_event("character_payload", "hit")
+        record_character_response_cache_source("sqlite")
+        return sqlite_payload
+
+    record_cache_event("character_payload", "miss")
+    return None
+
+
+def save_character_cached_computed_payload(server_id: str, character_id: str, resource: str, payload: dict):
+    if not isinstance(payload, dict):
+        return
+    cache_key = _get_character_cache_key(server_id, character_id, resource)
+    now = time.time()
+    _save_character_memory_cached_payload(cache_key, payload, now)
+    _save_character_sqlite_cached_payload(cache_key, payload, int(now * 1000))
