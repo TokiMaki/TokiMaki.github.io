@@ -663,7 +663,7 @@
       min-width: 0;
       padding: 0 6px;
       border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
-      background: rgb(8 12 18 / 0.18);
+      background: rgb(8 12 18 / 0.1);
       text-align: center;
     }
     .enchant-oath-symbol {

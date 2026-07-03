@@ -3489,40 +3489,19 @@ export function installEnchantView(ctx) {
     return ENCHANT_PORTRAIT_SLOT_LAYOUT.map((layout) => renderEnchantPortraitSlotMarkup(layout, slotData)).join('');
   }
 
-  function isPrimevalOathCrystal(crystal) {
-    const rarity = String(crystal?.itemRarity || '').trim();
-    const itemName = String(crystal?.itemName || '').trim();
-    return rarity.includes('태초') || itemName.includes('태초의 광휘 결정');
-  }
-
   function getOathLoadoutSlots() {
     const crystals = Array.isArray(state.currentOathUpgrades?.crystals)
-      ? state.currentOathUpgrades.crystals.filter(Boolean)
+      ? state.currentOathUpgrades.crystals
+        .filter(Boolean)
+        .slice()
+        .sort((a, b) => Number(a?.index || 0) - Number(b?.index || 0))
       : [];
-    const selectedForBottom = new Set();
-    const bottom = [];
-
-    crystals.forEach((crystal, index) => {
-      if (bottom.length >= OATH_LOADOUT_BOTTOM_SLOT_COUNT) return;
-      if (!isPrimevalOathCrystal(crystal)) return;
-      bottom.push(crystal);
-      selectedForBottom.add(index);
-    });
-
-    crystals.forEach((crystal, index) => {
-      if (bottom.length >= OATH_LOADOUT_BOTTOM_SLOT_COUNT) return;
-      if (selectedForBottom.has(index)) return;
-      bottom.push(crystal);
-      selectedForBottom.add(index);
-    });
-
-    const sideCrystals = crystals.filter((_, index) => !selectedForBottom.has(index));
     const fillSlots = (items, count) => Array.from({ length: count }, (_, index) => items[index] || null);
 
     return {
-      left: fillSlots(sideCrystals.slice(0, OATH_LOADOUT_SIDE_SLOT_COUNT), OATH_LOADOUT_SIDE_SLOT_COUNT),
-      right: fillSlots(sideCrystals.slice(OATH_LOADOUT_SIDE_SLOT_COUNT, OATH_LOADOUT_SIDE_SLOT_COUNT * 2), OATH_LOADOUT_SIDE_SLOT_COUNT),
-      bottom: fillSlots(bottom, OATH_LOADOUT_BOTTOM_SLOT_COUNT),
+      left: fillSlots(crystals.slice(0, OATH_LOADOUT_SIDE_SLOT_COUNT), OATH_LOADOUT_SIDE_SLOT_COUNT),
+      right: fillSlots(crystals.slice(OATH_LOADOUT_SIDE_SLOT_COUNT, OATH_LOADOUT_SIDE_SLOT_COUNT * 2), OATH_LOADOUT_SIDE_SLOT_COUNT),
+      bottom: fillSlots(crystals.slice(OATH_LOADOUT_SIDE_SLOT_COUNT * 2, OATH_LOADOUT_SIDE_SLOT_COUNT * 2 + OATH_LOADOUT_BOTTOM_SLOT_COUNT), OATH_LOADOUT_BOTTOM_SLOT_COUNT),
     };
   }
 
