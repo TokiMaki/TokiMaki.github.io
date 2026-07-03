@@ -3561,6 +3561,7 @@ export function installEnchantView(ctx) {
     const rarityClass = getOathCrystalRarityClass(crystal);
     const oathIndex = Number.isFinite(Number(crystal?.index)) ? Number(crystal.index) : index;
     const detailLines = crystal ? buildOathDetailLines(crystal) : [];
+    const tuneLevel = Math.max(0, Math.min(3, Math.floor(Number(crystal?.tuneLevel || 0))));
     const detailAttrs = crystal
       ? ` tabindex="0" data-oath-index="${escapeHtml(String(oathIndex))}" data-detail-title="${escapeHtml(title)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"`
       : '';
@@ -3569,6 +3570,9 @@ export function installEnchantView(ctx) {
         ${iconUrl
           ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
           : '<span class="enchant-oath-slot-placeholder" aria-hidden="true"></span>'}
+        ${crystal && tuneLevel > 0
+          ? `<span class="enchant-character-slot-tune-mark" role="img" aria-label="조율 ${escapeHtml(String(tuneLevel))}회">${Array.from({ length: tuneLevel }).map(() => '<span class="enchant-character-slot-tune-bar" aria-hidden="true"></span>').join('')}</span>`
+          : ''}
       </span>
     `;
   }
