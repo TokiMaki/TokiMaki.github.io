@@ -3887,7 +3887,7 @@ export function installEnchantView(ctx) {
       if (title) {
         title.innerHTML = '<span>분석중이에양</span><span class="enchant-analysis-loading-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>';
       }
-      if (sub) sub.textContent = '캐릭터 장비와 스펙업 효율을 계산하고 있어양.';
+      if (sub) sub.textContent = '스펙업 효율을 계산하고 있어양.';
     } else if (isError) {
       if (title) title.textContent = message || '분석에 실패했습니다.';
       if (sub) sub.textContent = getEnchantAnalysisErrorSubtext(message);
