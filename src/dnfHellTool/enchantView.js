@@ -3308,6 +3308,7 @@ export function installEnchantView(ctx) {
   state.currentEquipmentUpgrades = [];
   state.currentOathUpgrades = null;
   state.enchantLoadoutTab = 'equipment';
+  state.enchantSearchCandidates = [];
   state.currentOathTranscendRecommendations = [];
   state.currentOathCraftRecommendations = [];
   state.oathTuneStageDb = null;
@@ -3877,6 +3878,9 @@ export function installEnchantView(ctx) {
     if (els.enchantResultLayout) {
       els.enchantResultLayout.hidden = showMessage;
     }
+    if (els.enchantCandidatePanel) {
+      els.enchantCandidatePanel.hidden = true;
+    }
     if (!els.enchantAnalysisLoading) return;
     els.enchantAnalysisLoading.hidden = !showMessage;
     els.enchantAnalysisLoading.classList.toggle('is-error', isError);
@@ -3916,6 +3920,81 @@ export function installEnchantView(ctx) {
     setEnchantAnalysisPanel('ready');
   }
 
+  function setEnchantCandidatePanel(mode, candidates = [], message = '') {
+    if (els.enchantIncludeCard) {
+      els.enchantIncludeCard.hidden = true;
+    }
+    if (els.enchantResultLayout) {
+      els.enchantResultLayout.hidden = true;
+    }
+    if (els.enchantAnalysisLoading) {
+      els.enchantAnalysisLoading.hidden = true;
+    }
+    if (!els.enchantCandidatePanel) return;
+    els.enchantCandidatePanel.hidden = false;
+    els.enchantCandidatePanel.classList.toggle('is-error', mode === 'error');
+    if (mode === 'loading') {
+      els.enchantCandidatePanel.innerHTML = `
+        <div class="enchant-candidate-empty">
+          <div class="enchant-analysis-loading-title">
+            <span>캐릭터 찾는 중이에양</span><span class="enchant-analysis-loading-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    if (mode === 'error') {
+      els.enchantCandidatePanel.innerHTML = `
+        <div class="enchant-candidate-empty">
+          <div class="enchant-analysis-loading-title">${escapeHtml(message || '캐릭터를 찾지 못했어양.')}</div>
+        </div>
+      `;
+      return;
+    }
+    els.enchantCandidatePanel.innerHTML = renderEnchantSearchCandidates(candidates);
+    bindCharacterAvatars(els.enchantCandidatePanel);
+  }
+
+  function renderEnchantSearchCandidates(candidates = []) {
+    const rows = Array.isArray(candidates) ? candidates : [];
+    if (!rows.length) {
+      return `
+        <div class="enchant-candidate-empty">
+          <div class="enchant-analysis-loading-title">캐릭터를 찾지 못했어양.</div>
+        </div>
+      `;
+    }
+    return `
+      <div class="enchant-candidate-head">
+        <h2>캐릭터 선택</h2>
+        <p>분석할 캐릭터를 골라줘양.</p>
+      </div>
+      <div class="enchant-candidate-grid">
+        ${rows.map((candidate) => {
+          const serverId = String(candidate.serverId || '').trim().toLowerCase();
+          const characterName = String(candidate.characterName || '').trim();
+          const candidateCharacter = {
+            serverId,
+            characterId: String(candidate.characterId || '').trim(),
+            name: characterName,
+            characterName,
+            adventureName: candidate.adventureName || '',
+            jobName: candidate.jobName || '',
+            jobGrowName: candidate.jobGrowName || '',
+            fame: Number(candidate.fame || 0),
+          };
+          return `
+            <button type="button" class="enchant-candidate-card" data-candidate-server-id="${escapeHtml(serverId)}" data-candidate-character-name="${escapeHtml(characterName)}">
+              <span class="supply-detail-portrait enchant-candidate-portrait">
+                ${getCharacterPortraitMarkup(candidateCharacter, { zoom: 1 })}
+              </span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
   function renderEnchantCharacterMessage(text) {
     if (!els.enchantCharacterPortrait) return;
     els.enchantCharacterPortrait.innerHTML = `<div class="table-empty-cell">${escapeHtml(text)}</div>`;
@@ -3926,6 +4005,7 @@ export function installEnchantView(ctx) {
     state.currentEquipmentUpgrades = [];
     state.currentOathUpgrades = null;
     state.enchantLoadoutTab = 'equipment';
+    state.enchantSearchCandidates = [];
     state.currentOathTranscendRecommendations = [];
     state.currentOathCraftRecommendations = [];
     state.oathTuneStageDb = null;
@@ -4879,22 +4959,45 @@ export function installEnchantView(ctx) {
   async function searchEnchantCharacter() {
     const serverId = String(els.enchantServerIdInput?.value || '').trim().toLowerCase();
     const characterName = String(els.enchantCharacterNameInput?.value || '').trim();
-    if (!serverId || !characterName) {
+    if (!characterName) {
       state.enchantRecommendationLoading = false;
-      setEnchantCharacterStatus('서버와 캐릭터명을 입력해 주세요.');
+      setEnchantCharacterStatus('캐릭터명을 입력해 주세요.');
       return;
     }
 
+    const isAllServerSearch = !serverId || serverId === 'all';
     state.enchantRecommendationLoading = true;
     const requestId = state.enchantRequestId + 1;
     state.enchantRequestId = requestId;
     state.enchantTargetCharacter = null;
     resetCurrentEnchantCharacterState();
-    showEnchantAnalysisLoading();
+    if (isAllServerSearch) {
+      setEnchantCandidatePanel('loading');
+    } else {
+      showEnchantAnalysisLoading();
+    }
     if (els.loadEnchantCharacterButton) els.loadEnchantCharacterButton.disabled = true;
-    setEnchantCharacterStatus(`${characterName} 검색 중...`);
-    beginEnchantTiming(`${serverId}:${characterName}`);
+    setEnchantCharacterStatus(isAllServerSearch ? `${characterName} 전체 서버 검색 중...` : `${characterName} 검색 중...`);
+    beginEnchantTiming(`${serverId || 'all'}:${characterName}`);
     try {
+      if (isAllServerSearch) {
+        const query = new URLSearchParams({ characterName });
+        const searchStartedAt = getEnchantNowMs();
+        const response = await fetch(`${API_BASE}/api/search-all?${query.toString()}`, { cache: 'no-store' });
+        const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
+        if (requestId !== state.enchantRequestId) return;
+        const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+        recordEnchantTimingStep('search-all', searchStartedAt, {
+          matchCount: candidates.length,
+          failures: Array.isArray(payload.failures) ? payload.failures.length : 0,
+        });
+        state.enchantRecommendationLoading = false;
+        state.enchantSearchCandidates = candidates;
+        setEnchantCharacterStatus(candidates.length ? `${candidates.length}개 캐릭터를 찾았습니다.` : '캐릭터를 찾지 못했어양.');
+        setEnchantCandidatePanel(candidates.length ? 'ready' : 'empty', candidates);
+        flushEnchantTiming('candidate-select');
+        return;
+      }
       const query = new URLSearchParams({ serverId, characterName });
       const searchStartedAt = getEnchantNowMs();
       const response = await fetch(`${API_BASE}/api/search?${query.toString()}`, { cache: 'no-store' });
@@ -4936,7 +5039,11 @@ export function installEnchantView(ctx) {
         ? '캐릭터를 찾지 못했습니다.'
         : normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
       state.enchantRecommendationLoading = false;
-      showEnchantAnalysisError(errorMessage);
+      if (isAllServerSearch) {
+        setEnchantCandidatePanel('error', [], errorMessage);
+      } else {
+        showEnchantAnalysisError(errorMessage);
+      }
       setEnchantCharacterStatus(errorMessage);
       flushEnchantTiming('error');
     } finally {
@@ -5128,6 +5235,18 @@ export function installEnchantView(ctx) {
     event.stopPropagation();
     if (target.classList.contains('is-disabled')) return;
     changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
+  });
+
+  els.enchantCandidatePanel?.addEventListener('click', (event) => {
+    const card = event.target.closest('[data-candidate-server-id][data-candidate-character-name]');
+    if (!card) return;
+    event.preventDefault();
+    const serverId = String(card.dataset.candidateServerId || '').trim().toLowerCase();
+    const characterName = String(card.dataset.candidateCharacterName || '').trim();
+    if (!serverId || !characterName) return;
+    if (els.enchantServerIdInput) els.enchantServerIdInput.value = serverId;
+    if (els.enchantCharacterNameInput) els.enchantCharacterNameInput.value = characterName;
+    els.loadEnchantCharacterButton?.click();
   });
 
   els.enchantCharacterPortrait?.addEventListener('click', (event) => {

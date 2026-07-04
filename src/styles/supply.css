@@ -294,6 +294,98 @@
     .enchant-analysis-loading[hidden] {
       display: none !important;
     }
+    .enchant-candidate-panel {
+      width: min(100%, 720px);
+      max-width: 720px;
+      justify-self: center;
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      text-align: left;
+      container: enchant-candidate-panel / inline-size;
+    }
+    .enchant-candidate-panel[hidden] {
+      display: none !important;
+    }
+    .enchant-candidate-head {
+      display: grid;
+      gap: 3px;
+      text-align: center;
+    }
+    .enchant-candidate-head h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 17px;
+      line-height: 1.25;
+    }
+    .enchant-candidate-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .enchant-candidate-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, 166px);
+      justify-content: start;
+      gap: 8px;
+      width: calc((166px * 4) + (8px * 3));
+      max-width: 100%;
+      margin: 0 auto;
+      min-width: 0;
+    }
+    .enchant-candidate-card {
+      display: block;
+      min-width: 0;
+      width: 100%;
+      padding: 8px;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 34%, var(--line));
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      text-align: center;
+      cursor: pointer;
+    }
+    .enchant-candidate-card:hover,
+    .enchant-candidate-card:focus-visible {
+      border-color: color-mix(in srgb, var(--accent-2) 68%, var(--line));
+      background: color-mix(in srgb, var(--accent-2) 8%, transparent);
+      outline: none;
+    }
+    .enchant-candidate-portrait {
+      --supply-detail-portrait-transform: none;
+      --supply-detail-portrait-crop-width: 100%;
+      --supply-detail-portrait-crop-min-height: 106px;
+      --supply-detail-portrait-crop-margin: 0 auto;
+      --supply-detail-portrait-frame-width: 88px;
+      --supply-detail-portrait-frame-height: 106px;
+      --supply-detail-portrait-frame-radius: 0;
+      --supply-detail-portrait-frame-border: 0;
+      --supply-detail-portrait-frame-background: transparent;
+      --supply-detail-portrait-frame-shadow: none;
+      width: 100%;
+    }
+    .enchant-candidate-portrait .supply-detail-portrait-bg {
+      display: none;
+    }
+    .enchant-candidate-portrait .supply-detail-portrait-frame::before {
+      content: none;
+    }
+    .enchant-candidate-portrait .supply-detail-portrait-meta {
+      padding-top: 4px;
+    }
+    .enchant-candidate-portrait .supply-detail-portrait-name {
+      font-size: 13px;
+    }
+    .enchant-candidate-portrait .supply-detail-portrait-sub {
+      color: var(--muted);
+    }
+    .enchant-candidate-empty {
+      display: grid;
+      place-items: center;
+      min-height: clamp(220px, 34vh, 360px);
+      text-align: center;
+    }
     .enchant-include-card[hidden],
     .enchant-recommend-layout[hidden] {
       display: none !important;
@@ -966,6 +1058,7 @@
       #enchantPanel > .enchant-recommend-layout,
       .enchant-search-panel,
       .enchant-analysis-loading,
+      .enchant-candidate-panel,
       .enchant-include-card,
       .enchant-recommend-stack,
       .enchant-recommend-grid {
@@ -1001,6 +1094,23 @@
       }
       .enchant-search-button {
         display: none;
+      }
+      .enchant-candidate-panel {
+        padding: 12px;
+      }
+      .enchant-candidate-grid {
+        gap: 8px;
+      }
+      .enchant-candidate-card {
+        padding: 7px;
+      }
+      .enchant-candidate-portrait {
+        --supply-detail-portrait-crop-min-height: 96px;
+        --supply-detail-portrait-frame-width: 80px;
+        --supply-detail-portrait-frame-height: 96px;
+      }
+      .enchant-candidate-portrait .supply-detail-portrait-name {
+        font-size: 12px;
       }
       .enchant-include-group-options.is-split {
         width: auto;
@@ -1113,6 +1223,46 @@
         max-width: none;
         grid-template-columns: repeat(3, 129px);
         zoom: calc(100cqw / 387px);
+      }
+    }
+    @container enchant-candidate-panel (max-width: 687px) {
+      .enchant-candidate-grid {
+        width: 688px;
+        max-width: none;
+        grid-template-columns: repeat(4, 166px);
+        zoom: calc(100cqw / 688px);
+      }
+    }
+    @container enchant-candidate-panel (max-width: 584px) {
+      .enchant-candidate-grid {
+        width: 514px;
+        max-width: 100%;
+        grid-template-columns: repeat(3, 166px);
+        zoom: 1;
+      }
+    }
+    @container enchant-candidate-panel (max-width: 513px) {
+      .enchant-candidate-grid {
+        width: 514px;
+        max-width: none;
+        grid-template-columns: repeat(3, 166px);
+        zoom: calc(100cqw / 514px);
+      }
+    }
+    @container enchant-candidate-panel (max-width: 437px) {
+      .enchant-candidate-grid {
+        width: 340px;
+        max-width: 100%;
+        grid-template-columns: repeat(2, 166px);
+        zoom: 1;
+      }
+    }
+    @container enchant-candidate-panel (max-width: 339px) {
+      .enchant-candidate-grid {
+        width: 340px;
+        max-width: none;
+        grid-template-columns: repeat(2, 166px);
+        zoom: calc(100cqw / 340px);
       }
     }
     .supply-roster-block {
@@ -1268,7 +1418,7 @@
       border-radius: 10px;
       background: color-mix(in srgb, var(--bg-deep) 36%, transparent);
       scrollbar-gutter: stable;
-      -ms-overflow-style: none; 
+      -ms-overflow-style: none;
       scrollbar-width: none;
     }
     .supply-roster-list.drag-over {

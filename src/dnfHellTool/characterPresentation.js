@@ -64,6 +64,7 @@ export function getCharacterPortraitMarkup(character, options = {}) {
   const zoom = Number(options.zoom || 4) || 4;
   const avatarUrl = getCharacterAvatarUrl(character, zoom);
   const fameLabel = fmtInt(Number(character?.fame || 0));
+  const showFame = options.showFame !== false;
   const adventureName = String(character?.adventureName || '').trim();
   const nameLabel = getCharacterNameOnly(character) || label;
   const serverJobLabel = getCharacterServerJobLabel(character);
@@ -83,7 +84,7 @@ export function getCharacterPortraitMarkup(character, options = {}) {
       </span>
       ${showName ? `
         <span class="supply-detail-portrait-meta">
-          <span class="supply-detail-portrait-fame" title="명성 ${escapeHtml(fameLabel)}" aria-label="명성 ${escapeHtml(fameLabel)}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(fameLabel)}</span>
+          ${showFame ? `<span class="supply-detail-portrait-fame" title="명성 ${escapeHtml(fameLabel)}" aria-label="명성 ${escapeHtml(fameLabel)}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(fameLabel)}</span>` : ''}
           ${adventureName ? `<span class="supply-detail-portrait-adventure">${escapeHtml(adventureName)}</span>` : ''}
           <span class="supply-detail-portrait-name">${escapeHtml(nameLabel)}</span>
           ${serverJobLabel ? `<span class="supply-detail-portrait-sub">${escapeHtml(serverJobLabel)}</span>` : ''}

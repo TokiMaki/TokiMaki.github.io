@@ -275,7 +275,7 @@ export function bindToolEvents(ctx) {
     }
   };
   const runEnchantSearch = ({ serverId, characterName, updateHistory = true, saveRecent = true } = {}) => {
-    const normalizedServerId = String(serverId || els.enchantServerIdInput?.value || 'cain').trim();
+    const normalizedServerId = String(serverId || els.enchantServerIdInput?.value || 'all').trim();
     const normalizedName = String(characterName || els.enchantCharacterNameInput?.value || '').trim();
     if (!normalizedName) {
       if (els.landingSearchStatus) els.landingSearchStatus.textContent = '캐릭터명을 입력해 주세요.';
@@ -339,7 +339,7 @@ export function bindToolEvents(ctx) {
       return;
     }
     runEnchantSearch({
-      serverId: params.get('server') || 'cain',
+      serverId: params.get('server') || 'all',
       characterName,
       updateHistory: false,
       saveRecent: false,

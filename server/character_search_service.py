@@ -1,7 +1,20 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from .neople_client import (
     clean_text,
     fetch_character_detail_from_api,
     search_characters_from_api,
+)
+
+SERVER_SEARCH_ORDER = (
+    ("cain", "카인"),
+    ("diregie", "디레지에"),
+    ("siroco", "시로코"),
+    ("prey", "프레이"),
+    ("casillas", "카시야스"),
+    ("hilder", "힐더"),
+    ("anton", "안톤"),
+    ("bakal", "바칼"),
 )
 
 
@@ -26,6 +39,41 @@ def extract_character_job_meta(payload: dict) -> dict[str, str]:
         "job_grow_id": clean_text(source.get("jobGrowId")),
         "job_grow_name": clean_text(source.get("jobGrowName")),
     }
+
+
+def build_search_candidate(server_id: str, server_name: str, row: dict, order: int, target_name: str) -> dict:
+    character_name = clean_text(row.get("characterName"))
+    return {
+        "serverId": server_id,
+        "serverName": server_name,
+        "characterId": clean_text(row.get("characterId")),
+        "characterName": character_name,
+        "adventureName": clean_text(row.get("adventureName")),
+        "jobId": clean_text(row.get("jobId")),
+        "jobName": clean_text(row.get("jobName")),
+        "jobGrowId": clean_text(row.get("jobGrowId")),
+        "jobGrowName": clean_text(row.get("jobGrowName")),
+        "fame": parse_int(row.get("fame")),
+        "_serverOrder": order,
+        "_exactOrder": 0 if character_name == target_name else 1,
+    }
+
+
+def search_server_candidates(order: int, server_id: str, server_name: str, target_name: str, limit: int) -> tuple[list[dict], dict | None]:
+    try:
+        rows = search_characters_from_api(server_id, target_name, limit, "match")
+    except Exception as exc:
+        return [], {
+            "serverId": server_id,
+            "serverName": server_name,
+            "error": str(exc),
+        }
+    candidates = []
+    for row in rows:
+        candidate = build_search_candidate(server_id, server_name, row, order, target_name)
+        if candidate["characterId"] and candidate["characterName"]:
+            candidates.append(candidate)
+    return candidates, None
 
 
 def search_character(
@@ -107,4 +155,37 @@ def search_character_response(server_id: str, character_name: str) -> dict:
             "jobGrowName": resolved.get("job_grow_name", ""),
         },
         "rows": resolved["rows"],
+    }
+
+
+def search_all_characters_response(character_name: str, limit: int = 10) -> dict:
+    target_name = clean_text(character_name)
+    if not target_name:
+        return {"characterName": target_name, "candidates": [], "failures": []}
+
+    candidates = []
+    failures = []
+    with ThreadPoolExecutor(max_workers=min(4, len(SERVER_SEARCH_ORDER))) as executor:
+        futures = [
+            executor.submit(search_server_candidates, order, server_id, server_name, target_name, limit)
+            for order, (server_id, server_name) in enumerate(SERVER_SEARCH_ORDER)
+        ]
+        for future in as_completed(futures):
+            server_candidates, failure = future.result()
+            candidates.extend(server_candidates)
+            if failure:
+                failures.append(failure)
+
+    if failures and len(failures) == len(SERVER_SEARCH_ORDER):
+        raise RuntimeError("전체 서버 캐릭터 검색에 실패했습니다.")
+
+    candidates.sort(key=lambda row: (row["_serverOrder"], row["_exactOrder"]))
+    for row in candidates:
+        row.pop("_serverOrder", None)
+        row.pop("_exactOrder", None)
+
+    return {
+        "characterName": target_name,
+        "candidates": candidates,
+        "failures": failures,
     }

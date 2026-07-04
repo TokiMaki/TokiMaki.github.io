@@ -22,7 +22,7 @@ from server.character_equipment_service import (
     load_character_preview,
     load_character_title,
 )
-from server.character_search_service import search_character_response
+from server.character_search_service import search_all_characters_response, search_character_response
 from server.character_summary_service import summarize_character_response
 from server.repositories.equipment_score_repository import load_official_equipment_score
 from server.avatar_skill_optimizer import load_avatar_skill_efficiency_response
@@ -139,6 +139,7 @@ def get_request_route_name(route: str) -> str:
     route_names = {
         "/api/character-loadout": "loadout",
         "/api/search": "search",
+        "/api/search-all": "search-all",
         "/api/aura-upgrades": "aura",
         "/api/creature-upgrades": "creature",
         "/api/title-upgrades": "title",
@@ -165,7 +166,7 @@ def should_log_request_summary(stats: dict, status: int, duration_ms: int | None
     if cache_hit is True and duration < 200:
         return False, "[REQ]"
     character_id = clean_text(stats.get("characterId"))
-    if route in {"/api/search", "/api/character-loadout"}:
+    if route in {"/api/search", "/api/search-all", "/api/character-loadout"}:
         return True, "[REQ]"
     if character_id and cache_hit is False:
         return True, "[REQ]"
@@ -508,6 +509,9 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/search":
             return self.run_limited_api_request(parsed, lambda: self.handle_search(parsed))
 
+        if parsed.path == "/api/search-all":
+            return self.run_limited_api_request(parsed, lambda: self.handle_search_all(parsed))
+
         if parsed.path == "/api/summarize":
             return self.run_limited_api_request(parsed, lambda: self.handle_summarize(parsed))
 
@@ -633,6 +637,22 @@ class HellApiHandler(SimpleHTTPRequestHandler):
 
         try:
             self.send_json(search_character_response(server_id, character_name))
+        except NeopleMaintenanceError as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_search_all(self, parsed):
+        query = parse_qs(parsed.query)
+        character_name = clean_text((query.get("characterName") or [""])[0])
+        if not character_name:
+            return self.send_json(
+                {"error": "characterName을 입력해 주세요."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+
+        try:
+            self.send_json(search_all_characters_response(character_name))
         except NeopleMaintenanceError as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
         except Exception as exc:

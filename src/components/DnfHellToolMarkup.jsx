@@ -25,7 +25,8 @@ export default function DnfHellToolMarkup() {
           <div className={'landing-search-row'} data-nosnippet>
             <label className={'landing-field'}>
               <span>서버</span>
-              <select id={'landingServerIdInput'} defaultValue={'cain'}>
+              <select id={'landingServerIdInput'} defaultValue={'all'}>
+                <option value={'all'}>전체</option>
                 <option value={'cain'}>카인</option>
                 <option value={'diregie'}>디레지에</option>
                 <option value={'siroco'}>시로코</option>
@@ -76,7 +77,8 @@ export default function DnfHellToolMarkup() {
           <div className={'loader-row supply-input-row enchant-input-row'}>
             <div className={'field'}>
               <label htmlFor={'enchantServerIdInput'}>서버</label>
-              <select id={'enchantServerIdInput'} defaultValue={'cain'}>
+              <select id={'enchantServerIdInput'} defaultValue={'all'}>
+                <option value={'all'}>전체</option>
                 <option value={'cain'}>카인</option>
                 <option value={'diregie'}>디레지에</option>
                 <option value={'siroco'}>시로코</option>
@@ -126,6 +128,7 @@ export default function DnfHellToolMarkup() {
           </div>
           <div className={'enchant-analysis-loading-sub'}>캐릭터 장비와 스펙업 효율을 계산하고 있어양.</div>
         </section>
+        <section className={'panel enchant-candidate-panel'} id={'enchantCandidatePanel'} hidden aria-live={'polite'}></section>
         <main className={'enchant-recommend-layout'} id={'enchantResultLayout'}>
           <div className={'card supply-detail-portrait-card enchant-character-portrait-card'} id={'enchantCharacterPortrait'}>
             <div className={'table-empty-cell'}>캐릭터 검색을 해주세요.</div>

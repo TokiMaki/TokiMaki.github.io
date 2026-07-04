@@ -16,6 +16,7 @@
 - 최근 계측 구조: API 요청 종료 시 필요한 경우만 `[REQ]`/`[SLOW]` 요약 로그를 남긴다. route cache, character response cache(m/sql/api), Neople API, auction API, recommendation count를 짧게 기록하고 빠른 cache hit/보조 API 정상 응답은 기본 출력에서 숨긴다.
 - 최근 부가 표시: `/api/equipment-score`는 공식 던파 캐릭터 검색 endpoint의 `equipmentPoint`를 복호화해 딜러 장비점수를 별도 조회한다. 추천 계산과 분리하며 `cache/character-response-cache.sqlite`의 `official_equipment_score_cache` 테이블에 60초 fresh/24시간 stale TTL로 저장한다.
 - 최근 UI 정책: 스펙업 분석 검색 중에는 검색 패널을 제외한 결과 영역을 `분석중이에양...` 패널로 대체하고, character-loadout/추천/filter 준비가 끝난 뒤 캐릭터 정보·포함 항목·추천 목록을 한 번에 다시 표시한다.
+- 최근 UI/API 정책: 서버 선택이 `전체`이면 `/api/search-all`로 서버 순서대로 캐릭터 후보만 가볍게 조회하고, 후보 카드를 클릭한 뒤에만 기존 `/api/search` → `/api/character-loadout` 분석 흐름을 실행한다. 후보 단계에서는 장비/서약/장비점수/추천 선조회 금지.
 - 최근 UI 정책: 캐릭터 로드아웃 패널은 `장비`/`서약` 탭을 제공한다. 기본은 장비 탭이며, 서약 탭은 기존 `oathUpgrades.crystals` 배열과 setName/setPoint를 읽어 표시 전용 보드로 렌더링한다. 서약 루트 아이콘은 `이미지/Oath` 로컬 asset을 세트/등급 기준으로 우선 사용하며 basic 계열은 별도 규칙 전까지 fallback 처리한다.
 - 최근 마부 정책: 업그레이드 가능한 마법부여 카드/보주는 효과를 max upgrade 기준으로 쓰므로 가격도 `upgrade == upgradeMax`인 풀업 경매장 row만 인정한다. 풀업 매물이 없으면 노업 가격으로 효율을 계산하지 않고 기존 가격 없음 흐름을 탄다. 같은 부위/효과 방향에서 가성비 또는 준종결 마부가 상위 tier보다 실제 효율이 낮으면 추천 row 후처리에서 제외한다.
 - 최근 강화/증폭 정책: 무기 강화/증폭 추천은 현재 공격력 기준이 독립공격력이고 무기 재련이 있으면 115레벨 재련 독공 표를 반영한다. 독공 실효 증가는 `max(강화/증폭 독공, 현재 재련 독공)` 전후 차이만 인정하고, 12강 이상 최종 데미지 보너스는 기존처럼 별도 반영한다. 독공 비증폭 무기는 안전강화와 무기 증폭 후보를 비교해 효율 좋은 1개만 남긴다.
