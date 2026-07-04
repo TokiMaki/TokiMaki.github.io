@@ -3624,6 +3624,9 @@ export function installEnchantView(ctx) {
     const setPoint = Number(oath.setPoint || 0);
     const oathIconUrl = getLocalOathSymbolIconUrl(oath) || String(oath.iconUrl || '').trim();
     const oathItemName = String(oath.itemName || '').trim();
+    const oathRarityClass = getOathCrystalRarityClass(oath);
+    const oathSymbolClass = ['enchant-oath-symbol', oathRarityClass].filter(Boolean).join(' ');
+    const oathFallbackSymbolClass = ['enchant-oath-symbol', 'is-fallback', oathRarityClass].filter(Boolean).join(' ');
     const oathDetailLines = oathItemName ? buildOathDetailLines(oath) : [];
     const oathDetailAttrs = oathItemName
       ? ` tabindex="0" aria-label="${escapeHtml(oathItemName)}" data-oath-symbol-detail="1" data-detail-title="${escapeHtml(oathItemName)}" data-detail-lines="${escapeHtml(JSON.stringify(oathDetailLines))}"`
@@ -3635,8 +3638,8 @@ export function installEnchantView(ctx) {
         ${renderOathLoadoutColumn(slots.left, 'left')}
         <div class="enchant-oath-center">
           ${oathIconUrl
-            ? `<span class="enchant-oath-symbol"${oathDetailAttrs}><img src="${escapeHtml(oathIconUrl)}" alt="" loading="lazy" decoding="async" data-oath-symbol-image /><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>`
-            : `<span class="enchant-oath-symbol is-fallback"${oathDetailAttrs}><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>`}
+            ? `<span class="${escapeHtml(oathSymbolClass)}"${oathDetailAttrs}><img src="${escapeHtml(oathIconUrl)}" alt="" loading="lazy" decoding="async" data-oath-symbol-image /><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>`
+            : `<span class="${escapeHtml(oathFallbackSymbolClass)}"${oathDetailAttrs}><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>`}
           <strong class="enchant-oath-center-name enchant-oath-stage-${escapeHtml(setOptionRarityClass)}">${escapeHtml(setOptionTitle || (hasCrystals ? '' : '서약 정보 없음'))}</strong>
           ${Number.isFinite(setPoint) && setPoint > 0
             ? `<span class="enchant-oath-center-point">세트 포인트 ${escapeHtml(setPoint.toLocaleString('ko-KR'))}</span>`
