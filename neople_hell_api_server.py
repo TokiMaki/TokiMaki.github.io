@@ -22,7 +22,11 @@ from server.character_equipment_service import (
     load_character_preview,
     load_character_title,
 )
-from server.character_search_service import search_all_characters_response, search_character_response
+from server.character_search_service import (
+    save_character_search_candidate_from_loadout_payload,
+    search_all_characters_response,
+    search_character_response,
+)
 from server.character_summary_service import summarize_character_response
 from server.repositories.equipment_score_repository import load_official_equipment_score
 from server.avatar_skill_optimizer import load_avatar_skill_efficiency_response
@@ -728,6 +732,10 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                     lambda: load_character_loadout(server_id, character_id),
                 ),
             )
+            try:
+                save_character_search_candidate_from_loadout_payload(json.loads(body.decode("utf-8")))
+            except Exception:
+                pass
             self.send_json_body(body, cache_hit=cache_hit)
         except FileNotFoundError:
             self.send_json({"error": "캐릭터 세팅 DB를 찾을 수 없습니다."}, status=HTTPStatus.NOT_FOUND)

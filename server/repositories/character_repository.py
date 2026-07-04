@@ -20,6 +20,20 @@ _CHARACTER_SQLITE_CACHE_LOCK = threading.Lock()
 _CHARACTER_SQLITE_CACHE_INITIALIZED = False
 
 
+def normalize_character_search_name(character_name: str) -> str:
+    return clean_text(character_name).strip().lower()
+
+
+def _parse_candidate_fame(value) -> int:
+    text = clean_text(value).replace(",", "")
+    if not text:
+        return 0
+    try:
+        return int(float(text))
+    except ValueError:
+        return 0
+
+
 def _get_character_cache_key(server_id: str, character_id: str, resource: str) -> tuple:
     return (clean_text(server_id).lower(), clean_text(character_id), clean_text(resource))
 
@@ -65,6 +79,29 @@ def _ensure_character_sqlite_cache():
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_character_response_cache_identity "
                 "ON character_response_cache(server_id, character_id, resource)"
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS character_search_candidate_cache (
+                    server_id TEXT NOT NULL,
+                    server_name TEXT,
+                    character_id TEXT NOT NULL,
+                    character_name TEXT NOT NULL,
+                    normalized_character_name TEXT NOT NULL,
+                    adventure_name TEXT,
+                    job_id TEXT,
+                    job_name TEXT,
+                    job_grow_id TEXT,
+                    job_grow_name TEXT,
+                    fame INTEGER,
+                    updated_at_ms INTEGER NOT NULL,
+                    PRIMARY KEY (server_id, character_id)
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_character_search_candidate_lookup "
+                "ON character_search_candidate_cache(normalized_character_name, server_id)"
             )
             conn.commit()
         _CHARACTER_SQLITE_CACHE_INITIALIZED = True
@@ -202,3 +239,124 @@ def save_character_cached_computed_payload(server_id: str, character_id: str, re
     now = time.time()
     _save_character_memory_cached_payload(cache_key, payload, now)
     _save_character_sqlite_cached_payload(cache_key, payload, int(now * 1000))
+
+
+def _row_to_character_search_candidate(row: sqlite3.Row | tuple) -> dict:
+    return {
+        "serverId": clean_text(row[0]).lower(),
+        "serverName": clean_text(row[1]),
+        "characterId": clean_text(row[2]),
+        "characterName": clean_text(row[3]),
+        "adventureName": clean_text(row[5]),
+        "jobId": clean_text(row[6]),
+        "jobName": clean_text(row[7]),
+        "jobGrowId": clean_text(row[8]),
+        "jobGrowName": clean_text(row[9]),
+        "fame": int(row[10] or 0),
+    }
+
+
+def get_cached_character_search_candidates(server_id: str, character_name: str) -> list[dict]:
+    normalized_name = normalize_character_search_name(character_name)
+    normalized_server_id = clean_text(server_id).lower()
+    if not normalized_server_id or not normalized_name:
+        return []
+    try:
+        _ensure_character_sqlite_cache()
+        with closing(_connect_character_sqlite_cache()) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    server_id,
+                    server_name,
+                    character_id,
+                    character_name,
+                    normalized_character_name,
+                    adventure_name,
+                    job_id,
+                    job_name,
+                    job_grow_id,
+                    job_grow_name,
+                    fame
+                FROM character_search_candidate_cache
+                WHERE normalized_character_name = ? AND server_id = ?
+                ORDER BY updated_at_ms DESC, character_name ASC
+                """,
+                (normalized_name, normalized_server_id),
+            ).fetchall()
+    except Exception:
+        return []
+    return [_row_to_character_search_candidate(row) for row in rows]
+
+
+def save_character_search_candidate(candidate: dict):
+    if not isinstance(candidate, dict):
+        return
+    server_id = clean_text(candidate.get("serverId") or candidate.get("server_id")).lower()
+    character_id = clean_text(candidate.get("characterId") or candidate.get("character_id"))
+    character_name = clean_text(candidate.get("characterName") or candidate.get("character_name"))
+    if not server_id or not character_id or not character_name:
+        return
+    normalized_name = normalize_character_search_name(character_name)
+    if not normalized_name:
+        return
+    now_ms = int(time.time() * 1000)
+    try:
+        _ensure_character_sqlite_cache()
+        with _CHARACTER_SQLITE_CACHE_LOCK:
+            with closing(_connect_character_sqlite_cache()) as conn:
+                conn.execute(
+                    """
+                    INSERT INTO character_search_candidate_cache (
+                        server_id,
+                        server_name,
+                        character_id,
+                        character_name,
+                        normalized_character_name,
+                        adventure_name,
+                        job_id,
+                        job_name,
+                        job_grow_id,
+                        job_grow_name,
+                        fame,
+                        updated_at_ms
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(server_id, character_id) DO UPDATE SET
+                        server_name = COALESCE(NULLIF(excluded.server_name, ''), character_search_candidate_cache.server_name),
+                        character_name = excluded.character_name,
+                        normalized_character_name = excluded.normalized_character_name,
+                        adventure_name = COALESCE(NULLIF(excluded.adventure_name, ''), character_search_candidate_cache.adventure_name),
+                        job_id = COALESCE(NULLIF(excluded.job_id, ''), character_search_candidate_cache.job_id),
+                        job_name = COALESCE(NULLIF(excluded.job_name, ''), character_search_candidate_cache.job_name),
+                        job_grow_id = COALESCE(NULLIF(excluded.job_grow_id, ''), character_search_candidate_cache.job_grow_id),
+                        job_grow_name = COALESCE(NULLIF(excluded.job_grow_name, ''), character_search_candidate_cache.job_grow_name),
+                        fame = CASE
+                            WHEN excluded.fame > 0 THEN excluded.fame
+                            ELSE character_search_candidate_cache.fame
+                        END,
+                        updated_at_ms = excluded.updated_at_ms
+                    """,
+                    (
+                        server_id,
+                        clean_text(candidate.get("serverName") or candidate.get("server_name")),
+                        character_id,
+                        character_name,
+                        normalized_name,
+                        clean_text(candidate.get("adventureName") or candidate.get("adventure_name")),
+                        clean_text(candidate.get("jobId") or candidate.get("job_id")),
+                        clean_text(candidate.get("jobName") or candidate.get("job_name")),
+                        clean_text(candidate.get("jobGrowId") or candidate.get("job_grow_id")),
+                        clean_text(candidate.get("jobGrowName") or candidate.get("job_grow_name")),
+                        _parse_candidate_fame(candidate.get("fame")),
+                        now_ms,
+                    ),
+                )
+                conn.commit()
+    except Exception:
+        return
+
+
+def save_character_search_candidates(candidates: list[dict]):
+    for candidate in candidates or []:
+        save_character_search_candidate(candidate)
