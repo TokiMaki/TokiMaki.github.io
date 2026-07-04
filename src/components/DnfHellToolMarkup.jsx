@@ -120,15 +120,17 @@ export default function DnfHellToolMarkup() {
           </label>
         </section>
         <section className={'panel enchant-analysis-loading'} id={'enchantAnalysisLoading'} hidden aria-live={'polite'}>
-          <div className={'enchant-analysis-loading-title'}>
-            <span>분석중이에양</span>
-            <span className={'enchant-analysis-loading-dots'} aria-hidden={'true'}>
-              <span>.</span>
-              <span>.</span>
-              <span>.</span>
-            </span>
+          <div className={'enchant-loading-message'}>
+            <div className={'enchant-analysis-loading-title'}>
+              <span>분석중이에양</span>
+              <span className={'enchant-analysis-loading-dots'} aria-hidden={'true'}>
+                <span>.</span>
+                <span>.</span>
+                <span>.</span>
+              </span>
+            </div>
+            <div className={'enchant-analysis-loading-sub'}>캐릭터 장비와 스펙업 효율을 계산하고 있어양.</div>
           </div>
-          <div className={'enchant-analysis-loading-sub'}>캐릭터 장비와 스펙업 효율을 계산하고 있어양.</div>
         </section>
         <section className={'panel enchant-candidate-panel'} id={'enchantCandidatePanel'} hidden aria-live={'polite'}></section>
         <main className={'enchant-recommend-layout'} id={'enchantResultLayout'}>

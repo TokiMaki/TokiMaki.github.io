@@ -307,22 +307,57 @@
     .enchant-candidate-panel[hidden] {
       display: none !important;
     }
+    .enchant-candidate-panel.is-message {
+      min-height: clamp(260px, 42vh, 420px);
+      display: grid;
+      place-items: center;
+      padding: 32px 18px;
+      text-align: center;
+    }
     .enchant-candidate-head {
       display: grid;
       gap: 3px;
       text-align: center;
     }
     .enchant-candidate-head p {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      justify-self: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      width: min(100%, 230px);
       margin: 0;
       color: var(--muted);
       font-size: 12px;
       line-height: 1.35;
+    }
+    .enchant-candidate-result-type {
+      display: inline-flex;
+      align-items: center;
+      min-height: 18px;
+      padding: 1px 6px;
+      border: 1px solid rgba(214, 174, 94, 0.48);
+      border-radius: 4px;
+      background: rgba(214, 174, 94, 0.12);
+      color: #e7c56f;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.2;
     }
     .enchant-candidate-search-keyword {
       color: var(--text);
       font-size: 15px;
       font-weight: 800;
       line-height: 1.2;
+      min-width: 0;
+      overflow: hidden;
+      max-width: min(42vw, 180px);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .enchant-candidate-result-suffix {
+      white-space: nowrap;
     }
     .enchant-candidate-grid {
       display: grid;
@@ -374,10 +409,10 @@
     .enchant-candidate-portrait {
       --supply-detail-portrait-transform: none;
       --supply-detail-portrait-crop-width: 100%;
-      --supply-detail-portrait-crop-min-height: 106px;
+      --supply-detail-portrait-crop-min-height: 116px;
       --supply-detail-portrait-crop-margin: 0 auto;
-      --supply-detail-portrait-frame-width: 88px;
-      --supply-detail-portrait-frame-height: 106px;
+      --supply-detail-portrait-frame-width: 96px;
+      --supply-detail-portrait-frame-height: 116px;
       --supply-detail-portrait-frame-radius: 0;
       --supply-detail-portrait-frame-border: 0;
       --supply-detail-portrait-frame-background: transparent;
@@ -401,6 +436,10 @@
     }
     .enchant-candidate-portrait .supply-detail-portrait-bg {
       display: none;
+    }
+    .enchant-candidate-portrait .supply-detail-portrait-img {
+      transform: scale(1.13);
+      transform-origin: center bottom;
     }
     .enchant-candidate-portrait .supply-detail-portrait-frame::before {
       content: none;
@@ -457,11 +496,18 @@
       font-weight: 600;
       line-height: 1.2;
     }
+    .enchant-loading-message,
     .enchant-candidate-empty {
       display: grid;
-      place-items: center;
-      min-height: clamp(220px, 34vh, 360px);
+      justify-items: center;
+      gap: 0;
+      min-width: 0;
+      max-width: 100%;
       text-align: center;
+    }
+    .enchant-loading-message > div,
+    .enchant-candidate-empty > div {
+      min-width: 0;
     }
     .enchant-include-card[hidden],
     .enchant-recommend-layout[hidden] {
@@ -1180,11 +1226,6 @@
       }
       .enchant-candidate-card {
         padding: 7px;
-      }
-      .enchant-candidate-portrait {
-        --supply-detail-portrait-crop-min-height: 96px;
-        --supply-detail-portrait-frame-width: 80px;
-        --supply-detail-portrait-frame-height: 96px;
       }
       .enchant-candidate-portrait .supply-detail-portrait-name {
         font-size: 12px;

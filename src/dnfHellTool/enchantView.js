@@ -3935,20 +3935,23 @@ export function installEnchantView(ctx) {
     if (!els.enchantCandidatePanel) return;
     els.enchantCandidatePanel.hidden = false;
     els.enchantCandidatePanel.classList.toggle('is-error', mode === 'error');
+    els.enchantCandidatePanel.classList.toggle('is-message', mode !== 'ready' || !candidates.length);
     if (mode === 'loading') {
       els.enchantCandidatePanel.innerHTML = `
-        <div class="enchant-candidate-empty">
+        <div class="enchant-candidate-empty enchant-loading-message">
           <div class="enchant-analysis-loading-title">
             <span>캐릭터 찾는 중이에양</span><span class="enchant-analysis-loading-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
           </div>
+          <div class="enchant-analysis-loading-sub">검색어와 일치하는 캐릭터를 찾고 있습니다.</div>
         </div>
       `;
       return;
     }
     if (mode === 'error') {
       els.enchantCandidatePanel.innerHTML = `
-        <div class="enchant-candidate-empty">
+        <div class="enchant-candidate-empty enchant-loading-message">
           <div class="enchant-analysis-loading-title">${escapeHtml(message || '캐릭터를 찾지 못했습니다.')}</div>
+          <div class="enchant-analysis-loading-sub">잠시 후 다시 시도해 주세요.</div>
         </div>
       `;
       return;
@@ -3966,16 +3969,21 @@ export function installEnchantView(ctx) {
     if (!rows.length) {
       const isAdventureSearch = state.enchantCandidateLookupType === 'adventure';
       return `
-        <div class="enchant-candidate-empty">
+        <div class="enchant-candidate-empty enchant-loading-message">
           <div class="enchant-analysis-loading-title">${isAdventureSearch ? '캐릭터를 찾지 못했어요.' : '캐릭터를 찾지 못했습니다.'}</div>
-          ${isAdventureSearch ? '<p>모험단 검색은 한 번 조회된 캐릭터 기록을 기준으로 보여줍니다.</p>' : ''}
+          <div class="enchant-analysis-loading-sub">${isAdventureSearch ? '모험단 검색은 한 번 조회된 캐릭터 기록을 기준으로 보여줍니다.' : '검색어를 확인한 뒤 다시 시도해 주세요.'}</div>
         </div>
       `;
     }
     const searchLabel = String(searchText || '').trim();
+    const searchTypeLabel = state.enchantCandidateLookupType === 'adventure' ? '모험단' : '전체 서버';
     return `
       <div class="enchant-candidate-head">
-        <p>${searchLabel ? `<span class="enchant-candidate-search-keyword">${escapeHtml(searchLabel)}</span> 검색 결과입니다.` : '검색 결과입니다.'}</p>
+        <p>
+          <span class="enchant-candidate-result-type">${escapeHtml(searchTypeLabel)}</span>
+          ${searchLabel ? `<span class="enchant-candidate-search-keyword">${escapeHtml(searchLabel)}</span>` : ''}
+          <span class="enchant-candidate-result-suffix">검색 결과</span>
+        </p>
       </div>
       <div class="enchant-candidate-grid">
         ${rows.map((candidate) => {
