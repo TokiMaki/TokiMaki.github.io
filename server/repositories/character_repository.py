@@ -24,6 +24,10 @@ def normalize_character_search_name(character_name: str) -> str:
     return clean_text(character_name).strip().lower()
 
 
+def normalize_adventure_search_name(adventure_name: str) -> str:
+    return clean_text(adventure_name).strip().lower()
+
+
 def _parse_candidate_fame(value) -> int:
     text = clean_text(value).replace(",", "")
     if not text:
@@ -89,6 +93,7 @@ def _ensure_character_sqlite_cache():
                     character_name TEXT NOT NULL,
                     normalized_character_name TEXT NOT NULL,
                     adventure_name TEXT,
+                    normalized_adventure_name TEXT,
                     job_id TEXT,
                     job_name TEXT,
                     job_grow_id TEXT,
@@ -102,6 +107,25 @@ def _ensure_character_sqlite_cache():
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_character_search_candidate_lookup "
                 "ON character_search_candidate_cache(normalized_character_name, server_id)"
+            )
+            columns = {
+                clean_text(row[1])
+                for row in conn.execute("PRAGMA table_info(character_search_candidate_cache)").fetchall()
+            }
+            if "normalized_adventure_name" not in columns:
+                conn.execute("ALTER TABLE character_search_candidate_cache ADD COLUMN normalized_adventure_name TEXT")
+            conn.execute(
+                """
+                UPDATE character_search_candidate_cache
+                SET normalized_adventure_name = lower(trim(adventure_name))
+                WHERE (normalized_adventure_name IS NULL OR normalized_adventure_name = '')
+                  AND adventure_name IS NOT NULL
+                  AND trim(adventure_name) != ''
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_character_search_candidate_adventure_lookup "
+                "ON character_search_candidate_cache(normalized_adventure_name)"
             )
             conn.commit()
         _CHARACTER_SQLITE_CACHE_INITIALIZED = True
@@ -248,11 +272,11 @@ def _row_to_character_search_candidate(row: sqlite3.Row | tuple) -> dict:
         "characterId": clean_text(row[2]),
         "characterName": clean_text(row[3]),
         "adventureName": clean_text(row[5]),
-        "jobId": clean_text(row[6]),
-        "jobName": clean_text(row[7]),
-        "jobGrowId": clean_text(row[8]),
-        "jobGrowName": clean_text(row[9]),
-        "fame": int(row[10] or 0),
+        "jobId": clean_text(row[7]),
+        "jobName": clean_text(row[8]),
+        "jobGrowId": clean_text(row[9]),
+        "jobGrowName": clean_text(row[10]),
+        "fame": int(row[11] or 0),
     }
 
 
@@ -273,6 +297,7 @@ def get_cached_character_search_candidates(server_id: str, character_name: str) 
                     character_name,
                     normalized_character_name,
                     adventure_name,
+                    normalized_adventure_name,
                     job_id,
                     job_name,
                     job_grow_id,
@@ -283,6 +308,39 @@ def get_cached_character_search_candidates(server_id: str, character_name: str) 
                 ORDER BY updated_at_ms DESC, character_name ASC
                 """,
                 (normalized_name, normalized_server_id),
+            ).fetchall()
+    except Exception:
+        return []
+    return [_row_to_character_search_candidate(row) for row in rows]
+
+
+def get_cached_adventure_search_candidates(adventure_name: str) -> list[dict]:
+    normalized_name = normalize_adventure_search_name(adventure_name)
+    if not normalized_name:
+        return []
+    try:
+        _ensure_character_sqlite_cache()
+        with closing(_connect_character_sqlite_cache()) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    server_id,
+                    server_name,
+                    character_id,
+                    character_name,
+                    normalized_character_name,
+                    adventure_name,
+                    normalized_adventure_name,
+                    job_id,
+                    job_name,
+                    job_grow_id,
+                    job_grow_name,
+                    fame
+                FROM character_search_candidate_cache
+                WHERE normalized_adventure_name = ?
+                ORDER BY server_id ASC, fame DESC, updated_at_ms DESC, character_name ASC
+                """,
+                (normalized_name,),
             ).fetchall()
     except Exception:
         return []
@@ -300,6 +358,8 @@ def save_character_search_candidate(candidate: dict):
     normalized_name = normalize_character_search_name(character_name)
     if not normalized_name:
         return
+    adventure_name = clean_text(candidate.get("adventureName") or candidate.get("adventure_name"))
+    normalized_adventure_name = normalize_adventure_search_name(adventure_name)
     now_ms = int(time.time() * 1000)
     try:
         _ensure_character_sqlite_cache()
@@ -314,6 +374,7 @@ def save_character_search_candidate(candidate: dict):
                         character_name,
                         normalized_character_name,
                         adventure_name,
+                        normalized_adventure_name,
                         job_id,
                         job_name,
                         job_grow_id,
@@ -321,12 +382,13 @@ def save_character_search_candidate(candidate: dict):
                         fame,
                         updated_at_ms
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(server_id, character_id) DO UPDATE SET
                         server_name = COALESCE(NULLIF(excluded.server_name, ''), character_search_candidate_cache.server_name),
                         character_name = excluded.character_name,
                         normalized_character_name = excluded.normalized_character_name,
                         adventure_name = COALESCE(NULLIF(excluded.adventure_name, ''), character_search_candidate_cache.adventure_name),
+                        normalized_adventure_name = COALESCE(NULLIF(excluded.normalized_adventure_name, ''), character_search_candidate_cache.normalized_adventure_name),
                         job_id = COALESCE(NULLIF(excluded.job_id, ''), character_search_candidate_cache.job_id),
                         job_name = COALESCE(NULLIF(excluded.job_name, ''), character_search_candidate_cache.job_name),
                         job_grow_id = COALESCE(NULLIF(excluded.job_grow_id, ''), character_search_candidate_cache.job_grow_id),
@@ -343,7 +405,8 @@ def save_character_search_candidate(candidate: dict):
                         character_id,
                         character_name,
                         normalized_name,
-                        clean_text(candidate.get("adventureName") or candidate.get("adventure_name")),
+                        adventure_name,
+                        normalized_adventure_name,
                         clean_text(candidate.get("jobId") or candidate.get("job_id")),
                         clean_text(candidate.get("jobName") or candidate.get("job_name")),
                         clean_text(candidate.get("jobGrowId") or candidate.get("job_grow_id")),

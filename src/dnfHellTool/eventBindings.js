@@ -277,8 +277,9 @@ export function bindToolEvents(ctx) {
   const runEnchantSearch = ({ serverId, characterName, updateHistory = true, saveRecent = true, preserveInputs = false } = {}) => {
     const normalizedServerId = String(serverId || els.enchantServerIdInput?.value || 'all').trim();
     const normalizedName = String(characterName || els.enchantCharacterNameInput?.value || '').trim();
+    const isAdventureSearch = normalizedServerId === 'adventure';
     if (!normalizedName) {
-      if (els.landingSearchStatus) els.landingSearchStatus.textContent = '캐릭터명을 입력해 주세요.';
+      if (els.landingSearchStatus) els.landingSearchStatus.textContent = isAdventureSearch ? '모험단명을 입력해 주세요.' : '캐릭터명을 입력해 주세요.';
       els.landingCharacterNameInput?.focus();
       return;
     }
@@ -291,16 +292,19 @@ export function bindToolEvents(ctx) {
     if (els.landingSearchStatus) els.landingSearchStatus.textContent = '';
     state.enchantRecommendationLoading = true;
     const isAllServerSearch = !normalizedServerId || normalizedServerId === 'all';
-    state.enchantSearchMode = isAllServerSearch ? 'candidate' : 'analysis';
-    if (isAllServerSearch) {
+    const isCandidateSearch = isAllServerSearch || isAdventureSearch;
+    state.enchantSearchMode = isCandidateSearch ? 'candidate' : 'analysis';
+    if (isCandidateSearch) {
       ctx.actions.showEnchantCandidateLoading?.();
     } else {
       ctx.actions.showEnchantAnalysisLoading?.();
     }
     if (els.enchantCharacterStatus) {
-      els.enchantCharacterStatus.textContent = isAllServerSearch
-        ? `${normalizedName} 전체 서버 검색 중...`
-        : `${normalizedName} 검색 중...`;
+      els.enchantCharacterStatus.textContent = isAdventureSearch
+        ? `${normalizedName} 모험단 검색 중...`
+        : isAllServerSearch
+          ? `${normalizedName} 전체 서버 검색 중...`
+          : `${normalizedName} 검색 중...`;
     }
     setScreen('results');
     setActiveTab('enchantPanel');
@@ -317,6 +321,16 @@ export function bindToolEvents(ctx) {
     serverId: els.landingServerIdInput?.value,
     characterName: els.landingCharacterNameInput?.value,
   });
+  const updateSearchPlaceholders = () => {
+    const landingAdventure = String(els.landingServerIdInput?.value || '').trim() === 'adventure';
+    const enchantAdventure = String(els.enchantServerIdInput?.value || '').trim() === 'adventure';
+    if (els.landingCharacterNameInput) {
+      els.landingCharacterNameInput.placeholder = landingAdventure ? '모험단명을 입력해줘양' : '캐릭터명을 입력하세요';
+    }
+    if (els.enchantCharacterNameInput) {
+      els.enchantCharacterNameInput.placeholder = enchantAdventure ? '모험단명' : '캐릭터명';
+    }
+  };
   const copyTextToClipboard = async (text) => {
     if (navigator.clipboard?.writeText && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
@@ -404,6 +418,9 @@ if (els.loadEnchantCharacterButton) {
     runEnchantSearch();
   });
 }
+if (els.enchantServerIdInput) {
+  els.enchantServerIdInput.addEventListener('change', updateSearchPlaceholders);
+}
 if (els.enchantCandidatePanel) {
   els.enchantCandidatePanel.addEventListener('click', (event) => {
     const card = event.target.closest('[data-candidate-server-id][data-candidate-character-name]');
@@ -426,6 +443,9 @@ if (els.enchantCharacterNameInput) {
 if (els.landingSearchButton) {
   els.landingSearchButton.addEventListener('click', runLandingSearch);
 }
+if (els.landingServerIdInput) {
+  els.landingServerIdInput.addEventListener('change', updateSearchPlaceholders);
+}
 if (els.landingCharacterNameInput) {
   els.landingCharacterNameInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
@@ -437,6 +457,7 @@ if (els.landingCharacterNameInput) {
 if (els.siteLogoHomeButton) {
   els.siteLogoHomeButton.addEventListener('click', () => showLanding(true));
 }
+updateSearchPlaceholders();
 const bindRecentSearchList = (list) => {
   if (!list) return;
   list.addEventListener('click', (event) => {

@@ -24,9 +24,10 @@ export default function DnfHellToolMarkup() {
           </p>
           <div className={'landing-search-row'} data-nosnippet>
             <label className={'landing-field'}>
-              <span>서버</span>
+              <span className={'sr-only'}>서버</span>
               <select id={'landingServerIdInput'} defaultValue={'all'}>
                 <option value={'all'}>전체</option>
+                <option value={'adventure'}>모험단</option>
                 <option value={'cain'}>카인</option>
                 <option value={'diregie'}>디레지에</option>
                 <option value={'siroco'}>시로코</option>
@@ -38,7 +39,7 @@ export default function DnfHellToolMarkup() {
               </select>
             </label>
             <label className={'landing-field landing-name-field'}>
-              <span>캐릭터명</span>
+              <span className={'sr-only'}>캐릭터명</span>
               <input id={'landingCharacterNameInput'} type={'search'} placeholder={'캐릭터명을 입력하세요'} autoComplete={'off'} enterKeyHint={'search'} />
             </label>
             <button type={'button'} className={'landing-search-button'} id={'landingSearchButton'}>스펙업 분석</button>
@@ -76,9 +77,10 @@ export default function DnfHellToolMarkup() {
         <aside className={'panel enchant-search-panel'}>
           <div className={'loader-row supply-input-row enchant-input-row'}>
             <div className={'field'}>
-              <label htmlFor={'enchantServerIdInput'}>서버</label>
+              <label className={'sr-only'} htmlFor={'enchantServerIdInput'}>서버</label>
               <select id={'enchantServerIdInput'} defaultValue={'all'}>
                 <option value={'all'}>전체</option>
+                <option value={'adventure'}>모험단</option>
                 <option value={'cain'}>카인</option>
                 <option value={'diregie'}>디레지에</option>
                 <option value={'siroco'}>시로코</option>
@@ -90,7 +92,7 @@ export default function DnfHellToolMarkup() {
               </select>
             </div>
             <div className={'field'}>
-              <label htmlFor={'enchantCharacterNameInput'}>캐릭터명</label>
+              <label className={'sr-only'} htmlFor={'enchantCharacterNameInput'}>캐릭터명</label>
               <input id={'enchantCharacterNameInput'} type={'search'} placeholder={'캐릭터명'} autoComplete={'off'} enterKeyHint={'search'} />
             </div>
             <button type={'button'} className={'ghost-button enchant-search-button'} id={'loadEnchantCharacterButton'}>검색</button>

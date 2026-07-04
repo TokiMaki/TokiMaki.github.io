@@ -24,6 +24,7 @@ from server.character_equipment_service import (
 )
 from server.character_search_service import (
     save_character_search_candidate_from_loadout_payload,
+    search_adventure_characters_response,
     search_all_characters_response,
     search_character_response,
 )
@@ -648,6 +649,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
 
     def handle_search_all(self, parsed):
         query = parse_qs(parsed.query)
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
         character_name = clean_text((query.get("characterName") or [""])[0])
         if not character_name:
             return self.send_json(
@@ -656,6 +658,8 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
+            if server_id == "adventure":
+                return self.send_json(search_adventure_characters_response(character_name))
             self.send_json(search_all_characters_response(character_name))
         except NeopleMaintenanceError as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)

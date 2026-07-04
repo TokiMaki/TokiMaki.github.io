@@ -431,6 +431,7 @@
       object-fit: contain;
     }
     .enchant-candidate-name,
+    .enchant-candidate-adventure,
     .enchant-candidate-job {
       min-width: 0;
       max-width: 100%;
@@ -443,6 +444,12 @@
       font-size: 13px;
       font-weight: 800;
       line-height: 1.25;
+    }
+    .enchant-candidate-adventure {
+      color: #9fe86d;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
     }
     .enchant-candidate-job {
       color: var(--muted);

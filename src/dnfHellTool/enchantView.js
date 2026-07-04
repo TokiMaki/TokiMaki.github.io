@@ -3964,9 +3964,11 @@ export function installEnchantView(ctx) {
   function renderEnchantSearchCandidates(candidates = [], searchText = '') {
     const rows = Array.isArray(candidates) ? candidates : [];
     if (!rows.length) {
+      const isAdventureSearch = state.enchantCandidateLookupType === 'adventure';
       return `
         <div class="enchant-candidate-empty">
-          <div class="enchant-analysis-loading-title">캐릭터를 찾지 못했습니다.</div>
+          <div class="enchant-analysis-loading-title">${isAdventureSearch ? '캐릭터를 찾지 못했어요.' : '캐릭터를 찾지 못했습니다.'}</div>
+          ${isAdventureSearch ? '<p>모험단 검색은 한 번 조회된 캐릭터 기록을 기준으로 보여줍니다.</p>' : ''}
         </div>
       `;
     }
@@ -3980,6 +3982,7 @@ export function installEnchantView(ctx) {
           const serverId = String(candidate.serverId || '').trim().toLowerCase();
           const serverName = String(candidate.serverName || serverId).trim();
           const characterName = String(candidate.characterName || '').trim();
+          const adventureName = String(candidate.adventureName || '').trim();
           const jobLabel = String(candidate.jobGrowName || candidate.jobName || '').trim();
           const fame = Number(candidate.fame || 0);
           const hasFame = candidate.fame !== undefined && candidate.fame !== null && String(candidate.fame).trim() !== '';
@@ -4002,6 +4005,7 @@ export function installEnchantView(ctx) {
               <span class="enchant-candidate-info">
                 ${hasFame ? `<span class="enchant-candidate-fame" title="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}" aria-label="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}</span>` : ''}
                 <span class="enchant-candidate-name">${escapeHtml(characterName)}</span>
+                ${adventureName ? `<span class="enchant-candidate-adventure">${escapeHtml(adventureName)}</span>` : ''}
                 ${jobLabel ? `<span class="enchant-candidate-job">${escapeHtml(jobLabel)}</span>` : ''}
               </span>
             </button>
@@ -4979,38 +4983,46 @@ export function installEnchantView(ctx) {
   async function searchEnchantCharacter(options = {}) {
     const serverId = String(options.serverId || els.enchantServerIdInput?.value || '').trim().toLowerCase();
     const characterName = String(options.characterName || els.enchantCharacterNameInput?.value || '').trim();
+    const isAdventureSearch = serverId === 'adventure';
     if (!characterName) {
       state.enchantRecommendationLoading = false;
-      setEnchantCharacterStatus('캐릭터명을 입력해 주세요.');
+      setEnchantCharacterStatus(isAdventureSearch ? '모험단명을 입력해 주세요.' : '캐릭터명을 입력해 주세요.');
       return;
     }
 
     const isAllServerSearch = !serverId || serverId === 'all';
+    const isCandidateSearch = isAllServerSearch || isAdventureSearch;
     state.enchantRecommendationLoading = true;
-    state.enchantSearchMode = isAllServerSearch ? 'candidate' : 'analysis';
+    state.enchantSearchMode = isCandidateSearch ? 'candidate' : 'analysis';
+    state.enchantCandidateLookupType = isAdventureSearch ? 'adventure' : isAllServerSearch ? 'all' : '';
     const requestId = state.enchantRequestId + 1;
     state.enchantRequestId = requestId;
     state.enchantTargetCharacter = null;
     resetCurrentEnchantCharacterState();
-    if (isAllServerSearch) {
+    if (isCandidateSearch) {
       setEnchantCandidatePanel('loading');
     } else {
       showEnchantAnalysisLoading();
     }
     if (els.loadEnchantCharacterButton) els.loadEnchantCharacterButton.disabled = true;
-    setEnchantCharacterStatus(isAllServerSearch ? `${characterName} 전체 서버 검색 중...` : `${characterName} 검색 중...`);
+    setEnchantCharacterStatus(isAdventureSearch
+      ? `${characterName} 모험단 검색 중...`
+      : isAllServerSearch
+        ? `${characterName} 전체 서버 검색 중...`
+        : `${characterName} 검색 중...`);
     beginEnchantTiming(`${serverId || 'all'}:${characterName}`);
     try {
-      if (isAllServerSearch) {
-        const query = new URLSearchParams({ characterName });
+      if (isCandidateSearch) {
+        const query = new URLSearchParams({ serverId: isAdventureSearch ? 'adventure' : 'all', characterName });
         const searchStartedAt = getEnchantNowMs();
         const response = await fetch(`${API_BASE}/api/search-all?${query.toString()}`, { cache: 'no-store' });
         const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
         if (requestId !== state.enchantRequestId) return;
         const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
-        recordEnchantTimingStep('search-all', searchStartedAt, {
+        recordEnchantTimingStep(isAdventureSearch ? 'search-adventure-cache' : 'search-all', searchStartedAt, {
           matchCount: candidates.length,
           failures: Array.isArray(payload.failures) ? payload.failures.length : 0,
+          cacheOnly: payload.cacheOnly === true,
         });
         state.enchantRecommendationLoading = false;
         state.enchantSearchCandidates = candidates;
@@ -5060,7 +5072,7 @@ export function installEnchantView(ctx) {
         ? '캐릭터를 찾지 못했습니다.'
         : normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
       state.enchantRecommendationLoading = false;
-      if (isAllServerSearch) {
+      if (isCandidateSearch) {
         setEnchantCandidatePanel('error', [], errorMessage);
       } else {
         showEnchantAnalysisError(errorMessage);

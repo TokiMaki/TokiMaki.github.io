@@ -6,6 +6,7 @@ from .neople_client import (
     search_characters_from_api,
 )
 from .repositories.character_repository import (
+    get_cached_adventure_search_candidates,
     get_cached_character_search_candidates,
     save_character_search_candidates,
 )
@@ -63,6 +64,64 @@ def build_search_candidate(server_id: str, server_name: str, row: dict, order: i
     }
 
 
+def hydrate_search_candidate_detail(candidate: dict) -> dict:
+    if not isinstance(candidate, dict):
+        return candidate
+    if clean_text(candidate.get("adventureName")):
+        return candidate
+    server_id = clean_text(candidate.get("serverId")).lower()
+    character_id = clean_text(candidate.get("characterId"))
+    if not server_id or not character_id:
+        return candidate
+    try:
+        detail_payload = fetch_character_detail_from_api(server_id, character_id)
+    except Exception:
+        return candidate
+    detail_source = detail_payload.get("character") if isinstance(detail_payload.get("character"), dict) else detail_payload
+    detail_meta = extract_character_job_meta(detail_payload)
+    return {
+        **candidate,
+        "adventureName": clean_text(detail_source.get("adventureName")) or clean_text(candidate.get("adventureName")),
+        "jobId": clean_text(candidate.get("jobId")) or detail_meta["job_id"],
+        "jobName": clean_text(candidate.get("jobName")) or detail_meta["job_name"],
+        "jobGrowId": clean_text(candidate.get("jobGrowId")) or detail_meta["job_grow_id"],
+        "jobGrowName": clean_text(candidate.get("jobGrowName")) or detail_meta["job_grow_name"],
+        "fame": parse_int(candidate.get("fame")) or parse_int(detail_source.get("fame")),
+    }
+
+
+def hydrate_search_candidates_detail(candidates: list[dict]) -> list[dict]:
+    rows = [candidate for candidate in candidates or [] if isinstance(candidate, dict)]
+    missing_rows = [
+        candidate for candidate in rows
+        if clean_text(candidate.get("serverId"))
+        and clean_text(candidate.get("characterId"))
+        and not clean_text(candidate.get("adventureName"))
+    ]
+    if not missing_rows:
+        return rows
+    hydrated_by_key = {}
+    with ThreadPoolExecutor(max_workers=min(4, len(missing_rows))) as executor:
+        futures = [
+            executor.submit(hydrate_search_candidate_detail, candidate)
+            for candidate in missing_rows
+        ]
+        for future in as_completed(futures):
+            hydrated = future.result()
+            key = (
+                clean_text(hydrated.get("serverId")).lower(),
+                clean_text(hydrated.get("characterId")),
+            )
+            hydrated_by_key[key] = hydrated
+    return [
+        hydrated_by_key.get((
+            clean_text(candidate.get("serverId")).lower(),
+            clean_text(candidate.get("characterId")),
+        ), candidate)
+        for candidate in rows
+    ]
+
+
 def search_server_candidates(order: int, server_id: str, server_name: str, target_name: str, limit: int) -> tuple[list[dict], dict | None]:
     try:
         rows = search_characters_from_api(server_id, target_name, limit, "match")
@@ -77,7 +136,7 @@ def search_server_candidates(order: int, server_id: str, server_name: str, targe
         candidate = build_search_candidate(server_id, server_name, row, order, target_name)
         if candidate["characterId"] and candidate["characterName"]:
             candidates.append(candidate)
-    return candidates, None
+    return hydrate_search_candidates_detail(candidates), None
 
 
 def add_search_candidate_sort_keys(candidate: dict, order: int, target_name: str) -> dict:
@@ -108,10 +167,13 @@ def search_character(
     resolved_job_grow_id = clean_text(chosen.get("jobGrowId"))
     resolved_job_grow_name = clean_text(chosen.get("jobGrowName"))
     resolved_fame = parse_int(chosen.get("fame"))
+    resolved_adventure_name = clean_text(chosen.get("adventureName"))
 
-    if not (resolved_job_id and resolved_job_name and resolved_job_grow_id and resolved_job_grow_name):
+    if not (resolved_adventure_name and resolved_job_id and resolved_job_name and resolved_job_grow_id and resolved_job_grow_name):
         detail_payload = fetch_character_detail_from_api(server_id, resolved_character_id)
+        detail_source = detail_payload.get("character") if isinstance(detail_payload.get("character"), dict) else detail_payload
         detail_meta = extract_character_job_meta(detail_payload)
+        resolved_adventure_name = resolved_adventure_name or clean_text(detail_source.get("adventureName"))
         resolved_job_id = resolved_job_id or detail_meta["job_id"]
         resolved_job_name = resolved_job_name or detail_meta["job_name"]
         resolved_job_grow_id = resolved_job_grow_id or detail_meta["job_grow_id"]
@@ -125,7 +187,7 @@ def search_character(
         "server_id": server_id,
         "character_id": resolved_character_id,
         "character_name": resolved_character_name,
-        "adventure_name": clean_text(chosen.get("adventureName")),
+        "adventure_name": resolved_adventure_name,
         "job_id": resolved_job_id,
         "job_name": resolved_job_name,
         "job_grow_id": resolved_job_grow_id,
@@ -149,21 +211,24 @@ def search_character_response(server_id: str, character_name: str) -> dict:
             "rows": [],
         }
 
+    resolved_payload = {
+        "serverId": resolved["server_id"],
+        "characterId": resolved["character_id"],
+        "characterName": resolved["character_name"],
+        "adventureName": resolved.get("adventure_name", ""),
+        "fame": resolved.get("fame", 0),
+        "jobId": resolved.get("job_id", ""),
+        "jobName": resolved.get("job_name", ""),
+        "jobGrowId": resolved.get("job_grow_id", ""),
+        "jobGrowName": resolved.get("job_grow_name", ""),
+    }
+    save_character_search_candidates([resolved_payload])
+
     return {
         "serverId": server_id,
         "characterName": character_name,
         "matchCount": len(resolved["rows"]),
-        "resolved": {
-            "serverId": resolved["server_id"],
-            "characterId": resolved["character_id"],
-            "characterName": resolved["character_name"],
-            "adventureName": resolved.get("adventure_name", ""),
-            "fame": resolved.get("fame", 0),
-            "jobId": resolved.get("job_id", ""),
-            "jobName": resolved.get("job_name", ""),
-            "jobGrowId": resolved.get("job_grow_id", ""),
-            "jobGrowName": resolved.get("job_grow_name", ""),
-        },
+        "resolved": resolved_payload,
         "rows": resolved["rows"],
     }
 
@@ -180,6 +245,8 @@ def search_all_characters_response(character_name: str, limit: int = 10) -> dict
     for order, (server_id, server_name) in enumerate(SERVER_SEARCH_ORDER):
         cached_candidates = get_cached_character_search_candidates(server_id, target_name)
         if cached_candidates:
+            cached_candidates = hydrate_search_candidates_detail(cached_candidates)
+            save_character_search_candidates(cached_candidates)
             hit_servers.append(server_id)
             candidates.extend(
                 add_search_candidate_sort_keys(candidate, order, target_name)
@@ -219,6 +286,35 @@ def search_all_characters_response(character_name: str, limit: int = 10) -> dict
     }
 
 
+def search_adventure_characters_response(adventure_name: str) -> dict:
+    target_name = clean_text(adventure_name)
+    if not target_name:
+        return {
+            "mode": "adventure",
+            "adventureName": target_name,
+            "candidates": [],
+            "cacheOnly": True,
+        }
+
+    server_order_by_id = {
+        server_id: order
+        for order, (server_id, _) in enumerate(SERVER_SEARCH_ORDER)
+    }
+    candidates = get_cached_adventure_search_candidates(target_name)
+    candidates.sort(key=lambda row: (
+        server_order_by_id.get(clean_text(row.get("serverId")).lower(), len(SERVER_SEARCH_ORDER)),
+        -parse_int(row.get("fame")),
+        clean_text(row.get("characterName")),
+    ))
+
+    return {
+        "mode": "adventure",
+        "adventureName": target_name,
+        "candidates": candidates,
+        "cacheOnly": True,
+    }
+
+
 def save_character_search_candidate_from_loadout_payload(payload: dict):
     if not isinstance(payload, dict):
         return
@@ -235,6 +331,7 @@ def save_character_search_candidate_from_loadout_payload(payload: dict):
         "serverName": server_name_by_id.get(server_id, ""),
         "characterId": character_id,
         "characterName": character_name,
+        "adventureName": clean_text(payload.get("adventureName")),
         "jobName": clean_text(damage_baseline.get("jobName") or buffer_baseline.get("jobName")),
         "jobGrowName": clean_text(damage_baseline.get("jobGrowName") or buffer_baseline.get("jobGrowName")),
         "fame": parse_int(payload.get("fame")),
