@@ -4374,6 +4374,11 @@ export function installEnchantView(ctx) {
     });
   }
 
+  function scheduleFitEnchantRecommendTitles() {
+    fitEnchantRecommendTitles();
+    window.requestAnimationFrame(() => fitEnchantRecommendTitles());
+  }
+
   function adjustRecommendPopoverShift(popover) {
     if (!popover) return;
     const margin = 8;
@@ -4624,7 +4629,7 @@ export function installEnchantView(ctx) {
         </span>
       `;
     }).join('');
-    fitEnchantRecommendTitles();
+    scheduleFitEnchantRecommendTitles();
   }
 
   async function loadCurrentEnchants() {
