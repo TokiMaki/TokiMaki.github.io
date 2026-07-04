@@ -325,7 +325,7 @@ export function bindToolEvents(ctx) {
     const landingAdventure = String(els.landingServerIdInput?.value || '').trim() === 'adventure';
     const enchantAdventure = String(els.enchantServerIdInput?.value || '').trim() === 'adventure';
     if (els.landingCharacterNameInput) {
-      els.landingCharacterNameInput.placeholder = landingAdventure ? '모험단명을 입력해줘양' : '캐릭터명을 입력하세요';
+      els.landingCharacterNameInput.placeholder = landingAdventure ? '모험단명을 입력하세요' : '캐릭터명을 입력하세요';
     }
     if (els.enchantCharacterNameInput) {
       els.enchantCharacterNameInput.placeholder = enchantAdventure ? '모험단명' : '캐릭터명';
