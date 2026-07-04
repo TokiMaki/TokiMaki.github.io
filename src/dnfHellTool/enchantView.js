@@ -3073,11 +3073,6 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     .sort((a, b) => {
       const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
       if (priorityDiff) return priorityDiff;
-      if (a.kind === 'brilliantEmblem' && b.kind === 'brilliantEmblem') {
-        const priceA = Number.isFinite(a?.auction?.minUnitPrice) ? a.auction.minUnitPrice : Number.POSITIVE_INFINITY;
-        const priceB = Number.isFinite(b?.auction?.minUnitPrice) ? b.auction.minUnitPrice : Number.POSITIVE_INFINITY;
-        if (priceA !== priceB) return priceA - priceB;
-      }
       const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
       if (materialDiff) return materialDiff;
       if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) {
