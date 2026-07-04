@@ -259,7 +259,7 @@
     "id": "2026-07-04-oathTabAdded",
     "date": "2026-07-04",
     "type": "update",
-    "title": "서약 탭 표시 추가",
+    "title": "서약 탭 추가",
     "body": "캐릭터 로드아웃에 서약 탭을 추가했습니다.",
     "visible": true
   }
