@@ -19,6 +19,7 @@ const EFFECT_LABELS = {
 };
 const BUFFER_SCORE_ICON_URL = new URL('../../이미지/bufferScore.png', import.meta.url).href;
 const EQUIPMENT_SCORE_ICON_URL = new URL('../../이미지/equipmentScore.png', import.meta.url).href;
+const CHARACTER_FAME_ICON_URL = new URL('../../이미지/fame.png', import.meta.url).href;
 const OATH_BOARD_BG_URL = new URL('../../이미지/oathbg.png', import.meta.url).href;
 const OATH_SYMBOL_ASSETS = import.meta.glob('../../이미지/Oath/*/*.{png,webp}', {
   eager: true,
@@ -3328,6 +3329,7 @@ export function installEnchantView(ctx) {
   state.currentAvatarCharacterKey = '';
   state.enchantTargetCharacter = null;
   state.enchantRecommendationLoading = false;
+  state.enchantSearchMode = 'analysis';
   state.enchantPricedAt = '';
   state.creaturePricedAt = '';
   state.titlePricedAt = '';
@@ -3892,7 +3894,7 @@ export function installEnchantView(ctx) {
       }
       if (sub) sub.textContent = '캐릭터 장비와 스펙업 효율을 계산하고 있어양.';
     } else if (isError) {
-      if (title) title.textContent = message || '분석에 실패했어요.';
+      if (title) title.textContent = message || '분석에 실패했습니다.';
       if (sub) sub.textContent = getEnchantAnalysisErrorSubtext(message);
     }
   }
@@ -3903,7 +3905,7 @@ export function installEnchantView(ctx) {
       return '던파 점검 중이에양. 끝나고 찾아오세양.';
     }
     if (/서버 연결|API 서버/.test(text)) {
-      return '서버 업데이트나 재시작 중일 수 있어요. 잠시만 양해 부탁드려요.';
+      return '서버 업데이트나 재시작 중일 수 있습니다. 잠시만 양해 부탁드립니다.';
     }
     return '캐릭터명이나 서버를 확인한 뒤 다시 검색해 주세요.';
   }
@@ -3946,33 +3948,41 @@ export function installEnchantView(ctx) {
     if (mode === 'error') {
       els.enchantCandidatePanel.innerHTML = `
         <div class="enchant-candidate-empty">
-          <div class="enchant-analysis-loading-title">${escapeHtml(message || '캐릭터를 찾지 못했어양.')}</div>
+          <div class="enchant-analysis-loading-title">${escapeHtml(message || '캐릭터를 찾지 못했습니다.')}</div>
         </div>
       `;
       return;
     }
-    els.enchantCandidatePanel.innerHTML = renderEnchantSearchCandidates(candidates);
+    els.enchantCandidatePanel.innerHTML = renderEnchantSearchCandidates(candidates, message);
     bindCharacterAvatars(els.enchantCandidatePanel);
   }
 
-  function renderEnchantSearchCandidates(candidates = []) {
+  function showEnchantCandidateLoading() {
+    setEnchantCandidatePanel('loading');
+  }
+
+  function renderEnchantSearchCandidates(candidates = [], searchText = '') {
     const rows = Array.isArray(candidates) ? candidates : [];
     if (!rows.length) {
       return `
         <div class="enchant-candidate-empty">
-          <div class="enchant-analysis-loading-title">캐릭터를 찾지 못했어양.</div>
+          <div class="enchant-analysis-loading-title">캐릭터를 찾지 못했습니다.</div>
         </div>
       `;
     }
+    const searchLabel = String(searchText || '').trim();
     return `
       <div class="enchant-candidate-head">
-        <h2>캐릭터 선택</h2>
-        <p>분석할 캐릭터를 골라줘양.</p>
+        <p>${searchLabel ? `<span class="enchant-candidate-search-keyword">${escapeHtml(searchLabel)}</span> 검색 결과입니다.` : '검색 결과입니다.'}</p>
       </div>
       <div class="enchant-candidate-grid">
         ${rows.map((candidate) => {
           const serverId = String(candidate.serverId || '').trim().toLowerCase();
+          const serverName = String(candidate.serverName || serverId).trim();
           const characterName = String(candidate.characterName || '').trim();
+          const jobLabel = String(candidate.jobGrowName || candidate.jobName || '').trim();
+          const fame = Number(candidate.fame || 0);
+          const hasFame = candidate.fame !== undefined && candidate.fame !== null && String(candidate.fame).trim() !== '';
           const candidateCharacter = {
             serverId,
             characterId: String(candidate.characterId || '').trim(),
@@ -3985,8 +3995,14 @@ export function installEnchantView(ctx) {
           };
           return `
             <button type="button" class="enchant-candidate-card" data-candidate-server-id="${escapeHtml(serverId)}" data-candidate-character-name="${escapeHtml(characterName)}">
+              <span class="enchant-candidate-server">${escapeHtml(serverName)}</span>
               <span class="supply-detail-portrait enchant-candidate-portrait">
-                ${getCharacterPortraitMarkup(candidateCharacter, { zoom: 1 })}
+                ${getCharacterPortraitMarkup(candidateCharacter, { zoom: 1, showName: false })}
+              </span>
+              <span class="enchant-candidate-info">
+                ${hasFame ? `<span class="enchant-candidate-fame" title="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}" aria-label="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}</span>` : ''}
+                <span class="enchant-candidate-name">${escapeHtml(characterName)}</span>
+                ${jobLabel ? `<span class="enchant-candidate-job">${escapeHtml(jobLabel)}</span>` : ''}
               </span>
             </button>
           `;
@@ -4223,7 +4239,11 @@ export function installEnchantView(ctx) {
 
   function renderEnchantTable() {
     if (state.enchantRecommendationLoading) {
-      showEnchantAnalysisLoading();
+      if (state.enchantSearchMode === 'candidate') {
+        showEnchantCandidateLoading();
+      } else {
+        showEnchantAnalysisLoading();
+      }
       return;
     }
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
@@ -4956,9 +4976,9 @@ export function installEnchantView(ctx) {
     }
   }
 
-  async function searchEnchantCharacter() {
-    const serverId = String(els.enchantServerIdInput?.value || '').trim().toLowerCase();
-    const characterName = String(els.enchantCharacterNameInput?.value || '').trim();
+  async function searchEnchantCharacter(options = {}) {
+    const serverId = String(options.serverId || els.enchantServerIdInput?.value || '').trim().toLowerCase();
+    const characterName = String(options.characterName || els.enchantCharacterNameInput?.value || '').trim();
     if (!characterName) {
       state.enchantRecommendationLoading = false;
       setEnchantCharacterStatus('캐릭터명을 입력해 주세요.');
@@ -4967,6 +4987,7 @@ export function installEnchantView(ctx) {
 
     const isAllServerSearch = !serverId || serverId === 'all';
     state.enchantRecommendationLoading = true;
+    state.enchantSearchMode = isAllServerSearch ? 'candidate' : 'analysis';
     const requestId = state.enchantRequestId + 1;
     state.enchantRequestId = requestId;
     state.enchantTargetCharacter = null;
@@ -4993,8 +5014,8 @@ export function installEnchantView(ctx) {
         });
         state.enchantRecommendationLoading = false;
         state.enchantSearchCandidates = candidates;
-        setEnchantCharacterStatus(candidates.length ? `${candidates.length}개 캐릭터를 찾았습니다.` : '캐릭터를 찾지 못했어양.');
-        setEnchantCandidatePanel(candidates.length ? 'ready' : 'empty', candidates);
+        setEnchantCharacterStatus(candidates.length ? `${candidates.length}개 캐릭터를 찾았습니다.` : '캐릭터를 찾지 못했습니다.');
+        setEnchantCandidatePanel(candidates.length ? 'ready' : 'empty', candidates, characterName);
         flushEnchantTiming('candidate-select');
         return;
       }
@@ -5237,18 +5258,6 @@ export function installEnchantView(ctx) {
     changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
   });
 
-  els.enchantCandidatePanel?.addEventListener('click', (event) => {
-    const card = event.target.closest('[data-candidate-server-id][data-candidate-character-name]');
-    if (!card) return;
-    event.preventDefault();
-    const serverId = String(card.dataset.candidateServerId || '').trim().toLowerCase();
-    const characterName = String(card.dataset.candidateCharacterName || '').trim();
-    if (!serverId || !characterName) return;
-    if (els.enchantServerIdInput) els.enchantServerIdInput.value = serverId;
-    if (els.enchantCharacterNameInput) els.enchantCharacterNameInput.value = characterName;
-    els.loadEnchantCharacterButton?.click();
-  });
-
   els.enchantCharacterPortrait?.addEventListener('click', (event) => {
     const target = event.target.closest('[data-enchant-loadout-tab]');
     if (!target) return;
@@ -5270,6 +5279,7 @@ export function installEnchantView(ctx) {
     loadCurrentCharacterLoadout,
     searchEnchantCharacter,
     showEnchantAnalysisLoading,
+    showEnchantCandidateLoading,
     renderEnchantTable,
     renderEnchantRecommendations,
   });

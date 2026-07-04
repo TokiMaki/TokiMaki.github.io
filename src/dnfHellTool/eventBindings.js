@@ -274,7 +274,7 @@ export function bindToolEvents(ctx) {
       }));
     }
   };
-  const runEnchantSearch = ({ serverId, characterName, updateHistory = true, saveRecent = true } = {}) => {
+  const runEnchantSearch = ({ serverId, characterName, updateHistory = true, saveRecent = true, preserveInputs = false } = {}) => {
     const normalizedServerId = String(serverId || els.enchantServerIdInput?.value || 'all').trim();
     const normalizedName = String(characterName || els.enchantCharacterNameInput?.value || '').trim();
     if (!normalizedName) {
@@ -282,20 +282,33 @@ export function bindToolEvents(ctx) {
       els.landingCharacterNameInput?.focus();
       return;
     }
-    if (els.enchantServerIdInput) els.enchantServerIdInput.value = normalizedServerId;
-    if (els.enchantCharacterNameInput) els.enchantCharacterNameInput.value = normalizedName;
-    if (els.landingServerIdInput) els.landingServerIdInput.value = normalizedServerId;
-    if (els.landingCharacterNameInput) els.landingCharacterNameInput.value = normalizedName;
+    if (!preserveInputs) {
+      if (els.enchantServerIdInput) els.enchantServerIdInput.value = normalizedServerId;
+      if (els.enchantCharacterNameInput) els.enchantCharacterNameInput.value = normalizedName;
+      if (els.landingServerIdInput) els.landingServerIdInput.value = normalizedServerId;
+      if (els.landingCharacterNameInput) els.landingCharacterNameInput.value = normalizedName;
+    }
     if (els.landingSearchStatus) els.landingSearchStatus.textContent = '';
     state.enchantRecommendationLoading = true;
-    ctx.actions.showEnchantAnalysisLoading?.();
+    const isAllServerSearch = !normalizedServerId || normalizedServerId === 'all';
+    state.enchantSearchMode = isAllServerSearch ? 'candidate' : 'analysis';
+    if (isAllServerSearch) {
+      ctx.actions.showEnchantCandidateLoading?.();
+    } else {
+      ctx.actions.showEnchantAnalysisLoading?.();
+    }
     if (els.enchantCharacterStatus) {
-      els.enchantCharacterStatus.textContent = `${normalizedName} 검색 중...`;
+      els.enchantCharacterStatus.textContent = isAllServerSearch
+        ? `${normalizedName} 전체 서버 검색 중...`
+        : `${normalizedName} 검색 중...`;
     }
     setScreen('results');
     setActiveTab('enchantPanel');
     if (updateHistory) updateResultUrl(normalizedServerId, normalizedName);
-    Promise.resolve(ctx.actions.searchEnchantCharacter?.()).then((result) => {
+    Promise.resolve(ctx.actions.searchEnchantCharacter?.({
+      serverId: normalizedServerId,
+      characterName: normalizedName,
+    })).then((result) => {
       if (!saveRecent || !result?.serverId || !result?.characterName) return;
       saveRecentSearch(result.serverId, result.characterName);
     });
@@ -389,6 +402,17 @@ if (els.refreshEnchantCardsButton) {
 if (els.loadEnchantCharacterButton) {
   els.loadEnchantCharacterButton.addEventListener('click', () => {
     runEnchantSearch();
+  });
+}
+if (els.enchantCandidatePanel) {
+  els.enchantCandidatePanel.addEventListener('click', (event) => {
+    const card = event.target.closest('[data-candidate-server-id][data-candidate-character-name]');
+    if (!card) return;
+    event.preventDefault();
+    const serverId = String(card.dataset.candidateServerId || '').trim().toLowerCase();
+    const characterName = String(card.dataset.candidateCharacterName || '').trim();
+    if (!serverId || !characterName) return;
+    runEnchantSearch({ serverId, characterName, preserveInputs: true });
   });
 }
 if (els.enchantCharacterNameInput) {

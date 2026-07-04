@@ -312,17 +312,17 @@
       gap: 3px;
       text-align: center;
     }
-    .enchant-candidate-head h2 {
-      margin: 0;
-      color: var(--text);
-      font-size: 17px;
-      line-height: 1.25;
-    }
     .enchant-candidate-head p {
       margin: 0;
       color: var(--muted);
       font-size: 12px;
       line-height: 1.35;
+    }
+    .enchant-candidate-search-keyword {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.2;
     }
     .enchant-candidate-grid {
       display: grid;
@@ -335,22 +335,41 @@
       min-width: 0;
     }
     .enchant-candidate-card {
-      display: block;
+      position: relative;
+      display: grid;
+      gap: 6px;
+      justify-items: center;
       min-width: 0;
       width: 100%;
       padding: 8px;
       border: 1px solid color-mix(in srgb, var(--accent-2) 34%, var(--line));
       border-radius: 8px;
-      background: transparent;
+      background: color-mix(in srgb, var(--panel-2) 34%, transparent);
       color: var(--text);
       text-align: center;
       cursor: pointer;
+      transition: border-color 120ms ease, background 120ms ease;
     }
     .enchant-candidate-card:hover,
     .enchant-candidate-card:focus-visible {
       border-color: color-mix(in srgb, var(--accent-2) 68%, var(--line));
       background: color-mix(in srgb, var(--accent-2) 8%, transparent);
       outline: none;
+    }
+    .enchant-candidate-server {
+      justify-self: start;
+      max-width: 100%;
+      padding: 2px 6px;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 38%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--bg-deep) 64%, transparent);
+      color: color-mix(in srgb, var(--text-warn) 82%, var(--muted));
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .enchant-candidate-portrait {
       --supply-detail-portrait-transform: none;
@@ -365,20 +384,71 @@
       --supply-detail-portrait-frame-shadow: none;
       width: 100%;
     }
+    .enchant-candidate-portrait .supply-detail-portrait-crop {
+      position: relative;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border-radius: 6px;
+      background:
+        radial-gradient(
+          circle at 50% 44%,
+          color-mix(in srgb, var(--accent-2) 9%, transparent) 0%,
+          color-mix(in srgb, var(--accent-2) 4%, transparent) 34%,
+          transparent 70%
+        ),
+        color-mix(in srgb, var(--bg-deep) 36%, transparent);
+    }
     .enchant-candidate-portrait .supply-detail-portrait-bg {
       display: none;
     }
     .enchant-candidate-portrait .supply-detail-portrait-frame::before {
       content: none;
     }
-    .enchant-candidate-portrait .supply-detail-portrait-meta {
-      padding-top: 4px;
+    .enchant-candidate-info {
+      display: grid;
+      gap: 2px;
+      width: 100%;
+      min-width: 0;
+      padding: 6px 4px 2px;
+      border-top: 1px solid color-mix(in srgb, var(--accent-2) 18%, transparent);
     }
-    .enchant-candidate-portrait .supply-detail-portrait-name {
+    .enchant-candidate-fame {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-width: 0;
+      color: #f2d66b;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .enchant-candidate-fame img {
+      width: 13px;
+      height: 13px;
+      object-fit: contain;
+    }
+    .enchant-candidate-name,
+    .enchant-candidate-job {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .enchant-candidate-name {
+      color: var(--text);
       font-size: 13px;
+      font-weight: 800;
+      line-height: 1.25;
     }
-    .enchant-candidate-portrait .supply-detail-portrait-sub {
+    .enchant-candidate-job {
       color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1.2;
     }
     .enchant-candidate-empty {
       display: grid;
