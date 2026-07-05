@@ -4531,6 +4531,10 @@ export function installEnchantView(ctx) {
         ? row.purchaseRoute === 'titleBeadOnly'
           ? '보주'
           : row.tier === '플래티넘' ? '플래티넘' : '일반'
+        : row.sourceType === 'oathTranscend'
+          ? '초월'
+        : row.sourceType === 'oathCraft'
+          ? '정가'
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
@@ -4553,6 +4557,8 @@ export function installEnchantView(ctx) {
             : row.itemName;
       const displayTitle = TUNE_SOURCE_TYPES.has(row.sourceType)
         ? row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'
+        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+          ? '서약 결정'
         : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
       const isMaterialEnchant = isMaterialEnchantRecommendation(row);
