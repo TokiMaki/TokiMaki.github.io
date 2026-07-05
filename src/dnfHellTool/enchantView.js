@@ -4593,8 +4593,11 @@ export function installEnchantView(ctx) {
             <span class="enchant-tune-step-button${row.selectedTuneStepIndex >= row.tuneSteps.length - 1 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="1" data-tune-source="${escapeHtml(row.sourceType)}" aria-label="다음 조율 단계">+</span>
           </span>`
         : '';
+      const popoverName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+        ? [displayName, tierLabel].filter(Boolean).join(' ')
+        : displayName;
       const tooltipRows = [
-        { text: displayName, className: 'enchant-popover-name' },
+        { text: popoverName, className: 'enchant-popover-name' },
         { text: titleRouteLabel, className: 'enchant-popover-muted' },
         { text: showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '', className: 'enchant-popover-muted' },
         effectHtml
