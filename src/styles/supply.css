@@ -1128,7 +1128,7 @@
       white-space: normal;
     }
     .enchant-portrait-detail-line-effect {
-      color: var(--text);
+      color: #b99cff;
     }
     .enchant-portrait-detail-line-sub {
       color: var(--muted);
