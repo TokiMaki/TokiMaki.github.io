@@ -297,6 +297,10 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
         "light": status.get("명속성 강화", 0),
         "dark": status.get("암속성 강화", 0),
     }
+    adjusted_element_values = {
+        key: value + equipment_base_element
+        for key, value in element_values.items()
+    }
     max_element = max(element_values.values() or [0])
     top_elements = [key for key, value in element_values.items() if value == max_element and value > 0]
     element_strength = max_element + equipment_base_element
@@ -326,6 +330,7 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
         "element": element_strength,
         "elementName": top_elements[0] if top_elements else "",
         "elementNames": top_elements,
+        "elementValues": adjusted_element_values,
         "elementDamage": element_damage,
         "equipmentBaseElement": equipment_base_element,
         "attackIncrease": status.get("공격력 증가", 0),

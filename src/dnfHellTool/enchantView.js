@@ -855,6 +855,8 @@ function getDamageBaseline(baseline = {}) {
   const elementNames = Array.isArray(baseline.elementNames)
     ? baseline.elementNames.filter(Boolean)
     : (baseline.elementName ? [baseline.elementName] : []);
+  const elementValues = Object.fromEntries(Object.keys(ELEMENT_EFFECT_KEY_BY_NAME)
+    .map((element) => [element, Number(baseline.elementValues?.[element] || 0)]));
   return {
     stat,
     statName: baseline.statName === '지능' ? '지능' : '힘',
@@ -862,6 +864,7 @@ function getDamageBaseline(baseline = {}) {
     element: Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element,
     elementName: elementNames[0] || '',
     elementNames,
+    elementValues,
     elementDamage: Number.isFinite(Number(baseline.elementDamage))
       ? Number(baseline.elementDamage)
       : ELEMENT_BASE_DAMAGE_PERCENT + (Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element) * ELEMENT_DAMAGE_PER_ELEMENT,
@@ -2778,6 +2781,27 @@ function getPreferredElementForElementalUpgrades(rows, baseline, currentCreature
   return ranked[0]?.element || currentPreferenceOrder[0] || topElements[0] || '';
 }
 
+function isTitleBeadReplacementCandidate(row, currentTitle) {
+  if (row?.sourceType !== 'title' || !currentTitle?.itemId) return false;
+  if (row.purchaseRoute === 'titleBeadOnly') return true;
+  return Boolean(row.titleBead) && isSameTitleBase(row, currentTitle);
+}
+
+function getTitleEffectiveEffects(row = {}, preferredElement = '') {
+  const effects = { ...(row?.effects || {}) };
+  if (!preferredElement) return effects;
+  const element = row?.titleEnchantElement || row?.currentTitleEnchantElement || '';
+  if (!element || element === 'all' || element === preferredElement) return effects;
+  const enchantEffects = row?.enchantEffects || row?.currentTitleEnchantEffects || {};
+  if (!Number(enchantEffects.elementAll || 0)) return effects;
+  const adjusted = { ...effects };
+  adjusted.elementAll = Number(adjusted.elementAll || 0) - Number(enchantEffects.elementAll || 0);
+  if (Math.abs(adjusted.elementAll) <= 0.000001) {
+    delete adjusted.elementAll;
+  }
+  return adjusted;
+}
+
 function isPreferredCreatureArtifactElement(row, baseline, preferredElement = '') {
   if (row?.sourceType !== 'creatureArtifact') return true;
   if (!['RED', 'BLUE'].includes(row.slotColor)) return true;
@@ -2785,6 +2809,302 @@ function isPreferredCreatureArtifactElement(row, baseline, preferredElement = ''
   const element = preferredElement || base.elementName;
   if (!element) return true;
   return row.element === element;
+}
+
+function getCurrentElementAlignment(currentCreature, currentTitle) {
+  const artifacts = currentCreature?.artifacts || [];
+  const findArtifactElement = (slotColor) => (
+    artifacts.find((artifact) => artifact?.slotColor === slotColor)?.element || ''
+  );
+  return {
+    titleElement: currentTitle?.titleEnchantElement || '',
+    redElement: findArtifactElement('RED'),
+    blueElement: findArtifactElement('BLUE'),
+  };
+}
+
+function addElementValueDelta(deltas, element, value) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || Math.abs(amount) <= 0.000001) return;
+  if (element === 'all') {
+    Object.keys(ELEMENT_EFFECT_KEY_BY_NAME).forEach((key) => {
+      deltas[key] = Number(deltas[key] || 0) + amount;
+    });
+    return;
+  }
+  if (!ELEMENT_EFFECT_KEY_BY_NAME[element]) return;
+  deltas[element] = Number(deltas[element] || 0) + amount;
+}
+
+function getTitleElementValueDeltas(row = {}, current = {}) {
+  if (row?.sourceType !== 'title') return {};
+  const deltas = {};
+  const currentElement = current?.titleEnchantElement || row.currentTitleEnchantElement || '';
+  const currentEffects = current?.enchantEffects || row.currentTitleEnchantEffects || {};
+  const targetElement = row.titleEnchantElement || '';
+  const targetEffects = row.targetTitleEnchantEffects || row.enchantEffects || {};
+  addElementValueDelta(deltas, currentElement, -Number(currentEffects.elementAll || 0));
+  addElementValueDelta(deltas, targetElement, Number(targetEffects.elementAll || 0));
+  return deltas;
+}
+
+function getCreatureArtifactElementValueDeltas(row = {}, current = {}) {
+  if (row?.sourceType !== 'creatureArtifact') return {};
+  const deltas = {};
+  addElementValueDelta(deltas, 'all', -Number(current?.artifactAllElement || 0));
+  addElementValueDelta(deltas, current?.element || '', -Number(current?.artifactSingleElement || 0));
+  addElementValueDelta(deltas, 'all', Number(row.artifactAllElement || 0));
+  addElementValueDelta(deltas, row.element || '', Number(row.artifactSingleElement || 0));
+  return deltas;
+}
+
+function getElementValueDeltasForRecommendation(row = {}, current = {}) {
+  if (row?.sourceType === 'title') return getTitleElementValueDeltas(row, current);
+  if (row?.sourceType === 'creatureArtifact') return getCreatureArtifactElementValueDeltas(row, current);
+  return {};
+}
+
+function getAdjustedElementBaselineForRecommendation(row = {}, current = {}, baseline = {}) {
+  const base = getDamageBaseline(baseline);
+  const currentValues = base.elementValues || {};
+  if (!Object.keys(ELEMENT_EFFECT_KEY_BY_NAME).some((element) => Number(currentValues[element] || 0) > 0)) {
+    return null;
+  }
+  const deltas = getElementValueDeltasForRecommendation(row, current);
+  if (!Object.values(deltas).some((value) => Math.abs(Number(value || 0)) > 0.000001)) {
+    return null;
+  }
+  const nextValues = Object.fromEntries(Object.keys(ELEMENT_EFFECT_KEY_BY_NAME).map((element) => [
+    element,
+    Number(currentValues[element] || 0) + Number(deltas[element] || 0),
+  ]));
+  const currentMax = Math.max(...Object.values(currentValues).map((value) => Number(value || 0)));
+  const nextMax = Math.max(...Object.values(nextValues).map((value) => Number(value || 0)));
+  if (!Number.isFinite(currentMax) || !Number.isFinite(nextMax) || nextMax <= 0) return null;
+  const nextElements = Object.entries(nextValues)
+    .filter(([, value]) => Number(value || 0) === nextMax)
+    .map(([element]) => element);
+  return {
+    ...baseline,
+    element: nextMax,
+    elementName: nextElements[0] || base.elementName,
+    elementNames: nextElements,
+    elementValues: nextValues,
+    elementDamage: base.elementDamage + (nextMax - currentMax) * ELEMENT_DAMAGE_PER_ELEMENT,
+  };
+}
+
+function getElementAdjustedReplacementIncrementalDamagePercent(row, current, baseline, adjustedBaseline) {
+  const currentEffects = current?.effects || {};
+  const targetEffects = row.effects || {};
+  const base = getDamageBaseline(baseline);
+  const adjustedBase = getDamageBaseline(adjustedBaseline);
+  const baseFinalDamage = Math.max(0, base.finalDamage - Number(currentEffects.finalDamage || 0));
+  const currentFinalDamageMultiplier = 1 + (baseFinalDamage + Number(currentEffects.finalDamage || 0)) / 100;
+  const targetFinalDamageMultiplier = 1 + (baseFinalDamage + Number(targetEffects.finalDamage || 0)) / 100;
+  const finalDamageMultiplier = targetFinalDamageMultiplier / currentFinalDamageMultiplier;
+  const baseAttackIncrease = Math.max(0, base.attackIncrease - Number(currentEffects.attackIncrease || 0));
+  const currentAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(currentEffects.attackIncrease || 0)) / 100;
+  const targetAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(targetEffects.attackIncrease || 0)) / 100;
+  const attackIncreaseMultiplier = targetAttackIncreaseMultiplier / currentAttackIncreaseMultiplier;
+  const baseAttackAmplification = Math.max(0, base.attackAmplification - Number(currentEffects.attackAmplification || 0));
+  const currentAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(currentEffects.attackAmplification || 0)) / 100;
+  const targetAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(targetEffects.attackAmplification || 0)) / 100;
+  const attackAmplificationMultiplier = targetAttackAmplificationMultiplier / currentAttackAmplificationMultiplier;
+  const elementMultiplier = (1 + adjustedBase.elementDamage / 100) / (1 + base.elementDamage / 100);
+  const baseAttack = base.attack - Number(currentEffects.attack || 0);
+  const currentAttack = baseAttack + REGION_ATTACK_FLAT + Number(currentEffects.attack || 0);
+  const targetAttack = baseAttack + REGION_ATTACK_FLAT + Number(targetEffects.attack || 0);
+  const attackMultiplier = targetAttack / currentAttack;
+  const currentStatValue = getSelectedStatEffect(currentEffects, base);
+  const targetStatValue = getSelectedStatEffect(targetEffects, base);
+  const baseStat = base.stat - currentStatValue;
+  const currentEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + currentStatValue, base.baseStat);
+  const targetEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + targetStatValue, base.baseStat);
+  const statMultiplier = (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
+  const currentSkillDamageMultiplier = getSkillDamageMultiplier(current);
+  const targetSkillDamageMultiplier = getSkillDamageMultiplier(row);
+  const skillDamageMultiplier = targetSkillDamageMultiplier / currentSkillDamageMultiplier;
+  return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier - 1) * 100;
+}
+
+function isFinitePositivePrice(row) {
+  return Number.isFinite(row?.auction?.minUnitPrice) && row.auction.minUnitPrice > 0;
+}
+
+function getElementAlignmentCandidateScore(row, current, baseline, includeMaterialCosts = false, adjustedBaseline = null) {
+  if (!row || !current || !isFinitePositivePrice(row)) return null;
+  if (row.sourceType === 'creatureArtifact' && current?.itemId && current.itemId === row.itemId) return null;
+  if (
+    row.sourceType === 'title' &&
+    current?.itemId &&
+    current.itemId === row.itemId &&
+    getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
+  ) return null;
+  const incrementalDamagePercent = adjustedBaseline
+    ? getElementAdjustedReplacementIncrementalDamagePercent(row, current, baseline, adjustedBaseline)
+    : getReplacementIncrementalDamagePercent(row, current, baseline);
+  if (!Number.isFinite(incrementalDamagePercent) || incrementalDamagePercent <= 0.0001) return null;
+  const costPerPointOnePercent = getCostPerPointOnePercent(
+    { ...row, incrementalDamagePercent },
+    includeMaterialCosts,
+  );
+  if (!Number.isFinite(costPerPointOnePercent) || costPerPointOnePercent <= 0) return null;
+  return {
+    row,
+    incrementalDamagePercent,
+    costPerPointOnePercent,
+  };
+}
+
+function getBestElementAlignmentCandidate(candidates = []) {
+  return candidates
+    .filter(Boolean)
+    .sort((a, b) => (
+      a.costPerPointOnePercent - b.costPerPointOnePercent ||
+      b.incrementalDamagePercent - a.incrementalDamagePercent
+    ))[0] || null;
+}
+
+function getBestRedArtifactAlignmentCandidate(rows, baseline, currentArtifactBySlot, targetElement, includeMaterialCosts = false) {
+  if (!targetElement) return null;
+  const currentArtifact = currentArtifactBySlot.get('RED') || {};
+  const current = {
+    ...currentArtifact,
+    effects: getCreatureArtifactEffectiveEffects({ sourceType: 'creatureArtifact', ...currentArtifact }, baseline, targetElement),
+  };
+  return getBestElementAlignmentCandidate(
+    (rows || [])
+      .filter((row) => (
+        row?.sourceType === 'creatureArtifact' &&
+        row.slotColor === 'RED' &&
+        row.element === targetElement
+      ))
+      .map((row) => {
+        const candidate = {
+          ...row,
+          effects: getCreatureArtifactEffectiveEffects(row, baseline, targetElement),
+          displayEffects: getCreatureArtifactDisplayEffects(row, baseline, targetElement),
+        };
+        return getElementAlignmentCandidateScore(
+          candidate,
+          current,
+          baseline,
+          includeMaterialCosts,
+          getAdjustedElementBaselineForRecommendation(candidate, current, baseline),
+        );
+      }),
+  );
+}
+
+function getBestTitleBeadAlignmentCandidate(rows, baseline, currentTitle, targetElement, includeMaterialCosts = false) {
+  if (!targetElement || !currentTitle?.itemId) return null;
+  const current = {
+    ...currentTitle,
+    effects: getTitleEffectiveEffects(currentTitle, targetElement),
+  };
+  return getBestElementAlignmentCandidate(
+    (rows || [])
+      .filter((row) => (
+        row?.sourceType === 'title' &&
+        row.titleEnchantElement === targetElement &&
+        isTitleBeadReplacementCandidate(row, currentTitle)
+      ))
+      .map((row) => {
+        const titleRow = getTitleBeadOnlyRow(row, currentTitle);
+        const candidate = {
+          ...titleRow,
+          effects: getTitleEffectiveEffects(titleRow, targetElement),
+        };
+        return getElementAlignmentCandidateScore(
+          candidate,
+          current,
+          baseline,
+          includeMaterialCosts,
+          getAdjustedElementBaselineForRecommendation(candidate, current, baseline),
+        );
+      }),
+  );
+}
+
+function getElementAlignmentOverride(rows, baseline, currentCreature, currentTitle, currentArtifactBySlot, includeMaterialCosts = false) {
+  const {
+    titleElement,
+    redElement,
+    blueElement,
+  } = getCurrentElementAlignment(currentCreature, currentTitle);
+  if (!titleElement || titleElement === 'all' || !redElement || redElement === 'all' || titleElement === redElement) {
+    return null;
+  }
+
+  const titleCandidate = getBestTitleBeadAlignmentCandidate(
+    rows,
+    baseline,
+    currentTitle,
+    redElement,
+    includeMaterialCosts,
+  );
+  const redCandidate = getBestRedArtifactAlignmentCandidate(
+    rows,
+    baseline,
+    currentArtifactBySlot,
+    titleElement,
+    includeMaterialCosts,
+  );
+
+  if (blueElement && blueElement === redElement && titleCandidate) {
+    return { type: 'title', titleElement: redElement };
+  }
+  if (blueElement && blueElement === titleElement && redCandidate) {
+    return { type: 'redArtifact', redElement: titleElement };
+  }
+  if (!blueElement || (blueElement !== titleElement && blueElement !== redElement)) {
+    const selected = getBestElementAlignmentCandidate([titleCandidate, redCandidate]);
+    if (selected?.row?.sourceType === 'title') {
+      return { type: 'title', titleElement: redElement };
+    }
+    if (selected?.row?.sourceType === 'creatureArtifact') {
+      return { type: 'redArtifact', redElement: titleElement };
+    }
+  }
+  return null;
+}
+
+function getPreferredElementForRecommendationRow(row, baseline, preferredElement = '', alignmentOverride = null, currentTitle = null) {
+  if (
+    alignmentOverride?.type === 'title' &&
+    row?.sourceType === 'title' &&
+    isTitleBeadReplacementCandidate(row, currentTitle)
+  ) {
+    return alignmentOverride.titleElement || preferredElement;
+  }
+  if (
+    alignmentOverride?.type === 'redArtifact' &&
+    row?.sourceType === 'creatureArtifact' &&
+    row.slotColor === 'RED'
+  ) {
+    return alignmentOverride.redElement || preferredElement;
+  }
+  return preferredElement || getDamageBaseline(baseline).elementName;
+}
+
+function shouldSkipByElementAlignmentOverride(row, alignmentOverride = null, currentTitle = null) {
+  if (!alignmentOverride) return false;
+  if (
+    alignmentOverride.type === 'title' &&
+    row?.sourceType === 'creatureArtifact' &&
+    row.slotColor === 'RED'
+  ) {
+    return true;
+  }
+  if (
+    alignmentOverride.type === 'redArtifact' &&
+    row?.sourceType === 'title' &&
+    isTitleBeadReplacementCandidate(row, currentTitle)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function isPreferredTitleEnchantElement(row, baseline, preferredElement = '') {
@@ -2914,18 +3234,34 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
   const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
   const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
   const preferredArtifactElement = getPreferredElementForElementalUpgrades(rows, baseline, currentCreature, currentTitle);
+  const elementAlignmentOverride = getElementAlignmentOverride(
+    rows,
+    baseline,
+    currentCreature,
+    currentTitle,
+    currentArtifactBySlot,
+    includeMaterialCosts,
+  );
   const bySlotTier = new Map();
   rows.forEach((row) => {
-    if (!isPreferredCreatureArtifactElement(row, baseline, preferredArtifactElement)) return;
-    if (!isPreferredTitleEnchantElement(row, baseline, preferredArtifactElement)) return;
+    if (shouldSkipByElementAlignmentOverride(row, elementAlignmentOverride, currentTitle)) return;
+    const rowPreferredElement = getPreferredElementForRecommendationRow(
+      row,
+      baseline,
+      preferredArtifactElement,
+      elementAlignmentOverride,
+      currentTitle,
+    );
+    if (!isPreferredCreatureArtifactElement(row, baseline, rowPreferredElement)) return;
+    if (!isPreferredTitleEnchantElement(row, baseline, rowPreferredElement)) return;
     row = row.sourceType === 'creatureArtifact'
       ? {
         ...row,
-        effects: getCreatureArtifactEffectiveEffects(row, baseline, preferredArtifactElement),
-        displayEffects: getCreatureArtifactDisplayEffects(row, baseline, preferredArtifactElement),
+        effects: getCreatureArtifactEffectiveEffects(row, baseline, rowPreferredElement),
+        displayEffects: getCreatureArtifactDisplayEffects(row, baseline, rowPreferredElement),
       }
       : row;
-    const current = row.sourceType === 'upgrade'
+    let current = row.sourceType === 'upgrade'
       ? { effects: {} }
       : TUNE_SOURCE_TYPES.has(row.sourceType)
         ? { effects: {} }
@@ -2949,11 +3285,11 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
       : row.sourceType === 'creatureArtifact'
         ? (() => {
           const artifact = currentArtifactBySlot.get(row.slotColor) || {};
-          const effectiveEffects = getCreatureArtifactEffectiveEffects({ sourceType: 'creatureArtifact', ...artifact }, baseline, preferredArtifactElement);
+          const effectiveEffects = getCreatureArtifactEffectiveEffects({ sourceType: 'creatureArtifact', ...artifact }, baseline, rowPreferredElement);
           return {
             ...artifact,
             effects: effectiveEffects,
-            displayEffects: getCreatureArtifactDisplayEffects({ sourceType: 'creatureArtifact', ...artifact }, baseline, preferredArtifactElement),
+            displayEffects: getCreatureArtifactDisplayEffects({ sourceType: 'creatureArtifact', ...artifact }, baseline, rowPreferredElement),
             estimatedDamagePercent: estimateDamagePercent(effectiveEffects, baseline),
           };
         })()
@@ -2969,6 +3305,28 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
           }
         : currentBySlot.get(row.slot);
     row = getTitleBeadOnlyRow(row, current);
+    if (row.sourceType === 'title') {
+      row = {
+        ...row,
+        effects: getTitleEffectiveEffects(row, rowPreferredElement),
+      };
+      current = {
+        ...current,
+        effects: getTitleEffectiveEffects(current, rowPreferredElement),
+      };
+    }
+    const useElementAdjustedScoring = (
+      elementAlignmentOverride?.type === 'title' &&
+      row.sourceType === 'title' &&
+      isTitleBeadReplacementCandidate(row, currentTitle)
+    ) || (
+      elementAlignmentOverride?.type === 'redArtifact' &&
+      row.sourceType === 'creatureArtifact' &&
+      row.slotColor === 'RED'
+    );
+    const adjustedElementBaseline = useElementAdjustedScoring
+      ? getAdjustedElementBaselineForRecommendation(row, current, baseline)
+      : null;
     if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
     if (row.sourceType === 'creature' && current?.itemId && current.itemId === row.itemId) return;
     if (row.sourceType === 'creatureArtifact' && current?.itemId && current.itemId === row.itemId) return;
@@ -2982,14 +3340,18 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     const isReplacement = !['upgrade', 'equipmentTune', 'oathTune', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
     const damageEffects = getRecommendationDamageEffects(row, current);
     const estimatedDamagePercent = isReplacement
-      ? getReplacementIncrementalDamagePercent(
-        row.sourceType === 'blackFang'
-          ? { ...row, effects: row.targetEffects || addEffects(row.currentEffects, row.effects) }
-          : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
-            ? { ...row, effects: row.targetEffects || row.effects || {} }
-          : row,
-        row.sourceType === 'blackFang' || row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft' ? { effects: row.currentEffects || {} } : current,
-        baseline,
+      ? (
+        adjustedElementBaseline
+          ? getElementAdjustedReplacementIncrementalDamagePercent(row, current, baseline, adjustedElementBaseline)
+          : getReplacementIncrementalDamagePercent(
+            row.sourceType === 'blackFang'
+              ? { ...row, effects: row.targetEffects || addEffects(row.currentEffects, row.effects) }
+              : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+                ? { ...row, effects: row.targetEffects || row.effects || {} }
+              : row,
+            row.sourceType === 'blackFang' || row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft' ? { effects: row.currentEffects || {} } : current,
+            baseline,
+          )
       )
       : estimateDamagePercent(damageEffects, baseline);
     const currentDamagePercent = 0;
@@ -4476,7 +4838,7 @@ export function installEnchantView(ctx) {
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
       const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
       const isTitleBeadOnly = row.sourceType === 'title' && row.purchaseRoute === 'titleBeadOnly';
-      const showOptionText = isTitleBeadOnly || !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
+      const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const displayEffects = row.sourceType === 'avatar'
         ? Object.fromEntries(Object.entries(row.effects || {}).filter(([key]) => key !== 'skillDamageMultiplier'))
         : row.effects;
