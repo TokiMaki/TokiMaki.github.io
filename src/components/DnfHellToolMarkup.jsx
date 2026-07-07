@@ -20,7 +20,7 @@ export default function DnfHellToolMarkup() {
           </h1>
           <p className={'landing-copy'}>
             <span>던파일럿이 캐릭터에 맞는 스펙업 순서를</span>
-            <span>골드 효율 기준으로 추천해줄게양.</span>
+            <span>골드 효율 기준으로 추천해줄게양</span>
           </p>
           <div className={'landing-search-row'} data-nosnippet>
             <label className={'landing-field'}>
@@ -180,6 +180,7 @@ export default function DnfHellToolMarkup() {
           <img src={neopleBiImage} alt={'Neople 오픈 API'} />
         </a>
         <p className={'footer-copyright'}>Copyright © dunpilot All rights reserved.</p>
+        <a className={'footer-privacy-link'} href={'/privacy'}>개인정보 처리방침</a>
       </footer>
     </div>
   );
