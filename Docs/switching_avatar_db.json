@@ -1,0 +1,4160 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-08",
+  "jobs": {
+    "귀검사(남)": {
+      "aliases": [
+        "귀검사(남)",
+        "다크나이트"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "흰소매 천왕도포",
+            "itemId": ""
+          },
+          {
+            "itemName": "검은소매 천왕도포",
+            "itemId": ""
+          },
+          {
+            "itemName": "붉은소매 천왕도포",
+            "itemId": ""
+          },
+          {
+            "itemName": "푸른소매 천왕도포",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크나이트 풀플레이트아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크나이트 레드 풀플레이트아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 붉은매 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 다크임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 골든임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 소울 라이트닝 하프 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 황금 소울 라이트닝 하프 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 심연의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 실버임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 데빌 갑주 상의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 데빌 갑주 상의[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "귀검사의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "귀검사의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 노블 소울 라이트닝 하프 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 프로즌임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 검은매 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 블루 소울 라이트닝 하프 코트",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "녹색 주름도복바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "적색 주름도복바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "흑색 주름도복바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "청색 주름도복바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크나이트 풀플레이트팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크나이트 레드 풀플레이트팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 붉은매 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 다크임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 골든임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 소울 라이트닝 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 황금 소울 라이트닝 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 심연의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 실버임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 데빌 갑주 하의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 데빌 갑주 하의[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "귀검사의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "귀검사의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 노블 소울 라이트닝 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "용맹한 프로즌임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 검은매 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 블루 소울 라이트닝 팬츠",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "귀검사(여)": {
+      "aliases": [
+        "귀검사(여)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "마스터 오브 소울 영혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 티 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 티 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 벨벳 프릴 상의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 벨벳 프릴 상의[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여귀검사의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여귀검사의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 엠프레스 그레이스 프릴 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "골든 엠프레스 그레이스 프릴 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 태슬 장식 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 태슬 장식 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 태슬 장식 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 태슬 장식 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 엠프레스 그레이스 프릴 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 붉은매 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 검은매 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "브라이트 엠프레스 그레이스 프릴 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 골든임페리얼 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "마스터 오브 소울 영혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 숏 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 숏 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 벨벳 프릴 스커트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 벨벳 프릴 스커트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여귀검사의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여귀검사의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 엠프레스 그레이스 가터벨트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골든 엠프레스 그레이스 가터벨트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 롱 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 롱 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 롱 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 롱 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 엠프레스 그레이스 가터벨트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 트임스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 트임스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 붉은매 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 검은매 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "브라이트 엠프레스 그레이스 가터벨트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 골든임페리얼 하의",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "격투가(남)": {
+      "aliases": [
+        "격투가(남)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "혼돈의 루시퍼 블랙 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "앱솔루트 다크 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "인텔리전트 샤이닝 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 도복 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 불꽃의 도복 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 실버임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 드래곤 타투[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 드래곤 타투[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 타투 벨티드 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 타투 벨티드 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "남격투가의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "남격투가의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 타투 벨티드 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 아머코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 아머코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 아머코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 아머코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 신령한 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 신령한 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 프로즌임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 전사 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 바이올렛 전사 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 다크임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 골든임페리얼 상갑",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "혼돈의 루시퍼 블랙 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "앱솔루트 다크 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "인텔리전트 샤이닝 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 도복 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 불꽃의 도복 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 실버임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 드래곤 팬츠[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 드래곤 팬츠[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 레더 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 레더 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "남격투가의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "남격투가의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 레더 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 신령한 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 신령한 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 프로즌임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 전사 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 바이올렛 전사 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 다크임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "장렬한 골든임페리얼 하갑",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "격투가(여)": {
+      "aliases": [
+        "격투가(여)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "녹색 발키리탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "보라색 발키리탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "붉은색 발키리탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "푸른색 발키리탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "적혈투의 상갑주",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 전사 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 황금셋 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 순결의 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 정열의 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 로즈 프릴 드레스[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 로즈 프릴 드레스[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 드레스 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 드레스 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "격투가의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "격투가의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 드레스 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 은빛 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 퍼플 전사 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 하늘빛 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "적혈투의 블랙 상갑주",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "녹색 발키리스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "보라색 발키리스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "붉은색 발키리스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "푸른색 발키리스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "적혈투의 하갑주",
+            "itemId": ""
+          },
+          {
+            "itemName": "반투명 노블레스 전사 치마",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 황금셋 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 순결의 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 정열의 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 로즈 프릴 스커트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 로즈 프릴 스커트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 타이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 타이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "격투가의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "격투가의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 타이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 은빛 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "단아한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "반투명 노블레스 퍼플 전사 치마",
+            "itemId": ""
+          },
+          {
+            "itemName": "블러드 로즈 하늘빛 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "적혈투의 블랙 하갑주",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "거너(남)": {
+      "aliases": [
+        "거너(남)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "오렌지색 제복",
+            "itemId": ""
+          },
+          {
+            "itemName": "아이보리색 제복",
+            "itemId": ""
+          },
+          {
+            "itemName": "푸른색 제복",
+            "itemId": ""
+          },
+          {
+            "itemName": "녹색 제복",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙크로우 타이트셔츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 클래식 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 다크임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 골든임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 레인저 전투 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 레인저 전투 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 실버임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 피닉스 상의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 피닉스 상의[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 타이트 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 타이트 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "남거너의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "남거너의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 타이트 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "존엄한 레인저 전투 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 프로즌임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블랙 클래식 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 레인저 전투 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙크로우 화이트 타이트셔츠",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "밑단벨트 오렌지색 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "밑단벨트 아이보리색 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "밑단벨트 푸른색 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "밑단벨트 녹색 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙크로우 타이트팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 클래식 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 다크임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 골든임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 레인저 전투 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 레인저 전투 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 실버임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 피닉스 갑주하의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 피닉스 갑주하의[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "남거너의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "남거너의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "존엄한 레인저 전투 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 프로즌임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블랙 클래식 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 레인저 전투 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙크로우 화이트 타이트팬츠",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "거너(여)": {
+      "aliases": [
+        "거너(여)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "찬란한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "찬란한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 황금드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 검은 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 은빛 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 순결한 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 정열의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "찬란한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 커맨더 자켓[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 커맨더 자켓[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 프릴 슈트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 프릴 슈트",
+            "itemId": ""
+          },
+          {
+            "itemName": "여거너의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여거너의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 프릴 슈트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 오픈숄더 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 오픈숄더 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 로즈블랙 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "찬란한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블랙 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 화이트스완 드레스 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "찬란한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "찬란한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 사파이어 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 불꽃루비 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 검은 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 은빛 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 순결한 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 정열의 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "찬란한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 커맨더 스커트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 커맨더 스커트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "여거너의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여거너의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 레이어드 랩 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 레이어드 랩 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 로즈블랙 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "찬란한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 스키니 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블랙 스키니 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 화이트스완 하의",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "마법사(남)": {
+      "aliases": [
+        "마법사(남)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 실버임페리얼 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 라인 롱 코트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 라인 롱 코트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "남마법사의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "남마법사의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 디바인 엠페러 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 디바인 엠페러 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 성스러운 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 성스러운 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "브론즈 디바인 엠페러 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 프로즌임페리얼 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 클래식 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 스칼렛 클래식 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골든 디바인 엠페러 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "에이션트 디바인 엠페러 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 다크임페리얼 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 골든임페리얼 롱코트",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 실버임페리얼 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 버클 팬츠[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 버클 팬츠[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 레깅스",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 레깅스",
+            "itemId": ""
+          },
+          {
+            "itemName": "남마법사의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "남마법사의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 레깅스",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 디바인 엠페러 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 디바인 엠페러 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 롱 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 롱 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 롱 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 롱 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 성스러운 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 성스러운 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "브론즈 디바인 엠페러 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 프로즌임페리얼 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 클래식 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 스칼렛 클래식 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골든 디바인 엠페러 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "에이션트 디바인 엠페러 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 다크임페리얼 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "수려한 골든임페리얼 팬츠",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "마법사(여)": {
+      "aliases": [
+        "마법사(여)",
+        "크리에이터"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "검은색 레이스셔츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "보라색 레이스셔츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "녹색 레이스셔츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "붉은색 레이스셔츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "그랜드마스터 블라우스",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 클래식 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 신록의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 화려한 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 핑크라인 블라우스",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 퍼플라인 블라우스",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 여명의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 베이비돌 드레스[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 베이비돌 드레스[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 타이트 메쉬 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 타이트 메쉬 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "마법사의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마법사의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 타이트 메쉬 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 실크 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 실크 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 실크 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 실크 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 천녀의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 천녀의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 플래티나 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블루 클래식 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 에이션트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그랜드마스터 블루 블라우스",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "검은색 물결무늬스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "보라색 물결무늬스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "녹색 물결무늬스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "붉은색 물결무늬스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그랜드마스터 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 클래식 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 로즈 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 화려한 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 레이스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 레이스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 여명의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 강철 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 강철 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 베이비돌 스커트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 베이비돌 스커트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 쥬얼리 로즈 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 쥬얼리 로즈 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마법사의 황금 갑옷 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마법사의 흑요석 갑옷 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 쥬얼리 로즈 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 실크 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 실크 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 실크 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 실크 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 천녀의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 천녀의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 플래티나 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고귀한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블루 클래식 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "꽃의 요정 - 에이션트 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그랜드마스터 블랙 스커트",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "프리스트(남)": {
+      "aliases": [
+        "프리스트(남)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "다크 크루세이더 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 크로스 전사 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 다크임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 골든임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 은여우 전사의 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 황금여우 전사의 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 다크 엔젤릭 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 샤이닝 엔젤릭 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 불꽃의 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 실버임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 골든 탑[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 골든 탑[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 원석 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 원석 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "프리스트의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "프리스트의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 원석 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 푸른여우 전사의 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 프로즌임페리얼 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 화이트 크로스 전사 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 흰여우 전사의 상갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 크루세이더 블루 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "다크 크루세이더 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 크로스 전사 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 다크임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 골든임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 은여우 전사의 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 황금여우 전사의 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 다크 엔젤릭 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 샤이닝 엔젤릭 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 불꽃의 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 실버임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 골든 팬츠[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 골든 팬츠[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "프리스트의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "프리스트의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 푸른여우 전사의 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 프로즌임페리얼 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 화이트 크로스 전사 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "신성한 흰여우 전사의 하갑",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 크루세이더 블루 하의",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "프리스트(여)": {
+      "aliases": [
+        "프리스트(여)"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "여프리스트의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여프리스트의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 퓨어화이트 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 레드블랙 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 크로스 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 화이트 크로스 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 레드골드 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 플래티늄화이트 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 레이스 상의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 코르셋 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 레이스 상의[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 코르셋 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "여프리스트의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여프리스트의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 퓨어화이트 가터 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 레드블랙 가터 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 트임스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 트임스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 금빛 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 레드골드 가터 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 플래티늄화이트 가터 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 롱 레이스 하의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 프릴 드레스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "신비한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 롱 레이스 하의[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 프릴 드레스 스커트",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "도적": {
+      "aliases": [
+        "도적"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "고스트 브래스 가죽 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고스트 브래스 황금 가죽 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 탑",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 레이스 블라우스[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 레이스 블라우스[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 레오타드",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 레오타드",
+            "itemId": ""
+          },
+          {
+            "itemName": "도적의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "도적의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 레오타드",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 비단 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 비단 드레스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고스트 브래스 은색 가죽 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블링블링 하렘 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 블링블링 화이트 하렘 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고스트 브래스 흰색 가죽 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "고스트 브래스 가죽 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "고스트 브래스 황금 가죽 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 인페르노 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 레이스 롱 스커트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 레이스 롱 스커트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 드레스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 드레스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "도적의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "도적의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 드레스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 비단 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 비단 드레스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고스트 브래스 은색 가죽 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "영롱한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 화려한 금 자수 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 수려한 금 자수 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고스트 브래스 흰색 가죽 바지",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "나이트": {
+      "aliases": [
+        "나이트"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "정화된 천계의 아크나이트 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 엔젤릭 드레스[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 엔젤릭 드레스[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "나이트의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "나이트의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "퓨어 노블 시그너스 화이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 시그너스 화이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 천녀의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 천녀의 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 오프숄더 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 오프숄더 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 찬란한 은빛 갑주 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 고귀한 흑빛 갑주 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 여명의 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 드레스",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "정화된 천계의 아크나이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 레이스 가터벨트 스커트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 레이스 가터벨트 스커트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "나이트의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "나이트의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 프릴 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "퓨어 노블 시그너스 화이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 시그너스 화이트 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 천녀의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 천녀의 예복 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 언발란스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 언발란스 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 찬란한 은빛 갑주 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 고귀한 흑빛 갑주 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 여명의 비즈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "우아한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 비즈 팬츠",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "마창사": {
+      "aliases": [
+        "마창사"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "플레이아데스 롱 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 롱 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마창사의 황금 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마창사의 흑요석 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 롱 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 의지의 잿빛 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 의지의 잿빛 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 성스러운 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 성스러운 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "진실한 의지의 금빛 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 다크 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 샤이닝 롱코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 단단한 블랙 갑주",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 단단한 골드 갑주",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 의지의 붉은빛 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "성스러운 의지의 은빛 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 예복 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 듀크 슈트 상의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 예복 로브",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 듀크 슈트 상의[B타입]",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "플레이아데스 타이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 타이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마창사의 황금 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마창사의 흑요석 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "오메가센타우리 타이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 의지의 잿빛 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 의지의 잿빛 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 성스러운 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 성스러운 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "진실한 의지의 금빛 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 다크 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 샤이닝 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 줄무늬 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 금빛 줄무늬 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 의지의 붉은빛 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "성스러운 의지의 은빛 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 예복 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 듀크 슈트 하의[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "고결한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 예복 바지",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 듀크 슈트 하의[B타입]",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "총검사": {
+      "aliases": [
+        "총검사"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크니스 노블 블랙 롱 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 노블 블루 롱 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 프로즌임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 실버임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 고풍스런 언밸런스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 고풍스런 애쉬 언밸런스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 레드 롱 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "세인트 노블 스노우 롱 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 갑주",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 엘레강스 셔츠[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "총검사의 황금의 갑옷 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 갑주",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 엘레강스 셔츠[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "총검사의 흑요석 갑옷 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "아크 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "홀리 셀레스티얼 오리엔탈 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 갑주 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 갑주 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크니스 노블 블랙 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 노블 다크블루 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 프로즌임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 실버임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "혼돈의 루시퍼 블랙 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 고풍스런 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 고풍스런 화이트 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 레드 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "세인트 노블 스노우 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 어둠의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 금속 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 엘레강스 팬츠[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "총검사의 황금의 갑옷 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "강인한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 금속 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 엘레강스 팬츠[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "총검사의 흑요석 갑옷 하의",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "아처": {
+      "aliases": [
+        "아처"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "혼돈의 루시퍼 블랙 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 핑크베이지 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 아머",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 타이트한 미니원피스",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 타이트한 블랙 미니원피스",
+            "itemId": ""
+          },
+          {
+            "itemName": "미려한 다크임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 퓨어화이트 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 롱 프릴 스커트[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아처의 황금의 갑옷 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 예복 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "미려한 골든임페리얼 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 레드골드 드레스",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 롱 프릴 스커트[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아처의 흑요석 갑옷 코트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "혼돈의 루시퍼 블랙 트임스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "순백의 미카엘 화이트 트임스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 핑크베이지 쇼츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "레드 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "블루 인페르노 데빌 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 화려한 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "노블레스 화려한 블랙 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "미려한 다크임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 화이트 쇼츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 영혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "정화된 천계의 아크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마제스티 가터벨트 스타킹[A타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "플레이아데스 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아처의 황금의 갑옷 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "칠흑의 천신 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "미려한 골든임페리얼 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "그레이스 노블 골드 쇼츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "마스터 오브 소울 황혼의 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "타락한 마계의 다크나이트 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "미스틱 가터벨트 스타킹[B타입]",
+            "itemId": ""
+          },
+          {
+            "itemName": "블랙네뷸라 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "아처의 흑요석 갑옷 팬츠",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 하의",
+            "itemId": ""
+          },
+          {
+            "itemName": "여명의 천신 예복 하의",
+            "itemId": ""
+          }
+        ]
+      }
+    },
+    "제국기사": {
+      "aliases": [
+        "제국기사"
+      ],
+      "top": {
+        "items": [
+          {
+            "itemName": "다크 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 오리엔탈 상의",
+            "itemId": ""
+          }
+        ]
+      },
+      "bottom": {
+        "items": [
+          {
+            "itemName": "다크 셀레스티얼 스커트",
+            "itemId": ""
+          },
+          {
+            "itemName": "골드 셀레스티얼 스커트",
+            "itemId": ""
+          }
+        ]
+      }
+    }
+  }
+}
