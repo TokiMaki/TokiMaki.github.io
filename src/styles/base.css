@@ -805,6 +805,42 @@
         font-size: 16px;
       }
     }
+    .not-found-page {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+    .not-found-panel {
+      width: min(100%, 460px);
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-panel);
+      box-shadow: var(--shadow-panel);
+      text-align: center;
+    }
+    .not-found-panel h1 {
+      margin: 0 0 10px;
+      color: var(--text);
+      font-size: 22px;
+      line-height: 1.35;
+    }
+    .not-found-panel p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .not-found-panel a {
+      color: var(--text-accent);
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .not-found-panel a:hover,
+    .not-found-panel a:focus-visible {
+      text-decoration: underline;
+    }
     .grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
