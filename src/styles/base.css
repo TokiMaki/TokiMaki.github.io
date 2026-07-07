@@ -694,6 +694,14 @@
       max-width: min(191px, 70vw);
       height: auto;
     }
+    .footer-copyright {
+      margin: -12px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
     .grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr);

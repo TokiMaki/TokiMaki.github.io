@@ -179,6 +179,7 @@ export default function DnfHellToolMarkup() {
         <a href={'https://developers.neople.co.kr'} target={'_blank'} rel={'noopener noreferrer'}>
           <img src={neopleBiImage} alt={'Neople 오픈 API'} />
         </a>
+        <p className={'footer-copyright'}>Copyright © dunpilot All rights reserved.</p>
       </footer>
     </div>
   );
