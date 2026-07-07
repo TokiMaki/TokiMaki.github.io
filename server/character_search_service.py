@@ -7,7 +7,6 @@ from .neople_client import (
 )
 from .repositories.character_repository import (
     get_cached_adventure_search_candidates,
-    get_cached_character_search_candidates,
     save_character_search_candidates,
 )
 
@@ -240,36 +239,42 @@ def search_all_characters_response(character_name: str, limit: int = 10) -> dict
 
     candidates = []
     failures = []
-    hit_servers = []
-    search_specs = []
-    for order, (server_id, server_name) in enumerate(SERVER_SEARCH_ORDER):
-        cached_candidates = get_cached_character_search_candidates(server_id, target_name)
-        if cached_candidates:
-            cached_candidates = hydrate_search_candidates_detail(cached_candidates)
-            save_character_search_candidates(cached_candidates)
-            hit_servers.append(server_id)
-            candidates.extend(
-                add_search_candidate_sort_keys(candidate, order, target_name)
-                for candidate in cached_candidates
-            )
-        else:
-            search_specs.append((order, server_id, server_name))
+    rows = []
+    server_name_by_id = {server_id: server_name for server_id, server_name in SERVER_SEARCH_ORDER}
+    server_order_by_id = {
+        server_id: order
+        for order, (server_id, _) in enumerate(SERVER_SEARCH_ORDER)
+    }
+    try:
+        rows = search_characters_from_api("all", target_name, limit, "match")
+    except Exception as exc:
+        failures.append({
+            "serverId": "all",
+            "serverName": "전체",
+            "error": str(exc),
+        })
 
-    with ThreadPoolExecutor(max_workers=min(4, len(SERVER_SEARCH_ORDER))) as executor:
-        futures = [
-            executor.submit(search_server_candidates, order, server_id, server_name, target_name, limit)
-            for order, server_id, server_name in search_specs
-        ]
-        for future in as_completed(futures):
-            server_candidates, failure = future.result()
-            save_character_search_candidates(server_candidates)
-            candidates.extend(server_candidates)
-            if failure:
-                failures.append(failure)
-
-    if failures and len(failures) == len(search_specs) and not candidates:
+    if failures and not candidates:
         raise RuntimeError("전체 서버 캐릭터 검색에 실패했습니다.")
 
+    seen_keys = set()
+    for row in rows:
+        server_id = clean_text(row.get("serverId")).lower()
+        character_id = clean_text(row.get("characterId"))
+        if not server_id or not character_id:
+            continue
+        key = (server_id, character_id)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        order = server_order_by_id.get(server_id, len(SERVER_SEARCH_ORDER))
+        server_name = clean_text(row.get("serverName")) or server_name_by_id.get(server_id, server_id)
+        candidate = build_search_candidate(server_id, server_name, row, order, target_name)
+        if candidate["characterId"] and candidate["characterName"]:
+            candidates.append(candidate)
+
+    candidates = hydrate_search_candidates_detail(candidates)
+    save_character_search_candidates(candidates)
     candidates.sort(key=lambda row: (row["_serverOrder"], row["_exactOrder"]))
     for row in candidates:
         row.pop("_serverOrder", None)
@@ -280,8 +285,8 @@ def search_all_characters_response(character_name: str, limit: int = 10) -> dict
         "candidates": candidates,
         "failures": failures,
         "cache": {
-            "hitServers": hit_servers,
-            "searchedServers": [server_id for _, server_id, _ in search_specs],
+            "hitServers": [],
+            "searchedServers": ["all"],
         },
     }
 
