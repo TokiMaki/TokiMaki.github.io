@@ -1693,6 +1693,27 @@ def get_switching_avatar_skill_level_contribution(avatar_rows: list, target_skil
     return total
 
 
+def merge_switching_avatar_rows_with_current(switching_rows: list, current_avatar_rows: list) -> list:
+    switching_by_slot = {
+        clean_text(row.get("slotId")): row
+        for row in switching_rows or []
+        if clean_text(row.get("slotId"))
+    }
+    used_slots = set()
+    merged = []
+    for row in current_avatar_rows or []:
+        slot_id = clean_text(row.get("slotId"))
+        if not slot_id:
+            continue
+        used_slots.add(slot_id)
+        merged.append(switching_by_slot.get(slot_id) or row)
+    merged.extend(
+        row for row in switching_rows or []
+        if clean_text(row.get("slotId")) and clean_text(row.get("slotId")) not in used_slots
+    )
+    return merged
+
+
 def get_current_dealer_switching_level_total(
     server_id: str,
     character_id: str,
@@ -4328,6 +4349,10 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     "skill/buff/equip/avatar",
                 )
                 dealer_switching_rows = ((switching_avatar_payload.get("skill") or {}).get("buff") or {}).get("avatar") or []
+                dealer_effective_switching_rows = merge_switching_avatar_rows_with_current(
+                    dealer_switching_rows,
+                    avatar_rows,
+                )
                 target_required_levels = get_switching_skill_required_levels(
                     server_id,
                     character_id,
@@ -4343,7 +4368,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     target_required_levels[0] if target_required_levels else 0,
                     equivalent_platinum_skills[1:],
                     target_required_levels,
-                    avatar_rows=dealer_switching_rows,
+                    avatar_rows=dealer_effective_switching_rows,
                 )
                 current_multiplier = get_switching_damage_multiplier(current_coefficients)
                 switching_platinum_item = None
@@ -4355,9 +4380,10 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         ("JACKET", "벞강 상의", "top", 2),
                         ("PANTS", "벞강 하의", "bottom", 1),
                     ]:
-                        row = get_avatar_slot(dealer_switching_rows, slot_id)
-                        if clean_text(row.get("itemRarity")) == "레어":
+                        raw_row = get_avatar_slot(dealer_switching_rows, slot_id)
+                        if clean_text(raw_row.get("itemRarity")) == "레어":
                             continue
+                        row = raw_row or get_avatar_slot(dealer_effective_switching_rows, slot_id)
                         items = get_switching_avatar_db_items(switching_avatar_db_entry, db_slot_key)
                         if not items:
                             continue
@@ -4423,9 +4449,9 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                             platinum_item_name = clean_item_display_name(switching_avatar_platinum_item.get("itemName")) or f"플래티넘 엠블렘[{target_skill_name}]"
                             display_item_name = f"{selected_avatar_name} + {platinum_item_name}"
                             item_explain = (
-                                f"상의 옵션 [{buff_skill_name} Lv +1] + {platinum_label} 구매 장착"
+                                f"따로 구매 후 조합:\n상의 옵션 [{buff_skill_name} Lv +1] + {platinum_label}"
                                 if slot_id == "JACKET"
-                                else f"{platinum_label} 구매 장착"
+                                else f"따로 구매 후 조합:\n{platinum_label}"
                             )
                         if target_skill_name != buff_skill_name:
                             item_explain = f"{item_explain} ({buff_skill_name} +1Lv 대체)"
@@ -4623,6 +4649,9 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     explain_parts.append(f"상의 옵션 [{buffer_buff_skill_name} Lv +1]")
                 explain_parts.append(f"플티 [{target_platinum_skill}]")
                 explain_parts.append(f"{primary_stat_name} 엠블렘 x2")
+                item_explain = " + ".join(explain_parts)
+                if clean_text(price_option.get("priceMode")) == "mixed":
+                    item_explain = f"따로 구매 후 조합:\n{item_explain}"
                 debug = {
                     **(price_option.get("debug") or {}),
                     "slot": db_slot_key,
@@ -4640,7 +4669,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     slot_label,
                     selected_avatar,
                     display_item_name,
-                    " + ".join(explain_parts),
+                    item_explain,
                     buffer_stat_gain,
                     buffer_buff_skill_level_delta,
                     target_platinum_skill,

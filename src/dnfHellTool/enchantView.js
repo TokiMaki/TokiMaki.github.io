@@ -115,7 +115,7 @@ const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘'
 const ENCHANT_INCLUDE_GROUPS = [
   { title: '마법부여', items: ['가성비', '준종결', '종결'] },
   { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '오라', '칭호', '크리쳐', '아티팩트'], splitAfter: '플래티넘', breakBefore: true },
-  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '플티', '아바타'], breakBefore: true },
+  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '아바타'], breakBefore: true },
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '장비', items: ['조율'] },
@@ -976,7 +976,7 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'switchingTitle') return ['버프강화:칭호'];
   if (row.sourceType === 'switchingCreature') return ['버프강화:크리쳐'];
   if (row.sourceType === 'switchingFragment') return ['버프강화:짙편린'];
-  if (row.sourceType === 'avatar' && row.kind === 'switchingPlatinumEmblem') return ['버프강화:플티'];
+  if (row.sourceType === 'avatar' && row.kind === 'switchingPlatinumEmblem') return ['버프강화:아바타:플래티넘 엠블렘'];
   if (row.sourceType === 'avatar' && row.kind === 'switchingAvatar') return ['버프강화:아바타'];
   if (['creature', 'title', 'aura'].includes(row.sourceType)) {
     const typeLabel = { creature: '크리쳐', title: '칭호', aura: '오라' }[row.sourceType];
@@ -4600,6 +4600,13 @@ export function installEnchantView(ctx) {
     return checked.length ? new Set(checked) : new Set();
   }
 
+  function isEnchantIncludeKeySelected(key, includeTiers) {
+    if (!includeTiers) return true;
+    if (includeTiers.has(key)) return true;
+    if (String(key).startsWith('버프강화:아바타:')) return includeTiers.has('버프강화:아바타');
+    return false;
+  }
+
   function isTitleRouteAllowed(row) {
     if (row?.sourceType !== 'title') return true;
     const beadIncluded = els.enchantTitleBeadOnlyToggle?.checked !== false;
@@ -4659,7 +4666,7 @@ export function installEnchantView(ctx) {
       ))
       .filter((row) => slotFilter === 'all' || row.slot === slotFilter)
       .filter((row) => tierFilter === 'all' || row.tier === tierFilter)
-      .filter((row) => !includeTiers || getEnchantIncludeGroups(row).every((key) => includeTiers.has(key)))
+      .filter((row) => getEnchantIncludeGroups(row).every((key) => isEnchantIncludeKeySelected(key, includeTiers)))
       .filter(isTitleRouteAllowed)
       .sort(sortByPriceAsc);
 
@@ -4841,7 +4848,9 @@ export function installEnchantView(ctx) {
       const isTitleBeadOnly = row.sourceType === 'title' && row.purchaseRoute === 'titleBeadOnly';
       const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const displayEffects = row.sourceType === 'avatar'
-        ? Object.fromEntries(Object.entries(row.effects || {}).filter(([key]) => key !== 'skillDamageMultiplier'))
+        ? row.kind === 'switchingAvatar'
+          ? {}
+          : Object.fromEntries(Object.entries(row.effects || {}).filter(([key]) => key !== 'skillDamageMultiplier'))
         : row.effects;
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
@@ -4959,10 +4968,16 @@ export function installEnchantView(ctx) {
       const popoverName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? [displayName, tierLabel].filter(Boolean).join(' ')
         : displayName;
+      const itemExplainText = showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '';
+      const itemExplainHtml = String(itemExplainText || '').includes('\n')
+        ? String(itemExplainText || '').split('\n').map((part) => escapeHtml(part)).join('<br>')
+        : '';
       const tooltipRows = [
         { text: popoverName, className: 'enchant-popover-name' },
         { text: titleRouteLabel, className: 'enchant-popover-muted' },
-        { text: showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '', className: 'enchant-popover-muted' },
+        itemExplainHtml
+          ? { html: itemExplainHtml, className: 'enchant-popover-muted' }
+          : { text: itemExplainText, className: 'enchant-popover-muted' },
         effectHtml
           ? { html: effectHtml, className: 'enchant-popover-effect' }
           : { text: effectText, className: 'enchant-popover-effect' },
