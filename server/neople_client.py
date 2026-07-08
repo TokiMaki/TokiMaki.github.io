@@ -101,10 +101,12 @@ def request_json(url: str) -> dict[str, Any]:
     raise RuntimeError(f"API 요청 실패: {url}\n{last_error}")
 
 
-def get_auction_rows_from_api(item_id: str, min_fame=None, max_fame=None, limit: int = 100) -> list:
+def get_auction_rows_from_api(item_id: str, min_fame=None, max_fame=None, limit: int = 100, offset: int = 0) -> list:
     params = {"itemId": item_id, "limit": 100, "sort": "unitPrice:asc", "apikey": API_KEY}
     if limit:
         params["limit"] = limit
+    if offset:
+        params["offset"] = offset
     if min_fame is not None:
         params["minFame"] = min_fame
     if max_fame is not None:
@@ -126,13 +128,15 @@ def get_auction_rows_by_name_from_api(item_name: str, word_type: str = "full", l
     return request_json(url).get("rows") or []
 
 
-def get_auction_rows_by_item_ids_from_api(item_ids: list[str], limit: int = 100) -> list:
+def get_auction_rows_by_item_ids_from_api(item_ids: list[str], limit: int = 100, offset: int = 0) -> list:
     params = {
         "itemIds": ",".join(item_ids),
         "limit": limit,
         "sort": "unitPrice:asc",
         "apikey": API_KEY,
     }
+    if offset:
+        params["offset"] = offset
     url = f"https://api.neople.co.kr/df/auction?{urlencode(params)}"
     return request_json(url).get("rows") or []
 

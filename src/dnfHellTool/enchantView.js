@@ -115,7 +115,7 @@ const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘'
 const ENCHANT_INCLUDE_GROUPS = [
   { title: '마법부여', items: ['가성비', '준종결', '종결'] },
   { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '오라', '칭호', '크리쳐', '아티팩트'], splitAfter: '플래티넘', breakBefore: true },
-  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '플티'], breakBefore: true },
+  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '플티', '아바타'], breakBefore: true },
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '장비', items: ['조율'] },
@@ -977,6 +977,7 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'switchingCreature') return ['버프강화:크리쳐'];
   if (row.sourceType === 'switchingFragment') return ['버프강화:짙편린'];
   if (row.sourceType === 'avatar' && row.kind === 'switchingPlatinumEmblem') return ['버프강화:플티'];
+  if (row.sourceType === 'avatar' && row.kind === 'switchingAvatar') return ['버프강화:아바타'];
   if (['creature', 'title', 'aura'].includes(row.sourceType)) {
     const typeLabel = { creature: '크리쳐', title: '칭호', aura: '오라' }[row.sourceType];
     return [

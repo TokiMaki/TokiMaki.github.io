@@ -9,6 +9,7 @@ from .data_store import (
     load_dealer_switching_title_db,
     load_job_base_stats,
     load_oath_tune_stage_db,
+    load_switching_avatar_db,
     load_upgrade_expected_db,
 )
 from .api_fanout_trace import finish_api_fanout_trace, start_api_fanout_trace
@@ -56,7 +57,7 @@ from .neople_client import (
     get_item_icon_url,
 )
 from .ops_log import write_ops_log
-from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_name, get_lowest_auction_price, get_lowest_auction_prices
+from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_item_ids, get_auction_rows_by_name, get_lowest_auction_price, get_lowest_auction_prices
 from .repositories.character_repository import (
     get_character_cached_computed_payload,
     get_character_cached_payload,
@@ -96,6 +97,9 @@ EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF = 2550
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION = 1
+SWITCHING_AVATAR_AUCTION_PAGE_LIMIT = 400
+SWITCHING_AVATAR_AUCTION_MAX_PAGES = 20
+SWITCHING_AVATAR_RESOLVED_PRICE_CACHE_VERSION = 1
 _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK = threading.Lock()
 _SWITCHING_CREATURE_CANDIDATE_CACHE = {}
 BUFFER_SWITCHING_SELF_STAT_SKILLS = {
@@ -2756,8 +2760,12 @@ def is_rare_clone_avatar(row: dict) -> bool:
 
 
 def get_platinum_emblems(row: dict) -> list:
+    emblems = [
+        *(row.get("emblems") or []),
+        *((row.get("avatar") or {}).get("emblems") or []),
+    ]
     return [
-        emblem for emblem in row.get("emblems") or []
+        emblem for emblem in emblems
         if "플래티넘" in clean_text(emblem.get("slotColor"))
         or "플래티넘" in clean_text(emblem.get("itemName"))
     ]
@@ -2766,6 +2774,424 @@ def get_platinum_emblems(row: dict) -> list:
 def extract_platinum_skill_name(item_name: str) -> str:
     match = re.search(r"\[([^\]]+)\]", clean_text(item_name))
     return match.group(1).strip() if match else ""
+
+
+def get_switching_avatar_db_entry(payload: dict) -> tuple[str, dict]:
+    db = load_switching_avatar_db()
+    jobs = db.get("jobs") if isinstance(db, dict) else {}
+    if not isinstance(jobs, dict):
+        return "", {}
+    job_names = [
+        clean_text(payload.get("jobName")),
+        normalize_job_name(payload.get("jobName")),
+        clean_text(payload.get("jobGrowName")),
+        normalize_job_name(payload.get("jobGrowName")),
+    ]
+    job_keys = {name for name in job_names if name}
+    for job_key, entry in jobs.items():
+        if not isinstance(entry, dict):
+            continue
+        aliases = {
+            clean_text(job_key),
+            normalize_job_name(job_key),
+            *[
+                clean_text(alias)
+                for alias in entry.get("aliases") or []
+                if clean_text(alias)
+            ],
+            *[
+                normalize_job_name(alias)
+                for alias in entry.get("aliases") or []
+                if clean_text(alias)
+            ],
+        }
+        if job_keys & aliases:
+            return clean_text(job_key), entry
+    return "", {}
+
+
+def get_switching_avatar_db_items(entry: dict, slot_key: str) -> list[dict]:
+    slot = entry.get(slot_key) if isinstance(entry, dict) else {}
+    if not isinstance(slot, dict):
+        return []
+    items = []
+    seen = set()
+    for item in slot.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        item_name = clean_text(item.get("itemName") or item.get("name"))
+        item_ids = [
+            clean_text(item_id)
+            for item_id in [item.get("itemId"), *(item.get("itemIds") or [])]
+            if clean_text(item_id)
+        ]
+        if not item_ids:
+            key = ("", item_name)
+            if not item_name or key in seen:
+                continue
+            seen.add(key)
+            items.append({"itemName": item_name, "itemId": ""})
+            continue
+        for item_id in item_ids:
+            key = (item_id, item_name)
+            if key in seen:
+                continue
+            seen.add(key)
+            items.append({"itemName": item_name, "itemId": item_id})
+
+    search_names = [
+        clean_text(name)
+        for name in slot.get("searchNames") or []
+        if clean_text(name)
+    ]
+    item_ids = [
+        clean_text(item_id)
+        for item_id in slot.get("itemIds") or []
+        if clean_text(item_id)
+    ]
+    for item_name in search_names:
+        key = ("", item_name)
+        if key not in seen:
+            seen.add(key)
+            items.append({"itemName": item_name, "itemId": ""})
+    for item_id in item_ids:
+        key = (item_id, "")
+        if key not in seen:
+            seen.add(key)
+            items.append({"itemName": "", "itemId": item_id})
+    return items
+
+
+def is_matching_switching_platinum_emblem(emblem: dict, target_skill_names: list[str]) -> bool:
+    skill_name = clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+    return any(
+        skill_name_matches(skill_name, target_skill)
+        for target_skill in target_skill_names or []
+    )
+
+
+def has_matching_switching_platinum(row: dict, target_skill_names: list[str]) -> bool:
+    return any(
+        is_matching_switching_platinum_emblem(emblem, target_skill_names)
+        for emblem in get_platinum_emblems(row)
+    )
+
+
+def has_matching_switching_avatar_top_option(row: dict, target_skill_names: list[str]) -> bool:
+    option_ability = clean_text(row.get("optionAbility") or (row.get("avatar") or {}).get("ability"))
+    return any(
+        skill_name_matches(option_ability, target_skill)
+        for target_skill in target_skill_names or []
+    )
+
+
+def auction_row_price(row: dict) -> int | float | None:
+    price = row.get("unitPrice") or row.get("currentPrice")
+    return price if isinstance(price, (int, float)) and price > 0 else None
+
+
+def fetch_switching_avatar_auction_rows(items: list[dict], debug_steps: list | None = None) -> list[dict]:
+    started_at = time.perf_counter()
+    rows = []
+    seen_auction_no = set()
+    allowed_names = {
+        clean_text(item.get("itemName"))
+        for item in items or []
+        if clean_text(item.get("itemName"))
+    }
+    allowed_ids = {
+        clean_text(item.get("itemId"))
+        for item in items or []
+        if clean_text(item.get("itemId"))
+    }
+    item_ids = sorted(allowed_ids)
+    item_id_call_count = 0
+    item_id_page_count = 0
+    item_id_raw_row_count = 0
+    item_id_accepted_row_count = 0
+    for index in range(0, len(item_ids), 10):
+        chunk = item_ids[index:index + 10]
+        for page in range(SWITCHING_AVATAR_AUCTION_MAX_PAGES):
+            offset = page * SWITCHING_AVATAR_AUCTION_PAGE_LIMIT
+            item_id_call_count += 1
+            page_rows = get_auction_rows_by_item_ids(
+                chunk,
+                limit=SWITCHING_AVATAR_AUCTION_PAGE_LIMIT,
+                offset=offset,
+            )
+            if not page_rows:
+                break
+            item_id_page_count += 1
+            item_id_raw_row_count += len(page_rows)
+            for row in page_rows:
+                row_item_id = clean_text(row.get("itemId"))
+                row_item_name = clean_text(row.get("itemName"))
+                if row_item_id not in allowed_ids or auction_row_price(row) is None:
+                    continue
+                auction_no = clean_text(row.get("auctionNo")) or f"{row_item_id}:{row_item_name}:{auction_row_price(row)}"
+                if auction_no in seen_auction_no:
+                    continue
+                seen_auction_no.add(auction_no)
+                rows.append(row)
+                item_id_accepted_row_count += 1
+            if len(page_rows) < SWITCHING_AVATAR_AUCTION_PAGE_LIMIT:
+                break
+
+    name_call_count = 0
+    name_page_count = 0
+    name_raw_row_count = 0
+    name_accepted_row_count = 0
+    for item in items or []:
+        item_name = clean_text(item.get("itemName"))
+        item_id = clean_text(item.get("itemId"))
+        if item_id:
+            continue
+        for page in range(SWITCHING_AVATAR_AUCTION_MAX_PAGES):
+            offset = page * SWITCHING_AVATAR_AUCTION_PAGE_LIMIT
+            name_call_count += 1
+            page_rows = get_auction_rows_by_name(
+                item_name,
+                word_type="match",
+                limit=SWITCHING_AVATAR_AUCTION_PAGE_LIMIT,
+                offset=offset,
+            )
+            if not page_rows:
+                break
+            name_page_count += 1
+            name_raw_row_count += len(page_rows)
+            for row in page_rows:
+                row_item_id = clean_text(row.get("itemId"))
+                row_item_name = clean_text(row.get("itemName"))
+                if allowed_ids and row_item_id in allowed_ids:
+                    matched = True
+                else:
+                    matched = bool(row_item_name and row_item_name in allowed_names)
+                if not matched or auction_row_price(row) is None:
+                    continue
+                auction_no = clean_text(row.get("auctionNo")) or f"{row_item_id}:{row_item_name}:{auction_row_price(row)}"
+                if auction_no in seen_auction_no:
+                    continue
+                seen_auction_no.add(auction_no)
+                rows.append(row)
+                name_accepted_row_count += 1
+            if len(page_rows) < SWITCHING_AVATAR_AUCTION_PAGE_LIMIT:
+                break
+    if debug_steps is not None:
+        debug_steps.append({
+            "name": "fetch_switching_avatar_auction_rows",
+            "ms": round((time.perf_counter() - started_at) * 1000, 1),
+            "items": len(items or []),
+            "itemIds": len(item_ids),
+            "nameFallbackItems": sum(
+                1
+                for item in items or []
+                if clean_text(item.get("itemName")) and not clean_text(item.get("itemId"))
+            ),
+            "itemIdCalls": item_id_call_count,
+            "itemIdPages": item_id_page_count,
+            "itemIdRawRows": item_id_raw_row_count,
+            "itemIdRows": item_id_accepted_row_count,
+            "nameCalls": name_call_count,
+            "namePages": name_page_count,
+            "nameRawRows": name_raw_row_count,
+            "nameRows": name_accepted_row_count,
+            "rows": len(rows),
+        })
+    return rows
+
+
+def build_switching_avatar_price_option(row: dict, selected_price: int | float | None = None) -> dict:
+    item_id = clean_text(row.get("itemId"))
+    price = selected_price if isinstance(selected_price, (int, float)) and selected_price > 0 else auction_row_price(row)
+    return {
+        "itemId": item_id,
+        "itemName": clean_item_display_name(row.get("itemName")),
+        "itemRarity": clean_text(row.get("itemRarity")) or "레어",
+        "iconUrl": get_item_icon_url(item_id),
+        "auction": {
+            "listingCount": int(row.get("regCount") or 1),
+            "minUnitPrice": price,
+            "averagePrice": row.get("averagePrice") if row.get("averagePrice", 0) > 0 else None,
+            "auctionNo": row.get("auctionNo"),
+            "expireDate": row.get("expireDate"),
+        },
+    }
+
+
+def resolve_switching_avatar_price(
+    slot_key: str,
+    items: list[dict],
+    target_skill_names: list[str],
+    platinum_item: dict,
+    require_top_option_match: bool = False,
+) -> dict:
+    normalized_items = tuple(
+        sorted(
+            (
+                clean_text(item.get("itemId")),
+                clean_text(item.get("itemName")),
+            )
+            for item in items or []
+        )
+    )
+    normalized_skills = tuple(
+        clean_text(skill)
+        for skill in target_skill_names or []
+        if clean_text(skill)
+    )
+    cache_key = (
+        "switching_avatar",
+        SWITCHING_AVATAR_RESOLVED_PRICE_CACHE_VERSION,
+        slot_key,
+        normalized_items,
+        normalized_skills,
+        clean_text(platinum_item.get("itemId")),
+        clean_text((platinum_item.get("auction") or {}).get("auctionNo")),
+        (platinum_item.get("auction") or {}).get("minUnitPrice"),
+        bool(require_top_option_match),
+    )
+
+    def resolve_uncached():
+        debug_steps = []
+        rows = fetch_switching_avatar_auction_rows(items, debug_steps=debug_steps)
+        raw_row_count = len(rows)
+        if require_top_option_match:
+            filter_started_at = time.perf_counter()
+            rows = [
+                row for row in rows
+                if has_matching_switching_avatar_top_option(row, target_skill_names)
+            ]
+            debug_steps.append({
+                "name": "filter_switching_avatar_top_option",
+                "ms": round((time.perf_counter() - filter_started_at) * 1000, 1),
+                "beforeRows": raw_row_count,
+                "afterRows": len(rows),
+                "targetSkills": list(normalized_skills),
+            })
+        classify_started_at = time.perf_counter()
+        base_rows = [
+            row for row in rows
+            if not has_matching_switching_platinum(row, target_skill_names)
+        ]
+        prefilled_rows = [
+            row for row in rows
+            if has_matching_switching_platinum(row, target_skill_names)
+        ]
+        base_row = min(base_rows, key=lambda row: auction_row_price(row) or 10**30, default=None)
+        prefilled_row = min(prefilled_rows, key=lambda row: auction_row_price(row) or 10**30, default=None)
+        platinum_price = (platinum_item.get("auction") or {}).get("minUnitPrice")
+        base_price = auction_row_price(base_row) if base_row else None
+        prefilled_price = auction_row_price(prefilled_row) if prefilled_row else None
+        debug_steps.append({
+            "name": "classify_switching_avatar_price_rows",
+            "ms": round((time.perf_counter() - classify_started_at) * 1000, 1),
+            "rows": len(rows),
+            "baseRows": len(base_rows),
+            "prefilledRows": len(prefilled_rows),
+        })
+        separate_price = (
+            base_price + platinum_price
+            if isinstance(base_price, (int, float)) and base_price > 0
+            and isinstance(platinum_price, (int, float)) and platinum_price > 0
+            else None
+        )
+        use_prefilled = (
+            isinstance(prefilled_price, (int, float)) and prefilled_price > 0
+            and (
+                not isinstance(separate_price, (int, float))
+                or separate_price <= 0
+                or prefilled_price <= separate_price
+            )
+        )
+        use_separate = (
+            not use_prefilled
+            and isinstance(separate_price, (int, float))
+            and separate_price > 0
+        )
+        if not use_prefilled and not use_separate:
+            return {
+                "selectedMode": "",
+                "selectedPrice": None,
+                "debug": {
+                    "steps": debug_steps,
+                    "cheapestBaseAvatarPrice": base_price,
+                    "cheapestSwitchingPlatinumPrice": platinum_price,
+                    "separatePrice": separate_price,
+                    "prefilledPrice": prefilled_price,
+                },
+            }
+
+        selected_row = prefilled_row if use_prefilled else base_row
+        selected_price = prefilled_price if use_prefilled else separate_price
+        selected_mode = "prefilled" if use_prefilled else "separate"
+        selected_avatar = build_switching_avatar_price_option(selected_row, selected_price)
+        return {
+            "selectedMode": selected_mode,
+            "selectedPrice": selected_price,
+            "selectedAvatar": selected_avatar,
+            "selectedPlatinum": platinum_item if use_separate else {},
+            "debug": {
+                "steps": debug_steps,
+                "cheapestBaseAvatarPrice": base_price,
+                "cheapestSwitchingPlatinumPrice": platinum_price,
+                "separatePrice": separate_price,
+                "prefilledPrice": prefilled_price,
+                "selectedPrice": selected_price,
+                "selectedMode": selected_mode,
+                "selectedAvatarItemName": clean_item_display_name((selected_row or {}).get("itemName")),
+                "selectedAvatarAuctionNo": clean_text((selected_row or {}).get("auctionNo")),
+                "selectedPlatinumItemName": clean_item_display_name(platinum_item.get("itemName")) if use_separate else "",
+                "selectedPlatinumAuctionNo": clean_text((platinum_item.get("auction") or {}).get("auctionNo")) if use_separate else "",
+            },
+        }
+
+    return get_cached_resolved_price(
+        cache_key,
+        resolve_uncached,
+        should_cache=lambda item: isinstance(item.get("selectedPrice"), (int, float))
+        and item.get("selectedPrice") > 0,
+    )
+
+
+def build_switching_avatar_recommendation_row(
+    slot: str,
+    selected_avatar: dict,
+    selected_mode: str,
+    item_explain: str,
+    skill_damage_multiplier: float,
+    raw_skill_damage_multiplier: float,
+    damage_application_note: str,
+    target_skill: str,
+    equivalent_target_skills: list,
+    current_switching_multiplier: float,
+    candidate_switching_multiplier: float,
+    price_warning_text: str = "",
+    debug: dict | None = None,
+) -> dict:
+    return {
+        "kind": "switchingAvatar",
+        "slot": slot,
+        "tier": "버프강화",
+        "itemId": clean_text(selected_avatar.get("itemId")),
+        "itemName": clean_item_display_name(selected_avatar.get("itemName")),
+        "itemRarity": clean_text(selected_avatar.get("itemRarity") or "레어"),
+        "iconUrl": selected_avatar.get("iconUrl") or get_item_icon_url(selected_avatar.get("itemId")),
+        "itemExplain": item_explain,
+        "effects": {"skillDamageMultiplier": skill_damage_multiplier},
+        "skillDamageMultiplier": skill_damage_multiplier,
+        "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
+        "damageApplicationNote": damage_application_note,
+        "auction": selected_avatar.get("auction") or {},
+        "needCount": 1,
+        "targetSkill": target_skill,
+        "equivalentTargetSkills": equivalent_target_skills,
+        "currentSwitchingMultiplier": current_switching_multiplier,
+        "candidateSwitchingMultiplier": candidate_switching_multiplier,
+        "priceMode": selected_mode,
+        "priceWarningText": price_warning_text,
+        "recommendationPriority": 0,
+        "debug": debug or {},
+    }
 
 
 def extract_emblem_option_text(item_name: str) -> str:
@@ -3560,7 +3986,101 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 )
                 current_multiplier = get_switching_damage_multiplier(current_coefficients)
                 switching_platinum_item = None
+                switching_avatar_platinum_item = None
                 note = get_damage_application_note(switching_entry)
+                switching_avatar_db_key, switching_avatar_db_entry = get_switching_avatar_db_entry(buff_payload)
+                if switching_avatar_db_entry:
+                    for slot_id, slot_label, db_slot_key, candidate_contribution in [
+                        ("JACKET", "벞강 상의 압", "top", 2),
+                        ("PANTS", "벞강 하의 압", "bottom", 1),
+                    ]:
+                        row = get_avatar_slot(dealer_switching_rows, slot_id)
+                        if clean_text(row.get("itemRarity")) == "레어":
+                            continue
+                        items = get_switching_avatar_db_items(switching_avatar_db_entry, db_slot_key)
+                        if not items:
+                            continue
+                        current_contribution = get_switching_avatar_skill_level_contribution(
+                            [row],
+                            equivalent_platinum_skills,
+                        )
+                        if candidate_contribution <= current_contribution:
+                            continue
+                        effective_level_delta = get_capped_switching_level_delta(
+                            current_switching_level_total,
+                            current_contribution,
+                            candidate_contribution,
+                        )
+                        if effective_level_delta <= 0:
+                            continue
+                        candidate_coefficients = [
+                            current + effective_level_delta * per_level
+                            for current, per_level in zip(current_coefficients, per_level_coefficients)
+                        ]
+                        candidate_multiplier = get_switching_damage_multiplier(candidate_coefficients)
+                        if current_multiplier <= 0 or candidate_multiplier <= current_multiplier:
+                            continue
+                        raw_skill_damage_multiplier = candidate_multiplier / current_multiplier
+                        skill_damage_multiplier = get_applied_switching_multiplier(raw_skill_damage_multiplier, switching_entry)
+                        if switching_avatar_platinum_item is None:
+                            switching_avatar_platinum_item = _measure_step(
+                                steps,
+                                f"choose_avatar_platinum_price_item:buff_avatar:{buff_skill_name}",
+                                lambda skill_names=equivalent_platinum_skills: choose_avatar_platinum_price_item_from_skills(skill_names, allow_selection_box=False),
+                            )
+                            timing_details[f"choose_avatar_platinum_price_item:buff_avatar:{buff_skill_name}"] = switching_avatar_platinum_item.get("_debugTimings") or []
+                        platinum_price = (switching_avatar_platinum_item.get("auction") or {}).get("minUnitPrice")
+                        if not isinstance(platinum_price, (int, float)) or platinum_price <= 0:
+                            continue
+                        price_option = _measure_step(
+                            steps,
+                            f"resolve_switching_avatar_price:{slot_id}:{switching_avatar_db_key}",
+                            lambda slot=db_slot_key, slot_items=items, platinum=switching_avatar_platinum_item: resolve_switching_avatar_price(
+                                slot,
+                                slot_items,
+                                equivalent_platinum_skills,
+                                platinum,
+                                require_top_option_match=slot_id == "JACKET",
+                            ),
+                        )
+                        timing_details[
+                            f"resolve_switching_avatar_price:{slot_id}:{switching_avatar_db_key}"
+                        ] = (price_option.get("debug") or {}).get("steps") or []
+                        selected_avatar = price_option.get("selectedAvatar") or {}
+                        selected_price = price_option.get("selectedPrice")
+                        if not selected_avatar or not isinstance(selected_price, (int, float)) or selected_price <= 0:
+                            continue
+                        target_skill_name = clean_text(switching_avatar_platinum_item.get("targetSkillName")) or buff_skill_name
+                        purchase_label = "플티 완성품" if price_option.get("selectedMode") == "prefilled" else "아바타+플티"
+                        item_explain = f"{slot_label} [{target_skill_name}] 장착 ({purchase_label})"
+                        if target_skill_name != buff_skill_name:
+                            item_explain = f"{item_explain} ({buff_skill_name} +1Lv 대체)"
+                        if note:
+                            item_explain = f"{item_explain} ({note})"
+                        debug = {
+                            **(price_option.get("debug") or {}),
+                            "slot": db_slot_key,
+                            "isMissingSwitchingAvatar": True,
+                            "jobKey": switching_avatar_db_key,
+                            "currentContribution": current_contribution,
+                            "candidateContribution": candidate_contribution,
+                            "effectiveLevelDelta": effective_level_delta,
+                        }
+                        recommendations.append(build_switching_avatar_recommendation_row(
+                            slot_label,
+                            selected_avatar,
+                            clean_text(price_option.get("selectedMode")),
+                            item_explain,
+                            skill_damage_multiplier,
+                            raw_skill_damage_multiplier,
+                            note,
+                            target_skill_name,
+                            equivalent_platinum_skills,
+                            current_multiplier,
+                            candidate_multiplier,
+                            "",
+                            debug,
+                        ))
                 for slot_id, slot_label in [
                     ("JACKET", "벞강 상의"),
                     ("PANTS", "벞강 하의"),

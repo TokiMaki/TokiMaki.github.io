@@ -11,6 +11,7 @@ DEALER_SWITCHING_TITLE_DB_PATH = ROOT / "Docs" / "dealer_switching_title_db.json
 DEALER_SWITCHING_CREATURE_DB_PATH = ROOT / "Docs" / "dealer_switching_creature_db.json"
 AURA_DB_PATH = ROOT / "Docs" / "aura_upgrade_db.json"
 AVATAR_OPTION_DB_PATH = ROOT / "Docs" / "avatar_option_db.json"
+SWITCHING_AVATAR_DB_PATH = ROOT / "Docs" / "switching_avatar_db.json"
 OATH_TUNE_STAGE_DB_PATH = ROOT / "Docs" / "oath_tune_stage_db.json"
 JOB_BASE_STAT_PATH = ROOT / "Docs" / "jobBaseStat.json"
 AMPLIFICATION_EXPECTED_DB_PATH = ROOT / "Docs" / "amplification_expected_db.json"
@@ -19,6 +20,7 @@ REINFORCEMENT_EXPECTED_DB_PATH = ROOT / "Docs" / "reinforcement_expected_db.json
 _JOB_BASE_STAT_CACHE = None
 _UPGRADE_EXPECTED_DB_CACHE = None
 _AVATAR_OPTION_DB_CACHE = None
+_SWITCHING_AVATAR_DB_CACHE = None
 _DEALER_SWITCHING_BUFF_DB_CACHE = None
 _DEALER_SWITCHING_TITLE_DB_CACHE = None
 _DEALER_SWITCHING_CREATURE_DB_CACHE = None
@@ -45,6 +47,17 @@ def load_avatar_option_db() -> dict:
         with AVATAR_OPTION_DB_PATH.open("r", encoding="utf-8") as handle:
             _AVATAR_OPTION_DB_CACHE = json.load(handle)
     return _AVATAR_OPTION_DB_CACHE
+
+
+def load_switching_avatar_db() -> dict:
+    global _SWITCHING_AVATAR_DB_CACHE
+    if _SWITCHING_AVATAR_DB_CACHE is None:
+        try:
+            with SWITCHING_AVATAR_DB_PATH.open("r", encoding="utf-8") as handle:
+                _SWITCHING_AVATAR_DB_CACHE = json.load(handle)
+        except FileNotFoundError:
+            _SWITCHING_AVATAR_DB_CACHE = {}
+    return _SWITCHING_AVATAR_DB_CACHE
 
 
 def load_dealer_switching_buff_db() -> dict:
