@@ -3213,13 +3213,6 @@ def get_avatar_buffer_stat_emblem_total(row: dict, stat_name: str) -> float:
     return total
 
 
-def get_avatar_slot_buffer_stat_delta(current_row: dict, candidate_row: dict, stat_name: str) -> float:
-    return (
-        get_avatar_buffer_stat_emblem_total(candidate_row or {}, stat_name)
-        - get_avatar_buffer_stat_emblem_total(current_row or {}, stat_name)
-    )
-
-
 def build_completed_buffer_switching_avatar_row(
     row: dict,
     slot_id: str,
@@ -3317,7 +3310,8 @@ def calculate_buffer_switching_avatar_candidate_delta(
     )
     if not has_raw_switching_slot:
         stat_delta = (
-            get_avatar_slot_buffer_stat_delta(current_slot_row, candidate_avatar_row, stat_name)
+            get_avatar_buffer_stat_emblem_total(candidate_avatar_row or {}, stat_name)
+            - get_avatar_buffer_stat_emblem_total(current_slot_row or {}, stat_name)
             + float(candidate_metrics.get("switchingSkillStatDelta") or 0)
             - float(current_metrics.get("switchingSkillStatDelta") or 0)
         )
@@ -4547,16 +4541,12 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 raw_current_row = get_avatar_slot(switching_rows, slot_id)
                 if clean_text(raw_current_row.get("itemRarity")) == "레어":
                     continue
-                current_row = raw_current_row or get_avatar_slot(avatar_rows, slot_id)
                 target_platinum_skill = buffer_buff_skill_name
                 if not target_platinum_skill:
                     continue
                 items = get_switching_avatar_db_items(switching_avatar_db_entry, db_slot_key)
                 if not items:
                     continue
-                current_stat_total = get_avatar_buffer_stat_emblem_total(current_row, primary_stat_name)
-                target_stat_total = AVATAR_BRILLIANT_GREEN_STAT * 2
-                emblem_stat_delta = max(0, target_stat_total - current_stat_total)
                 if target_platinum_skill not in switching_avatar_platinum_item_by_skill:
                     switching_avatar_platinum_item_by_skill[target_platinum_skill] = _measure_step(
                         steps,
@@ -4637,9 +4627,6 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     **(price_option.get("debug") or {}),
                     "slot": db_slot_key,
                     "jobKey": switching_avatar_db_key,
-                    "currentStatTotal": current_stat_total,
-                    "targetStatTotal": target_stat_total,
-                    "emblemStatDelta": emblem_stat_delta,
                     "switchingMetricStatDelta": buffer_stat_gain,
                     "currentSwitchingMetrics": switching_avatar_delta.get("currentMetrics") or {},
                     "candidateSwitchingMetrics": switching_avatar_delta.get("candidateMetrics") or {},
