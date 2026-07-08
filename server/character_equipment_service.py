@@ -99,7 +99,7 @@ AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION = 1
 SWITCHING_AVATAR_AUCTION_PAGE_LIMIT = 400
 SWITCHING_AVATAR_AUCTION_MAX_PAGES = 20
-SWITCHING_AVATAR_RESOLVED_PRICE_CACHE_VERSION = 1
+SWITCHING_AVATAR_RESOLVED_PRICE_CACHE_VERSION = 2
 _SWITCHING_CREATURE_CANDIDATE_CACHE_LOCK = threading.Lock()
 _SWITCHING_CREATURE_CANDIDATE_CACHE = {}
 BUFFER_SWITCHING_SELF_STAT_SKILLS = {
@@ -3156,6 +3156,7 @@ def resolve_switching_avatar_price(
 def build_switching_avatar_recommendation_row(
     slot: str,
     selected_avatar: dict,
+    display_item_name: str,
     selected_mode: str,
     item_explain: str,
     skill_damage_multiplier: float,
@@ -3173,7 +3174,7 @@ def build_switching_avatar_recommendation_row(
         "slot": slot,
         "tier": "버프강화",
         "itemId": clean_text(selected_avatar.get("itemId")),
-        "itemName": clean_item_display_name(selected_avatar.get("itemName")),
+        "itemName": clean_item_display_name(display_item_name) or clean_item_display_name(selected_avatar.get("itemName")),
         "itemRarity": clean_text(selected_avatar.get("itemRarity") or "레어"),
         "iconUrl": selected_avatar.get("iconUrl") or get_item_icon_url(selected_avatar.get("itemId")),
         "itemExplain": item_explain,
@@ -3991,8 +3992,8 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 switching_avatar_db_key, switching_avatar_db_entry = get_switching_avatar_db_entry(buff_payload)
                 if switching_avatar_db_entry:
                     for slot_id, slot_label, db_slot_key, candidate_contribution in [
-                        ("JACKET", "벞강 상의 압", "top", 2),
-                        ("PANTS", "벞강 하의 압", "bottom", 1),
+                        ("JACKET", "벞강 상의", "top", 2),
+                        ("PANTS", "벞강 하의", "bottom", 1),
                     ]:
                         row = get_avatar_slot(dealer_switching_rows, slot_id)
                         if clean_text(row.get("itemRarity")) == "레어":
@@ -4029,9 +4030,6 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                                 lambda skill_names=equivalent_platinum_skills: choose_avatar_platinum_price_item_from_skills(skill_names, allow_selection_box=False),
                             )
                             timing_details[f"choose_avatar_platinum_price_item:buff_avatar:{buff_skill_name}"] = switching_avatar_platinum_item.get("_debugTimings") or []
-                        platinum_price = (switching_avatar_platinum_item.get("auction") or {}).get("minUnitPrice")
-                        if not isinstance(platinum_price, (int, float)) or platinum_price <= 0:
-                            continue
                         price_option = _measure_step(
                             steps,
                             f"resolve_switching_avatar_price:{slot_id}:{switching_avatar_db_key}",
@@ -4051,8 +4049,24 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         if not selected_avatar or not isinstance(selected_price, (int, float)) or selected_price <= 0:
                             continue
                         target_skill_name = clean_text(switching_avatar_platinum_item.get("targetSkillName")) or buff_skill_name
-                        purchase_label = "플티 완성품" if price_option.get("selectedMode") == "prefilled" else "아바타+플티"
-                        item_explain = f"{slot_label} [{target_skill_name}] 장착 ({purchase_label})"
+                        selected_avatar_name = clean_item_display_name(selected_avatar.get("itemName"))
+                        selected_mode = clean_text(price_option.get("selectedMode"))
+                        platinum_label = f"플티 [{target_skill_name}]"
+                        if selected_mode == "prefilled":
+                            display_item_name = selected_avatar_name
+                            item_explain = (
+                                f"상의 옵션 [{buff_skill_name} Lv +1] + {platinum_label}"
+                                if slot_id == "JACKET"
+                                else platinum_label
+                            )
+                        else:
+                            platinum_item_name = clean_item_display_name(switching_avatar_platinum_item.get("itemName")) or f"플래티넘 엠블렘[{target_skill_name}]"
+                            display_item_name = f"{selected_avatar_name} + {platinum_item_name}"
+                            item_explain = (
+                                f"상의 옵션 [{buff_skill_name} Lv +1] + {platinum_label} 구매 장착"
+                                if slot_id == "JACKET"
+                                else f"{platinum_label} 구매 장착"
+                            )
                         if target_skill_name != buff_skill_name:
                             item_explain = f"{item_explain} ({buff_skill_name} +1Lv 대체)"
                         if note:
@@ -4069,7 +4083,8 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         recommendations.append(build_switching_avatar_recommendation_row(
                             slot_label,
                             selected_avatar,
-                            clean_text(price_option.get("selectedMode")),
+                            display_item_name,
+                            selected_mode,
                             item_explain,
                             skill_damage_multiplier,
                             raw_skill_damage_multiplier,

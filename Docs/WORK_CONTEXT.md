@@ -19,7 +19,7 @@
 - 최근 UI/API 정책: 서버 선택이 `전체`이면 `/api/search-all`로 서버 순서대로 캐릭터 후보만 가볍게 조회하고, 후보 카드를 클릭한 뒤에만 기존 `/api/search` → `/api/character-loadout` 분석 흐름을 실행한다. 후보 단계에서는 장비/서약/장비점수/추천 선조회 금지.
 - 최근 캐시 구조: 전체 서버 후보 검색은 기존 `character-response-cache.sqlite`의 `character_search_candidate_cache` 테이블을 사용한다. 서버별로 `normalized_character_name + server_id` hit이면 검색 API를 건너뛰고, miss 서버만 API 검색 후 개별 후보 요약 row를 upsert하며 negative cache는 저장하지 않는다. 서버 선택의 `모험단`은 `normalized_adventure_name` exact match로 이 후보 요약 캐시만 조회하며 외부 API를 호출하지 않는다.
 - 최근 UI 정책: 캐릭터 로드아웃 패널은 `장비`/`서약` 탭을 제공한다. 기본은 장비 탭이며, 서약 탭은 기존 `oathUpgrades.crystals` 배열과 setName/setPoint를 읽어 표시 전용 보드로 렌더링한다. 서약 루트 아이콘은 `이미지/Oath` 로컬 asset을 세트/등급 기준으로 우선 사용하며 basic 계열은 별도 규칙 전까지 fallback 처리한다.
-- 최근 버프강화 정책: `Docs/switching_avatar_db.json`은 클래스 단위 스위칭 상하의 레어 아바타 후보 DB다. 현재 경매장 매물 또는 최근 거래 이력이 확인된 itemId만 남기며, 딜러 버프강화 상의/하의 슬롯이 레어가 아닐 때만 해당 부위 추천을 만든다.
+- 최근 버프강화 정책: `Docs/switching_avatar_db.json`은 클래스 단위 스위칭 상하의 레어 아바타 후보 DB다. 현재 경매장 매물 또는 최근 거래 이력이 확인된 itemId만 남기며, 딜러 버프강화 상의/하의 슬롯이 레어가 아닐 때만 해당 부위 추천을 만든다. 상의는 경매장 row의 `optionAbility` 또는 `avatar.ability`가 스위칭 스킬과 맞아야 하며, 플티 직접 구매 가격이 없어도 플티 완성품 후보 확인은 진행한다.
 - 최근 마부 정책: 업그레이드 가능한 마법부여 카드/보주는 효과를 max upgrade 기준으로 쓰므로 가격도 `upgrade == upgradeMax`인 풀업 경매장 row만 인정한다. 풀업 매물이 없으면 노업 가격으로 효율을 계산하지 않고 기존 가격 없음 흐름을 탄다. 같은 부위/효과 방향에서 가성비 또는 준종결 마부가 상위 tier보다 실제 효율이 낮으면 추천 row 후처리에서 제외한다.
 - 최근 강화/증폭 정책: 무기 강화/증폭 추천은 현재 공격력 기준이 독립공격력이고 무기 재련이 있으면 115레벨 재련 독공 표를 반영한다. 독공 실효 증가는 `max(강화/증폭 독공, 현재 재련 독공)` 전후 차이만 인정하고, 12강 이상 최종 데미지 보너스는 기존처럼 별도 반영한다. 독공 비증폭 무기는 안전강화와 무기 증폭 후보를 비교해 효율 좋은 1개만 남긴다.
 - 최근 버프강화 정책: 딜러 스위칭 칭호/크리쳐 contribution 계산은 `buffSkillName`과 `equivalentSwitchingPlatinumSkills`를 함께 인정한다. 레벨 범위형 효과는 target skill별 requiredLevel을 독립 합산하고, 추천 실효 상승량은 스위칭 레벨 cap 7을 적용한다.
