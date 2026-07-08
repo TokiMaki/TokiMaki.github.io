@@ -1227,7 +1227,7 @@ function getBufferRecommendationRows(
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
     if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang'].includes(row.sourceType)) return;
     if (['creature', 'title'].includes(row.sourceType) && row.tier === '플래티넘') return;
-    if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem', 'switchingPlatinumEmblem'].includes(row.kind)) return;
+    if (row.sourceType === 'avatar' && !['brilliantEmblem', 'platinumEmblem', 'switchingPlatinumEmblem', 'switchingAvatar'].includes(row.kind)) return;
     row = row.sourceType === 'upgrade'
       ? {
         ...row,
