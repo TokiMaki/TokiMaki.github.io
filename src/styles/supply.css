@@ -1116,6 +1116,7 @@
         radial-gradient(circle at 50% 38%, rgb(234 203 242 / 0.18), transparent 58%),
         rgb(10 14 20 / 0.94);
       box-shadow: var(--shadow-card);
+      overflow: hidden;
     }
     .enchant-avatar-slot-icon img,
     .enchant-avatar-slot-placeholder {
@@ -1131,6 +1132,52 @@
     .enchant-avatar-slot-placeholder {
       border: 1px solid color-mix(in srgb, #eacbf2 68%, transparent);
       background: color-mix(in srgb, #eacbf2 14%, transparent);
+    }
+    .enchant-avatar-emblem-badges {
+      position: absolute;
+      right: 1px;
+      bottom: 1px;
+      z-index: 2;
+      display: inline-flex;
+      gap: 0;
+      pointer-events: none;
+    }
+    .enchant-avatar-emblem-badge {
+      display: block;
+      width: 5px;
+      height: 5px;
+      border: 1px solid rgb(0 0 0 / 0.62);
+      background:
+        radial-gradient(circle at 28% 24%, rgb(255 255 255 / 0.62), transparent 28%),
+        linear-gradient(135deg, #b5bec8 0%, #6f7885 52%, #303743 100%);
+      box-shadow:
+        0 0 0 1px rgb(255 255 255 / 0.14),
+        0 1px 2px rgb(0 0 0 / 0.72);
+    }
+    .enchant-avatar-emblem-badge-red {
+      background:
+        radial-gradient(circle at 28% 24%, rgb(255 222 227 / 0.82), transparent 28%),
+        linear-gradient(135deg, #f28d93 0%, #d34b56 54%, #812633 100%);
+    }
+    .enchant-avatar-emblem-badge-yellow {
+      background:
+        radial-gradient(circle at 28% 24%, rgb(255 250 190 / 0.88), transparent 28%),
+        linear-gradient(135deg, #f2de76 0%, #caa83a 54%, #80621f 100%);
+    }
+    .enchant-avatar-emblem-badge-green {
+      background:
+        radial-gradient(circle at 28% 24%, rgb(226 255 198 / 0.82), transparent 28%),
+        linear-gradient(135deg, #a0e878 0%, #65bd43 54%, #356f24 100%);
+    }
+    .enchant-avatar-emblem-badge-blue {
+      background:
+        radial-gradient(circle at 28% 24%, rgb(211 241 255 / 0.84), transparent 28%),
+        linear-gradient(135deg, #83bdf2 0%, #4280cf 54%, #25477d 100%);
+    }
+    .enchant-avatar-emblem-badge-gray {
+      background:
+        radial-gradient(circle at 28% 24%, rgb(255 255 255 / 0.62), transparent 28%),
+        linear-gradient(135deg, #b5bec8 0%, #6f7885 52%, #303743 100%);
     }
     .enchant-portrait-detail-panel {
       width: 100%;

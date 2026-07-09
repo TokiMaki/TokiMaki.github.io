@@ -180,6 +180,16 @@ const AVATAR_LOADOUT_SLOT_ID_BY_KEY = {
   bottom: 'PANTS',
   shoes: 'SHOES',
 };
+const AVATAR_FIXED_EMBLEM_COLOR_BY_SLOT_KEY = {
+  hair: 'red',
+  hat: 'red',
+  face: 'yellow',
+  neck: 'yellow',
+  top: 'green',
+  bottom: 'green',
+  waist: 'blue',
+  shoes: 'blue',
+};
 const ELEMENT_EFFECT_KEY_BY_NAME = {
   fire: 'elementFire',
   water: 'elementWater',
@@ -4073,6 +4083,50 @@ export function installEnchantView(ctx) {
     }, {});
   }
 
+  function getAvatarSlotEmblems(avatarSlot = {}) {
+    const emblems = avatarSlot.emblems || avatarSlot.emblem || avatarSlot.emblemItems || [];
+    return Array.isArray(emblems) ? emblems.filter(Boolean) : [];
+  }
+
+  function isPlatinumAvatarEmblem(emblem = {}) {
+    const text = [
+      emblem.itemName,
+      emblem.name,
+      emblem.emblemName,
+      emblem.slotColor,
+      emblem.color,
+    ].filter(Boolean).join(' ');
+    return /플래티넘|platinum/i.test(text);
+  }
+
+  function getAvatarEmblemColorFromText(emblem = {}) {
+    const text = [
+      emblem.itemName,
+      emblem.name,
+      emblem.emblemName,
+      emblem.slotColor,
+      emblem.color,
+    ].filter(Boolean).join(' ');
+    if (/다색|삼색|3색|트리플|멀티/i.test(text)) return 'red';
+    if (/붉|빨강|적색|red/i.test(text)) return 'red';
+    if (/노란|노랑|황색|yellow/i.test(text)) return 'yellow';
+    if (/녹색|초록|green/i.test(text)) return 'green';
+    if (/푸른|파랑|청색|blue/i.test(text)) return 'blue';
+    return '';
+  }
+
+  function getAvatarEmblemBadgeColors(slotKey, avatarSlot = {}) {
+    const normalEmblems = getAvatarSlotEmblems(avatarSlot).filter((emblem) => !isPlatinumAvatarEmblem(emblem));
+    const fixedColor = AVATAR_FIXED_EMBLEM_COLOR_BY_SLOT_KEY[slotKey];
+    const colors = normalEmblems
+      .slice(0, 2)
+      .map((emblem) => fixedColor || getAvatarEmblemColorFromText(emblem) || 'gray');
+    while (colors.length < 2) {
+      colors.push('gray');
+    }
+    return colors;
+  }
+
   function renderAvatarLoadoutSlot(slot, slotsById) {
     if (!slot) {
       return '<span class="enchant-avatar-slot-gap" aria-hidden="true"></span>';
@@ -4083,13 +4137,17 @@ export function installEnchantView(ctx) {
     const avatarSlot = slotsById[slotId] || {};
     const itemName = String(avatarSlot.itemName || '').trim();
     const iconUrl = String(avatarSlot.iconUrl || '').trim();
+    const emblemBadgeColors = getAvatarEmblemBadgeColors(key, avatarSlot);
     const ariaLabel = itemName || `${label} 클론 레어 아바타`;
     return `
-      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
         <span class="enchant-avatar-slot-icon" aria-hidden="true">
           ${iconUrl
             ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
             : '<span class="enchant-avatar-slot-placeholder"></span>'}
+          <span class="enchant-avatar-emblem-badges">
+            ${emblemBadgeColors.map((color) => `<span class="enchant-avatar-emblem-badge enchant-avatar-emblem-badge-${escapeHtml(color)}"></span>`).join('')}
+          </span>
         </span>
       </span>
     `;
