@@ -155,7 +155,7 @@ const AVATAR_LOADOUT_SLOT_ROWS = [
     { key: 'face', label: '얼굴' },
   ],
   [
-    null,
+    { key: 'aura', label: '오라' },
     { key: 'neck', label: '목가슴' },
     { key: 'top', label: '상의' },
     { key: 'skin', label: '피부' },
@@ -172,6 +172,7 @@ const AVATAR_LOADOUT_SLOT_ID_BY_KEY = {
   hair: 'HAIR',
   hat: 'HEADGEAR',
   face: 'FACE',
+  aura: 'AURORA',
   neck: 'BREAST',
   top: 'JACKET',
   skin: 'SKIN',
@@ -3763,6 +3764,7 @@ export function installEnchantView(ctx) {
           label: slot,
           iconUrl: equipment.iconUrl || '',
           itemName: equipment.itemName || slot,
+          itemRarity: equipment.itemRarity || '',
           enchantBadge: getEnchantBadge(
             enchant.effects || {},
             enchant.reinforceSkill || [],
@@ -3793,6 +3795,7 @@ export function installEnchantView(ctx) {
       label: '칭호',
       iconUrl: title.iconUrl || '',
       itemName: title.itemName || '칭호',
+      itemRarity: title.itemRarity || '',
       enchantBadge: getRoleEquipmentBadge(title.effects || {}, state.currentBufferBaseline?.isBuffer),
       hoverLines: [
         titleMainOption ? { text: titleMainOption, className: 'enchant-portrait-detail-line-effect' } : null,
@@ -3824,6 +3827,7 @@ export function installEnchantView(ctx) {
       label: '크리쳐',
       iconUrl: creature.iconUrl || '',
       itemName: creature.itemName || '크리쳐',
+      itemRarity: creature.itemRarity || '',
       enchantBadge: getRoleEquipmentBadge(creature.effects || {}, state.currentBufferBaseline?.isBuffer),
       hoverLines: (creatureHoverLines.length ? creatureHoverLines : ['없음'])
         .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
@@ -3840,6 +3844,7 @@ export function installEnchantView(ctx) {
       label: '오라',
       iconUrl: aura.iconUrl || '',
       itemName: aura.itemName || '오라',
+      itemRarity: aura.itemRarity || '',
       enchantBadge: getRoleEquipmentBadge(aura.effects || {}, state.currentBufferBaseline?.isBuffer),
       hoverLines: (auraHoverLines.length ? auraHoverLines : ['없음'])
         .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
@@ -3853,6 +3858,7 @@ export function installEnchantView(ctx) {
     const data = slotData?.[slot];
     const isEmpty = !data?.iconUrl;
     const title = data?.itemName || slot;
+    const rarityClass = getLoadoutRarityClass(data?.itemRarity);
     const hoverLines = [title, ...((data?.hoverLines || []).filter(Boolean))];
     if (isEmpty) {
       hoverLines.splice(1, hoverLines.length - 1, { text: '장착 정보 없음', className: 'enchant-portrait-detail-line-sub' });
@@ -3860,7 +3866,7 @@ export function installEnchantView(ctx) {
     const detailLines = hoverLines.slice(1).map((line) => (typeof line === 'string' ? { text: line, className: '' } : line));
     return `
       <span class="enchant-character-slot-wrap enchant-character-slot-wrap-${escapeHtml(key)} enchant-character-slot-wrap-${escapeHtml(side)}">
-        <span class="enchant-character-slot${isEmpty ? ' is-empty' : ''}" tabindex="0" aria-label="${escapeHtml(title)}" data-detail-title="${escapeHtml(title)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
+        <span class="enchant-character-slot${isEmpty ? ' is-empty' : ''}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}" tabindex="0" aria-label="${escapeHtml(title)}" data-detail-title="${escapeHtml(title)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
           ${data?.iconUrl
             ? `<img src="${escapeHtml(data.iconUrl)}" alt="" loading="lazy" decoding="async" />`
             : `<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>`}
@@ -3883,6 +3889,18 @@ export function installEnchantView(ctx) {
     return ENCHANT_PORTRAIT_SLOT_LAYOUT.map((layout) => renderEnchantPortraitSlotMarkup(layout, slotData)).join('');
   }
 
+  function getLoadoutRarityClass(itemOrRarity) {
+    const rarity = typeof itemOrRarity === 'string'
+      ? itemOrRarity.trim()
+      : String(itemOrRarity?.itemRarity || '').trim();
+    if (rarity.includes('레어')) return 'is-rare';
+    if (rarity.includes('태초')) return 'is-primeval';
+    if (rarity.includes('에픽')) return 'is-epic';
+    if (rarity.includes('레전더리')) return 'is-legendary';
+    if (rarity.includes('유니크')) return 'is-unique';
+    return '';
+  }
+
   function getOathLoadoutSlots() {
     const crystals = Array.isArray(state.currentOathUpgrades?.crystals)
       ? state.currentOathUpgrades.crystals
@@ -3900,13 +3918,7 @@ export function installEnchantView(ctx) {
   }
 
   function getOathCrystalRarityClass(crystal) {
-    const rarity = String(crystal?.itemRarity || '').trim();
-    if (rarity.includes('레어')) return 'is-rare';
-    if (rarity.includes('태초')) return 'is-primeval';
-    if (rarity.includes('에픽')) return 'is-epic';
-    if (rarity.includes('레전더리')) return 'is-legendary';
-    if (rarity.includes('유니크')) return 'is-unique';
-    return '';
+    return getLoadoutRarityClass(crystal);
   }
 
   function getOathStatDisplayValue(effects = {}, statName = '') {

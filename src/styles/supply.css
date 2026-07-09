@@ -968,22 +968,27 @@
       box-shadow: var(--shadow-card);
       overflow: hidden;
     }
+    .enchant-character-slot.is-primeval,
     .enchant-oath-slot.is-primeval,
     .enchant-oath-symbol.is-primeval {
       border-color: color-mix(in srgb, #67e8f9 78%, var(--line));
     }
+    .enchant-character-slot.is-epic,
     .enchant-oath-slot.is-epic,
     .enchant-oath-symbol.is-epic {
       border-color: color-mix(in srgb, #facc15 78%, var(--line));
     }
+    .enchant-character-slot.is-legendary,
     .enchant-oath-slot.is-legendary,
     .enchant-oath-symbol.is-legendary {
       border-color: color-mix(in srgb, #d98a3a 78%, var(--line));
     }
+    .enchant-character-slot.is-unique,
     .enchant-oath-slot.is-unique,
     .enchant-oath-symbol.is-unique {
       border-color: color-mix(in srgb, #ff7ac8 76%, var(--line));
     }
+    .enchant-character-slot.is-rare,
     .enchant-oath-slot.is-rare,
     .enchant-oath-symbol.is-rare {
       border-color: color-mix(in srgb, #c4a7ff 76%, var(--line));
