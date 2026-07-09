@@ -4087,14 +4087,24 @@ export function installEnchantView(ctx) {
     }, {});
   }
 
+  function hasAvatarEmblemIdentity(emblem = {}) {
+    return Boolean(String(
+      emblem.itemId
+        || emblem.itemName
+        || emblem.name
+        || emblem.emblemName
+        || '',
+    ).trim());
+  }
+
   function getAvatarSlotEmblems(avatarSlot = {}) {
     const emblems = avatarSlot.emblems || avatarSlot.emblem || avatarSlot.emblemItems || [];
-    return Array.isArray(emblems) ? emblems.filter(Boolean) : [];
+    return Array.isArray(emblems) ? emblems.filter(hasAvatarEmblemIdentity) : [];
   }
 
   function getAvatarSlotPlatinumEmblems(avatarSlot = {}) {
     const emblems = avatarSlot.platinumEmblems || avatarSlot.platinumEmblemItems || [];
-    return Array.isArray(emblems) ? emblems.filter(Boolean) : [];
+    return Array.isArray(emblems) ? emblems.filter(hasAvatarEmblemIdentity) : [];
   }
 
   function isPlatinumAvatarEmblem(emblem = {}) {
@@ -4212,10 +4222,13 @@ export function installEnchantView(ctx) {
     const iconUrl = String(avatarSlot.iconUrl || '').trim();
     const emblemBadgeColors = hasAvatarItem ? getAvatarEmblemBadgeColors(key, avatarSlot) : [];
     const platinumBadgeState = hasAvatarItem ? getAvatarPlatinumBadgeState(key, avatarSlot) : '';
-    const ariaLabel = itemName || `${label} 클론 레어 아바타`;
-    const detailLines = buildAvatarSlotDetailLines(key, avatarSlot);
+    const ariaLabel = itemName || label;
+    const detailLines = itemName ? buildAvatarSlotDetailLines(key, avatarSlot) : [];
+    const detailAttrs = itemName
+      ? ` data-detail-title="${escapeHtml(ariaLabel)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"`
+      : '';
     return `
-      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}" data-detail-title="${escapeHtml(ariaLabel)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
+      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}"${detailAttrs}>
         <span class="enchant-avatar-slot-icon" aria-hidden="true">
           ${iconUrl
             ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
@@ -4355,7 +4368,7 @@ export function installEnchantView(ctx) {
 
   function bindAvatarSlotDetailPanel() {
     if (!els.enchantCharacterPortrait) return;
-    const slots = [...els.enchantCharacterPortrait.querySelectorAll('.enchant-avatar-slot[data-avatar-slot-key]')];
+    const slots = [...els.enchantCharacterPortrait.querySelectorAll('.enchant-avatar-slot[data-avatar-slot-key][data-detail-title]')];
     slots.forEach((slot) => {
       const title = String(slot.dataset.detailTitle || '').trim();
       let lines = [];

@@ -4840,7 +4840,8 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 "slotColor": clean_text(emblem.get("slotColor")),
             }
             for emblem in row.get("emblems") or []
-            if "플래티넘" not in clean_text(emblem.get("slotColor"))
+            if (clean_text(emblem.get("itemId")) or clean_item_display_name(emblem.get("itemName")))
+            and "플래티넘" not in clean_text(emblem.get("slotColor"))
             and "플래티넘" not in clean_text(emblem.get("itemName"))
         ]
         platinum_emblems = [
@@ -4850,6 +4851,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 "slotColor": clean_text(emblem.get("slotColor")),
             }
             for emblem in get_platinum_emblems(row)
+            if clean_text(emblem.get("itemId")) or clean_item_display_name(emblem.get("itemName"))
         ]
         avatar_slot_payloads.append({
             "slotId": slot_id,
