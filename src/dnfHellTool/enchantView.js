@@ -4092,6 +4092,11 @@ export function installEnchantView(ctx) {
     return Array.isArray(emblems) ? emblems.filter(Boolean) : [];
   }
 
+  function getAvatarSlotPlatinumEmblems(avatarSlot = {}) {
+    const emblems = avatarSlot.platinumEmblems || avatarSlot.platinumEmblemItems || [];
+    return Array.isArray(emblems) ? emblems.filter(Boolean) : [];
+  }
+
   function isPlatinumAvatarEmblem(emblem = {}) {
     const text = [
       emblem.itemName,
@@ -4131,6 +4136,57 @@ export function installEnchantView(ctx) {
     return colors;
   }
 
+  function getAvatarEmblemDetailColor(slotKey, emblem = {}) {
+    return AVATAR_FIXED_EMBLEM_COLOR_BY_SLOT_KEY[slotKey] || getAvatarEmblemColorFromText(emblem) || 'gray';
+  }
+
+  function getAvatarPlatinumDetailLine(slotKey, avatarSlot = {}) {
+    const slotLabel = AVATAR_PLATINUM_SLOT_LABEL_BY_KEY[slotKey];
+    if (!slotLabel) {
+      return null;
+    }
+    const platinumEmblems = getAvatarSlotPlatinumEmblems(avatarSlot).filter(isPlatinumAvatarEmblem);
+    const platinumName = String(
+      platinumEmblems[0]?.itemName
+        || platinumEmblems[0]?.name
+        || platinumEmblems[0]?.emblemName
+        || '',
+    ).trim();
+    const platinumSlots = state.currentAvatar?.avatar?.platinumSlots;
+    const hasPlatinum = String(avatarSlot.itemRarity || '').trim() === '레어'
+      && (Boolean(platinumName) || (Array.isArray(platinumSlots) && platinumSlots.includes(slotLabel)));
+    return {
+      text: platinumName || (hasPlatinum ? '플래티넘 엠블렘 이름 확인 불가' : '플래티넘 엠블렘 없음'),
+      className: hasPlatinum
+        ? 'enchant-portrait-detail-line-avatar-platinum'
+        : 'enchant-portrait-detail-line-sub',
+    };
+  }
+
+  function buildAvatarSlotDetailLines(slotKey, avatarSlot = {}) {
+    const normalEmblems = getAvatarSlotEmblems(avatarSlot)
+      .filter((emblem) => !isPlatinumAvatarEmblem(emblem))
+      .slice(0, 2);
+    const lines = [];
+    const platinumLine = getAvatarPlatinumDetailLine(slotKey, avatarSlot);
+    if (platinumLine) {
+      lines.push(platinumLine);
+    }
+    for (let index = 0; index < 2; index += 1) {
+      const emblem = normalEmblems[index];
+      if (!emblem) {
+        lines.push({ text: '엠블렘 없음', className: 'enchant-portrait-detail-line-sub' });
+        continue;
+      }
+      const color = getAvatarEmblemDetailColor(slotKey, emblem);
+      lines.push({
+        text: String(emblem.itemName || emblem.name || emblem.emblemName || '엠블렘 이름 확인 불가').trim(),
+        className: `enchant-portrait-detail-line-avatar-emblem enchant-portrait-detail-line-avatar-${color}`,
+      });
+    }
+    return lines;
+  }
+
   function getAvatarPlatinumBadgeState(slotKey, avatarSlot = {}) {
     const slotLabel = AVATAR_PLATINUM_SLOT_LABEL_BY_KEY[slotKey];
     if (!slotLabel) {
@@ -4157,8 +4213,9 @@ export function installEnchantView(ctx) {
     const emblemBadgeColors = hasAvatarItem ? getAvatarEmblemBadgeColors(key, avatarSlot) : [];
     const platinumBadgeState = hasAvatarItem ? getAvatarPlatinumBadgeState(key, avatarSlot) : '';
     const ariaLabel = itemName || `${label} 클론 레어 아바타`;
+    const detailLines = buildAvatarSlotDetailLines(key, avatarSlot);
     return `
-      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}" data-detail-title="${escapeHtml(ariaLabel)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
         <span class="enchant-avatar-slot-icon" aria-hidden="true">
           ${iconUrl
             ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
@@ -4296,6 +4353,26 @@ export function installEnchantView(ctx) {
     resetEnchantPortraitDetailPanel();
   }
 
+  function bindAvatarSlotDetailPanel() {
+    if (!els.enchantCharacterPortrait) return;
+    const slots = [...els.enchantCharacterPortrait.querySelectorAll('.enchant-avatar-slot[data-avatar-slot-key]')];
+    slots.forEach((slot) => {
+      const title = String(slot.dataset.detailTitle || '').trim();
+      let lines = [];
+      try {
+        lines = JSON.parse(slot.dataset.detailLines || '[]');
+      } catch {
+        lines = [];
+      }
+      const activate = () => setEnchantPortraitDetailPanel(title, lines);
+      slot.addEventListener('mouseenter', activate);
+      slot.addEventListener('focus', activate);
+      slot.addEventListener('mouseleave', resetEnchantPortraitDetailPanel);
+      slot.addEventListener('blur', resetEnchantPortraitDetailPanel);
+    });
+    resetEnchantPortraitDetailPanel();
+  }
+
   function renderEnchantCharacterPortrait() {
     if (!els.enchantCharacterPortrait) return;
     const character = state.enchantTargetCharacter;
@@ -4381,6 +4458,8 @@ export function installEnchantView(ctx) {
     if (activeTab === 'oath') {
       bindOathSymbolFallback();
       bindOathCrystalDetailPanel();
+    } else if (activeTab === 'avatar') {
+      bindAvatarSlotDetailPanel();
     } else if (activeTab === 'equipment') {
       bindEnchantPortraitDetailPanel();
     }

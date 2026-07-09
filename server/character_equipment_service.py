@@ -4843,6 +4843,14 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             if "플래티넘" not in clean_text(emblem.get("slotColor"))
             and "플래티넘" not in clean_text(emblem.get("itemName"))
         ]
+        platinum_emblems = [
+            {
+                "itemId": clean_text(emblem.get("itemId")),
+                "itemName": clean_item_display_name(emblem.get("itemName")),
+                "slotColor": clean_text(emblem.get("slotColor")),
+            }
+            for emblem in get_platinum_emblems(row)
+        ]
         avatar_slot_payloads.append({
             "slotId": slot_id,
             "slotName": clean_text(row.get("slotName")),
@@ -4851,6 +4859,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             "itemRarity": clean_text(row.get("itemRarity")),
             "iconUrl": get_item_icon_url(item_id) if item_id else "",
             "emblems": emblems[:2],
+            "platinumEmblems": platinum_emblems[:2],
         })
     avatar_payload = {
         "dbMatched": bool(entry),

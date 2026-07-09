@@ -1371,6 +1371,29 @@
       color: #6fd6ff;
       font-weight: 800;
     }
+    .enchant-portrait-detail-line-avatar-emblem {
+      font-weight: 700;
+    }
+    .enchant-portrait-detail-line-avatar-red {
+      color: #f29aa0;
+    }
+    .enchant-portrait-detail-line-avatar-yellow {
+      color: #e5cb66;
+    }
+    .enchant-portrait-detail-line-avatar-green {
+      color: #9ee478;
+    }
+    .enchant-portrait-detail-line-avatar-blue {
+      color: #8fc7f3;
+    }
+    .enchant-portrait-detail-line-avatar-gray {
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .enchant-portrait-detail-line-avatar-platinum {
+      color: #f0a84a;
+      font-weight: 800;
+    }
     .enchant-character-slot-wrap-shoulder { top: 6px; left: 6px; }
     .enchant-character-slot-wrap-top { top: 6px; left: 42px; }
     .enchant-character-slot-wrap-pants { top: 42px; left: 6px; }
