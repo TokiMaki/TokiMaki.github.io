@@ -100,6 +100,31 @@ def get_emblem_stat_value(item_name: str, stat_name: str, kind: str) -> float:
     return 0
 
 
+def get_equipped_emblem_kind(item_name: str, slot_color: str = "") -> str:
+    item_name = clean_text(item_name)
+    slot_color = clean_text(slot_color)
+    if "듀얼" in item_name:
+        return "dual"
+    if "붉은빛" in slot_color or "붉은빛" in item_name or "붉은색" in item_name:
+        return "red"
+    if "노란빛" in slot_color or "옐로우" in item_name or "노란색" in item_name:
+        return "yellow"
+    if "녹색빛" in slot_color or "그린" in item_name or "녹색" in item_name:
+        return "green"
+    return ""
+
+
+def get_equipped_emblem_stat_value(emblem: dict, stat_name: str) -> float:
+    item_name = clean_text(emblem.get("itemName"))
+    slot_color = clean_text(emblem.get("slotColor"))
+    if "플래티넘" in item_name or "플래티넘" in slot_color:
+        return 0
+    kind = get_equipped_emblem_kind(item_name, slot_color)
+    if not kind:
+        return 0
+    return get_emblem_stat_value(item_name, stat_name, kind)
+
+
 def get_emblems_by_color(row: dict, color: str) -> list:
     color = clean_text(color)
     return [
@@ -252,7 +277,7 @@ def build_avatar_emblem_recommendations_debug(
         emblems = get_avatar_damage_emblems(row, config)
         socket_count = max(len(emblems), 2)
         current_values = [
-            get_emblem_stat_value(emblem.get("itemName"), primary_stat_name, config.get("kind"))
+            get_equipped_emblem_stat_value(emblem, primary_stat_name)
             for emblem in emblems
         ]
         current_values += [0] * max(0, socket_count - len(current_values))
