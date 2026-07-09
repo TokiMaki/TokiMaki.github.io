@@ -927,7 +927,7 @@
       min-height: 52px;
       padding: 7px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 6px;
       background: var(--surface-card);
       color: var(--text);
       text-align: left;

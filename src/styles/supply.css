@@ -573,6 +573,14 @@
     .enchant-recommend-stack {
       width: 100%;
       max-width: 720px;
+      border-color: rgb(76 62 42 / 0.72);
+      border-radius: 3px;
+      background: #0f0d0a;
+      box-shadow:
+        0 8px 18px rgb(0 0 0 / 0.3),
+        inset 0 1px 0 rgb(255 232 170 / 0.04),
+        inset 0 -1px 0 rgb(0 0 0 / 0.42);
+      backdrop-filter: none;
     }
     .enchant-recommend-layout > .enchant-character-portrait-card {
       --supply-detail-card-width: 304px;
