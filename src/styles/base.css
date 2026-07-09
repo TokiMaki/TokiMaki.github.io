@@ -524,11 +524,19 @@
       backdrop-filter: blur(8px);
     }
     .hero {
-      padding: 12px 16px;
+      padding: 9px 13px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      border-radius: 6px;
+      border-color: rgb(76 62 42 / 0.72);
+      background: #0f0d0a;
+      box-shadow:
+        0 8px 18px rgb(0 0 0 / 0.3),
+        inset 0 1px 0 rgb(255 232 170 / 0.04),
+        inset 0 -1px 0 rgb(0 0 0 / 0.42);
+      backdrop-filter: none;
     }
     .hero h1 { margin: 0; font-size: 24px; line-height: 1.2; white-space: nowrap; }
     .site-logo-heading {
@@ -551,7 +559,7 @@
     .site-logo-image {
       display: block;
       width: auto;
-      height: 52px;
+      height: 46px;
       max-width: min(300px, 52vw);
       object-fit: contain;
     }
