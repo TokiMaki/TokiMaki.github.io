@@ -51,6 +51,7 @@ import {
 import {
   bindCharacterAvatars,
   getCharacterAvatarMarkup,
+  getCharacterAvatarUrl,
   getCharacterLabel,
   getCharacterNameOnly,
   getCharacterPortraitMarkup,
@@ -141,7 +142,7 @@ function createToolContext(els) {
     getSupplyCharacterHellRevelationPerRun, getSupplyCharacterWeeklyFatigue, mergeSupplyRecoveryRows,
     normalizeSupplyCharacterFatigueMode, normalizeSupplyCharacterFatiguePotions, normalizeSupplyParts, summarizeSoulRecoveryParts,
     escapeHtml, fmtCost, fmtDecimal, fmtInt, fmtRevelation, getServerLabel,
-    bindCharacterAvatars, getCharacterAvatarMarkup, getCharacterLabel, getCharacterNameOnly, getCharacterPortraitMarkup, normalizeCharacters,
+    bindCharacterAvatars, getCharacterAvatarMarkup, getCharacterAvatarUrl, getCharacterLabel, getCharacterNameOnly, getCharacterPortraitMarkup, normalizeCharacters,
   };
   const constants = {
     ACTIVE_TAB_STORAGE_KEY, API_BASE, DEV_MODE_STORAGE_KEY, ENCHANT_INCLUDE_FILTER_STORAGE_KEY, ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY, ENCHANT_MATERIAL_COST_STORAGE_KEY, ENABLE_DEV_MODE, normalizeApiErrorMessage, parseApiJsonResponse, STORAGE_NAMESPACE_KEY, STORAGE_SCOPE_LABEL, SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY, SUPPLY_SOUL_USAGE_RATES_STORAGE_KEY,

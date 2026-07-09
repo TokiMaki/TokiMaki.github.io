@@ -21,6 +21,7 @@ const BUFFER_SCORE_ICON_URL = new URL('../../이미지/bufferScore.png', import.
 const EQUIPMENT_SCORE_ICON_URL = new URL('../../이미지/equipmentScore.png', import.meta.url).href;
 const CHARACTER_FAME_ICON_URL = new URL('../../이미지/fame.png', import.meta.url).href;
 const OATH_BOARD_BG_URL = new URL('../../이미지/oathbg.png', import.meta.url).href;
+const AVATAR_LOADOUT_BG_URL = new URL('../../이미지/bg3.jpg', import.meta.url).href;
 const OATH_SYMBOL_ASSETS = import.meta.glob('../../이미지/Oath/*/*.{png,webp}', {
   eager: true,
   import: 'default',
@@ -146,6 +147,26 @@ const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
 ];
 const OATH_LOADOUT_SIDE_SLOT_COUNT = 4;
 const OATH_LOADOUT_BOTTOM_SLOT_COUNT = 3;
+const AVATAR_LOADOUT_SLOT_ROWS = [
+  [
+    { key: 'avatarWeapon', label: '무기 아바타' },
+    { key: 'hair', label: '머리' },
+    { key: 'hat', label: '모자' },
+    { key: 'face', label: '얼굴' },
+  ],
+  [
+    null,
+    { key: 'neck', label: '목가슴' },
+    { key: 'top', label: '상의' },
+    { key: 'skin', label: '피부' },
+  ],
+  [
+    null,
+    { key: 'waist', label: '허리' },
+    { key: 'bottom', label: '하의' },
+    { key: 'shoes', label: '신발' },
+  ],
+];
 const ELEMENT_EFFECT_KEY_BY_NAME = {
   fire: 'elementFire',
   water: 'elementWater',
@@ -3648,7 +3669,7 @@ export function installEnchantView(ctx) {
     normalizeApiErrorMessage,
     parseApiJsonResponse,
   } = ctx.constants;
-  const { bindCharacterAvatars, escapeHtml, getCharacterPortraitMarkup } = ctx.deps;
+  const { bindCharacterAvatars, escapeHtml, getCharacterAvatarUrl, getCharacterPortraitMarkup } = ctx.deps;
 
   state.enchantCards = [];
   state.creatureUpgradeGroups = [];
@@ -4014,10 +4035,41 @@ export function installEnchantView(ctx) {
     `;
   }
 
+  function renderAvatarLoadoutSlot(slot) {
+    if (!slot) {
+      return '<span class="enchant-avatar-slot-gap" aria-hidden="true"></span>';
+    }
+    const label = String(slot?.label || '').trim();
+    const key = String(slot?.key || '').trim();
+    return `
+      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" tabindex="0" aria-label="${escapeHtml(`${label} 클론 레어 아바타`)}">
+        <span class="enchant-avatar-slot-icon" aria-hidden="true"></span>
+      </span>
+    `;
+  }
+
+  function renderAvatarLoadoutBoard(character) {
+    const avatarUrl = getCharacterAvatarUrl(character, 1);
+    return `
+      <div class="enchant-avatar-board" aria-label="아바타 장착 정보">
+        <div class="enchant-avatar-preview" aria-hidden="true">
+          <img class="enchant-avatar-preview-bg" src="${escapeHtml(AVATAR_LOADOUT_BG_URL)}" alt="" loading="lazy" decoding="async" />
+          ${avatarUrl
+            ? `<img class="enchant-avatar-preview-img" data-character-avatar src="${escapeHtml(avatarUrl)}" alt="" loading="lazy" decoding="async" />`
+            : '<span class="enchant-avatar-preview-placeholder"></span>'}
+        </div>
+        <div class="enchant-avatar-slots">
+          ${AVATAR_LOADOUT_SLOT_ROWS.flatMap((row) => row).map(renderAvatarLoadoutSlot).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   function renderEnchantLoadoutTabs(activeTab) {
     const tabs = [
       ['equipment', '장비'],
       ['oath', '서약'],
+      ['avatar', '아바타'],
     ];
     return `
       <div class="enchant-loadout-tabs" role="tablist" aria-label="캐릭터 로드아웃">
@@ -4122,13 +4174,19 @@ export function installEnchantView(ctx) {
       els.enchantCharacterPortrait.innerHTML = '<div class="table-empty-cell">캐릭터 검색을 해주세요.</div>';
       return;
     }
-    const activeTab = state.enchantLoadoutTab === 'oath' ? 'oath' : 'equipment';
+    const activeTab = ['equipment', 'oath', 'avatar'].includes(state.enchantLoadoutTab)
+      ? state.enchantLoadoutTab
+      : 'equipment';
     const loadoutMarkup = `
       <div class="supply-detail-portrait enchant-character-portrait">
         ${getCharacterPortraitMarkup(character, {
           zoom: 1,
           slotItemsHtml: activeTab === 'equipment' ? buildEnchantPortraitSlotMarkup() : '',
-          cropHtml: activeTab === 'oath' ? renderOathLoadoutBoard() : '',
+          cropHtml: activeTab === 'oath'
+            ? renderOathLoadoutBoard()
+            : activeTab === 'avatar'
+              ? renderAvatarLoadoutBoard(character)
+              : '',
         })}
       </div>
     `;
@@ -4151,6 +4209,13 @@ export function installEnchantView(ctx) {
         <div class="enchant-portrait-detail-panel" data-enchant-portrait-detail>
           <div class="enchant-portrait-detail-title" data-enchant-portrait-detail-title>서약 결정 상세</div>
           <div class="enchant-portrait-detail-body" data-enchant-portrait-detail-body>서약 결정에 마우스를 올리면 상세 정보가 표시됩니다.</div>
+        </div>
+      `);
+    } else if (activeTab === 'avatar' && characterName) {
+      characterName.insertAdjacentHTML('beforeend', `
+        <div class="enchant-portrait-detail-panel" data-enchant-portrait-detail>
+          <div class="enchant-portrait-detail-title" data-enchant-portrait-detail-title>아바타 슬롯</div>
+          <div class="enchant-portrait-detail-body" data-enchant-portrait-detail-body>클론 레어 아바타 기준 임시 표시입니다.</div>
         </div>
       `);
     }
@@ -4187,7 +4252,7 @@ export function installEnchantView(ctx) {
     if (activeTab === 'oath') {
       bindOathSymbolFallback();
       bindOathCrystalDetailPanel();
-    } else {
+    } else if (activeTab === 'equipment') {
       bindEnchantPortraitDetailPanel();
     }
   }
@@ -5669,7 +5734,8 @@ export function installEnchantView(ctx) {
     const target = event.target.closest('[data-enchant-loadout-tab]');
     if (!target) return;
     event.preventDefault();
-    const nextTab = target.dataset.enchantLoadoutTab === 'oath' ? 'oath' : 'equipment';
+    const requestedTab = String(target.dataset.enchantLoadoutTab || '');
+    const nextTab = ['equipment', 'oath', 'avatar'].includes(requestedTab) ? requestedTab : 'equipment';
     if (state.enchantLoadoutTab === nextTab) return;
     state.enchantLoadoutTab = nextTab;
     renderEnchantCharacterPortrait();
