@@ -320,6 +320,14 @@
       display: grid;
       place-items: center;
       padding: 32px 18px;
+      border-color: rgb(76 62 42 / 0.72);
+      border-radius: 6px;
+      background: #0f0d0a;
+      box-shadow:
+        0 8px 18px rgb(0 0 0 / 0.3),
+        inset 0 1px 0 rgb(255 232 170 / 0.04),
+        inset 0 -1px 0 rgb(0 0 0 / 0.42);
+      backdrop-filter: none;
       text-align: center;
     }
     .enchant-analysis-loading > div {
@@ -346,6 +354,14 @@
       display: grid;
       place-items: center;
       padding: 32px 18px;
+      border-color: rgb(76 62 42 / 0.72);
+      border-radius: 6px;
+      background: #0f0d0a;
+      box-shadow:
+        0 8px 18px rgb(0 0 0 / 0.3),
+        inset 0 1px 0 rgb(255 232 170 / 0.04),
+        inset 0 -1px 0 rgb(0 0 0 / 0.42);
+      backdrop-filter: none;
       text-align: center;
     }
     .enchant-candidate-head {
@@ -532,12 +548,22 @@
     }
     .enchant-loading-message,
     .enchant-candidate-empty {
+      position: relative;
       display: grid;
       justify-items: center;
       gap: 0;
       min-width: 0;
       max-width: 100%;
       text-align: center;
+    }
+    .enchant-loading-message::before,
+    .enchant-candidate-empty::before {
+      content: '';
+      width: min(96px, 38vw);
+      height: 1px;
+      margin-bottom: 14px;
+      background: linear-gradient(90deg, transparent, rgb(150 118 63 / 0.72), transparent);
+      animation: enchant-status-line-pulse 1.8s ease-in-out infinite;
     }
     .enchant-loading-message > div,
     .enchant-candidate-empty > div {
@@ -555,6 +581,7 @@
       font-size: 18px;
       font-weight: 800;
       line-height: 1.25;
+      text-shadow: 0 1px 0 rgb(0 0 0 / 0.7);
     }
     .enchant-analysis-loading.is-error .enchant-analysis-loading-title {
       color: var(--text-bad);
@@ -576,9 +603,18 @@
     }
     .enchant-analysis-loading-sub {
       margin-top: 8px;
-      color: var(--muted);
+      color: rgb(207 187 145 / 0.86);
       font-size: 12px;
       line-height: 1.45;
+    }
+    @keyframes enchant-status-line-pulse {
+      0%,
+      100% {
+        opacity: 0.36;
+      }
+      50% {
+        opacity: 0.88;
+      }
     }
     @keyframes enchant-analysis-dot {
       0%,
