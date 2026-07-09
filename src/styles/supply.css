@@ -1236,14 +1236,19 @@
         0 0 2px rgb(0 0 0 / 0.8);
     }
     .enchant-portrait-detail-panel {
-      width: 100%;
-      min-height: 64px;
-      padding: 8px 10px;
-      border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--panel-2) 94%, var(--bg-deep));
+      width: 254px;
+      max-width: 100%;
+      box-sizing: border-box;
+      min-height: 0;
+      padding: 7px 9px;
+      border: 1px solid rgb(126 94 48 / 0.82);
+      border-radius: 4px;
+      background: linear-gradient(180deg, #15110b 0%, #0b0907 100%);
+      box-shadow:
+        0 6px 14px rgb(0 0 0 / 0.48),
+        inset 0 1px 0 rgb(255 232 170 / 0.08);
       display: none;
-      gap: 4px;
+      gap: 3px;
       text-align: left;
     }
     .enchant-character-portrait.is-detail-active .supply-detail-portrait-meta {
@@ -1253,6 +1258,9 @@
       display: grid;
     }
     .enchant-character-portrait .supply-detail-portrait-meta {
+      width: 254px;
+      max-width: 100%;
+      box-sizing: border-box;
       min-height: 64px;
       align-content: start;
     }
@@ -1339,22 +1347,22 @@
       white-space: nowrap;
     }
     .enchant-portrait-detail-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
-      color: var(--text);
-      line-height: 1.2;
+      color: #f0e6cf;
+      line-height: 1.25;
       white-space: normal;
     }
     .enchant-portrait-detail-body {
       display: grid;
-      gap: 3px;
-      min-height: 28px;
+      gap: 2px;
+      min-height: 0;
       align-content: start;
     }
     .enchant-portrait-detail-line {
       font-size: 10px;
       color: var(--muted);
-      line-height: 1.25;
+      line-height: 1.32;
       white-space: normal;
     }
     .enchant-portrait-detail-line-effect {
@@ -1374,24 +1382,29 @@
     .enchant-portrait-detail-line-avatar-emblem {
       font-weight: 700;
     }
+    .enchant-portrait-detail-panel-avatar .enchant-portrait-detail-line-avatar-emblem,
+    .enchant-portrait-detail-panel-avatar .enchant-portrait-detail-line-avatar-platinum,
+    .enchant-portrait-detail-panel-avatar .enchant-portrait-detail-line-sub {
+      display: block;
+    }
     .enchant-portrait-detail-line-avatar-red {
-      color: #f29aa0;
+      color: #d98c8d;
     }
     .enchant-portrait-detail-line-avatar-yellow {
-      color: #e5cb66;
+      color: #cdb15f;
     }
     .enchant-portrait-detail-line-avatar-green {
-      color: #9ee478;
+      color: #87bf72;
     }
     .enchant-portrait-detail-line-avatar-blue {
-      color: #8fc7f3;
+      color: #7fa9c8;
     }
     .enchant-portrait-detail-line-avatar-gray {
-      color: var(--muted);
+      color: #8d8171;
       font-weight: 500;
     }
     .enchant-portrait-detail-line-avatar-platinum {
-      color: #f0a84a;
+      color: #d8984d;
       font-weight: 800;
     }
     .enchant-character-slot-wrap-shoulder { top: 6px; left: 6px; }

@@ -4432,7 +4432,7 @@ export function installEnchantView(ctx) {
       `);
     } else if (activeTab === 'avatar' && characterName) {
       characterName.insertAdjacentHTML('beforeend', `
-        <div class="enchant-portrait-detail-panel" data-enchant-portrait-detail>
+        <div class="enchant-portrait-detail-panel enchant-portrait-detail-panel-avatar" data-enchant-portrait-detail>
           <div class="enchant-portrait-detail-title" data-enchant-portrait-detail-title>아바타 슬롯</div>
           <div class="enchant-portrait-detail-body" data-enchant-portrait-detail-body>클론 레어 아바타 기준 임시 표시입니다.</div>
         </div>
