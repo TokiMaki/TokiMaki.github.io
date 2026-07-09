@@ -167,6 +167,18 @@ const AVATAR_LOADOUT_SLOT_ROWS = [
     { key: 'shoes', label: '신발' },
   ],
 ];
+const AVATAR_LOADOUT_SLOT_ID_BY_KEY = {
+  avatarWeapon: 'WEAPON',
+  hair: 'HAIR',
+  hat: 'HEADGEAR',
+  face: 'FACE',
+  neck: 'BREAST',
+  top: 'JACKET',
+  skin: 'SKIN',
+  waist: 'WAIST',
+  bottom: 'PANTS',
+  shoes: 'SHOES',
+};
 const ELEMENT_EFFECT_KEY_BY_NAME = {
   fire: 'elementFire',
   water: 'elementWater',
@@ -4035,21 +4047,45 @@ export function installEnchantView(ctx) {
     `;
   }
 
-  function renderAvatarLoadoutSlot(slot) {
+  function getAvatarLoadoutSlotsById() {
+    const slots = state.currentAvatar?.avatar?.slots;
+    if (!Array.isArray(slots)) {
+      return {};
+    }
+    return slots.reduce((map, slot) => {
+      const slotId = String(slot?.slotId || '').trim();
+      if (slotId) {
+        map[slotId] = slot;
+      }
+      return map;
+    }, {});
+  }
+
+  function renderAvatarLoadoutSlot(slot, slotsById) {
     if (!slot) {
       return '<span class="enchant-avatar-slot-gap" aria-hidden="true"></span>';
     }
     const label = String(slot?.label || '').trim();
     const key = String(slot?.key || '').trim();
+    const slotId = AVATAR_LOADOUT_SLOT_ID_BY_KEY[key] || '';
+    const avatarSlot = slotsById[slotId] || {};
+    const itemName = String(avatarSlot.itemName || '').trim();
+    const iconUrl = String(avatarSlot.iconUrl || '').trim();
+    const ariaLabel = itemName || `${label} 클론 레어 아바타`;
     return `
-      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" tabindex="0" aria-label="${escapeHtml(`${label} 클론 레어 아바타`)}">
-        <span class="enchant-avatar-slot-icon" aria-hidden="true"></span>
+      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+        <span class="enchant-avatar-slot-icon" aria-hidden="true">
+          ${iconUrl
+            ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
+            : '<span class="enchant-avatar-slot-placeholder"></span>'}
+        </span>
       </span>
     `;
   }
 
   function renderAvatarLoadoutBoard(character) {
     const avatarUrl = getCharacterAvatarUrl(character, 1);
+    const slotsById = getAvatarLoadoutSlotsById();
     return `
       <div class="enchant-avatar-board" aria-label="아바타 장착 정보">
         <div class="enchant-avatar-preview" aria-hidden="true">
@@ -4059,7 +4095,7 @@ export function installEnchantView(ctx) {
             : '<span class="enchant-avatar-preview-placeholder"></span>'}
         </div>
         <div class="enchant-avatar-slots">
-          ${AVATAR_LOADOUT_SLOT_ROWS.flatMap((row) => row).map(renderAvatarLoadoutSlot).join('')}
+          ${AVATAR_LOADOUT_SLOT_ROWS.flatMap((row) => row).map((slot) => renderAvatarLoadoutSlot(slot, slotsById)).join('')}
         </div>
       </div>
     `;

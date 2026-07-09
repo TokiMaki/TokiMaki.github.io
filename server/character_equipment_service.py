@@ -4823,6 +4823,18 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         "isRare": clean_text(pants.get("itemRarity")) == "레어",
         "isRareClone": is_rare_clone_avatar(pants),
     }
+    avatar_slot_payloads = []
+    for row in avatar_rows:
+        slot_id = clean_text(row.get("slotId"))
+        item_id = clean_text(row.get("itemId"))
+        avatar_slot_payloads.append({
+            "slotId": slot_id,
+            "slotName": clean_text(row.get("slotName")),
+            "itemId": item_id,
+            "itemName": clean_item_display_name(row.get("itemName")),
+            "itemRarity": clean_text(row.get("itemRarity")),
+            "iconUrl": get_item_icon_url(item_id) if item_id else "",
+        })
     avatar_payload = {
         "dbMatched": bool(entry),
         "primaryStatName": primary_stat_name,
@@ -4837,6 +4849,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         "rareCloneAvatarSlots": clone_slots,
         "jacket": jacket_payload,
         "pants": pants_payload,
+        "slots": avatar_slot_payloads,
         "platinumCount": len(platinum_slots),
         "platinumSlots": platinum_slots,
         "missingOrWrongPlatinumSlots": missing_or_wrong_slots,

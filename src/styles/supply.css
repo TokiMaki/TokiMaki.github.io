@@ -1106,18 +1106,26 @@
       justify-content: center;
       width: 34px;
       height: 34px;
-      border: 1px solid color-mix(in srgb, #facc15 60%, var(--line));
+      border: 1px solid color-mix(in srgb, #eacbf2 72%, var(--line));
       background:
-        radial-gradient(circle at 50% 38%, rgb(250 204 21 / 0.16), transparent 58%),
+        radial-gradient(circle at 50% 38%, rgb(234 203 242 / 0.18), transparent 58%),
         rgb(10 14 20 / 0.94);
       box-shadow: var(--shadow-card);
     }
-    .enchant-avatar-slot-icon::before {
-      content: '';
+    .enchant-avatar-slot-icon img,
+    .enchant-avatar-slot-placeholder {
+      display: block;
       width: 28px;
       height: 28px;
-      border: 1px solid color-mix(in srgb, #f1dfa8 62%, transparent);
-      background: color-mix(in srgb, #facc15 14%, transparent);
+    }
+    .enchant-avatar-slot-icon img {
+      object-fit: cover;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .enchant-avatar-slot-placeholder {
+      border: 1px solid color-mix(in srgb, #eacbf2 68%, transparent);
+      background: color-mix(in srgb, #eacbf2 14%, transparent);
     }
     .enchant-portrait-detail-panel {
       width: 100%;
