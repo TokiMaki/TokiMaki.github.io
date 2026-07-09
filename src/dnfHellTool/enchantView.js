@@ -4131,9 +4131,12 @@ export function installEnchantView(ctx) {
     return colors;
   }
 
-  function getAvatarPlatinumBadgeState(slotKey) {
+  function getAvatarPlatinumBadgeState(slotKey, avatarSlot = {}) {
     const slotLabel = AVATAR_PLATINUM_SLOT_LABEL_BY_KEY[slotKey];
     if (!slotLabel) {
+      return '';
+    }
+    if (String(avatarSlot.itemRarity || '').trim() !== '레어') {
       return '';
     }
     const platinumSlots = state.currentAvatar?.avatar?.platinumSlots;
@@ -4148,10 +4151,11 @@ export function installEnchantView(ctx) {
     const key = String(slot?.key || '').trim();
     const slotId = AVATAR_LOADOUT_SLOT_ID_BY_KEY[key] || '';
     const avatarSlot = slotsById[slotId] || {};
+    const hasAvatarItem = Boolean(String(avatarSlot.itemId || avatarSlot.itemName || '').trim());
     const itemName = String(avatarSlot.itemName || '').trim();
     const iconUrl = String(avatarSlot.iconUrl || '').trim();
-    const emblemBadgeColors = getAvatarEmblemBadgeColors(key, avatarSlot);
-    const platinumBadgeState = getAvatarPlatinumBadgeState(key);
+    const emblemBadgeColors = hasAvatarItem ? getAvatarEmblemBadgeColors(key, avatarSlot) : [];
+    const platinumBadgeState = hasAvatarItem ? getAvatarPlatinumBadgeState(key, avatarSlot) : '';
     const ariaLabel = itemName || `${label} 클론 레어 아바타`;
     return `
       <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
@@ -4162,9 +4166,11 @@ export function installEnchantView(ctx) {
           ${platinumBadgeState
             ? `<span class="enchant-avatar-platinum-badge enchant-avatar-platinum-badge-${escapeHtml(platinumBadgeState)}"></span>`
             : ''}
-          <span class="enchant-avatar-emblem-badges">
-            ${emblemBadgeColors.map((color) => `<span class="enchant-avatar-emblem-badge enchant-avatar-emblem-badge-${escapeHtml(color)}"></span>`).join('')}
-          </span>
+          ${emblemBadgeColors.length
+            ? `<span class="enchant-avatar-emblem-badges">
+                ${emblemBadgeColors.map((color) => `<span class="enchant-avatar-emblem-badge enchant-avatar-emblem-badge-${escapeHtml(color)}"></span>`).join('')}
+              </span>`
+            : ''}
         </span>
       </span>
     `;

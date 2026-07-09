@@ -129,21 +129,27 @@ def get_avatar_emblem_item_name(stat_name: str, kind: str) -> str:
     return f"찬란한 듀얼 엠블렘[{stat_name} + {critical_name}]"
 
 
-def get_avatar_emblem_search_prefixes(kind: str) -> list[str]:
+def get_avatar_emblem_search_prefixes(kind: str, stat_name: str = "") -> list[str]:
+    stat_name = clean_text(stat_name)
     if kind == "red":
         return ["찬란한 붉은빛 엠블렘["]
     if kind == "yellow":
         return ["찬란한 옐로우 엠블렘["]
     if kind == "green":
-        return ["찬란한 그린 엠블렘[", "찬란한 듀얼 엠블렘["]
-    return ["찬란한 듀얼 엠블렘["]
+        prefixes = ["찬란한 그린 엠블렘["]
+        if stat_name in {"힘", "지능"}:
+            prefixes.append(f"찬란한 듀얼 엠블렘[{stat_name} +")
+        return prefixes
+    if stat_name in {"힘", "지능"}:
+        return [f"찬란한 듀얼 엠블렘[{stat_name} +"]
+    return []
 
 
 def _find_lowest_avatar_emblem_by_prefix_uncached(stat_name: str, kind: str, debug_steps: list | None = None) -> dict:
     stat_name = clean_text(stat_name)
     candidates = []
     seen_ids = set()
-    for prefix in get_avatar_emblem_search_prefixes(kind):
+    for prefix in get_avatar_emblem_search_prefixes(kind, stat_name):
         started_at = time.perf_counter()
         prefix_candidate = {}
         pages_checked = 0
@@ -213,7 +219,7 @@ def find_lowest_avatar_emblem_by_prefix(stat_name: str, kind: str, debug_steps: 
         "prefix_lowest",
         stat_name,
         kind,
-        tuple(get_avatar_emblem_search_prefixes(kind)),
+        tuple(get_avatar_emblem_search_prefixes(kind, stat_name)),
         AVATAR_EMBLEM_AUCTION_PAGE_LIMIT,
         AVATAR_EMBLEM_AUCTION_MAX_PAGES,
     )

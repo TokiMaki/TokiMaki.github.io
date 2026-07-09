@@ -2365,6 +2365,12 @@ def load_buffer_switching_title_recommendations(
         buff_skill_name,
         required_level,
     )
+    viable_configs = [
+        config for config in matching_configs
+        if int(config.get("totalBuffSkillLevelDelta") or 0) > current_contribution
+    ]
+    if not viable_configs:
+        return []
 
     base_detail_by_id = {
         clean_text(detail.get("itemId")): detail
@@ -2381,7 +2387,7 @@ def load_buffer_switching_title_recommendations(
         buff_skill_name,
     )
     recommendations = []
-    for config in matching_configs:
+    for config in viable_configs:
         candidate_price = load_switching_title_price_candidate(config, job_name, buff_skill_name)
         if not candidate_price:
             continue
