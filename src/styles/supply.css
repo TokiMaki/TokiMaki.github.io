@@ -1208,6 +1208,33 @@
         radial-gradient(circle at 28% 24%, rgb(255 255 255 / 0.62), transparent 28%),
         linear-gradient(135deg, #b5bec8 0%, #6f7885 52%, #303743 100%);
     }
+    .enchant-avatar-platinum-badge {
+      position: absolute;
+      left: 1px;
+      bottom: 1px;
+      z-index: 2;
+      display: block;
+      width: 6px;
+      height: 6px;
+      border: 1px solid rgb(0 0 0 / 0.85);
+      background:
+        radial-gradient(circle at 28% 24%, rgb(255 255 255 / 0.58), transparent 30%),
+        linear-gradient(135deg, #aeb7c3 0%, #68727e 52%, #2d3440 100%);
+      box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.38),
+        inset 0 -1px 1px rgb(0 0 0 / 0.5),
+        0 0 2px rgb(0 0 0 / 0.8);
+      pointer-events: none;
+    }
+    .enchant-avatar-platinum-badge-filled {
+      background:
+        radial-gradient(circle at 28% 24%, rgb(255 255 247 / 0.92), transparent 30%),
+        linear-gradient(135deg, #eaf9ff 0%, #8fd3f3 46%, #2f7fa8 100%);
+      box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.55),
+        inset 0 -1px 1px rgb(0 0 0 / 0.55),
+        0 0 2px rgb(0 0 0 / 0.8);
+    }
     .enchant-portrait-detail-panel {
       width: 100%;
       min-height: 64px;

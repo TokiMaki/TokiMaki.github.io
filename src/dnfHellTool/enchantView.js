@@ -190,6 +190,10 @@ const AVATAR_FIXED_EMBLEM_COLOR_BY_SLOT_KEY = {
   waist: 'blue',
   shoes: 'blue',
 };
+const AVATAR_PLATINUM_SLOT_LABEL_BY_KEY = {
+  top: '상의 아바타',
+  bottom: '하의 아바타',
+};
 const ELEMENT_EFFECT_KEY_BY_NAME = {
   fire: 'elementFire',
   water: 'elementWater',
@@ -4127,6 +4131,15 @@ export function installEnchantView(ctx) {
     return colors;
   }
 
+  function getAvatarPlatinumBadgeState(slotKey) {
+    const slotLabel = AVATAR_PLATINUM_SLOT_LABEL_BY_KEY[slotKey];
+    if (!slotLabel) {
+      return '';
+    }
+    const platinumSlots = state.currentAvatar?.avatar?.platinumSlots;
+    return Array.isArray(platinumSlots) && platinumSlots.includes(slotLabel) ? 'filled' : 'empty';
+  }
+
   function renderAvatarLoadoutSlot(slot, slotsById) {
     if (!slot) {
       return '<span class="enchant-avatar-slot-gap" aria-hidden="true"></span>';
@@ -4138,13 +4151,17 @@ export function installEnchantView(ctx) {
     const itemName = String(avatarSlot.itemName || '').trim();
     const iconUrl = String(avatarSlot.iconUrl || '').trim();
     const emblemBadgeColors = getAvatarEmblemBadgeColors(key, avatarSlot);
+    const platinumBadgeState = getAvatarPlatinumBadgeState(key);
     const ariaLabel = itemName || `${label} 클론 레어 아바타`;
     return `
-      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
         <span class="enchant-avatar-slot-icon" aria-hidden="true">
           ${iconUrl
             ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
             : '<span class="enchant-avatar-slot-placeholder"></span>'}
+          ${platinumBadgeState
+            ? `<span class="enchant-avatar-platinum-badge enchant-avatar-platinum-badge-${escapeHtml(platinumBadgeState)}"></span>`
+            : ''}
           <span class="enchant-avatar-emblem-badges">
             ${emblemBadgeColors.map((color) => `<span class="enchant-avatar-emblem-badge enchant-avatar-emblem-badge-${escapeHtml(color)}"></span>`).join('')}
           </span>
