@@ -4118,28 +4118,48 @@ export function installEnchantView(ctx) {
     return /플래티넘|platinum/i.test(text);
   }
 
-  function getAvatarEmblemColorFromText(emblem = {}) {
-    const text = [
-      emblem.itemName,
-      emblem.name,
-      emblem.emblemName,
-      emblem.slotColor,
-      emblem.color,
-    ].filter(Boolean).join(' ');
-    if (/다색|삼색|3색|트리플|멀티/i.test(text)) return 'red';
-    if (/붉|빨강|적색|red/i.test(text)) return 'red';
-    if (/노란|노랑|황색|yellow/i.test(text)) return 'yellow';
-    if (/녹색|초록|green/i.test(text)) return 'green';
-    if (/푸른|파랑|청색|blue/i.test(text)) return 'blue';
-    return '';
+  function getAvatarEmblemDisplayColor(itemName = '', slotColor = '') {
+    const itemText = String(itemName || '').trim();
+    const slotText = String(slotColor || '').trim();
+    if (!itemText) return 'gray';
+    const getFixedColor = (text) => {
+      if (text.includes('붉은빛')) return 'red';
+      if (/노란빛|옐로우/.test(text)) return 'yellow';
+      if (/녹색빛|그린/.test(text)) return 'green';
+      if (text.includes('푸른빛')) return 'blue';
+      return '';
+    };
+    const fixedSlotColor = ['red', 'yellow', 'green', 'blue'].includes(slotText)
+      ? slotText
+      : getFixedColor(slotText);
+    const isMulticolorSlot = slotText === '다색';
+    if (fixedSlotColor) return fixedSlotColor;
+
+    if (itemText.includes('듀얼')) {
+      if (isMulticolorSlot) return /힘|지능/.test(itemText) ? 'red' : 'yellow';
+      return 'gray';
+    }
+
+    const itemColor = getFixedColor(itemText);
+    if (itemColor) return itemColor;
+    if (itemText.includes('다색')) return 'red';
+    return 'gray';
+  }
+
+  function getAvatarEmblemColor(slotKey, emblem = {}) {
+    const itemName = emblem.itemName || emblem.name || emblem.emblemName || '';
+    const slotColor = AVATAR_FIXED_EMBLEM_COLOR_BY_SLOT_KEY[slotKey]
+      || emblem.slotColor
+      || emblem.color
+      || '';
+    return getAvatarEmblemDisplayColor(itemName, slotColor);
   }
 
   function getAvatarEmblemBadgeColors(slotKey, avatarSlot = {}) {
     const normalEmblems = getAvatarSlotEmblems(avatarSlot).filter((emblem) => !isPlatinumAvatarEmblem(emblem));
-    const fixedColor = AVATAR_FIXED_EMBLEM_COLOR_BY_SLOT_KEY[slotKey];
     const colors = normalEmblems
       .slice(0, 2)
-      .map((emblem) => fixedColor || getAvatarEmblemColorFromText(emblem) || 'gray');
+      .map((emblem) => getAvatarEmblemColor(slotKey, emblem));
     while (colors.length < 2) {
       colors.push('gray');
     }
@@ -4147,7 +4167,7 @@ export function installEnchantView(ctx) {
   }
 
   function getAvatarEmblemDetailColor(slotKey, emblem = {}) {
-    return AVATAR_FIXED_EMBLEM_COLOR_BY_SLOT_KEY[slotKey] || getAvatarEmblemColorFromText(emblem) || 'gray';
+    return getAvatarEmblemColor(slotKey, emblem);
   }
 
   function getAvatarPlatinumDetailLine(slotKey, avatarSlot = {}) {
