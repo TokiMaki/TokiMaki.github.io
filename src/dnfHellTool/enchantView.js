@@ -194,6 +194,15 @@ const AVATAR_PLATINUM_SLOT_LABEL_BY_KEY = {
   top: '상의 아바타',
   bottom: '하의 아바타',
 };
+const BUFF_LOADOUT_EQUIPMENT_SLOT_ROWS = [
+  ['상의', '하의', '무기', '칭호'],
+  ['머리어깨', '허리', '팔찌', '목걸이'],
+  ['신발', null, '반지', '보조장비'],
+  [null, null, '귀걸이', '마법석'],
+];
+const BUFF_LOADOUT_SLOT_NAME_ALIASES = {
+  벨트: '허리',
+};
 const ELEMENT_EFFECT_KEY_BY_NAME = {
   fire: 'elementFire',
   water: 'elementWater',
@@ -3709,6 +3718,7 @@ export function installEnchantView(ctx) {
   state.currentTitle = null;
   state.currentAura = null;
   state.currentAvatar = null;
+  state.currentBuffLoadout = null;
   state.switchingTitleRecommendations = [];
   state.switchingCreatureRecommendations = [];
   state.switchingFragmentRecommendations = [];
@@ -4284,11 +4294,127 @@ export function installEnchantView(ctx) {
     `;
   }
 
+  function getBuffLoadoutRows(value) {
+    if (Array.isArray(value)) return value.filter((row) => row && typeof row === 'object');
+    return value && typeof value === 'object' ? [value] : [];
+  }
+
+  function getBuffLoadoutData() {
+    const loadout = state.currentBuffLoadout || {};
+    const equipmentRows = getBuffLoadoutRows(loadout.equipment);
+    const equipmentBySlotName = equipmentRows.reduce((map, row) => {
+      const rawSlotName = String(row?.slotName || '').trim();
+      const slotName = BUFF_LOADOUT_SLOT_NAME_ALIASES[rawSlotName] || rawSlotName;
+      if (slotName) map[slotName] = row;
+      return map;
+    }, {});
+    const avatarRows = getBuffLoadoutRows(loadout.avatar);
+    const avatarBySlotId = avatarRows.reduce((map, row) => {
+      const slotId = String(row?.slotId || '').trim();
+      if (slotId) map[slotId] = row;
+      return map;
+    }, {});
+    const creature = getBuffLoadoutRows(loadout.creature)[0] || null;
+    const skillInfo = loadout.skillInfo || {};
+    const baseline = state.currentBufferBaseline || {};
+    return {
+      equipmentBySlotName,
+      avatarBySlotId,
+      creature,
+      skill: {
+        name: String(skillInfo.name || baseline.buffSkillName || '').trim(),
+        level: Number(skillInfo.level || baseline.buffSkillLevel || 0),
+        iconUrl: String(skillInfo.iconUrl || '').trim(),
+      },
+    };
+  }
+
+  function renderBuffLoadoutSlot(item, label, extraClass = '') {
+    if (!item) {
+      return `
+        <span class="enchant-buff-slot ${escapeHtml(extraClass)}" aria-label="${escapeHtml(label)} 비어 있음">
+          <span class="enchant-character-slot is-empty">
+            <span class="enchant-character-slot-placeholder" aria-hidden="true"></span>
+          </span>
+        </span>
+      `;
+    }
+    const itemName = String(item.itemName || item.name || label).trim();
+    const iconUrl = String(item.iconUrl || '').trim();
+    const rarityClass = getLoadoutRarityClass(item);
+    const detailLines = [
+      String(item.optionAbility || '').trim(),
+    ].filter(Boolean).map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' }));
+    return `
+      <span class="enchant-buff-slot ${escapeHtml(extraClass)}" tabindex="0" aria-label="${escapeHtml(itemName)}" data-buff-loadout-detail data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
+        <span class="enchant-character-slot${iconUrl ? '' : ' is-empty'}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}">
+          ${iconUrl
+            ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
+            : '<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>'}
+        </span>
+      </span>
+    `;
+  }
+
+  function renderBuffLoadoutBoard() {
+    const { equipmentBySlotName, avatarBySlotId, creature, skill } = getBuffLoadoutData();
+    const skillDetailLines = skill.level > 0
+      ? [{ text: `Lv. ${skill.level}`, className: 'enchant-portrait-detail-line-effect' }]
+      : [];
+    const skillDetailAttrs = skill.name
+      ? ` tabindex="0" data-buff-loadout-detail data-detail-title="${escapeHtml(skill.name)}" data-detail-lines="${escapeHtml(JSON.stringify(skillDetailLines))}"`
+      : '';
+    return `
+      <div class="enchant-buff-board" aria-label="버프강화 장착 정보">
+        <section class="enchant-buff-section enchant-buff-section-skill">
+          <h3>스킬</h3>
+          <div class="enchant-buff-section-body enchant-buff-skill-body"${skillDetailAttrs}>
+            <span class="enchant-character-slot${skill.iconUrl ? '' : ' is-empty'}">
+              ${skill.iconUrl
+                ? `<img src="${escapeHtml(skill.iconUrl)}" alt="" loading="lazy" decoding="async" />`
+                : '<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>'}
+            </span>
+            ${skill.name ? `<span class="enchant-buff-skill-name" title="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}</span>` : ''}
+            ${skill.level > 0 ? `<span class="enchant-buff-skill-level">Lv. ${escapeHtml(String(skill.level))}</span>` : ''}
+          </div>
+        </section>
+        <section class="enchant-buff-section enchant-buff-section-equipment">
+          <h3>장비</h3>
+          <div class="enchant-buff-section-body">
+            <div class="enchant-buff-equipment-grid">
+              ${BUFF_LOADOUT_EQUIPMENT_SLOT_ROWS.flatMap((row) => row).map((slotName) => (
+                slotName
+                  ? renderBuffLoadoutSlot(equipmentBySlotName[slotName], slotName, `enchant-buff-slot-${slotName}`)
+                  : '<span class="enchant-buff-slot-gap" aria-hidden="true"></span>'
+              )).join('')}
+            </div>
+          </div>
+        </section>
+        <section class="enchant-buff-section enchant-buff-section-avatar">
+          <h3>아바타</h3>
+          <div class="enchant-buff-section-body">
+            <div class="enchant-buff-avatar-stack">
+              ${renderBuffLoadoutSlot(avatarBySlotId.JACKET, '상의 아바타')}
+              ${renderBuffLoadoutSlot(avatarBySlotId.PANTS, '하의 아바타')}
+            </div>
+          </div>
+        </section>
+        <section class="enchant-buff-section enchant-buff-section-creature">
+          <h3>크리쳐</h3>
+          <div class="enchant-buff-section-body">
+            ${renderBuffLoadoutSlot(creature, '크리쳐')}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
   function renderEnchantLoadoutTabs(activeTab) {
     const tabs = [
       ['equipment', '장비'],
       ['oath', '서약'],
       ['avatar', '아바타'],
+      ['buff', '버프강화'],
     ];
     return `
       <div class="enchant-loadout-tabs" role="tablist" aria-label="캐릭터 로드아웃">
@@ -4406,6 +4532,26 @@ export function installEnchantView(ctx) {
     resetEnchantPortraitDetailPanel();
   }
 
+  function bindBuffLoadoutDetailPanel() {
+    if (!els.enchantCharacterPortrait) return;
+    const slots = [...els.enchantCharacterPortrait.querySelectorAll('[data-buff-loadout-detail]')];
+    slots.forEach((slot) => {
+      const title = String(slot.dataset.detailTitle || '').trim();
+      let lines = [];
+      try {
+        lines = JSON.parse(slot.dataset.detailLines || '[]');
+      } catch {
+        lines = [];
+      }
+      const activate = () => setEnchantPortraitDetailPanel(title, lines);
+      slot.addEventListener('mouseenter', activate);
+      slot.addEventListener('focus', activate);
+      slot.addEventListener('mouseleave', resetEnchantPortraitDetailPanel);
+      slot.addEventListener('blur', resetEnchantPortraitDetailPanel);
+    });
+    resetEnchantPortraitDetailPanel();
+  }
+
   function renderEnchantCharacterPortrait() {
     if (!els.enchantCharacterPortrait) return;
     const character = state.enchantTargetCharacter;
@@ -4413,7 +4559,7 @@ export function installEnchantView(ctx) {
       els.enchantCharacterPortrait.innerHTML = '<div class="table-empty-cell">캐릭터 검색을 해주세요.</div>';
       return;
     }
-    const activeTab = ['equipment', 'oath', 'avatar'].includes(state.enchantLoadoutTab)
+    const activeTab = ['equipment', 'oath', 'avatar', 'buff'].includes(state.enchantLoadoutTab)
       ? state.enchantLoadoutTab
       : 'equipment';
     const loadoutMarkup = `
@@ -4425,6 +4571,8 @@ export function installEnchantView(ctx) {
             ? renderOathLoadoutBoard()
             : activeTab === 'avatar'
               ? renderAvatarLoadoutBoard(character)
+              : activeTab === 'buff'
+                ? renderBuffLoadoutBoard()
               : '',
         })}
       </div>
@@ -4455,6 +4603,13 @@ export function installEnchantView(ctx) {
         <div class="enchant-portrait-detail-panel enchant-portrait-detail-panel-avatar" data-enchant-portrait-detail>
           <div class="enchant-portrait-detail-title" data-enchant-portrait-detail-title>아바타 슬롯</div>
           <div class="enchant-portrait-detail-body" data-enchant-portrait-detail-body>클론 레어 아바타 기준 임시 표시입니다.</div>
+        </div>
+      `);
+    } else if (activeTab === 'buff' && characterName) {
+      characterName.insertAdjacentHTML('beforeend', `
+        <div class="enchant-portrait-detail-panel" data-enchant-portrait-detail>
+          <div class="enchant-portrait-detail-title" data-enchant-portrait-detail-title>버프강화 상세</div>
+          <div class="enchant-portrait-detail-body" data-enchant-portrait-detail-body>버프강화 슬롯에 마우스를 올리면 상세 정보가 표시됩니다.</div>
         </div>
       `);
     }
@@ -4493,6 +4648,8 @@ export function installEnchantView(ctx) {
       bindOathCrystalDetailPanel();
     } else if (activeTab === 'avatar') {
       bindAvatarSlotDetailPanel();
+    } else if (activeTab === 'buff') {
+      bindBuffLoadoutDetailPanel();
     } else if (activeTab === 'equipment') {
       bindEnchantPortraitDetailPanel();
     }
@@ -4714,6 +4871,7 @@ export function installEnchantView(ctx) {
     state.currentTitle = null;
     state.currentAura = null;
     state.currentAvatar = null;
+    state.currentBuffLoadout = null;
     state.switchingTitleRecommendations = [];
     state.switchingCreatureRecommendations = [];
     state.switchingFragmentRecommendations = [];
@@ -5596,6 +5754,7 @@ export function installEnchantView(ctx) {
     state.currentTitle = payload.title || null;
     state.currentAura = payload.aura || null;
     state.currentAvatar = payload.avatar || null;
+    state.currentBuffLoadout = payload.buffLoadout || null;
     state.switchingTitleRecommendations = Array.isArray(payload.switchingTitleRecommendations) ? payload.switchingTitleRecommendations : [];
     state.switchingCreatureRecommendations = Array.isArray(payload.switchingCreatureRecommendations) ? payload.switchingCreatureRecommendations : [];
     state.switchingFragmentRecommendations = Array.isArray(payload.switchingFragmentRecommendations) ? payload.switchingFragmentRecommendations : [];
@@ -5976,7 +6135,7 @@ export function installEnchantView(ctx) {
     if (!target) return;
     event.preventDefault();
     const requestedTab = String(target.dataset.enchantLoadoutTab || '');
-    const nextTab = ['equipment', 'oath', 'avatar'].includes(requestedTab) ? requestedTab : 'equipment';
+    const nextTab = ['equipment', 'oath', 'avatar', 'buff'].includes(requestedTab) ? requestedTab : 'equipment';
     if (state.enchantLoadoutTab === nextTab) return;
     state.enchantLoadoutTab = nextTab;
     renderEnchantCharacterPortrait();

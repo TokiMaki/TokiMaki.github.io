@@ -673,7 +673,7 @@
     }
     .enchant-loadout-tabs {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 0;
       width: 100%;
       max-width: 254px;
@@ -730,8 +730,135 @@
       min-width: 0;
     }
     .enchant-loadout-panel-oath .supply-detail-portrait-crop,
-    .enchant-loadout-panel-avatar .supply-detail-portrait-crop {
+    .enchant-loadout-panel-avatar .supply-detail-portrait-crop,
+    .enchant-loadout-panel-buff .supply-detail-portrait-crop {
       display: contents;
+    }
+    .enchant-buff-board,
+    .enchant-buff-board * {
+      box-sizing: border-box;
+    }
+    .enchant-buff-board {
+      display: grid;
+      grid-template-columns: 38px 144px 35px 35px;
+      width: 254px;
+      height: 178px;
+      margin: 0 auto;
+      border: 1px solid rgb(67 58 43 / 0.78);
+      background: #090a0d;
+      box-shadow:
+        inset 0 1px 0 rgb(255 232 170 / 0.035),
+        inset 0 0 0 1px rgb(0 0 0 / 0.22),
+        0 2px 7px rgb(0 0 0 / 0.24);
+      overflow: hidden;
+    }
+    .enchant-buff-section {
+      display: grid;
+      grid-template-rows: 24px minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .enchant-buff-section + .enchant-buff-section {
+      border-left: 1px solid rgb(67 58 43 / 0.68);
+    }
+    .enchant-buff-section h3 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      margin: 0;
+      border-bottom: 1px solid rgb(67 58 43 / 0.52);
+      background: rgb(15 13 10 / 0.72);
+      color: color-mix(in srgb, var(--muted) 88%, #d6c39a);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .enchant-buff-section-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      min-height: 0;
+    }
+    .enchant-buff-equipment-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 34px);
+      grid-template-rows: repeat(4, 34px);
+      gap: 2px;
+      width: 142px;
+      height: 142px;
+    }
+    .enchant-buff-section-equipment .enchant-buff-section-body {
+      align-items: flex-start;
+    }
+    .enchant-buff-slot,
+    .enchant-buff-slot-gap {
+      display: block;
+      width: 34px;
+      height: 34px;
+      min-width: 0;
+    }
+    .enchant-buff-slot {
+      outline: none;
+    }
+    .enchant-buff-slot .enchant-character-slot {
+      display: flex;
+      width: 34px;
+      height: 34px;
+      box-shadow: none;
+    }
+    .enchant-buff-avatar-stack {
+      display: grid;
+      grid-template-rows: repeat(2, 34px);
+      gap: 2px;
+      width: 34px;
+      height: 70px;
+    }
+    .enchant-buff-section-avatar .enchant-buff-section-body {
+      align-items: flex-start;
+      padding-top: 36px;
+    }
+    .enchant-buff-section-creature .enchant-buff-section-body {
+      align-items: flex-start;
+      padding-top: 19px;
+    }
+    .enchant-buff-skill-body {
+      align-content: start;
+      display: grid;
+      grid-template-columns: 34px;
+      grid-auto-rows: max-content;
+      justify-content: center;
+      gap: 3px;
+      padding: 36px 2px 0;
+      outline: none;
+      text-align: center;
+    }
+    .enchant-buff-skill-body .enchant-character-slot {
+      width: 34px;
+      height: 34px;
+      box-shadow: none;
+    }
+    .enchant-buff-skill-name {
+      display: -webkit-box;
+      max-width: 34px;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .enchant-buff-skill-level {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
     }
     .enchant-character-portrait img {
       -webkit-user-drag: none;
