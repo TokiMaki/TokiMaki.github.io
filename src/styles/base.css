@@ -193,9 +193,10 @@
       filter: drop-shadow(0 8px 22px rgb(0 0 0 / 0.6));
     }
     .landing-copy {
-      margin: 0 0 30px;
+      margin: -2px 0 30px;
       color: var(--muted);
-      font-size: 15px;
+      font-size: 14px;
+      line-height: 1.45;
     }
     .landing-copy span + span::before {
       content: " ";
@@ -501,7 +502,7 @@
         letter-spacing: 0.16em;
       }
       .landing-copy {
-        font-size: clamp(11px, 3.7vw, 15px);
+        font-size: clamp(11px, 3.5vw, 14px);
         line-height: 1.45;
       }
       .landing-copy span {
