@@ -1,4 +1,5 @@
 import logoImage from '../../이미지/로고/logo.png';
+import SiteLegalFooter from './SiteLegalFooter';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -81,6 +82,9 @@ export default function PrivacyPolicyPage() {
         <h2>제8조 개인정보 처리방침의 변경</h2>
         <p>개인정보 처리방침의 내용이 변경되는 경우 던파일럿은 본 페이지를 통해 안내합니다.</p>
       </article>
+      <footer className={'neople-bi-footer document-page-footer'}>
+        <SiteLegalFooter />
+      </footer>
     </main>
   );
 }
