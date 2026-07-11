@@ -239,6 +239,173 @@ def prefetch_loadout_item_details(server_id: str, character_id: str) -> dict:
     return {"itemCount": len(item_ids), "errors": errors}
 
 
+def build_buff_loadout_item_payload(row: dict, buff_contribution: dict | None = None) -> dict:
+    if not isinstance(row, dict):
+        return {}
+    item_id = clean_text(row.get("itemId"))
+    if not item_id and not clean_item_display_name(row.get("itemName")):
+        return {}
+    payload = {
+        "slotId": clean_text(row.get("slotId")),
+        "slotName": clean_text(row.get("slotName")),
+        "itemId": item_id,
+        "itemName": clean_item_display_name(row.get("itemName")),
+        "itemRarity": clean_text(row.get("itemRarity")),
+        "iconUrl": get_item_icon_url(item_id),
+        "optionAbility": clean_text(row.get("optionAbility")),
+    }
+    if buff_contribution is not None:
+        payload["buffContribution"] = buff_contribution
+    return payload
+
+
+def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
+    equipment_payload = get_character_cached_payload(
+        server_id,
+        character_id,
+        "buff_equipment",
+        "skill/buff/equip/equipment",
+    )
+    avatar_payload = get_character_cached_payload(
+        server_id,
+        character_id,
+        "buff_avatar",
+        "skill/buff/equip/avatar",
+    )
+    creature_payload = get_character_cached_payload(
+        server_id,
+        character_id,
+        "buff_creature",
+        "skill/buff/equip/creature",
+    )
+    equipment_buff = ((equipment_payload.get("skill") or {}).get("buff") or {})
+    avatar_buff = ((avatar_payload.get("skill") or {}).get("buff") or {})
+    creature_buff = ((creature_payload.get("skill") or {}).get("buff") or {})
+    skill_info = equipment_buff.get("skillInfo") or avatar_buff.get("skillInfo") or creature_buff.get("skillInfo") or {}
+    buff_skill_name = clean_text(skill_info.get("name"))
+    job_name = clean_text(equipment_payload.get("jobName"))
+    job_grow_name = clean_text(equipment_payload.get("jobGrowName"))
+    if not job_name or not job_grow_name:
+        status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
+        job_name = job_name or clean_text(status_payload.get("jobName"))
+        job_grow_name = job_grow_name or clean_text(status_payload.get("jobGrowName"))
+    switching_context = {
+        "jobName": job_name,
+        "jobGrowName": job_grow_name,
+    }
+    switching_entry = find_dealer_switching_buff_entry(
+        switching_context,
+        is_dealer_crusader=job_name == "프리스트(남)" and buff_skill_name == "성령의 메이스",
+    )
+    max_skill_level = int((load_dealer_switching_buff_db().get("metadata") or {}).get("baseLevel") or 0) if (
+        switching_entry and clean_text(switching_entry.get("buffSkillName")) == buff_skill_name
+    ) else 0
+    equivalent_skill_names = [
+        clean_text(skill_name)
+        for skill_name in switching_entry.get("equivalentSwitchingPlatinumSkills") or []
+        if clean_text(skill_name)
+    ]
+    target_skill_names = get_switching_creature_target_skill_names(buff_skill_name, equivalent_skill_names)
+    required_level = get_buff_skill_required_level(server_id, character_id, skill_info) if buff_skill_name else 0
+    target_required_levels = get_switching_skill_required_levels(
+        server_id,
+        character_id,
+        skill_info,
+        target_skill_names,
+    ) if required_level > 0 else []
+    equipment_rows = [row for row in equipment_buff.get("equipment") or [] if isinstance(row, dict)]
+    avatar_rows = [row for row in avatar_buff.get("avatar") or [] if isinstance(row, dict)]
+    creature_rows = creature_buff.get("creature") or []
+    if isinstance(creature_rows, dict):
+        creature_rows = [creature_rows]
+    creature_rows = [row for row in creature_rows if isinstance(row, dict)]
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details([
+            clean_text(row.get("itemId"))
+            for row in [*equipment_rows, *creature_rows]
+            if clean_text(row.get("itemId"))
+        ])
+        if clean_text(detail.get("itemId"))
+    }
+
+    def build_equipment_contribution(row: dict) -> dict:
+        item_id = clean_text(row.get("itemId"))
+        detail = detail_by_id.get(item_id) or {}
+        if clean_text(row.get("slotId")) == "TITLE":
+            skill_level = None if not required_level or not detail else get_switching_title_contribution(
+                row,
+                detail,
+                job_name,
+                buff_skill_name,
+                required_level,
+                equivalent_skill_names,
+                target_required_levels,
+            )
+            return {"skillLevel": skill_level}
+        additional_rate = None if not detail else get_switching_fragment_coefficients(
+            detail,
+            buff_skill_name,
+            1,
+        )[0]
+        return {
+            "additionalRatePercent": additional_rate,
+            "additionalRateText": clean_text(get_item_explain(detail)) if additional_rate else "",
+        }
+
+    def build_avatar_contribution(row: dict) -> dict:
+        platinum_skill_level = sum(
+            1
+            for emblem in get_platinum_emblems(row)
+            if is_matching_switching_platinum_emblem(emblem, target_skill_names)
+        )
+        if clean_text(row.get("slotId")) == "JACKET":
+            return {
+                "topOptionSkillLevel": 1 if has_matching_switching_avatar_top_option(row, target_skill_names) else 0,
+                "platinumSkillLevel": platinum_skill_level,
+            }
+        return {"platinumSkillLevel": platinum_skill_level}
+
+    def build_creature_contribution(row: dict) -> dict:
+        item_id = clean_text(row.get("itemId"))
+        detail = detail_by_id.get(item_id) or {}
+        skill_level = None if not required_level or not detail else get_switching_creature_contribution(
+            row,
+            detail,
+            job_name,
+            buff_skill_name,
+            required_level,
+            equivalent_skill_names,
+            target_required_levels,
+        )
+        return {"skillLevel": skill_level}
+
+    return {
+        "skillInfo": {
+            "skillId": clean_text(skill_info.get("skillId")),
+            "name": clean_text(skill_info.get("name")),
+            "level": int(((skill_info.get("option") or {}).get("level")) or 0),
+            "maxLevel": max_skill_level,
+            "iconUrl": "",
+        },
+        "equipment": [
+            item
+            for row in equipment_rows
+            if (item := build_buff_loadout_item_payload(row, build_equipment_contribution(row)))
+        ],
+        "avatar": [
+            item
+            for row in avatar_rows
+            if (item := build_buff_loadout_item_payload(row, build_avatar_contribution(row)))
+        ],
+        "creature": [
+            item
+            for row in creature_rows
+            if (item := build_buff_loadout_item_payload(row, build_creature_contribution(row)))
+        ],
+    }
+
+
 def status_rows_to_map(status_rows: list) -> dict:
     return {
         clean_text(status.get("name")): parse_percent_or_number(status.get("value"))
@@ -2631,6 +2798,11 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
                 else load_dealer_switching_creature_recommendations(server_id, character_id)
             ),
         )
+        buff_loadout = _measure_step(
+            steps,
+            "build_buff_loadout",
+            lambda: build_buff_loadout_payload(server_id, character_id),
+        )
         damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
         avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
         if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
@@ -2658,6 +2830,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             "title": title_payload.get("title"),
             "aura": aura_payload.get("aura"),
             "avatar": avatar_payload,
+            "buffLoadout": buff_loadout,
             "switchingTitleRecommendations": switching_title_recommendations,
             "switchingFragmentRecommendations": switching_fragment_recommendations,
             "switchingCreatureRecommendations": switching_creature_recommendations,

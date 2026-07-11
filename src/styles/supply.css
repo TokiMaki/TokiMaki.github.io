@@ -823,7 +823,7 @@
     }
     .enchant-buff-section-creature .enchant-buff-section-body {
       align-items: flex-start;
-      padding-top: 19px;
+      padding-top: 54px;
     }
     .enchant-buff-skill-body {
       align-content: start;
@@ -857,6 +857,13 @@
       color: var(--muted);
       font-size: 9px;
       font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .enchant-buff-skill-max {
+      color: #39ce43;
+      font-size: 9px;
+      font-weight: 800;
       line-height: 1;
       white-space: nowrap;
     }

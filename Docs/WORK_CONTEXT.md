@@ -23,6 +23,7 @@
 - 최근 마부 정책: 업그레이드 가능한 마법부여 카드/보주는 효과를 max upgrade 기준으로 쓰므로 가격도 `upgrade == upgradeMax`인 풀업 경매장 row만 인정한다. 풀업 매물이 없으면 노업 가격으로 효율을 계산하지 않고 기존 가격 없음 흐름을 탄다. 같은 부위/효과 방향에서 가성비 또는 준종결 마부가 상위 tier보다 실제 효율이 낮으면 추천 row 후처리에서 제외한다.
 - 최근 강화/증폭 정책: 무기 강화/증폭 추천은 현재 공격력 기준이 독립공격력이고 무기 재련이 있으면 115레벨 재련 독공 표를 반영한다. 독공 실효 증가는 `max(강화/증폭 독공, 현재 재련 독공)` 전후 차이만 인정하고, 12강 이상 최종 데미지 보너스는 기존처럼 별도 반영한다. 독공 비증폭 무기는 안전강화와 무기 증폭 후보를 비교해 효율 좋은 1개만 남긴다.
 - 최근 버프강화 정책: 딜러 스위칭 칭호/크리쳐 contribution 계산은 `buffSkillName`과 `equivalentSwitchingPlatinumSkills`를 함께 인정한다. 레벨 범위형 효과는 target skill별 requiredLevel을 독립 합산하고, 추천 실효 상승량은 스위칭 레벨 cap 7을 적용한다.
+- 최근 버프강화 UI: `buffLoadout` 슬롯에는 기존 판별 helper로 계산한 선택적 `buffContribution` 요약만 추가하며, 프론트 툴팁은 원본 enchant/emblems/detail 없이 해당 표시값을 그대로 사용한다.
 - 최근 서약 정책: `서약 결정 초월`/`서약 정가` 추천은 각각 `oathTranscendRecommendations`/`oathCraftRecommendations` 별도 필드와 `oathTranscend`/`oathCraft` sourceType으로 기존 `oathUpgrades`/서약 조율과 분리한다. 장비 세트포인트 2550 미만 또는 미확인 캐릭터는 초월/정가 추천을 생성하지 않는다. target 서약 결정은 exact item search/detail 검증 후 생성하고, 딜러/버퍼별 유효 옵션과 세트포인트 교체 효과를 반영하며, 에픽/태초 추천은 rarity별 최상위 1개와 일반 에픽 8칸/태초 3칸 cap을 반영한다. 고유 current는 허용하되 target 고유는 제외하고, target set은 고유 이름이 아니라 다른 일반 서약 결정의 단일 family context로만 정한다. `창조의 안개 결정 - 반지`는 딜러 current 최종 데미지 19%로 계산한다.
 - 운영 주의사항: 운영 서버 포트 `8787`은 임의 종료/재시작하지 않는다. 검증 서버는 `8799`만 사용한다. `pkill -f neople_hell_api_server.py`는 금지한다.
 - 운영 주의사항: 8799 검증 서버를 종료해야 하면 먼저 해당 PID가 8799를 점유하는지 확인하고 그 PID만 종료한다. 8787 재시작/종료가 필요하면 실행하지 말고 먼저 보고한다.

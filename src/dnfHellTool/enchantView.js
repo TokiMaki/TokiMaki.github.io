@@ -27,6 +27,11 @@ const OATH_SYMBOL_ASSETS = import.meta.glob('../../이미지/Oath/*/*.{png,webp}
   import: 'default',
   query: '?url',
 });
+const SWITCHING_SKILL_ICON_ASSETS = import.meta.glob('../../이미지/스킬/*/*/*.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+});
 const OATH_SYMBOL_SET_FOLDERS = {
   basic: '00basic',
   shadow: '01shadow',
@@ -4299,6 +4304,21 @@ export function installEnchantView(ctx) {
     return value && typeof value === 'object' ? [value] : [];
   }
 
+  function getSwitchingSkillIconUrl(skillId, className) {
+    const normalizedSkillId = String(skillId || '').trim().toLowerCase();
+    const normalizedClassName = String(className || '').trim();
+    if (!normalizedSkillId || !normalizedClassName) return '';
+    const classFolder = ['다크나이트', '크리에이터'].includes(normalizedClassName)
+      ? '외전'
+      : normalizedClassName;
+    const pathPart = `/이미지/스킬/${classFolder}/`;
+    const fileName = `/${normalizedSkillId}.png`;
+    const entry = Object.entries(SWITCHING_SKILL_ICON_ASSETS).find(([assetPath]) => (
+      assetPath.includes(pathPart) && assetPath.endsWith(fileName)
+    ));
+    return entry?.[1] || '';
+  }
+
   function getBuffLoadoutData() {
     const loadout = state.currentBuffLoadout || {};
     const equipmentRows = getBuffLoadoutRows(loadout.equipment);
@@ -4317,19 +4337,72 @@ export function installEnchantView(ctx) {
     const creature = getBuffLoadoutRows(loadout.creature)[0] || null;
     const skillInfo = loadout.skillInfo || {};
     const baseline = state.currentBufferBaseline || {};
+    const skillId = String(skillInfo.skillId || '').trim();
+    const className = String(state.enchantTargetCharacter?.jobName || baseline.jobName || '').trim();
+    const skillLevel = Number(skillInfo.level || baseline.buffSkillLevel || 0);
+    const maxSkillLevel = Number(skillInfo.maxLevel || 0);
     return {
       equipmentBySlotName,
       avatarBySlotId,
       creature,
       skill: {
+        skillId,
         name: String(skillInfo.name || baseline.buffSkillName || '').trim(),
-        level: Number(skillInfo.level || baseline.buffSkillLevel || 0),
-        iconUrl: String(skillInfo.iconUrl || '').trim(),
+        level: skillLevel,
+        maxLevel: maxSkillLevel,
+        isMax: maxSkillLevel > 0 && skillLevel >= maxSkillLevel,
+        iconUrl: String(skillInfo.iconUrl || '').trim() || getSwitchingSkillIconUrl(skillId, className),
       },
     };
   }
 
-  function renderBuffLoadoutSlot(item, label, extraClass = '') {
+  function getBuffContributionDetailLines(item, label, buffSkillName) {
+    const contribution = item?.buffContribution;
+    const effectClass = 'enchant-portrait-detail-line-effect';
+    const subClass = 'enchant-portrait-detail-line-sub';
+    const skillName = String(buffSkillName || '').trim() || '버프 스킬';
+    if (!contribution || typeof contribution !== 'object') {
+      return [{ text: '버프강화 효과 확인 불가', className: subClass }];
+    }
+    const levelLine = (prefix, value) => {
+      if (value === null || value === undefined) {
+        return { text: `${prefix ? `${prefix}: ` : ''}확인 불가`, className: subClass };
+      }
+      const level = Number(value);
+      return Number.isFinite(level) && level > 0
+        ? { text: `${prefix ? `${prefix}: ` : ''}${skillName} Lv +${level}`, className: effectClass }
+        : { text: `${prefix ? `${prefix}: ` : ''}적용 없음`, className: subClass };
+    };
+    if (label === '칭호') {
+      return [levelLine('', contribution.skillLevel)];
+    }
+    if (label === '상의 아바타') {
+      return [
+        levelLine('상의 옵션', contribution.topOptionSkillLevel),
+        levelLine('플래티넘 엠블렘', contribution.platinumSkillLevel),
+      ];
+    }
+    if (label === '하의 아바타') {
+      return [levelLine('플래티넘 엠블렘', contribution.platinumSkillLevel)];
+    }
+    if (label === '크리쳐') {
+      return [levelLine('', contribution.skillLevel)];
+    }
+    const rate = contribution.additionalRatePercent;
+    if (rate === null || rate === undefined) {
+      return [{ text: '버프강화 추가 증가율 확인 불가', className: subClass }];
+    }
+    const rateNumber = Number(rate);
+    return Number.isFinite(rateNumber) && rateNumber > 0
+      ? [{
+        text: String(contribution.additionalRateText || '').trim()
+          || `스킬 공격력 증가량 ${rateNumber.toLocaleString('ko-KR', { maximumFractionDigits: 3 })}% 추가 증가`,
+        className: effectClass,
+      }]
+      : [{ text: '버프강화 적용 효과 없음', className: subClass }];
+  }
+
+  function renderBuffLoadoutSlot(item, label, buffSkillName, extraClass = '') {
     if (!item) {
       return `
         <span class="enchant-buff-slot ${escapeHtml(extraClass)}" aria-label="${escapeHtml(label)} 비어 있음">
@@ -4342,9 +4415,7 @@ export function installEnchantView(ctx) {
     const itemName = String(item.itemName || item.name || label).trim();
     const iconUrl = String(item.iconUrl || '').trim();
     const rarityClass = getLoadoutRarityClass(item);
-    const detailLines = [
-      String(item.optionAbility || '').trim(),
-    ].filter(Boolean).map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' }));
+    const detailLines = getBuffContributionDetailLines(item, label, buffSkillName);
     return `
       <span class="enchant-buff-slot ${escapeHtml(extraClass)}" tabindex="0" aria-label="${escapeHtml(itemName)}" data-buff-loadout-detail data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
         <span class="enchant-character-slot${iconUrl ? '' : ' is-empty'}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}">
@@ -4376,6 +4447,7 @@ export function installEnchantView(ctx) {
             </span>
             ${skill.name ? `<span class="enchant-buff-skill-name" title="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}</span>` : ''}
             ${skill.level > 0 ? `<span class="enchant-buff-skill-level">Lv. ${escapeHtml(String(skill.level))}</span>` : ''}
+            ${skill.isMax ? '<span class="enchant-buff-skill-max">(MAX)</span>' : ''}
           </div>
         </section>
         <section class="enchant-buff-section enchant-buff-section-equipment">
@@ -4384,7 +4456,7 @@ export function installEnchantView(ctx) {
             <div class="enchant-buff-equipment-grid">
               ${BUFF_LOADOUT_EQUIPMENT_SLOT_ROWS.flatMap((row) => row).map((slotName) => (
                 slotName
-                  ? renderBuffLoadoutSlot(equipmentBySlotName[slotName], slotName, `enchant-buff-slot-${slotName}`)
+                  ? renderBuffLoadoutSlot(equipmentBySlotName[slotName], slotName, skill.name, `enchant-buff-slot-${slotName}`)
                   : '<span class="enchant-buff-slot-gap" aria-hidden="true"></span>'
               )).join('')}
             </div>
@@ -4394,15 +4466,15 @@ export function installEnchantView(ctx) {
           <h3>아바타</h3>
           <div class="enchant-buff-section-body">
             <div class="enchant-buff-avatar-stack">
-              ${renderBuffLoadoutSlot(avatarBySlotId.JACKET, '상의 아바타')}
-              ${renderBuffLoadoutSlot(avatarBySlotId.PANTS, '하의 아바타')}
+              ${renderBuffLoadoutSlot(avatarBySlotId.JACKET, '상의 아바타', skill.name)}
+              ${renderBuffLoadoutSlot(avatarBySlotId.PANTS, '하의 아바타', skill.name)}
             </div>
           </div>
         </section>
         <section class="enchant-buff-section enchant-buff-section-creature">
           <h3>크리쳐</h3>
           <div class="enchant-buff-section-body">
-            ${renderBuffLoadoutSlot(creature, '크리쳐')}
+            ${renderBuffLoadoutSlot(creature, '크리쳐', skill.name)}
           </div>
         </section>
       </div>
@@ -5910,6 +5982,7 @@ export function installEnchantView(ctx) {
         name: resolved.characterName || characterName,
         adventureName: resolved.adventureName || '',
         fame: Number(resolved.fame || 0),
+        jobName: resolved.jobName || '',
         jobGrowName: resolved.jobGrowName || '',
       };
       resetCurrentEnchantCharacterState();
