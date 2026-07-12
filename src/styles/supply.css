@@ -891,6 +891,7 @@
         0 2px 7px rgb(0 0 0 / 0.24);
     }
     .enchant-character-portrait .character-name {
+      position: relative;
       width: 100%;
     }
     .enchant-character-portrait .character-portrait-slot-layer {
@@ -1460,10 +1461,13 @@
         0 0 2px rgb(0 0 0 / 0.8);
     }
     .enchant-portrait-detail-panel {
+      position: absolute;
+      left: 50%;
+      top: 180px;
+      z-index: 10;
       width: 254px;
       max-width: 100%;
       box-sizing: border-box;
-      min-height: 0;
       padding: 7px 9px;
       border: 1px solid rgb(126 94 48 / 0.82);
       border-radius: 4px;
@@ -1473,10 +1477,14 @@
         inset 0 1px 0 rgb(255 232 170 / 0.08);
       display: none;
       gap: 3px;
+      align-content: start;
+      overflow: hidden;
+      pointer-events: none;
       text-align: left;
+      transform: translateX(-50%);
     }
     .enchant-character-portrait.is-detail-active .supply-detail-portrait-meta {
-      display: none;
+      visibility: hidden;
     }
     .enchant-character-portrait.is-detail-active .enchant-portrait-detail-panel {
       display: grid;
