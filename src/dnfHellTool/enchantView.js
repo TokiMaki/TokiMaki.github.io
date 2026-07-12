@@ -3857,6 +3857,7 @@ export function installEnchantView(ctx) {
       iconUrl: creature.iconUrl || '',
       itemName: creature.itemName || '크리쳐',
       itemRarity: creature.itemRarity || '',
+      artifacts: Array.isArray(creature.artifacts) ? creature.artifacts : [],
       enchantBadge: getRoleEquipmentBadge(creature.effects || {}, state.currentBufferBaseline?.isBuffer),
       hoverLines: (creatureHoverLines.length ? creatureHoverLines : ['없음'])
         .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
@@ -3880,6 +3881,50 @@ export function installEnchantView(ctx) {
     };
 
     return slotData;
+  }
+
+  function renderCreatureArtifactRail(artifacts = []) {
+    const artifactByColor = new Map(
+      artifacts
+        .filter((artifact) => ['RED', 'BLUE', 'GREEN'].includes(String(artifact?.slotColor || '').trim().toUpperCase()))
+        .map((artifact) => [String(artifact.slotColor).trim().toUpperCase(), artifact]),
+    );
+    return `
+      <span class="enchant-creature-artifact-rail" aria-label="크리쳐 아티팩트">
+        ${[
+          ['RED', 'creatureArtifactRed'],
+          ['BLUE', 'creatureArtifactBlue'],
+          ['GREEN', 'creatureArtifactGreen'],
+        ].map(([color, key]) => {
+          const artifact = artifactByColor.get(color) || null;
+          const itemName = String(artifact?.itemName || '').trim();
+          const iconUrl = String(artifact?.iconUrl || '').trim();
+          const rarityClass = getLoadoutRarityClass(artifact);
+          const mainOptionText = artifact
+            ? formatEffects(getCreatureArtifactDisplayEffects(
+              { sourceType: 'creatureArtifact', ...artifact },
+              state.currentDamageBaseline,
+              artifact.element,
+            ))
+            : '';
+          const detailLines = itemName
+            ? [{
+              text: mainOptionText || '표시할 효과가 없습니다.',
+              className: mainOptionText
+                ? 'enchant-portrait-detail-line-effect'
+                : 'enchant-portrait-detail-line-sub',
+            }]
+            : [];
+          return `
+            <span class="enchant-character-slot enchant-creature-artifact-slot enchant-creature-artifact-slot-${color.toLowerCase()}${itemName ? '' : ' is-empty'}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}" data-creature-artifact-slot-key="${key}"${itemName ? ` tabindex="0" aria-label="${escapeHtml(itemName)}" data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"` : ` aria-label="${color} 아티팩트 비어 있음"`}>
+              ${iconUrl
+                ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
+                : '<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>'}
+            </span>
+          `;
+        }).join('')}
+      </span>
+    `;
   }
 
   function renderEnchantPortraitSlotMarkup(layout, slotData) {
@@ -3909,6 +3954,7 @@ export function installEnchantView(ctx) {
         ${data?.tuneBadge
           ? `<span class="enchant-character-slot-tune-mark" role="img" title="${escapeHtml(data.tuneBadge.label)}" aria-label="${escapeHtml(data.tuneBadge.label)}">${Array.from({ length: data.tuneBadge.displayLevel }).map(() => '<span class="enchant-character-slot-tune-bar" aria-hidden="true"></span>').join('')}</span>`
           : ''}
+        ${slot === '크리쳐' ? renderCreatureArtifactRail(data?.artifacts || []) : ''}
       </span>
     `;
   }

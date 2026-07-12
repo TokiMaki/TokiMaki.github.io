@@ -1654,6 +1654,62 @@
     .enchant-character-slot-wrap-ring { top: 78px; right: 6px; }
     .enchant-character-slot-wrap-earring { top: 114px; right: 42px; }
     .enchant-character-slot-wrap-magic-stone { top: 114px; right: 6px; }
+    .enchant-creature-artifact-rail {
+      position: absolute;
+      left: calc(100% + 2px);
+      top: 50%;
+      z-index: 20;
+      display: grid;
+      grid-template-rows: repeat(3, 20px);
+      gap: 1px;
+      width: 22px;
+      padding: 1px;
+      border: 1px solid rgb(76 61 31 / 0.72);
+      border-radius: 1px;
+      background: #090a0d;
+      box-shadow: 0 3px 8px rgb(0 0 0 / 0.52);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translate(2px, -50%);
+      transition: opacity 100ms ease, transform 100ms ease, visibility 100ms ease;
+    }
+    .enchant-creature-artifact-rail::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 100%;
+      width: 2px;
+      height: 100%;
+    }
+    .enchant-character-slot-wrap-creature:hover .enchant-creature-artifact-rail,
+    .enchant-character-slot-wrap-creature:focus-within .enchant-creature-artifact-rail {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translate(0, -50%);
+    }
+    .enchant-creature-artifact-slot.enchant-character-slot {
+      width: 20px;
+      height: 20px;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .enchant-creature-artifact-slot.enchant-character-slot img,
+    .enchant-creature-artifact-slot.enchant-character-slot .enchant-character-slot-placeholder {
+      width: 18px;
+      height: 18px;
+      border-radius: 0;
+    }
+    .enchant-creature-artifact-slot.is-empty {
+      background: #08090b;
+      box-shadow: inset 0 0 4px rgb(0 0 0 / 0.48);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .enchant-creature-artifact-rail {
+        transition: none;
+      }
+    }
     .supply-input-actions {
       margin-top: 10px;
     }
