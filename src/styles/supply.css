@@ -768,12 +768,14 @@
       justify-content: center;
       min-width: 0;
       margin: 0;
-      border-bottom: 1px solid rgb(67 58 43 / 0.52);
-      background: rgb(15 13 10 / 0.72);
-      color: color-mix(in srgb, var(--muted) 88%, #d6c39a);
+      border-top: 1px solid rgb(126 99 43 / 0.42);
+      border-bottom: 1px solid rgb(87 69 31 / 0.72);
+      background: linear-gradient(to bottom, #1b1a16 0%, #11110f 55%, #0b0b0a 100%);
+      color: #d5c58e;
       font-size: 9px;
       font-weight: 700;
       line-height: 1;
+      text-shadow: 0 1px 0 rgb(0 0 0 / 0.9);
       white-space: nowrap;
     }
     .enchant-buff-section-body {
@@ -849,7 +851,8 @@
       font-size: 9px;
       font-weight: 700;
       line-height: 1.15;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
+      word-break: keep-all;
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
     }
