@@ -835,15 +835,20 @@
     }
     .enchant-recommend-head {
       position: relative;
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      width: fit-content;
+      justify-content: flex-start;
+      width: 100%;
+      min-width: 0;
+      gap: 6px;
     }
     .enchant-recommend-head h2 {
       display: inline-flex;
       align-items: center;
+      min-width: 0;
       gap: 7px;
       margin: 0;
+      white-space: nowrap;
     }
     .enchant-efficiency-help {
       display: inline-flex;
@@ -896,8 +901,8 @@
       transform: translateY(-3px);
       transition: opacity 120ms ease, transform 120ms ease;
     }
-    .enchant-recommend-head:hover .enchant-efficiency-legend,
-    .enchant-recommend-head:focus-within .enchant-efficiency-legend {
+    .enchant-recommend-head h2:has(.enchant-efficiency-help:hover) ~ .enchant-efficiency-legend,
+    .enchant-recommend-head h2:has(.enchant-efficiency-help:focus) ~ .enchant-efficiency-legend {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0);
@@ -1324,6 +1329,29 @@
     }
     .enchant-recommend-item.is-simulator-supported {
       cursor: pointer;
+    }
+    .enchant-recommend-item.is-applied {
+      cursor: pointer;
+    }
+    .enchant-simulator-applied-badge {
+      position: absolute;
+      top: -5px;
+      right: 3px;
+      z-index: 3;
+      display: inline-flex;
+      align-items: center;
+      height: 13px;
+      padding: 0 4px;
+      border: 1px solid rgb(184 190 199 / 0.62);
+      border-radius: 2px;
+      background: rgb(17 19 22 / 0.92);
+      box-shadow: 0 1px 3px rgb(0 0 0 / 0.58);
+      color: #d7dce3;
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+      pointer-events: none;
     }
     .enchant-recommend-item.is-touch-selected {
       border-color: var(--accent-2);

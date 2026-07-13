@@ -3586,19 +3586,21 @@ function getRepresentativeRecommendationRows(rows, currentEnchants, currentCreat
     }
   });
   return [...nonUpgradeRows, ...bestUpgradeBySlot.values()]
-    .sort((a, b) => {
-      const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
-      if (priorityDiff) return priorityDiff;
-      const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
-      if (materialDiff) return materialDiff;
-      if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) {
-        if (isMaterialEnchantAcquisition(a) && isMaterialEnchantAcquisition(b)) {
-          return compareMaterialEnchantOrder(a, b);
-        }
-        return b.incrementalDamagePercent - a.incrementalDamagePercent;
-      }
-      return a.costPerPointOnePercent - b.costPerPointOnePercent;
-    });
+    .sort(compareDealerRecommendationOrder);
+}
+
+function compareDealerRecommendationOrder(a, b) {
+  const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
+  if (priorityDiff) return priorityDiff;
+  const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
+  if (materialDiff) return materialDiff;
+  if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) {
+    if (isMaterialEnchantAcquisition(a) && isMaterialEnchantAcquisition(b)) {
+      return compareMaterialEnchantOrder(a, b);
+    }
+    return b.incrementalDamagePercent - a.incrementalDamagePercent;
+  }
+  return a.costPerPointOnePercent - b.costPerPointOnePercent;
 }
 
 function hasHigherEnchantCandidate(row, recommendationRows) {
@@ -3877,6 +3879,7 @@ export function installEnchantView(ctx) {
     state.dealerSimulator = null;
     state.dealerSimulatorRecommendations = new Map();
     state.dealerSimulatorSuppressClickUntil = 0;
+    renderDealerSimulatorActions();
   }
 
   function initializeDealerSimulator() {
@@ -3894,6 +3897,8 @@ export function installEnchantView(ctx) {
       baseEquipmentScore: Number(state.currentOfficialEquipmentScore) || null,
       totalGold: 0,
       history: [],
+      appliedRecommendations: [],
+      actionSequence: 0,
       selectedRecommendationId: '',
       applyingRecommendationId: '',
       lastChangedTarget: null,
@@ -3942,6 +3947,7 @@ export function installEnchantView(ctx) {
     return {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
       totalGold: simulator.totalGold,
+      appliedRecommendations: cloneSimulatorValue(simulator.appliedRecommendations || []),
       lastChangedTarget: simulator.lastChangedTarget ? { ...simulator.lastChangedTarget } : null,
     };
   }
@@ -3951,6 +3957,7 @@ export function installEnchantView(ctx) {
     if (!simulator || !snapshot) return;
     simulator.simulatedEnchants = cloneSimulatorValue(snapshot.simulatedEnchants || []);
     simulator.totalGold = Number(snapshot.totalGold || 0);
+    simulator.appliedRecommendations = cloneSimulatorValue(snapshot.appliedRecommendations || []);
     simulator.lastChangedTarget = snapshot.lastChangedTarget ? { ...snapshot.lastChangedTarget } : null;
     simulator.selectedRecommendationId = '';
     rebuildDealerSimulatorCalculationState();
@@ -3986,6 +3993,21 @@ export function installEnchantView(ctx) {
     renderEnchantTable();
   }
 
+  function createAppliedRecommendationSnapshot(row, target, recommendationId, appliedGold) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !row || !target) return null;
+    simulator.actionSequence += 1;
+    return {
+      ...cloneSimulatorValue(row),
+      isApplied: true,
+      appliedActionId: `${recommendationId}|${simulator.actionSequence}`,
+      appliedGold,
+      targetTab: target.targetTab,
+      targetSlot: target.targetSlot,
+      applyType: target.applyType,
+    };
+  }
+
   const DEALER_SIMULATOR_SWEEP_DURATION_MS = 800;
 
   function triggerDealerSimulatorSweep(slot) {
@@ -4010,10 +4032,13 @@ export function installEnchantView(ctx) {
     const latestGold = getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true);
     if (!Number.isFinite(latestGold) || latestGold < 0) return;
     const snapshot = getDealerSimulatorSnapshot();
+    const appliedRecommendation = createAppliedRecommendationSnapshot(row, target, recommendationId, latestGold);
+    if (!appliedRecommendation) return;
     simulator.applyingRecommendationId = recommendationId;
     try {
       if (!replaceSimulatedEnchant(row, target)) return;
       simulator.history.push(snapshot);
+      simulator.appliedRecommendations.push(appliedRecommendation);
       simulator.totalGold += latestGold;
       simulator.selectedRecommendationId = '';
       simulator.lastChangedTarget = target;
@@ -4029,6 +4054,46 @@ export function installEnchantView(ctx) {
     } finally {
       simulator.applyingRecommendationId = '';
     }
+  }
+
+  function rebuildDealerSimulatorFromAppliedRecommendations(appliedRecommendations = []) {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return;
+    simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
+    simulator.simulatedDamageBaseline = cloneSimulatorValue(simulator.baseDamageBaseline);
+    simulator.totalGold = 0;
+    simulator.history = [];
+    simulator.appliedRecommendations = [];
+    simulator.lastChangedTarget = null;
+    appliedRecommendations.forEach((appliedRecommendation) => {
+      const target = {
+        targetTab: appliedRecommendation.targetTab,
+        targetSlot: appliedRecommendation.targetSlot,
+        applyType: appliedRecommendation.applyType,
+      };
+      const snapshot = getDealerSimulatorSnapshot();
+      if (!replaceSimulatedEnchant(appliedRecommendation, target)) return;
+      simulator.history.push(snapshot);
+      simulator.appliedRecommendations.push(cloneSimulatorValue(appliedRecommendation));
+      simulator.totalGold += Number(appliedRecommendation.appliedGold || 0);
+      simulator.lastChangedTarget = target;
+    });
+  }
+
+  function removeAppliedDealerSimulatorRecommendation(appliedActionId) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || simulator.applyingRecommendationId || !appliedActionId) return;
+    const removedRecommendation = simulator.appliedRecommendations
+      .find((row) => row.appliedActionId === appliedActionId);
+    if (!removedRecommendation) return;
+    const remainingRecommendations = simulator.appliedRecommendations
+      .filter((row) => row.appliedActionId !== appliedActionId);
+    rebuildDealerSimulatorFromAppliedRecommendations(remainingRecommendations);
+    simulator.selectedRecommendationId = '';
+    state.enchantLoadoutTab = removedRecommendation.targetTab || 'equipment';
+    triggerDealerSimulatorSweep(removedRecommendation.targetSlot);
+    renderEnchantCharacterPortrait();
+    renderEnchantTable();
   }
 
   function undoDealerSimulator() {
@@ -4050,6 +4115,7 @@ export function installEnchantView(ctx) {
     simulator.simulatedDamageBaseline = cloneSimulatorValue(simulator.baseDamageBaseline);
     simulator.totalGold = 0;
     simulator.history = [];
+    simulator.appliedRecommendations = [];
     simulator.selectedRecommendationId = '';
     simulator.lastChangedTarget = null;
     simulator.activeSweepSlots.clear();
@@ -4973,6 +5039,17 @@ export function installEnchantView(ctx) {
     resetEnchantPortraitDetailPanel();
   }
 
+  function renderDealerSimulatorActions() {
+    if (!els.enchantSimulatorActions) return;
+    const simulator = state.dealerSimulator;
+    const hasChanges = Boolean(simulator?.history.length);
+    els.enchantSimulatorActions.hidden = !hasChanges;
+    const undoButton = els.enchantSimulatorActions.querySelector('[data-dealer-simulator-action="undo"]');
+    const resetButton = els.enchantSimulatorActions.querySelector('[data-dealer-simulator-action="reset"]');
+    if (undoButton) undoButton.disabled = !hasChanges;
+    if (resetButton) resetButton.disabled = !hasChanges;
+  }
+
   function renderDealerSimulatorMeta() {
     const simulator = state.dealerSimulator;
     const score = Number(state.currentOfficialEquipmentScore);
@@ -5007,10 +5084,6 @@ export function installEnchantView(ctx) {
       </div>
       <div class="enchant-simulator-summary">
         <span>누적 골드 ${escapeHtml(Math.round(simulator.totalGold).toLocaleString('ko-KR'))}</span>
-        <span class="enchant-simulator-actions">
-          <button type="button" data-dealer-simulator-action="undo"${simulator.history.length ? '' : ' disabled'}>되돌리기</button>
-          <button type="button" data-dealer-simulator-action="reset">초기화</button>
-        </span>
       </div>
     `;
   }
@@ -5722,6 +5795,7 @@ export function installEnchantView(ctx) {
 
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
+    renderDealerSimulatorActions();
     const activeEnchants = getActiveEnchants();
     const activeDamageBaseline = getActiveDamageBaseline();
     const recommendations = state.currentBufferBaseline?.isBuffer
@@ -5735,22 +5809,32 @@ export function installEnchantView(ctx) {
         includeMaterialCosts,
       )
       : getRepresentativeRecommendationRows(rows, activeEnchants, state.currentCreature, state.currentTitle, state.currentAura, activeDamageBaseline, includeMaterialCosts);
+    const appliedRecommendations = state.currentBufferBaseline?.isBuffer
+      ? []
+      : state.dealerSimulator?.appliedRecommendations || [];
+    const displayRecommendations = state.currentBufferBaseline?.isBuffer
+      ? recommendations
+      : [...appliedRecommendations, ...recommendations].sort(compareDealerRecommendationOrder);
     state.dealerSimulatorRecommendations = new Map();
     renderEfficiencyLegend(recommendations);
-    if (!recommendations.length) {
+    if (!displayRecommendations.length) {
       els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">현재 세팅보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
       return;
     }
 
-    els.enchantRecommendList.innerHTML = recommendations.map((row, index) => {
+    els.enchantRecommendList.innerHTML = displayRecommendations.map((row, index) => {
+      const isApplied = row.isApplied === true;
       const tuneStepIndex = TUNE_SOURCE_TYPES.has(row.sourceType)
         ? getTuneStepIndexBySource(state, row.sourceType)
         : state.equipmentTuneStepIndex;
-      row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, activeDamageBaseline, state.currentBufferBaseline);
-      const simulatorTarget = resolveDealerSimulatorTarget(row);
+      if (!isApplied) {
+        row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, activeDamageBaseline, state.currentBufferBaseline);
+      }
+      const simulatorTarget = isApplied ? null : resolveDealerSimulatorTarget(row);
       const simulatorRecommendationId = simulatorTarget ? getDealerSimulatorRecommendationId(row) : '';
-      if (simulatorRecommendationId) state.dealerSimulatorRecommendations.set(simulatorRecommendationId, row);
-      const simulatorSelected = simulatorRecommendationId && state.dealerSimulator?.selectedRecommendationId === simulatorRecommendationId;
+      const appliedSelectionId = isApplied ? `applied:${row.appliedActionId}` : '';
+      const simulatorSelectionId = appliedSelectionId || simulatorRecommendationId;
+      const simulatorSelected = simulatorSelectionId && state.dealerSimulator?.selectedRecommendationId === simulatorSelectionId;
       const isBufferMetric = row.metricType === 'buffer';
       const materialAcquisition = isMaterialAcquisition(row);
       const band = materialAcquisition
@@ -5766,11 +5850,19 @@ export function installEnchantView(ctx) {
           ? getBufferEfficiencyColor(row.buffCostPerHundredPoints)
           : getEfficiencyColor(row.costPerPointOnePercent);
       const bandStyle = bandColor ? ` style="--enchant-band: ${escapeHtml(bandColor)}"` : '';
-      const previousRow = recommendations[index - 1] || null;
+      const previousRow = displayRecommendations[index - 1] || null;
       const connector = previousRow
         ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(materialAcquisition || isMaterialAcquisition(previousRow) ? (isBufferMetric ? BUFFER_EFFICIENCY_COLOR_STOPS : DAMAGE_EFFICIENCY_COLOR_STOPS)[0].color : isBufferMetric ? getBufferArrowBackground(previousRow.buffCostPerHundredPoints, row.buffCostPerHundredPoints) : getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
-      const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
+      const hasUpgradeWarning = isApplied
+        ? Boolean(row.simulatorHasUpgradeWarning)
+        : hasHigherEnchantCandidate(row, recommendations);
+      if (simulatorRecommendationId) {
+        state.dealerSimulatorRecommendations.set(simulatorRecommendationId, {
+          ...row,
+          simulatorHasUpgradeWarning: hasUpgradeWarning,
+        });
+      }
       const isTitleBeadOnly = row.sourceType === 'title' && row.purchaseRoute === 'titleBeadOnly';
       const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const displayEffects = row.sourceType === 'avatar'
@@ -5871,7 +5963,7 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'blackFang'
           ? getBlackFangMaterialParts(row.materials)
           : [];
-      const rowGold = getRecommendationGold(row, includeMaterialCosts);
+      const rowGold = isApplied ? Number(row.appliedGold) : getRecommendationGold(row, includeMaterialCosts);
       const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
@@ -5917,6 +6009,7 @@ export function installEnchantView(ctx) {
         { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
         { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
+        { text: isApplied ? '한 번 더 눌러 시뮬레이터 적용 해제' : '', className: 'enchant-simulator-touch-hint' },
         { text: simulatorTarget ? '한 번 더 눌러 시뮬레이터에 적용' : '', className: 'enchant-simulator-touch-hint' },
       ].filter((item) => item.text || item.html);
       const popover = `
@@ -5928,7 +6021,8 @@ export function installEnchantView(ctx) {
       return `
         <span class="enchant-recommend-step${TUNE_SOURCE_TYPES.has(row.sourceType) ? ` enchant-recommend-step-tune${state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === row.sourceType ? ' is-tune-popover-open' : ''}` : ''}"${TUNE_SOURCE_TYPES.has(row.sourceType) ? ` data-tune-source="${escapeHtml(row.sourceType)}"` : ''}>
           ${connector}
-          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}"${bandStyle}${simulatorRecommendationId ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}>
+          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}${isApplied ? ' is-applied' : ''}"${bandStyle}${simulatorRecommendationId ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}${isApplied ? ` data-applied-recommendation-id="${escapeHtml(row.appliedActionId)}" aria-label="${escapeHtml(`${displayTitle} 적용됨`)}"` : ''}>
+            ${isApplied ? '<span class="enchant-simulator-applied-badge">✓ 적용됨</span>' : ''}
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
               <span class="enchant-recommend-title" title="${escapeHtml(displayTitle)}"><span class="enchant-recommend-title-text">${escapeHtml(displayTitle)}</span></span>
@@ -6582,18 +6676,24 @@ export function installEnchantView(ctx) {
 
   els.enchantRecommendList?.addEventListener('pointerup', (event) => {
     if (!['touch', 'pen'].includes(event.pointerType)) return;
-    const target = event.target.closest('[data-simulator-recommendation-id]');
+    const target = event.target.closest('[data-simulator-recommendation-id], [data-applied-recommendation-id]');
     if (!target || event.target.closest('[data-equipment-tune-step]')) return;
     event.preventDefault();
     event.stopPropagation();
     state.dealerSimulatorSuppressClickUntil = Date.now() + 700;
+    const appliedActionId = String(target.dataset.appliedRecommendationId || '');
     const recommendationId = String(target.dataset.simulatorRecommendationId || '');
-    if (!recommendationId || !state.dealerSimulator) return;
-    if (state.dealerSimulator.selectedRecommendationId === recommendationId) {
+    const selectionId = appliedActionId ? `applied:${appliedActionId}` : recommendationId;
+    if (!selectionId || !state.dealerSimulator) return;
+    if (state.dealerSimulator.selectedRecommendationId === selectionId) {
+      if (appliedActionId) {
+        removeAppliedDealerSimulatorRecommendation(appliedActionId);
+        return;
+      }
       applyDealerSimulatorRecommendation(recommendationId);
       return;
     }
-    state.dealerSimulator.selectedRecommendationId = recommendationId;
+    state.dealerSimulator.selectedRecommendationId = selectionId;
     renderEnchantTable();
     const selected = els.enchantRecommendList?.querySelector('.enchant-recommend-item.is-touch-selected');
     scheduleRecommendPopoverShift(selected);
@@ -6608,13 +6708,18 @@ export function installEnchantView(ctx) {
       changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
       return;
     }
-    const simulatorTarget = event.target.closest('[data-simulator-recommendation-id]');
+    const simulatorTarget = event.target.closest('[data-simulator-recommendation-id], [data-applied-recommendation-id]');
     if (!simulatorTarget) return;
     event.preventDefault();
     event.stopPropagation();
     if (Date.now() < state.dealerSimulatorSuppressClickUntil) return;
     const precisePointer = window.matchMedia?.('(hover: hover) and (pointer: fine)')?.matches === true;
     if (!precisePointer && event.detail > 0) return;
+    const appliedActionId = String(simulatorTarget.dataset.appliedRecommendationId || '');
+    if (appliedActionId) {
+      removeAppliedDealerSimulatorRecommendation(appliedActionId);
+      return;
+    }
     applyDealerSimulatorRecommendation(String(simulatorTarget.dataset.simulatorRecommendationId || ''));
   });
 
@@ -6628,15 +6733,16 @@ export function installEnchantView(ctx) {
     changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
   });
 
-  els.enchantCharacterPortrait?.addEventListener('click', (event) => {
+  els.enchantSimulatorActions?.addEventListener('click', (event) => {
     const simulatorAction = event.target.closest('[data-dealer-simulator-action]');
-    if (simulatorAction) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (simulatorAction.dataset.dealerSimulatorAction === 'undo') undoDealerSimulator();
-      if (simulatorAction.dataset.dealerSimulatorAction === 'reset') clearDealerSimulator();
-      return;
-    }
+    if (!simulatorAction) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (simulatorAction.dataset.dealerSimulatorAction === 'undo') undoDealerSimulator();
+    if (simulatorAction.dataset.dealerSimulatorAction === 'reset') clearDealerSimulator();
+  });
+
+  els.enchantCharacterPortrait?.addEventListener('click', (event) => {
     const target = event.target.closest('[data-enchant-loadout-tab]');
     if (!target) return;
     event.preventDefault();
