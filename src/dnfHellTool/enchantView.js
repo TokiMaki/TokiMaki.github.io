@@ -1486,9 +1486,11 @@ function getCreatureRows(groups) {
     tier: candidate.variant || '일반',
     itemId: candidate.itemId,
     itemName: candidate.priceItem?.itemName || candidate.itemName || candidate.name,
-    itemRarity: '레어',
+    creatureItemName: candidate.itemName || candidate.name,
+    itemRarity: candidate.itemRarity || '레어',
     fame: candidate.targetFame || group.targetFame,
     iconUrl: candidate.priceItem?.iconUrl || candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+    creatureIconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
     itemReinforceSkill: candidate.itemReinforceSkill || [],
     itemBuff: candidate.itemBuff || {},
@@ -1920,11 +1922,19 @@ function buildSimulatedDamageBaseline(
   simulatedEnchants = [],
   baseAura = {},
   simulatedAura = baseAura,
+  baseCreature = {},
+  simulatedCreature = baseCreature,
 ) {
   const base = getDamageBaseline(baseBaseline);
   const effectDelta = subtractEffects(
-    addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
-    addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
+    addEffects(
+      addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
+      simulatedCreature?.effects || {},
+    ),
+    addEffects(
+      addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
+      baseCreature?.effects || {},
+    ),
   );
   delete effectDelta.finalDamage;
   const delta = normalizeSimulatorDamageDelta(
@@ -1952,8 +1962,14 @@ function buildSimulatedDamageBaseline(
 function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
   if (!simulator?.baseDamageBaseline) return 1;
   const effectDelta = subtractEffects(
-    addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
-    addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
+    addEffects(
+      addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
+      simulator.simulatedCreature?.effects || {},
+    ),
+    addEffects(
+      addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
+      simulator.baseCreature?.effects || {},
+    ),
   );
   delete effectDelta.finalDamage;
   const delta = normalizeSimulatorDamageDelta(
@@ -1969,7 +1985,12 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
       simulator.baseAura?.effects || {},
       simulator.simulatedAura?.effects || {},
     )
-    * (getSkillDamageMultiplier(simulator.simulatedAura) / getSkillDamageMultiplier(simulator.baseAura));
+    * (getSkillDamageMultiplier(simulator.simulatedAura) / getSkillDamageMultiplier(simulator.baseAura))
+    * getFinalDamageReplacementMultiplier(
+      simulator.baseCreature?.effects || {},
+      simulator.simulatedCreature?.effects || {},
+    )
+    * (getSkillDamageMultiplier(simulator.simulatedCreature) / getSkillDamageMultiplier(simulator.baseCreature));
 }
 
 function getSimulatedEquipmentScore(baseScore, cumulativeDamageMultiplier) {
@@ -2786,12 +2807,29 @@ function getAuraCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getCreatureExclusiveGroupKey(row = {}) {
+  return row.sourceType === 'creature' ? 'creature' : '';
+}
+
+function getCreatureCandidateSignature(row = {}) {
+  const groupKey = getCreatureExclusiveGroupKey(row);
+  if (!groupKey) return '';
+  return [
+    groupKey,
+    row.itemId || '',
+    row.tier || '',
+    getEffectSignature(row.effects || {}),
+    getStableObjectSignature(row.itemReinforceSkill || row.reinforceSkills || []),
+    Number(row.skillDamageMultiplier || 1).toFixed(8),
+  ].join(':');
+}
+
 function getSimulatorExclusiveGroupKey(row = {}) {
-  return getEnchantExclusiveGroupKey(row) || getAuraExclusiveGroupKey(row);
+  return getEnchantExclusiveGroupKey(row) || getAuraExclusiveGroupKey(row) || getCreatureExclusiveGroupKey(row);
 }
 
 function getSimulatorCandidateSignature(row = {}) {
-  return getEnchantCandidateSignature(row) || getAuraCandidateSignature(row);
+  return getEnchantCandidateSignature(row) || getAuraCandidateSignature(row) || getCreatureCandidateSignature(row);
 }
 
 function getStableObjectSignature(value = {}) {
@@ -3448,6 +3486,7 @@ function getRepresentativeRecommendationRows(
   baseline,
   includeMaterialCosts = false,
   simulationOptions = null,
+  currentCreatureBody = currentCreature,
 ) {
   const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
   const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
@@ -3467,6 +3506,8 @@ function getRepresentativeRecommendationRows(
       ? simulationOptions?.referenceBaselineBySlot?.get(row.slot) || baseline
       : row.sourceType === 'aura'
         ? simulationOptions?.auraReferenceBaseline || baseline
+      : row.sourceType === 'creature'
+        ? simulationOptions?.creatureReferenceBaseline || baseline
         : baseline;
     const rowPreferredElement = getPreferredElementForRecommendationRow(
       row,
@@ -3502,8 +3543,11 @@ function getRepresentativeRecommendationRows(
         ? { effects: {} }
       : row.sourceType === 'creature'
       ? {
-        ...currentCreature,
-        estimatedDamagePercent: estimateDamagePercent(currentCreature?.effects || {}, evaluationBaseline),
+        ...(simulationOptions?.referenceCreature || currentCreatureBody),
+        estimatedDamagePercent: estimateDamagePercent(
+          (simulationOptions?.referenceCreature || currentCreatureBody)?.effects || {},
+          evaluationBaseline,
+        ),
       }
       : row.sourceType === 'creatureArtifact'
         ? (() => {
@@ -3975,6 +4019,18 @@ export function installEnchantView(ctx) {
       : getCanonicalCurrentAura();
   }
 
+  function getCanonicalCurrentCreatureBody() {
+    const creature = cloneSimulatorValue(state.currentCreature || {});
+    delete creature.artifacts;
+    return creature;
+  }
+
+  function getActiveCreature() {
+    return isDealerSimulatorActive()
+      ? state.dealerSimulator.simulatedCreature
+      : getCanonicalCurrentCreatureBody();
+  }
+
   function getActiveDamageBaseline() {
     return isDealerSimulatorActive()
       ? state.dealerSimulator.simulatedDamageBaseline
@@ -3987,9 +4043,11 @@ export function installEnchantView(ctx) {
     if (!simulator || !hasActiveSelections) return { rows, options: null };
     const eligibleSignatures = new Set(simulator.baseEligibleEnchantCandidateSignatures || []);
     const eligibleAuraSignatures = new Set(simulator.baseEligibleAuraCandidateSignatures || []);
+    const eligibleCreatureSignatures = new Set(simulator.baseEligibleCreatureCandidateSignatures || []);
     const candidateRows = rows.filter((row) => (
       (row.sourceType !== 'enchant' || !eligibleSignatures.size || eligibleSignatures.has(getEnchantCandidateSignature(row))) &&
-      (row.sourceType !== 'aura' || !eligibleAuraSignatures.size || eligibleAuraSignatures.has(getAuraCandidateSignature(row)))
+      (row.sourceType !== 'aura' || !eligibleAuraSignatures.size || eligibleAuraSignatures.has(getAuraCandidateSignature(row))) &&
+      (row.sourceType !== 'creature' || !eligibleCreatureSignatures.size || eligibleCreatureSignatures.has(getCreatureCandidateSignature(row)))
     ));
     const referenceEnchantBySlot = new Map(simulator.baseEnchants
       .filter((enchant) => enchant?.slot)
@@ -4010,6 +4068,8 @@ export function installEnchantView(ctx) {
           referenceEnchants,
           simulator.baseAura,
           simulator.simulatedAura,
+          simulator.baseCreature,
+          simulator.simulatedCreature,
         ),
       );
     });
@@ -4019,6 +4079,17 @@ export function installEnchantView(ctx) {
       simulator.simulatedEnchants,
       simulator.baseAura,
       simulator.baseAura,
+      simulator.baseCreature,
+      simulator.simulatedCreature,
+    );
+    const creatureReferenceBaseline = buildSimulatedDamageBaseline(
+      simulator.baseDamageBaseline,
+      simulator.baseEnchants,
+      simulator.simulatedEnchants,
+      simulator.baseAura,
+      simulator.simulatedAura,
+      simulator.baseCreature,
+      simulator.baseCreature,
     );
     return {
       rows: candidateRows,
@@ -4027,6 +4098,8 @@ export function installEnchantView(ctx) {
         referenceBaselineBySlot,
         referenceAura: simulator.baseAura,
         auraReferenceBaseline,
+        referenceCreature: simulator.baseCreature,
+        creatureReferenceBaseline,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
       },
     };
@@ -4047,11 +4120,14 @@ export function installEnchantView(ctx) {
     const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
     const baseAura = getCanonicalCurrentAura();
+    const baseCreature = getCanonicalCurrentCreatureBody();
     state.dealerSimulator = {
       baseEnchants,
       simulatedEnchants: cloneSimulatorValue(baseEnchants),
       baseAura,
       simulatedAura: cloneSimulatorValue(baseAura),
+      baseCreature,
+      simulatedCreature: cloneSimulatorValue(baseCreature),
       baseDamageBaseline,
       simulatedDamageBaseline: cloneSimulatorValue(baseDamageBaseline),
       baseEquipmentScore: Number(state.currentOfficialEquipmentScore) || null,
@@ -4060,6 +4136,7 @@ export function installEnchantView(ctx) {
       activeSelectionByGroup: {},
       baseEligibleEnchantCandidateSignatures: [],
       baseEligibleAuraCandidateSignatures: [],
+      baseEligibleCreatureCandidateSignatures: [],
       selectedRecommendationId: '',
       applyingRecommendationId: '',
       lastChangedTarget: null,
@@ -4080,6 +4157,17 @@ export function installEnchantView(ctx) {
     rebuildDealerSimulatorCalculationState();
   }
 
+  function syncDealerSimulatorCreatureState() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return;
+    const canonicalCreature = getCanonicalCurrentCreatureBody();
+    simulator.baseCreature = canonicalCreature;
+    if (!simulator.activeSelectionByGroup?.creature) {
+      simulator.simulatedCreature = cloneSimulatorValue(canonicalCreature);
+    }
+    rebuildDealerSimulatorCalculationState();
+  }
+
   function rebuildDealerSimulatorCalculationState() {
     const simulator = state.dealerSimulator;
     if (!simulator) return;
@@ -4089,6 +4177,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedEnchants,
       simulator.baseAura,
       simulator.simulatedAura,
+      simulator.baseCreature,
+      simulator.simulatedCreature,
     );
   }
 
@@ -4115,6 +4205,16 @@ export function installEnchantView(ctx) {
         applyType: 'replaceAura',
       };
     }
+    if (row.sourceType === 'creature') {
+      const hasDamageEffect = Boolean(row.effects && Object.keys(row.effects).length);
+      const hasSkillDamageEffect = Math.abs(getSkillDamageMultiplier(row) - 1) > 0.000001;
+      if (!row.itemId || (!hasDamageEffect && !hasSkillDamageEffect)) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: '크리쳐',
+        applyType: 'replaceCreature',
+      };
+    }
     if (row.sourceType !== 'enchant') return null;
     const targetSlot = String(row.slot || '').trim();
     if (!targetSlot || !SLOT_ORDER.includes(targetSlot)) return null;
@@ -4132,6 +4232,7 @@ export function installEnchantView(ctx) {
     return {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
+      simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
       totalGold: simulator.totalGold,
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup || {}),
       lastChangedTarget: simulator.lastChangedTarget ? { ...simulator.lastChangedTarget } : null,
@@ -4143,6 +4244,7 @@ export function installEnchantView(ctx) {
     if (!simulator || !snapshot) return;
     simulator.simulatedEnchants = cloneSimulatorValue(snapshot.simulatedEnchants || []);
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
+    simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
     simulator.totalGold = Number(snapshot.totalGold || 0);
     simulator.activeSelectionByGroup = cloneSimulatorValue(snapshot.activeSelectionByGroup || {});
     simulator.lastChangedTarget = snapshot.lastChangedTarget ? { ...snapshot.lastChangedTarget } : null;
@@ -4190,9 +4292,25 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function replaceSimulatedCreature(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceCreature') return false;
+    simulator.simulatedCreature = {
+      ...cloneSimulatorValue(row),
+      itemName: row.creatureItemName || row.candidateName || row.itemName || '',
+      iconUrl: row.creatureIconUrl || row.iconUrl || '',
+      reinforceSkills: row.reinforceSkillName && Number(row.reinforceSkillLevel || 0) > 0
+        ? [{ name: row.reinforceSkillName, value: Number(row.reinforceSkillLevel) }]
+        : [],
+    };
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function applySimulatorReplacement(row, target) {
     if (target?.applyType === 'replaceEnchant') return replaceSimulatedEnchant(row, target);
     if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
+    if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
     return false;
   }
 
@@ -4290,6 +4408,14 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function restoreSimulatedCreatureToBase() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return false;
+    simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature || {});
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function removeActiveDealerSimulatorSelection(exclusiveGroupKey) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
@@ -4298,14 +4424,13 @@ export function installEnchantView(ctx) {
     const snapshot = getDealerSimulatorSnapshot();
     const restored = selection.applyType === 'replaceAura'
       ? restoreSimulatedAuraToBase()
-      : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
+      : selection.applyType === 'replaceCreature'
+        ? restoreSimulatedCreatureToBase()
+        : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
     if (!restored) return;
     simulator.history.push(snapshot);
     delete simulator.activeSelectionByGroup[exclusiveGroupKey];
     simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-    if (!Object.keys(simulator.activeSelectionByGroup).length) {
-      simulator.history = [];
-    }
     simulator.selectedRecommendationId = '';
     simulator.lastChangedTarget = {
       targetTab: selection.targetTab,
@@ -4335,6 +4460,7 @@ export function installEnchantView(ctx) {
     if (!simulator || simulator.applyingRecommendationId) return;
     simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
     simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
+    simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
     rebuildDealerSimulatorCalculationState();
     simulator.totalGold = 0;
     simulator.history = [];
@@ -4421,7 +4547,7 @@ export function installEnchantView(ctx) {
       ],
     };
 
-    const creature = state.currentCreature || {};
+    const creature = getActiveCreature() || {};
     const creatureMainOption = formatCreatureDetailMainOption(creature);
     const creatureNamedSkillOption = formatMatchedReinforceSkills(creature.reinforceSkills || []);
     const creatureBufferOption = state.currentBufferBaseline?.isBuffer
@@ -4444,7 +4570,7 @@ export function installEnchantView(ctx) {
       iconUrl: creature.iconUrl || '',
       itemName: creature.itemName || '크리쳐',
       itemRarity: creature.itemRarity || '',
-      artifacts: Array.isArray(creature.artifacts) ? creature.artifacts : [],
+      artifacts: Array.isArray(state.currentCreature?.artifacts) ? state.currentCreature.artifacts : [],
       enchantBadge: getRoleEquipmentBadge(creature.effects || {}, state.currentBufferBaseline?.isBuffer),
       hoverLines: (creatureHoverLines.length ? creatureHoverLines : ['없음'])
         .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
@@ -5288,7 +5414,7 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     const score = Number(state.currentOfficialEquipmentScore);
     const scoreReady = Number.isFinite(score) && score > 0;
-    const hasChanges = Boolean(simulator?.history.length);
+    const hasChanges = Boolean(Object.keys(simulator?.activeSelectionByGroup || {}).length);
     if (!hasChanges) {
       const scoreText = state.currentOfficialEquipmentScoreStatus === 'loading'
         ? '확인 중'
@@ -6054,6 +6180,7 @@ export function installEnchantView(ctx) {
         activeDamageBaseline,
         includeMaterialCosts,
         simulatorRecommendationContext.options,
+        getActiveCreature(),
       );
     const simulator = state.currentBufferBaseline?.isBuffer ? null : state.dealerSimulator;
     if (simulator && !simulator.baseEligibleEnchantCandidateSignatures.length) {
@@ -6066,6 +6193,12 @@ export function installEnchantView(ctx) {
       simulator.baseEligibleAuraCandidateSignatures = recommendations
         .filter((row) => row.sourceType === 'aura')
         .map(getAuraCandidateSignature)
+        .filter(Boolean);
+    }
+    if (simulator && !simulator.baseEligibleCreatureCandidateSignatures.length) {
+      simulator.baseEligibleCreatureCandidateSignatures = recommendations
+        .filter((row) => row.sourceType === 'creature')
+        .map(getCreatureCandidateSignature)
         .filter(Boolean);
     }
     const decoratedRecommendations = recommendations.map((row) => {
@@ -6387,6 +6520,7 @@ export function installEnchantView(ctx) {
     const payload = await parseApiJsonResponse(response, '캐릭터 크리쳐 조회에 실패했습니다.');
     state.currentCreature = payload.creature || null;
     state.currentCreatureCharacterKey = characterKey;
+    syncDealerSimulatorCreatureState();
     renderEnchantCharacterPortrait();
   }
 
