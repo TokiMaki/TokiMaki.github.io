@@ -1812,7 +1812,8 @@
     .enchant-character-slot-wrap-ring { top: 78px; right: 6px; }
     .enchant-character-slot-wrap-earring { top: 114px; right: 42px; }
     .enchant-character-slot-wrap-magic-stone { top: 114px; right: 6px; }
-    .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after {
+    .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after,
+    .enchant-oath-slot.is-simulator-sweep::after {
       content: '';
       position: absolute;
       top: 0;
@@ -1899,7 +1900,8 @@
       .enchant-creature-artifact-rail {
         transition: none;
       }
-      .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after {
+      .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after,
+      .enchant-oath-slot.is-simulator-sweep::after {
         animation: enchant-simulator-slot-highlight 280ms ease-out 1 forwards;
       }
     }
