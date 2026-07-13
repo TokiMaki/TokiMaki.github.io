@@ -1652,9 +1652,11 @@ function getAuraRows(groups) {
     tier: candidate.variant || '일반',
     itemId: candidate.itemId,
     itemName: candidate.priceItem?.itemName || candidate.itemName || candidate.name,
+    auraItemName: candidate.itemName || candidate.name,
     itemRarity: candidate.itemRarity || '레어',
     fame: candidate.fame,
     iconUrl: candidate.priceItem?.iconUrl || candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+    auraIconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
     itemReinforceSkill: candidate.itemReinforceSkill || [],
     itemBuff: candidate.itemBuff || {},
@@ -1912,11 +1914,17 @@ function normalizeSimulatorDamageDelta(effects = {}, baseline = {}) {
   return normalized;
 }
 
-function buildSimulatedDamageBaseline(baseBaseline = {}, baseEnchants = [], simulatedEnchants = []) {
+function buildSimulatedDamageBaseline(
+  baseBaseline = {},
+  baseEnchants = [],
+  simulatedEnchants = [],
+  baseAura = {},
+  simulatedAura = baseAura,
+) {
   const base = getDamageBaseline(baseBaseline);
   const effectDelta = subtractEffects(
-    getEnchantEffectsTotal(simulatedEnchants),
-    getEnchantEffectsTotal(baseEnchants),
+    addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
+    addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
   );
   delete effectDelta.finalDamage;
   const delta = normalizeSimulatorDamageDelta(
@@ -1944,8 +1952,8 @@ function buildSimulatedDamageBaseline(baseBaseline = {}, baseEnchants = [], simu
 function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
   if (!simulator?.baseDamageBaseline) return 1;
   const effectDelta = subtractEffects(
-    getEnchantEffectsTotal(simulator.simulatedEnchants),
-    getEnchantEffectsTotal(simulator.baseEnchants),
+    addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
+    addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
   );
   delete effectDelta.finalDamage;
   const delta = normalizeSimulatorDamageDelta(
@@ -1956,7 +1964,12 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
     * getEnchantFinalDamageChangeMultiplier(
       simulator.baseEnchants,
       simulator.simulatedEnchants,
-    );
+    )
+    * getFinalDamageReplacementMultiplier(
+      simulator.baseAura?.effects || {},
+      simulator.simulatedAura?.effects || {},
+    )
+    * (getSkillDamageMultiplier(simulator.simulatedAura) / getSkillDamageMultiplier(simulator.baseAura));
 }
 
 function getSimulatedEquipmentScore(baseScore, cumulativeDamageMultiplier) {
@@ -2756,6 +2769,31 @@ function getEnchantCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getAuraExclusiveGroupKey(row = {}) {
+  return row.sourceType === 'aura' ? 'aura' : '';
+}
+
+function getAuraCandidateSignature(row = {}) {
+  const groupKey = getAuraExclusiveGroupKey(row);
+  if (!groupKey) return '';
+  return [
+    groupKey,
+    row.itemId || '',
+    row.tier || '',
+    getEffectSignature(row.effects || {}),
+    getStableObjectSignature(row.itemReinforceSkill || row.reinforceSkills || []),
+    Number(row.skillDamageMultiplier || 1).toFixed(8),
+  ].join(':');
+}
+
+function getSimulatorExclusiveGroupKey(row = {}) {
+  return getEnchantExclusiveGroupKey(row) || getAuraExclusiveGroupKey(row);
+}
+
+function getSimulatorCandidateSignature(row = {}) {
+  return getEnchantCandidateSignature(row) || getAuraCandidateSignature(row);
+}
+
 function getStableObjectSignature(value = {}) {
   if (!value || typeof value !== 'object') return String(value ?? '');
   return Object.keys(value)
@@ -3409,7 +3447,7 @@ function getRepresentativeRecommendationRows(
   currentAura,
   baseline,
   includeMaterialCosts = false,
-  enchantSimulationOptions = null,
+  simulationOptions = null,
 ) {
   const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
   const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
@@ -3426,8 +3464,10 @@ function getRepresentativeRecommendationRows(
   rows.forEach((row) => {
     if (shouldSkipByElementAlignmentOverride(row, elementAlignmentOverride, currentTitle)) return;
     const evaluationBaseline = row.sourceType === 'enchant'
-      ? enchantSimulationOptions?.referenceBaselineBySlot?.get(row.slot) || baseline
-      : baseline;
+      ? simulationOptions?.referenceBaselineBySlot?.get(row.slot) || baseline
+      : row.sourceType === 'aura'
+        ? simulationOptions?.auraReferenceBaseline || baseline
+        : baseline;
     const rowPreferredElement = getPreferredElementForRecommendationRow(
       row,
       evaluationBaseline,
@@ -3483,12 +3523,15 @@ function getRepresentativeRecommendationRows(
         }
         : row.sourceType === 'aura'
           ? {
-            ...currentAura,
-            estimatedDamagePercent: estimateDamagePercent(currentAura?.effects || {}, evaluationBaseline),
+            ...(simulationOptions?.referenceAura || currentAura),
+            estimatedDamagePercent: estimateDamagePercent(
+              (simulationOptions?.referenceAura || currentAura)?.effects || {},
+              evaluationBaseline,
+            ),
           }
         : row.sourceType === 'enchant'
-          ? enchantSimulationOptions?.referenceEnchantBySlot
-            ? enchantSimulationOptions.referenceEnchantBySlot.get(row.slot) || { slot: row.slot, effects: {} }
+          ? simulationOptions?.referenceEnchantBySlot
+            ? simulationOptions.referenceEnchantBySlot.get(row.slot) || { slot: row.slot, effects: {} }
             : currentBySlot.get(row.slot)
           : currentBySlot.get(row.slot);
     row = getTitleBeadOnlyRow(row, current);
@@ -3605,7 +3648,7 @@ function getRepresentativeRecommendationRows(
       ...row,
       costPerPointOnePercent: getCostPerPointOnePercent(row, includeMaterialCosts),
     }));
-  const efficiencyFilteredRows = enchantSimulationOptions?.preserveEligibleEnchantCandidates
+  const efficiencyFilteredRows = simulationOptions?.preserveEligibleEnchantCandidates
     ? representativeRows
     : removeInefficientLowerTierEnchants(representativeRows, false);
   const bestUpgradeBySlot = new Map();
@@ -3904,20 +3947,50 @@ export function installEnchantView(ctx) {
       : state.currentEnchants;
   }
 
+  function getCurrentAvatarAuraSlot() {
+    const slots = state.currentAvatar?.avatar?.slots;
+    return Array.isArray(slots)
+      ? slots.find((slot) => String(slot?.slotId || '').trim() === 'AURORA') || null
+      : null;
+  }
+
+  function mergeAuraBodyWithEmblems(auraBody = {}, emblemSource = {}) {
+    const merged = cloneSimulatorValue(auraBody || {});
+    ['emblems', 'emblem', 'emblemItems', 'emblemSlots', 'platinumEmblems', 'platinumEmblemItems']
+      .forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(emblemSource || {}, key)) {
+          merged[key] = cloneSimulatorValue(emblemSource[key]);
+        }
+      });
+    return merged;
+  }
+
+  function getCanonicalCurrentAura() {
+    return mergeAuraBodyWithEmblems(state.currentAura || {}, getCurrentAvatarAuraSlot() || {});
+  }
+
+  function getActiveAura() {
+    return isDealerSimulatorActive()
+      ? state.dealerSimulator.simulatedAura
+      : getCanonicalCurrentAura();
+  }
+
   function getActiveDamageBaseline() {
     return isDealerSimulatorActive()
       ? state.dealerSimulator.simulatedDamageBaseline
       : state.currentDamageBaseline;
   }
 
-  function getDealerSimulatorEnchantRecommendationContext(rows = []) {
+  function getDealerSimulatorRecommendationContext(rows = []) {
     const simulator = state.dealerSimulator;
     const hasActiveSelections = Boolean(Object.keys(simulator?.activeSelectionByGroup || {}).length);
     if (!simulator || !hasActiveSelections) return { rows, options: null };
     const eligibleSignatures = new Set(simulator.baseEligibleEnchantCandidateSignatures || []);
-    const candidateRows = eligibleSignatures.size
-      ? rows.filter((row) => row.sourceType !== 'enchant' || eligibleSignatures.has(getEnchantCandidateSignature(row)))
-      : rows;
+    const eligibleAuraSignatures = new Set(simulator.baseEligibleAuraCandidateSignatures || []);
+    const candidateRows = rows.filter((row) => (
+      (row.sourceType !== 'enchant' || !eligibleSignatures.size || eligibleSignatures.has(getEnchantCandidateSignature(row))) &&
+      (row.sourceType !== 'aura' || !eligibleAuraSignatures.size || eligibleAuraSignatures.has(getAuraCandidateSignature(row)))
+    ));
     const referenceEnchantBySlot = new Map(simulator.baseEnchants
       .filter((enchant) => enchant?.slot)
       .map((enchant) => [enchant.slot, enchant]));
@@ -3931,14 +4004,29 @@ export function installEnchantView(ctx) {
       if (baseEnchant) referenceEnchants.push(cloneSimulatorValue(baseEnchant));
       referenceBaselineBySlot.set(
         row.slot,
-        buildSimulatedDamageBaseline(simulator.baseDamageBaseline, simulator.baseEnchants, referenceEnchants),
+        buildSimulatedDamageBaseline(
+          simulator.baseDamageBaseline,
+          simulator.baseEnchants,
+          referenceEnchants,
+          simulator.baseAura,
+          simulator.simulatedAura,
+        ),
       );
     });
+    const auraReferenceBaseline = buildSimulatedDamageBaseline(
+      simulator.baseDamageBaseline,
+      simulator.baseEnchants,
+      simulator.simulatedEnchants,
+      simulator.baseAura,
+      simulator.baseAura,
+    );
     return {
       rows: candidateRows,
       options: {
         referenceEnchantBySlot,
         referenceBaselineBySlot,
+        referenceAura: simulator.baseAura,
+        auraReferenceBaseline,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
       },
     };
@@ -3958,9 +4046,12 @@ export function installEnchantView(ctx) {
     }
     const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
+    const baseAura = getCanonicalCurrentAura();
     state.dealerSimulator = {
       baseEnchants,
       simulatedEnchants: cloneSimulatorValue(baseEnchants),
+      baseAura,
+      simulatedAura: cloneSimulatorValue(baseAura),
       baseDamageBaseline,
       simulatedDamageBaseline: cloneSimulatorValue(baseDamageBaseline),
       baseEquipmentScore: Number(state.currentOfficialEquipmentScore) || null,
@@ -3968,6 +4059,7 @@ export function installEnchantView(ctx) {
       history: [],
       activeSelectionByGroup: {},
       baseEligibleEnchantCandidateSignatures: [],
+      baseEligibleAuraCandidateSignatures: [],
       selectedRecommendationId: '',
       applyingRecommendationId: '',
       lastChangedTarget: null,
@@ -3977,6 +4069,17 @@ export function installEnchantView(ctx) {
     state.dealerSimulatorRecommendations = new Map();
   }
 
+  function syncDealerSimulatorAuraState() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return;
+    const canonicalAura = getCanonicalCurrentAura();
+    simulator.baseAura = canonicalAura;
+    simulator.simulatedAura = simulator.activeSelectionByGroup?.aura
+      ? mergeAuraBodyWithEmblems(simulator.simulatedAura || {}, canonicalAura)
+      : cloneSimulatorValue(canonicalAura);
+    rebuildDealerSimulatorCalculationState();
+  }
+
   function rebuildDealerSimulatorCalculationState() {
     const simulator = state.dealerSimulator;
     if (!simulator) return;
@@ -3984,6 +4087,8 @@ export function installEnchantView(ctx) {
       simulator.baseDamageBaseline,
       simulator.baseEnchants,
       simulator.simulatedEnchants,
+      simulator.baseAura,
+      simulator.simulatedAura,
     );
   }
 
@@ -3999,7 +4104,18 @@ export function installEnchantView(ctx) {
   }
 
   function resolveDealerSimulatorTarget(row = {}) {
-    if (state.currentBufferBaseline?.isBuffer || row.sourceType !== 'enchant') return null;
+    if (state.currentBufferBaseline?.isBuffer) return null;
+    if (row.sourceType === 'aura') {
+      const hasDamageEffect = Boolean(row.effects && Object.keys(row.effects).length);
+      const hasSkillDamageEffect = Math.abs(getSkillDamageMultiplier(row) - 1) > 0.000001;
+      if (!row.itemId || (!hasDamageEffect && !hasSkillDamageEffect)) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: '오라',
+        applyType: 'replaceAura',
+      };
+    }
+    if (row.sourceType !== 'enchant') return null;
     const targetSlot = String(row.slot || '').trim();
     if (!targetSlot || !SLOT_ORDER.includes(targetSlot)) return null;
     if (!row.effects || !Object.keys(row.effects).length) return null;
@@ -4015,6 +4131,7 @@ export function installEnchantView(ctx) {
     if (!simulator) return null;
     return {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
+      simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       totalGold: simulator.totalGold,
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup || {}),
       lastChangedTarget: simulator.lastChangedTarget ? { ...simulator.lastChangedTarget } : null,
@@ -4025,6 +4142,7 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator || !snapshot) return;
     simulator.simulatedEnchants = cloneSimulatorValue(snapshot.simulatedEnchants || []);
+    simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
     simulator.totalGold = Number(snapshot.totalGold || 0);
     simulator.activeSelectionByGroup = cloneSimulatorValue(snapshot.activeSelectionByGroup || {});
     simulator.lastChangedTarget = snapshot.lastChangedTarget ? { ...snapshot.lastChangedTarget } : null;
@@ -4054,6 +4172,28 @@ export function installEnchantView(ctx) {
     }
     rebuildDealerSimulatorCalculationState();
     return true;
+  }
+
+  function replaceSimulatedAura(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceAura') return false;
+    const currentAura = simulator.simulatedAura || simulator.baseAura || {};
+    simulator.simulatedAura = mergeAuraBodyWithEmblems({
+      ...cloneSimulatorValue(row),
+      itemName: row.auraItemName || row.candidateName || row.itemName || '',
+      iconUrl: row.auraIconUrl || row.iconUrl || '',
+      reinforceSkills: row.reinforceSkillName && Number(row.reinforceSkillLevel || 0) > 0
+        ? [{ name: row.reinforceSkillName, value: Number(row.reinforceSkillLevel) }]
+        : [],
+    }, currentAura);
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
+  function applySimulatorReplacement(row, target) {
+    if (target?.applyType === 'replaceEnchant') return replaceSimulatedEnchant(row, target);
+    if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
+    return false;
   }
 
   function closeDealerSimulatorSelection() {
@@ -4088,8 +4228,8 @@ export function installEnchantView(ctx) {
     const row = state.dealerSimulatorRecommendations.get(recommendationId);
     const target = resolveDealerSimulatorTarget(row);
     if (!row || !target) return;
-    const exclusiveGroupKey = getEnchantExclusiveGroupKey(row);
-    const candidateSignature = getEnchantCandidateSignature(row);
+    const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
+    const candidateSignature = getSimulatorCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
     if (simulator.activeSelectionByGroup?.[exclusiveGroupKey]?.candidateSignature === candidateSignature) return;
     const latestGold = getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true);
@@ -4097,7 +4237,7 @@ export function installEnchantView(ctx) {
     const snapshot = getDealerSimulatorSnapshot();
     simulator.applyingRecommendationId = recommendationId;
     try {
-      if (!replaceSimulatedEnchant(row, target)) return;
+      if (!applySimulatorReplacement(row, target)) return;
       simulator.history.push(snapshot);
       simulator.activeSelectionByGroup[exclusiveGroupKey] = {
         candidateSignature,
@@ -4139,16 +4279,33 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function restoreSimulatedAuraToBase() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return false;
+    simulator.simulatedAura = mergeAuraBodyWithEmblems(
+      simulator.baseAura || {},
+      simulator.simulatedAura || {},
+    );
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function removeActiveDealerSimulatorSelection(exclusiveGroupKey) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
     const selection = simulator.activeSelectionByGroup?.[exclusiveGroupKey];
     if (!selection) return;
     const snapshot = getDealerSimulatorSnapshot();
-    if (!restoreSimulatedEnchantSlotToBase(selection.targetSlot)) return;
+    const restored = selection.applyType === 'replaceAura'
+      ? restoreSimulatedAuraToBase()
+      : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
+    if (!restored) return;
     simulator.history.push(snapshot);
     delete simulator.activeSelectionByGroup[exclusiveGroupKey];
     simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+    if (!Object.keys(simulator.activeSelectionByGroup).length) {
+      simulator.history = [];
+    }
     simulator.selectedRecommendationId = '';
     simulator.lastChangedTarget = {
       targetTab: selection.targetTab,
@@ -4177,7 +4334,8 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId) return;
     simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
-    simulator.simulatedDamageBaseline = cloneSimulatorValue(simulator.baseDamageBaseline);
+    simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
+    rebuildDealerSimulatorCalculationState();
     simulator.totalGold = 0;
     simulator.history = [];
     simulator.activeSelectionByGroup = {};
@@ -4292,7 +4450,7 @@ export function installEnchantView(ctx) {
         .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
     };
 
-    const aura = state.currentAura || {};
+    const aura = getActiveAura() || {};
     const auraNamedSkillOption = formatMatchedReinforceSkills(aura.reinforceSkills || []);
     const auraStatOption = formatTitleMajorEffects(
       aura.effects || {},
@@ -4573,13 +4731,24 @@ export function installEnchantView(ctx) {
     if (!Array.isArray(slots)) {
       return {};
     }
-    return slots.reduce((map, slot) => {
+    const slotsById = slots.reduce((map, slot) => {
       const slotId = String(slot?.slotId || '').trim();
       if (slotId) {
         map[slotId] = slot;
       }
       return map;
     }, {});
+    const activeAura = getActiveAura();
+    if (activeAura && Object.keys(activeAura).length) {
+      const currentAuraSlot = slotsById.AURORA || {};
+      slotsById.AURORA = {
+        ...currentAuraSlot,
+        ...cloneSimulatorValue(activeAura),
+        slotId: 'AURORA',
+        slotName: currentAuraSlot.slotName || '오라 아바타',
+      };
+    }
+    return slotsById;
   }
 
   function hasAvatarEmblemIdentity(emblem = {}) {
@@ -5863,9 +6032,9 @@ export function installEnchantView(ctx) {
     renderDealerSimulatorActions();
     const activeEnchants = getActiveEnchants();
     const activeDamageBaseline = getActiveDamageBaseline();
-    const enchantRecommendationContext = state.currentBufferBaseline?.isBuffer
+    const simulatorRecommendationContext = state.currentBufferBaseline?.isBuffer
       ? { rows, options: null }
-      : getDealerSimulatorEnchantRecommendationContext(rows);
+      : getDealerSimulatorRecommendationContext(rows);
     const recommendations = state.currentBufferBaseline?.isBuffer
       ? getBufferRecommendationRows(
         rows,
@@ -5877,14 +6046,14 @@ export function installEnchantView(ctx) {
         includeMaterialCosts,
       )
       : getRepresentativeRecommendationRows(
-        enchantRecommendationContext.rows,
+        simulatorRecommendationContext.rows,
         activeEnchants,
         state.currentCreature,
         state.currentTitle,
-        state.currentAura,
+        getActiveAura(),
         activeDamageBaseline,
         includeMaterialCosts,
-        enchantRecommendationContext.options,
+        simulatorRecommendationContext.options,
       );
     const simulator = state.currentBufferBaseline?.isBuffer ? null : state.dealerSimulator;
     if (simulator && !simulator.baseEligibleEnchantCandidateSignatures.length) {
@@ -5893,9 +6062,15 @@ export function installEnchantView(ctx) {
         .map(getEnchantCandidateSignature)
         .filter(Boolean);
     }
+    if (simulator && !simulator.baseEligibleAuraCandidateSignatures.length) {
+      simulator.baseEligibleAuraCandidateSignatures = recommendations
+        .filter((row) => row.sourceType === 'aura')
+        .map(getAuraCandidateSignature)
+        .filter(Boolean);
+    }
     const decoratedRecommendations = recommendations.map((row) => {
-      const exclusiveGroupKey = getEnchantExclusiveGroupKey(row);
-      const candidateSignature = getEnchantCandidateSignature(row);
+      const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
+      const candidateSignature = getSimulatorCandidateSignature(row);
       const isApplied = Boolean(
         exclusiveGroupKey &&
         candidateSignature &&
@@ -6115,7 +6290,7 @@ export function installEnchantView(ctx) {
       return `
         <span class="enchant-recommend-step${TUNE_SOURCE_TYPES.has(row.sourceType) ? ` enchant-recommend-step-tune${state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === row.sourceType ? ' is-tune-popover-open' : ''}` : ''}"${TUNE_SOURCE_TYPES.has(row.sourceType) ? ` data-tune-source="${escapeHtml(row.sourceType)}"` : ''}>
           ${connector}
-          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}${isApplied ? ' is-applied' : ''}"${bandStyle}${simulatorRecommendationId ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}${isApplied ? ` data-applied-enchant-group="${escapeHtml(row.exclusiveGroupKey)}" aria-label="${escapeHtml(`${displayTitle} 적용됨`)}"` : ''}>
+          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}${isApplied ? ' is-applied' : ''}"${bandStyle}${simulatorRecommendationId ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}${isApplied ? ` data-applied-simulator-group="${escapeHtml(row.exclusiveGroupKey)}" aria-label="${escapeHtml(`${displayTitle} 적용됨`)}"` : ''}>
             ${isApplied ? '<span class="enchant-simulator-applied-badge">✓ 적용됨</span>' : ''}
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
@@ -6258,6 +6433,7 @@ export function installEnchantView(ctx) {
     const payload = await parseApiJsonResponse(response, '캐릭터 오라 조회에 실패했습니다.');
     state.currentAura = payload.aura || null;
     state.currentAuraCharacterKey = characterKey;
+    syncDealerSimulatorAuraState();
     renderEnchantCharacterPortrait();
   }
 
@@ -6281,6 +6457,8 @@ export function installEnchantView(ctx) {
     const payload = await parseApiJsonResponse(response, '캐릭터 아바타 조회에 실패했습니다.');
     state.currentAvatar = payload || null;
     state.currentAvatarCharacterKey = characterKey;
+    syncDealerSimulatorAuraState();
+    renderEnchantCharacterPortrait();
   }
 
   async function loadCurrentCharacterPreview(requestId = state.enchantRequestId) {
@@ -6405,7 +6583,6 @@ export function installEnchantView(ctx) {
     state.currentDamageBaseline = payload.damageBaseline || null;
     state.currentBufferBaseline = payload.bufferBaseline || null;
     state.currentBufferScoreStatus = state.currentBufferBaseline?.isBuffer ? 'ready' : 'idle';
-    initializeDealerSimulator();
     state.currentCreature = payload.creature || null;
     state.currentTitle = payload.title || null;
     state.currentAura = payload.aura || null;
@@ -6414,6 +6591,7 @@ export function installEnchantView(ctx) {
     state.switchingTitleRecommendations = Array.isArray(payload.switchingTitleRecommendations) ? payload.switchingTitleRecommendations : [];
     state.switchingCreatureRecommendations = Array.isArray(payload.switchingCreatureRecommendations) ? payload.switchingCreatureRecommendations : [];
     state.switchingFragmentRecommendations = Array.isArray(payload.switchingFragmentRecommendations) ? payload.switchingFragmentRecommendations : [];
+    initializeDealerSimulator();
     state.currentEnchantCharacterKey = characterKey;
     state.currentCreatureCharacterKey = characterKey;
     state.currentTitleCharacterKey = characterKey;
@@ -6770,12 +6948,12 @@ export function installEnchantView(ctx) {
 
   els.enchantRecommendList?.addEventListener('pointerup', (event) => {
     if (!['touch', 'pen'].includes(event.pointerType)) return;
-    const target = event.target.closest('[data-simulator-recommendation-id], [data-applied-enchant-group]');
+    const target = event.target.closest('[data-simulator-recommendation-id], [data-applied-simulator-group]');
     if (!target || event.target.closest('[data-equipment-tune-step]')) return;
     event.preventDefault();
     event.stopPropagation();
     state.dealerSimulatorSuppressClickUntil = Date.now() + 700;
-    const appliedGroupKey = String(target.dataset.appliedEnchantGroup || '');
+    const appliedGroupKey = String(target.dataset.appliedSimulatorGroup || '');
     const recommendationId = String(target.dataset.simulatorRecommendationId || '');
     const selectionId = appliedGroupKey ? `applied:${appliedGroupKey}` : recommendationId;
     if (!selectionId || !state.dealerSimulator) return;
@@ -6802,14 +6980,14 @@ export function installEnchantView(ctx) {
       changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
       return;
     }
-    const simulatorTarget = event.target.closest('[data-simulator-recommendation-id], [data-applied-enchant-group]');
+    const simulatorTarget = event.target.closest('[data-simulator-recommendation-id], [data-applied-simulator-group]');
     if (!simulatorTarget) return;
     event.preventDefault();
     event.stopPropagation();
     if (Date.now() < state.dealerSimulatorSuppressClickUntil) return;
     const precisePointer = window.matchMedia?.('(hover: hover) and (pointer: fine)')?.matches === true;
     if (!precisePointer && event.detail > 0) return;
-    const appliedGroupKey = String(simulatorTarget.dataset.appliedEnchantGroup || '');
+    const appliedGroupKey = String(simulatorTarget.dataset.appliedSimulatorGroup || '');
     if (appliedGroupKey) {
       removeActiveDealerSimulatorSelection(appliedGroupKey);
       return;
