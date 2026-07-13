@@ -369,6 +369,12 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
             materials=materials,
             material_text=material_text,
             target_item_name=clean_text(black_item.get("itemName")),
+            target_item_id=clean_text(black_item.get("itemId")),
+            target_item_rarity=clean_text(black_detail.get("itemRarity") or black_item.get("itemRarity")),
+            target_icon_url=get_item_icon_url(clean_text(black_item.get("itemId"))),
+            target_item_explain=clean_text(
+                black_detail.get("itemExplainDetail") or black_detail.get("itemExplain")
+            ),
         ))
     steps.extend([
         {

@@ -12,6 +12,10 @@ def build_black_fang_recommendation_row(
     materials: list,
     material_text: str,
     target_item_name: str,
+    target_item_id: str,
+    target_item_rarity: str,
+    target_icon_url: str,
+    target_item_explain: str,
 ) -> dict:
     return {
         "slot": slot,
@@ -29,4 +33,8 @@ def build_black_fang_recommendation_row(
         "materials": materials,
         "materialText": material_text,
         "targetItemName": target_item_name,
+        "targetItemId": target_item_id,
+        "targetItemRarity": target_item_rarity,
+        "targetIconUrl": target_icon_url,
+        "targetItemExplain": target_item_explain,
     }

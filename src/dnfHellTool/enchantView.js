@@ -299,6 +299,7 @@ const EQUIPMENT_TUNE_SLOT_ORDER = [
   '귀걸이',
   '마법석',
 ];
+const BLACK_FANG_SIMULATOR_SLOTS = new Set(['목걸이', '팔찌', '반지']);
 const TUNE_SOURCE_TYPES = new Set(['equipmentTune', 'oathTune']);
 const ENCHANT_DAMAGE_BASELINE = {
   stat: 6500,
@@ -1739,7 +1740,27 @@ function getBlackFangRows(recommendations = []) {
     materials: Array.isArray(candidate.materials) ? candidate.materials : [],
     materialText: candidate.materialText || '',
     targetItemName: candidate.targetItemName || '',
+    targetItemId: candidate.targetItemId || '',
+    targetItemRarity: candidate.targetItemRarity || '',
+    targetIconUrl: candidate.targetIconUrl || '',
+    targetItemExplain: candidate.targetItemExplain || '',
   }));
+}
+
+function attachBlackFangBaseBodyData(equipmentRows = [], recommendations = []) {
+  const recommendationBySlot = new Map(
+    (recommendations || [])
+      .filter((row) => BLACK_FANG_SIMULATOR_SLOTS.has(String(row?.slot || '').trim()))
+      .map((row) => [row.slot, row]),
+  );
+  return cloneSimulatorValue(equipmentRows || []).map((equipment) => {
+    const recommendation = recommendationBySlot.get(equipment?.slot);
+    if (!recommendation) return equipment;
+    return {
+      ...equipment,
+      bodyEffects: cloneSimulatorValue(recommendation.currentEffects || {}),
+    };
+  });
 }
 
 function addEffects(...effectRows) {
@@ -1943,6 +1964,24 @@ function getTitleEffectsWithoutEnchantElement(title = {}) {
   return effects;
 }
 
+function getEquipmentBodyEffectsTotal(equipmentRows = []) {
+  return (equipmentRows || []).reduce(
+    (total, equipment) => addEffects(total, equipment?.bodyEffects || {}),
+    {},
+  );
+}
+
+function getEquipmentBodyFinalDamageChangeMultiplier(baseEquipment = [], simulatedEquipment = baseEquipment) {
+  const baseBySlot = new Map((baseEquipment || []).map((equipment) => [equipment?.slot, equipment]));
+  const simulatedBySlot = new Map((simulatedEquipment || []).map((equipment) => [equipment?.slot, equipment]));
+  return [...BLACK_FANG_SIMULATOR_SLOTS].reduce((multiplier, slot) => (
+    multiplier * getFinalDamageReplacementMultiplier(
+      baseBySlot.get(slot)?.bodyEffects || {},
+      simulatedBySlot.get(slot)?.bodyEffects || baseBySlot.get(slot)?.bodyEffects || {},
+    )
+  ), 1);
+}
+
 function buildSimulatedDamageBaseline(
   baseBaseline = {},
   baseEnchants = [],
@@ -1953,6 +1992,8 @@ function buildSimulatedDamageBaseline(
   simulatedCreature = baseCreature,
   baseTitle = {},
   simulatedTitle = baseTitle,
+  baseEquipment = [],
+  simulatedEquipment = baseEquipment,
 ) {
   const base = getDamageBaseline(baseBaseline);
   const effectDelta = subtractEffects(
@@ -1961,14 +2002,20 @@ function buildSimulatedDamageBaseline(
         addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
         simulatedCreature?.effects || {},
       ),
-      getTitleEffectsWithoutEnchantElement(simulatedTitle),
+      addEffects(
+        getTitleEffectsWithoutEnchantElement(simulatedTitle),
+        getEquipmentBodyEffectsTotal(simulatedEquipment),
+      ),
     ),
     addEffects(
       addEffects(
         addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
         baseCreature?.effects || {},
       ),
-      getTitleEffectsWithoutEnchantElement(baseTitle),
+      addEffects(
+        getTitleEffectsWithoutEnchantElement(baseTitle),
+        getEquipmentBodyEffectsTotal(baseEquipment),
+      ),
     ),
   );
   delete effectDelta.finalDamage;
@@ -2003,12 +2050,18 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
   if (!simulator?.baseDamageBaseline) return 1;
   const effectDelta = subtractEffects(
     addEffects(
-      addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
-      simulator.simulatedCreature?.effects || {},
+      addEffects(
+        addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
+        simulator.simulatedCreature?.effects || {},
+      ),
+      getEquipmentBodyEffectsTotal(simulator.simulatedEquipmentUpgrades),
     ),
     addEffects(
-      addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
-      simulator.baseCreature?.effects || {},
+      addEffects(
+        addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
+        simulator.baseCreature?.effects || {},
+      ),
+      getEquipmentBodyEffectsTotal(simulator.baseEquipmentUpgrades),
     ),
   );
   delete effectDelta.finalDamage;
@@ -2031,6 +2084,10 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
       simulator.simulatedCreature?.effects || {},
     )
     * (getSkillDamageMultiplier(simulator.simulatedCreature) / getSkillDamageMultiplier(simulator.baseCreature))
+    * getEquipmentBodyFinalDamageChangeMultiplier(
+      simulator.baseEquipmentUpgrades,
+      simulator.simulatedEquipmentUpgrades,
+    )
     * getEquipmentTuneDamageMultiplier(
       simulator.baseEquipmentUpgrades,
       simulator.simulatedEquipmentUpgrades,
@@ -2045,6 +2102,8 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
     simulator.simulatedCreature,
     simulator.baseTitle,
     simulator.baseTitle,
+    simulator.baseEquipmentUpgrades,
+    simulator.simulatedEquipmentUpgrades,
   );
   const simulatedTitleRow = { sourceType: 'title', ...(simulator.simulatedTitle || {}) };
   const adjustedTitleBaseline = getAdjustedElementBaselineForRecommendation(
@@ -3005,12 +3064,30 @@ function getEquipmentTuneCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getBlackFangExclusiveGroupKey(row = {}) {
+  const slot = String(row.slot || '').trim();
+  return row.sourceType === 'blackFang' && BLACK_FANG_SIMULATOR_SLOTS.has(slot)
+    ? `blackFang:${slot}`
+    : '';
+}
+
+function getBlackFangCandidateSignature(row = {}) {
+  const groupKey = getBlackFangExclusiveGroupKey(row);
+  if (!groupKey || !row.targetItemId) return '';
+  return [
+    groupKey,
+    row.targetItemId,
+    getEffectSignature(row.targetEffects || {}),
+  ].join(':');
+}
+
 function getSimulatorExclusiveGroupKey(row = {}) {
   return getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
     || getCreatureExclusiveGroupKey(row)
     || getTitleExclusiveGroupKey(row)
-    || getEquipmentTuneExclusiveGroupKey(row);
+    || getEquipmentTuneExclusiveGroupKey(row)
+    || getBlackFangExclusiveGroupKey(row);
 }
 
 function getSimulatorCandidateSignature(row = {}) {
@@ -3018,7 +3095,8 @@ function getSimulatorCandidateSignature(row = {}) {
     || getAuraCandidateSignature(row)
     || getCreatureCandidateSignature(row)
     || getTitleCandidateSignature(row)
-    || getEquipmentTuneCandidateSignature(row);
+    || getEquipmentTuneCandidateSignature(row)
+    || getBlackFangCandidateSignature(row);
 }
 
 function getStableObjectSignature(value = {}) {
@@ -3709,6 +3787,8 @@ function getRepresentativeRecommendationRows(
         ? simulationOptions?.creatureReferenceBaseline || baseline
       : row.sourceType === 'title'
         ? simulationOptions?.titleReferenceBaseline || baseline
+      : row.sourceType === 'blackFang'
+        ? simulationOptions?.blackFangReferenceBaselineBySlot?.get(row.slot) || baseline
         : baseline;
     const rowPreferredElement = getPreferredElementForRecommendationRow(
       row,
@@ -4291,6 +4371,8 @@ export function installEnchantView(ctx) {
           simulator.simulatedCreature,
           simulator.baseTitle,
           simulator.simulatedTitle,
+          simulator.baseEquipmentUpgrades,
+          simulator.simulatedEquipmentUpgrades,
         ),
       );
     });
@@ -4304,6 +4386,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedCreature,
       simulator.baseTitle,
       simulator.simulatedTitle,
+      simulator.baseEquipmentUpgrades,
+      simulator.simulatedEquipmentUpgrades,
     );
     const creatureReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -4315,6 +4399,8 @@ export function installEnchantView(ctx) {
       simulator.baseCreature,
       simulator.baseTitle,
       simulator.simulatedTitle,
+      simulator.baseEquipmentUpgrades,
+      simulator.simulatedEquipmentUpgrades,
     );
     const titleReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -4326,7 +4412,37 @@ export function installEnchantView(ctx) {
       simulator.simulatedCreature,
       simulator.baseTitle,
       simulator.baseTitle,
+      simulator.baseEquipmentUpgrades,
+      simulator.simulatedEquipmentUpgrades,
     );
+    const baseEquipmentBySlot = new Map(
+      simulator.baseEquipmentUpgrades.map((equipment) => [equipment?.slot, equipment]),
+    );
+    const blackFangReferenceBaselineBySlot = new Map();
+    candidateRows.forEach((row) => {
+      if (row.sourceType !== 'blackFang' || blackFangReferenceBaselineBySlot.has(row.slot)) return;
+      const referenceEquipment = simulator.simulatedEquipmentUpgrades.map((equipment) => (
+        equipment?.slot === row.slot && baseEquipmentBySlot.has(row.slot)
+          ? cloneSimulatorValue(baseEquipmentBySlot.get(row.slot))
+          : cloneSimulatorValue(equipment)
+      ));
+      blackFangReferenceBaselineBySlot.set(
+        row.slot,
+        buildSimulatedDamageBaseline(
+          simulator.baseDamageBaseline,
+          simulator.baseEnchants,
+          simulator.simulatedEnchants,
+          simulator.baseAura,
+          simulator.simulatedAura,
+          simulator.baseCreature,
+          simulator.simulatedCreature,
+          simulator.baseTitle,
+          simulator.simulatedTitle,
+          simulator.baseEquipmentUpgrades,
+          referenceEquipment,
+        ),
+      );
+    });
     return {
       rows: candidateRows,
       options: {
@@ -4338,6 +4454,7 @@ export function installEnchantView(ctx) {
         creatureReferenceBaseline,
         referenceTitle: simulator.baseTitle,
         titleReferenceBaseline,
+        blackFangReferenceBaselineBySlot,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
       },
     };
@@ -4356,7 +4473,10 @@ export function installEnchantView(ctx) {
       return;
     }
     const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
-    const baseEquipmentUpgrades = cloneSimulatorValue(state.currentEquipmentUpgrades || []);
+    const baseEquipmentUpgrades = attachBlackFangBaseBodyData(
+      state.currentEquipmentUpgrades || [],
+      state.currentBlackFangRecommendations || [],
+    );
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
     const baseAura = getCanonicalCurrentAura();
     const baseCreature = getCanonicalCurrentCreatureBody();
@@ -4437,6 +4557,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedCreature,
       simulator.baseTitle,
       simulator.simulatedTitle,
+      simulator.baseEquipmentUpgrades,
+      simulator.simulatedEquipmentUpgrades,
     );
     const equipmentTuneSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades);
     simulator.simulatedDamageBaseline = {
@@ -4459,6 +4581,19 @@ export function installEnchantView(ctx) {
 
   function resolveDealerSimulatorTarget(row = {}) {
     if (state.currentBufferBaseline?.isBuffer) return null;
+    if (row.sourceType === 'blackFang') {
+      const targetSlot = String(row.slot || '').trim();
+      if (
+        !BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot) ||
+        !row.targetItemId ||
+        !Object.keys(row.targetEffects || {}).length
+      ) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot,
+        applyType: 'replaceBlackFangBody',
+      };
+    }
     if (row.sourceType === 'equipmentTune') {
       if (!Array.isArray(row.tunePlan?.slotChanges) || !row.tunePlan.slotChanges.length) return null;
       return {
@@ -4615,6 +4750,43 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function replaceEquipmentBodyPreservingState(currentEquipment = {}, targetBody = {}) {
+    const nextEquipment = cloneSimulatorValue(currentEquipment || {});
+    nextEquipment.itemId = targetBody.itemId || '';
+    nextEquipment.itemName = targetBody.itemName || nextEquipment.itemName || '';
+    nextEquipment.iconUrl = targetBody.iconUrl || '';
+    nextEquipment.itemRarity = targetBody.itemRarity || nextEquipment.itemRarity || '';
+    nextEquipment.bodyEffects = cloneSimulatorValue(targetBody.effects || {});
+    nextEquipment.bodyExplain = targetBody.itemExplain || '';
+    return nextEquipment;
+  }
+
+  function replaceSimulatedBlackFangBody(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceBlackFangBody') return false;
+    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
+      (equipment) => equipment?.slot === target.targetSlot,
+    );
+    if (equipmentIndex < 0) return false;
+    simulator.simulatedEquipmentUpgrades.splice(
+      equipmentIndex,
+      1,
+      replaceEquipmentBodyPreservingState(
+        simulator.simulatedEquipmentUpgrades[equipmentIndex],
+        {
+          itemId: row.targetItemId,
+          itemName: row.targetItemName,
+          iconUrl: row.targetIconUrl,
+          itemRarity: row.targetItemRarity,
+          effects: row.targetEffects,
+          itemExplain: row.targetItemExplain,
+        },
+      ),
+    );
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function applySimulatedEquipmentTunePlan(row, target) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'applyEquipmentTunePlan') return false;
@@ -4633,6 +4805,7 @@ export function installEnchantView(ctx) {
     if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
     if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
     if (target?.applyType === 'replaceTitle') return replaceSimulatedTitle(row, target);
+    if (target?.applyType === 'replaceBlackFangBody') return replaceSimulatedBlackFangBody(row, target);
     if (target?.applyType === 'applyEquipmentTunePlan') return applySimulatedEquipmentTunePlan(row, target);
     return false;
   }
@@ -4673,7 +4846,9 @@ export function installEnchantView(ctx) {
     const candidateSignature = getSimulatorCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
     if (simulator.activeSelectionByGroup?.[exclusiveGroupKey]?.candidateSignature === candidateSignature) return;
-    const latestGold = getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true);
+    const latestGold = row.sourceType === 'blackFang'
+      ? Number(row.expectedGold)
+      : getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true);
     if (!Number.isFinite(latestGold) || latestGold < 0) return;
     const snapshot = getDealerSimulatorSnapshot();
     simulator.applyingRecommendationId = recommendationId;
@@ -4757,6 +4932,33 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function restoreSimulatedEquipmentBodyToBase(targetSlot) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)) return false;
+    const baseEquipment = simulator.baseEquipmentUpgrades.find((equipment) => equipment?.slot === targetSlot);
+    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
+      (equipment) => equipment?.slot === targetSlot,
+    );
+    if (!baseEquipment || equipmentIndex < 0) return false;
+    simulator.simulatedEquipmentUpgrades.splice(
+      equipmentIndex,
+      1,
+      replaceEquipmentBodyPreservingState(
+        simulator.simulatedEquipmentUpgrades[equipmentIndex],
+        {
+          itemId: baseEquipment.itemId,
+          itemName: baseEquipment.itemName,
+          iconUrl: baseEquipment.iconUrl,
+          itemRarity: baseEquipment.itemRarity,
+          effects: baseEquipment.bodyEffects,
+          itemExplain: baseEquipment.bodyExplain,
+        },
+      ),
+    );
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function removeActiveDealerSimulatorSelection(exclusiveGroupKey) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
@@ -4798,6 +5000,8 @@ export function installEnchantView(ctx) {
         ? restoreSimulatedCreatureToBase()
         : selection.applyType === 'replaceTitle'
           ? restoreSimulatedTitleToBase()
+          : selection.applyType === 'replaceBlackFangBody'
+            ? restoreSimulatedEquipmentBodyToBase(selection.targetSlot)
           : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
     if (!restored) return;
     simulator.history.push(snapshot);
@@ -4897,6 +5101,10 @@ export function installEnchantView(ctx) {
         const baseTuneLevel = Number(baseEquipmentBySlot.get(slot)?.tuneLevel || 0);
         const simulatedTuneLevel = Number(equipment.tuneLevel || 0);
         const isSimulatedTune = simulatedTuneLevel !== baseTuneLevel;
+        const isSimulatedEquipmentBody = Boolean(
+          baseEquipmentBySlot.get(slot)?.itemId &&
+          equipment.itemId !== baseEquipmentBySlot.get(slot)?.itemId,
+        );
         const tuneBadge = getEquipmentTuneBadge(equipment);
         if (tuneBadge) {
           tuneBadge.baseDisplayLevel = Math.max(
@@ -4915,6 +5123,10 @@ export function installEnchantView(ctx) {
           tuneBadge,
           isSimulatedTune,
           hoverLines: [
+            isSimulatedEquipmentBody ? {
+              text: `장비 옵션: ${formatEffects(equipment.bodyEffects || {}) || '없음'}`,
+              className: 'enchant-portrait-detail-line-effect',
+            } : null,
             { text: enchantDetailText, className: 'enchant-portrait-detail-line-effect' },
             getUpgradeDetailLine(equipment),
             isSimulatedTune ? {
@@ -7466,11 +7678,26 @@ export function installEnchantView(ctx) {
     if (!simulator || !selection || selection.actionType !== 'equipmentTunePlan') return false;
     const row = getEquipmentTuneVariantRow(stepIndex);
     if (!row || Number(row.selectedTuneStepIndex || 0) === Number(selection.selectedVariantIndex || 0)) return false;
-    const nextEquipment = applyEquipmentTunePlan(selection.beforeTuneSnapshot || [], row.tunePlan);
-    if (!nextEquipment) return false;
+    const plannedEquipment = applyEquipmentTunePlan(selection.beforeTuneSnapshot || [], row.tunePlan);
+    if (!plannedEquipment) return false;
     const rollbackSnapshot = getDealerSimulatorSnapshot();
     const rollbackHistory = cloneSimulatorValue(simulator.history || []);
     const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+    const currentEquipmentBySlot = new Map(
+      previousEquipment.map((equipment) => [equipment?.slot, equipment]),
+    );
+    const nextEquipment = plannedEquipment.map((equipment) => {
+      const currentEquipment = currentEquipmentBySlot.get(equipment?.slot);
+      if (!currentEquipment || !BLACK_FANG_SIMULATOR_SLOTS.has(equipment?.slot)) return equipment;
+      return replaceEquipmentBodyPreservingState(equipment, {
+        itemId: currentEquipment.itemId,
+        itemName: currentEquipment.itemName,
+        iconUrl: currentEquipment.iconUrl,
+        itemRarity: currentEquipment.itemRarity,
+        effects: currentEquipment.bodyEffects,
+        itemExplain: currentEquipment.bodyExplain,
+      });
+    });
     const updatedSelection = {
       ...selection,
       appliedGold: getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true),
@@ -7483,7 +7710,21 @@ export function installEnchantView(ctx) {
       simulator.activeSelectionByGroup.equipmentTune = updatedSelection;
       simulator.history.forEach((snapshot) => {
         if (!snapshot?.activeSelectionByGroup?.equipmentTune) return;
-        snapshot.simulatedEquipmentUpgrades = cloneSimulatorValue(nextEquipment);
+        const snapshotEquipmentBySlot = new Map(
+          (snapshot.simulatedEquipmentUpgrades || []).map((equipment) => [equipment?.slot, equipment]),
+        );
+        snapshot.simulatedEquipmentUpgrades = cloneSimulatorValue(plannedEquipment.map((equipment) => {
+          const snapshotEquipment = snapshotEquipmentBySlot.get(equipment?.slot);
+          if (!snapshotEquipment || !BLACK_FANG_SIMULATOR_SLOTS.has(equipment?.slot)) return equipment;
+          return replaceEquipmentBodyPreservingState(equipment, {
+            itemId: snapshotEquipment.itemId,
+            itemName: snapshotEquipment.itemName,
+            iconUrl: snapshotEquipment.iconUrl,
+            itemRarity: snapshotEquipment.itemRarity,
+            effects: snapshotEquipment.bodyEffects,
+            itemExplain: snapshotEquipment.bodyExplain,
+          });
+        }));
         snapshot.activeSelectionByGroup.equipmentTune = cloneSimulatorValue(updatedSelection);
         snapshot.totalGold = getDealerSimulatorTotalGold(snapshot);
       });
