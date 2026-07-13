@@ -1525,6 +1525,39 @@
       color: #6996ff;
       cursor: default;
     }
+    .enchant-portrait-equipment-score.is-simulated strong {
+      color: #a8c7ff;
+    }
+    .enchant-simulator-summary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-width: 0;
+      color: #c7b98d;
+      font-size: 8px;
+      line-height: 1.2;
+    }
+    .enchant-simulator-actions {
+      display: inline-flex;
+      gap: 2px;
+    }
+    .enchant-simulator-actions button {
+      min-width: 0;
+      height: 16px;
+      padding: 0 4px;
+      border: 1px solid rgb(92 70 39 / 0.72);
+      border-radius: 1px;
+      background: #15120d;
+      color: #d5c58e;
+      font: inherit;
+      font-size: 8px;
+      cursor: pointer;
+    }
+    .enchant-simulator-actions button:disabled {
+      opacity: 0.38;
+      cursor: default;
+    }
     .enchant-portrait-buffer-score strong:not([data-tooltip]) {
       cursor: default;
     }
@@ -1654,6 +1687,38 @@
     .enchant-character-slot-wrap-ring { top: 78px; right: 6px; }
     .enchant-character-slot-wrap-earring { top: 114px; right: 42px; }
     .enchant-character-slot-wrap-magic-stone { top: 114px; right: 6px; }
+    .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10px;
+      z-index: 7;
+      width: 12px;
+      height: 3px;
+      border-radius: 1px;
+      background: linear-gradient(90deg, #9d6814 0%, #ffd75a 35%, #fff7cf 62%, #d8991f 100%);
+      box-shadow:
+        0 0 2px #fff4bd,
+        0 0 5px rgb(255 194 57 / 0.98),
+        0 0 8px rgb(183 112 15 / 0.78);
+      opacity: 0;
+      pointer-events: none;
+      animation: enchant-simulator-slot-sweep 800ms linear 1 forwards;
+      animation-delay: var(--simulator-sweep-delay, 0ms);
+    }
+    @keyframes enchant-simulator-slot-sweep {
+      0% { top: 0; left: 10px; width: 12px; height: 3px; opacity: 1; }
+      12.5% { top: 0; left: 20px; width: 12px; height: 3px; }
+      13% { top: 0; left: 29px; width: 3px; height: 12px; }
+      37.5% { top: 20px; left: 29px; width: 3px; height: 12px; }
+      38% { top: 29px; left: 20px; width: 12px; height: 3px; }
+      62.5% { top: 29px; left: 0; width: 12px; height: 3px; }
+      63% { top: 20px; left: 0; width: 3px; height: 12px; }
+      87.5% { top: 0; left: 0; width: 3px; height: 12px; opacity: 1; }
+      88% { top: 0; left: 0; width: 12px; height: 3px; }
+      99% { top: 0; left: 10px; width: 12px; height: 3px; opacity: 1; }
+      100% { top: 0; left: 10px; width: 12px; height: 3px; opacity: 0; }
+    }
     .enchant-creature-artifact-rail {
       position: absolute;
       left: calc(100% + 2px);
@@ -1709,6 +1774,13 @@
       .enchant-creature-artifact-rail {
         transition: none;
       }
+      .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after {
+        animation: enchant-simulator-slot-highlight 280ms ease-out 1 forwards;
+      }
+    }
+    @keyframes enchant-simulator-slot-highlight {
+      from { opacity: 1; }
+      to { opacity: 0; }
     }
     .supply-input-actions {
       margin-top: 10px;

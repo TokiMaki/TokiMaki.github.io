@@ -1318,8 +1318,27 @@
     }
     .enchant-recommend-item:hover .enchant-recommend-popover,
     .enchant-recommend-item:focus-visible .enchant-recommend-popover,
+    .enchant-recommend-item.is-touch-selected .enchant-recommend-popover,
     .enchant-recommend-step-tune.is-tune-popover-open .enchant-recommend-popover {
       display: flex;
+    }
+    .enchant-recommend-item.is-simulator-supported {
+      cursor: pointer;
+    }
+    .enchant-recommend-item.is-touch-selected {
+      border-color: var(--accent-2);
+      background: color-mix(in srgb, var(--accent-2) 8%, var(--surface-card));
+    }
+    .enchant-simulator-touch-hint {
+      display: none;
+      margin-top: 2px;
+      color: #c7b98d;
+      font-size: 10px;
+    }
+    @media (hover: none), (pointer: coarse) {
+      .enchant-recommend-item.is-touch-selected .enchant-simulator-touch-hint {
+        display: block;
+      }
     }
     .supply-detail-cards .card .label {
       font-size: 13px;
