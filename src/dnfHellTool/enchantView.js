@@ -4085,16 +4085,18 @@ export function installEnchantView(ctx) {
           formatEffects(enchant.effects || {}),
           reinforceSkillText,
         ].filter(Boolean).join(' / ') || '없음';
+        const enchantBadge = getEnchantBadge(
+          enchant.effects || {},
+          enchant.reinforceSkill || [],
+          state.currentBufferBaseline,
+        );
         slotData[slot] = {
           label: slot,
           iconUrl: equipment.iconUrl || '',
           itemName: equipment.itemName || slot,
           itemRarity: equipment.itemRarity || '',
-          enchantBadge: getEnchantBadge(
-            enchant.effects || {},
-            enchant.reinforceSkill || [],
-            state.currentBufferBaseline,
-          ),
+          enchantBadge,
+          isSimulatedEnchant: Boolean(enchant.simulatedEnchantItemName),
           upgradeBadge: getUpgradeBadge(equipment),
           tuneBadge: getEquipmentTuneBadge(equipment),
           hoverLines: [
@@ -4245,7 +4247,7 @@ export function installEnchantView(ctx) {
             ? `<img src="${escapeHtml(data.iconUrl)}" alt="" loading="lazy" decoding="async" />`
             : `<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>`}
           ${data?.enchantBadge
-            ? `<span class="enchant-character-slot-enchant-badges"><span class="enchant-character-slot-enchant-badge">${escapeHtml(data.enchantBadge.text)}</span></span>`
+            ? `<span class="enchant-character-slot-enchant-badges"><span class="enchant-character-slot-enchant-badge${data.isSimulatedEnchant ? ' is-simulated' : ''}">${escapeHtml(data.enchantBadge.text)}</span></span>`
             : ''}
         </span>
         ${data?.upgradeBadge

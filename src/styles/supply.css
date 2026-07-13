@@ -989,7 +989,7 @@
       min-width: 0;
       height: 11px;
       padding: 0 2px;
-      border: 1px solid rgb(255 255 255 / 0.22);
+      border: 1px solid rgb(255 255 255 / 0.38);
       border-radius: 0;
       background: rgb(0 0 0 / 0.7);
       box-shadow: none;
@@ -1004,6 +1004,13 @@
       color: #f8fafc;
       text-shadow:
         0 1px 2px rgb(0 0 0 / 0.7);
+    }
+    .enchant-character-slot-enchant-badge.is-simulated {
+      border-color: rgb(117 210 91 / 0.82);
+      background: rgb(15 48 17 / 0.9);
+      color: #8fe36f;
+      box-shadow: 0 0 3px rgb(76 195 67 / 0.68);
+      text-shadow: 0 1px 2px rgb(0 0 0 / 0.9);
     }
     .enchant-character-slot-badge {
       position: absolute;
