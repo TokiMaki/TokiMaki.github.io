@@ -153,7 +153,14 @@ def subtract_oath_effects(target_effects: dict, current_effects: dict) -> dict:
     keys = set((target_effects or {}).keys()) | set((current_effects or {}).keys())
     result = {}
     for key in keys:
-        value = parse_percent_or_number((target_effects or {}).get(key)) - parse_percent_or_number((current_effects or {}).get(key))
+        target_value = parse_percent_or_number((target_effects or {}).get(key))
+        current_value = parse_percent_or_number((current_effects or {}).get(key))
+        if key == "finalDamage":
+            current_multiplier = 1 + current_value / 100
+            target_multiplier = 1 + target_value / 100
+            value = (target_multiplier / current_multiplier - 1) * 100 if current_multiplier > 0 else 0
+        else:
+            value = target_value - current_value
         if value > 0:
             result[key] = value
     return result
@@ -169,6 +176,113 @@ def get_oath_transcend_material_text(materials: list) -> str:
 
 def build_oath_transcend_materials(materials: list) -> list:
     return build_upgrade_material_display_rows(materials)
+
+
+def combine_oath_effects(*effects_rows: dict) -> dict:
+    result = {}
+    final_damage_multiplier = 1.0
+    for effects in effects_rows:
+        for key, value in (effects or {}).items():
+            amount = parse_percent_or_number(value)
+            if not amount:
+                continue
+            if key == "finalDamage":
+                final_damage_multiplier *= 1 + amount / 100
+                continue
+            result[key] = parse_percent_or_number(result.get(key)) + amount
+    if final_damage_multiplier != 1:
+        result["finalDamage"] = (final_damage_multiplier - 1) * 100
+    return result
+
+
+def merge_oath_decision_materials(rows: list) -> list:
+    merged = {}
+    for row in rows or []:
+        for material in row.get("materials") or []:
+            key = clean_text(material.get("key")) or clean_text(material.get("label"))
+            if not key:
+                continue
+            previous = merged.setdefault(key, {**material, "amount": 0})
+            previous["amount"] = int(previous.get("amount") or 0) + int(material.get("amount") or 0)
+    return list(merged.values())
+
+
+def build_oath_decision_variant_rows(
+    rows: list,
+    max_count: int,
+    current_total_set_point: float,
+    db: dict,
+    source_type: str,
+    kind: str,
+    slot: str,
+    tier: str,
+) -> list:
+    selected_rows = (rows or [])[:max(0, int(max_count or 0))]
+    if not selected_rows:
+        return []
+    target_rarity = clean_text(selected_rows[0].get("targetRarity"))
+    variant_total = len(selected_rows)
+    variants = []
+    for count in range(1, variant_total + 1):
+        current_rows = selected_rows[:count]
+        current_effects = combine_oath_effects(*(row.get("currentEffects") or {} for row in current_rows))
+        target_effects = combine_oath_effects(*(row.get("targetEffects") or {} for row in current_rows))
+        current_slot_set_point = sum(parse_percent_or_number(row.get("currentSlotSetPoint")) for row in current_rows)
+        target_slot_set_point = sum(parse_percent_or_number(row.get("targetSlotSetPoint")) for row in current_rows)
+        set_point_context = build_oath_set_point_context(
+            current_total_set_point,
+            current_slot_set_point,
+            target_slot_set_point,
+            db,
+        )
+        if not set_point_context:
+            continue
+        effects = subtract_oath_effects(target_effects, current_effects)
+        materials = merge_oath_decision_materials(current_rows)
+        first = current_rows[0]
+        item_name = clean_text(first.get("targetItemName") or first.get("itemName"))
+        if count > 1:
+            item_name = f"{target_rarity} 서약 결정 {count}개"
+        row = build_oath_transcend_recommendation_row(
+            slot=slot,
+            item_id=clean_text(first.get("itemId")),
+            item_name=item_name,
+            item_rarity=target_rarity,
+            icon_url=clean_text(first.get("iconUrl")),
+            current_item_name=f"서약 결정 {count}개",
+            current_rarity="",
+            current_effects=current_effects,
+            target_effects=target_effects,
+            effects=effects,
+            expected_gold=sum(int(row.get("expectedGold") or 0) for row in current_rows),
+            materials=materials,
+            material_text=get_oath_transcend_material_text(materials),
+            target_rarity=target_rarity,
+            skill_damage_multiplier=set_point_context.get("skillDamageMultiplier"),
+            oath_set_buff_power_delta=set_point_context.get("oathSetBuffPowerDelta"),
+            set_point_context=set_point_context,
+            source_type=source_type,
+            kind=kind,
+            tier=tier,
+        )
+        row.update({
+            "variantGroupKey": f"{source_type}:{target_rarity}",
+            "variantIndex": count - 1,
+            "variantCount": count,
+            "variantTotal": variant_total,
+            "decisionPlan": [
+                {
+                    "slotIndex": int(candidate.get("targetSlotIndex") or 0),
+                    "currentItemName": clean_text(candidate.get("currentItemName")),
+                    "targetItemId": clean_text(candidate.get("itemId")),
+                    "targetItemName": clean_text(candidate.get("targetItemName") or candidate.get("itemName")),
+                    "targetRarity": clean_text(candidate.get("targetRarity")),
+                }
+                for candidate in current_rows
+            ],
+        })
+        variants.append(row)
+    return variants
 
 
 def is_oath_unique_crystal_name(item_name: str, unique_keyword: str = "") -> bool:
@@ -424,6 +538,7 @@ def build_oath_decision_recommendations_debug(
                 tier=tier,
             )
             row["_score"] = score
+            row["targetSlotIndex"] = index
             recommendations.append(row)
 
     epic_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "에픽"]
@@ -436,11 +551,27 @@ def build_oath_decision_recommendations_debug(
     )
     epic_rows.sort(key=row_rank_key)
     primeval_rows.sort(key=row_rank_key)
-    selected_epic_rows = epic_rows[:1]
-    selected_primeval_rows = primeval_rows[:min(1, primeval_remaining)]
     result_rows = [
-        {key: value for key, value in row.items() if key != "_score"}
-        for row in [*selected_epic_rows, *selected_primeval_rows]
+        *build_oath_decision_variant_rows(
+            epic_rows,
+            min(epic_remaining, len(epic_rows)),
+            current_total_set_point,
+            db,
+            source_type,
+            kind,
+            slot,
+            tier,
+        ),
+        *build_oath_decision_variant_rows(
+            primeval_rows,
+            min(primeval_remaining, len(primeval_rows)),
+            current_total_set_point,
+            db,
+            source_type,
+            kind,
+            slot,
+            tier,
+        ),
     ]
     result_rows.sort(key=lambda row: (
         int(row.get("expectedGold") or 0),

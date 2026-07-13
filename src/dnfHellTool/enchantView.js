@@ -302,6 +302,7 @@ const EQUIPMENT_TUNE_SLOT_ORDER = [
 ];
 const BLACK_FANG_SIMULATOR_SLOTS = new Set(['목걸이', '팔찌', '반지']);
 const TUNE_SOURCE_TYPES = new Set(['equipmentTune', 'oathTune']);
+const OATH_DECISION_VARIANT_SOURCE_TYPES = new Set(['oathTranscend', 'oathCraft']);
 const ENCHANT_DAMAGE_BASELINE = {
   stat: 6500,
   baseStat: 800,
@@ -2740,7 +2741,41 @@ function getOathTranscendRows(recommendations = [], materialPrices = {}, sourceT
       currentRarity: candidate.currentRarity || '',
       targetItemName: candidate.targetItemName || candidate.itemName || '',
       targetRarity: candidate.targetRarity || candidate.itemRarity || '',
+      variantGroupKey: candidate.variantGroupKey || '',
+      variantIndex: Number(candidate.variantIndex || 0),
+      variantCount: Number(candidate.variantCount || 1),
+      variantTotal: Number(candidate.variantTotal || 1),
+      decisionPlan: cloneSimulatorValue(candidate.decisionPlan || []),
     };
+  });
+}
+
+function collapseOathDecisionRecommendationVariants(rows = [], selectedIndexByGroup = {}) {
+  const variantsByGroup = new Map();
+  (rows || []).forEach((row) => {
+    if (!OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) || !row.variantGroupKey) return;
+    const variants = variantsByGroup.get(row.variantGroupKey) || [];
+    variants.push(row);
+    variantsByGroup.set(row.variantGroupKey, variants);
+  });
+  variantsByGroup.forEach((variants) => {
+    variants.sort((a, b) => Number(a.variantCount || 1) - Number(b.variantCount || 1));
+  });
+  const emittedGroups = new Set();
+  return (rows || []).flatMap((row) => {
+    const variants = variantsByGroup.get(row.variantGroupKey);
+    if (!variants?.length) return [row];
+    if (emittedGroups.has(row.variantGroupKey)) return [];
+    emittedGroups.add(row.variantGroupKey);
+    const selectedIndex = Math.max(
+      0,
+      Math.min(variants.length - 1, Number(selectedIndexByGroup[row.variantGroupKey] || 0)),
+    );
+    return [{
+      ...variants[selectedIndex],
+      selectedVariantIndex: selectedIndex,
+      oathDecisionVariants: variants,
+    }];
   });
 }
 
@@ -4369,6 +4404,7 @@ export function installEnchantView(ctx) {
   state.enchantRequestId = 0;
   state.equipmentTuneStepIndex = 0;
   state.tuneStepIndexBySource = {};
+  state.oathDecisionVariantIndexByGroup = {};
   state.equipmentTunePopoverOpen = false;
   state.equipmentTunePopoverSource = '';
   state.dealerSimulator = null;
@@ -6651,6 +6687,7 @@ export function installEnchantView(ctx) {
     state.currentAvatarCharacterKey = '';
     state.equipmentTuneStepIndex = 0;
     state.tuneStepIndexBySource = {};
+    state.oathDecisionVariantIndexByGroup = {};
     state.equipmentTunePopoverOpen = false;
     state.equipmentTunePopoverSource = '';
   }
@@ -7065,6 +7102,10 @@ export function installEnchantView(ctx) {
         simulatorRecommendationContext.options,
         getActiveCreature(),
       );
+    recommendations = collapseOathDecisionRecommendationVariants(
+      recommendations,
+      state.oathDecisionVariantIndexByGroup,
+    );
     const simulator = state.currentBufferBaseline?.isBuffer ? null : state.dealerSimulator;
     if (simulator && !simulator.baseEligibleEnchantCandidateSignatures.length) {
       simulator.baseEligibleEnchantCandidateSignatures = recommendations
@@ -7137,6 +7178,11 @@ export function installEnchantView(ctx) {
 
     els.enchantRecommendList.innerHTML = displayRecommendations.map((row, index) => {
       const isApplied = row.isApplied === true;
+      const hasOathDecisionVariants = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
+        && Array.isArray(row.oathDecisionVariants)
+        && row.oathDecisionVariants.length > 1;
+      const hasVariantActions = TUNE_SOURCE_TYPES.has(row.sourceType) || hasOathDecisionVariants;
+      const variantPopoverSource = hasOathDecisionVariants ? row.variantGroupKey : row.sourceType;
       const tuneStepIndex = TUNE_SOURCE_TYPES.has(row.sourceType)
         ? getTuneStepIndexBySource(state, row.sourceType)
         : state.equipmentTuneStepIndex;
@@ -7293,6 +7339,12 @@ export function installEnchantView(ctx) {
             <span class="enchant-tune-step-label">${Number(row.selectedTuneStepIndex || 0) + 1} / ${row.tuneSteps.length}</span>
             <span class="enchant-tune-step-button${row.selectedTuneStepIndex >= row.tuneSteps.length - 1 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="1" data-tune-source="${escapeHtml(row.sourceType)}" aria-label="다음 조율 단계">+</span>
           </span>`
+        : hasOathDecisionVariants
+          ? `<span class="enchant-tune-step-controls">
+            <span class="enchant-tune-step-button${row.selectedVariantIndex <= 0 ? ' is-disabled' : ''}" role="button" tabindex="0" data-recommendation-variant-step="-1" data-variant-group="${escapeHtml(row.variantGroupKey)}" data-variant-max="${row.oathDecisionVariants.length - 1}" aria-label="이전 적용 개수">-</span>
+            <span class="enchant-tune-step-label">${Number(row.variantCount || 1)} / ${row.oathDecisionVariants.length}</span>
+            <span class="enchant-tune-step-button${row.selectedVariantIndex >= row.oathDecisionVariants.length - 1 ? ' is-disabled' : ''}" role="button" tabindex="0" data-recommendation-variant-step="1" data-variant-group="${escapeHtml(row.variantGroupKey)}" data-variant-max="${row.oathDecisionVariants.length - 1}" aria-label="다음 적용 개수">+</span>
+          </span>`
         : '';
       const popoverName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? [displayName, tierLabel].filter(Boolean).join(' ')
@@ -7324,13 +7376,13 @@ export function installEnchantView(ctx) {
         { text: simulatorTarget ? '한 번 더 눌러 시뮬레이터에 적용' : '', className: 'enchant-simulator-touch-hint' },
       ].filter((item) => item.text || item.html);
       const popover = `
-        <span class="enchant-recommend-popover${TUNE_SOURCE_TYPES.has(row.sourceType) ? ' has-actions' : ''}" role="tooltip">
+        <span class="enchant-recommend-popover${hasVariantActions ? ' has-actions' : ''}" role="tooltip">
           ${hasUpgradeWarning ? '<span class="enchant-recommend-warning">⚠ 상위 마법부여 존재</span>' : ''}
           ${tooltipRows.map((item) => `<span class="${escapeHtml(item.className)}">${item.html || escapeHtml(item.text)}</span>`).join('')}
         </span>
       `;
       return `
-        <span class="enchant-recommend-step${TUNE_SOURCE_TYPES.has(row.sourceType) ? ` enchant-recommend-step-tune${state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === row.sourceType ? ' is-tune-popover-open' : ''}` : ''}"${TUNE_SOURCE_TYPES.has(row.sourceType) ? ` data-tune-source="${escapeHtml(row.sourceType)}"` : ''}>
+        <span class="enchant-recommend-step${hasVariantActions ? ` enchant-recommend-step-tune${state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === variantPopoverSource ? ' is-tune-popover-open' : ''}` : ''}"${hasVariantActions ? ` data-tune-source="${escapeHtml(variantPopoverSource)}"` : ''}>
           ${connector}
           <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}${isApplied ? ' is-applied' : ''}"${bandStyle}${simulatorRecommendationId ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}${isApplied ? ` data-applied-simulator-group="${escapeHtml(row.exclusiveGroupKey)}" aria-label="${escapeHtml(`${displayTitle} 적용됨`)}"` : ''}>
             ${isApplied ? '<span class="enchant-simulator-applied-badge">✓ 적용됨</span>' : ''}
@@ -8132,6 +8184,21 @@ export function installEnchantView(ctx) {
     scheduleOpenTunePopoverShift();
   }
 
+  function changeOathDecisionVariantStep(delta, groupKey, maxIndex) {
+    const value = Number(delta || 0);
+    const maximum = Math.max(0, Number(maxIndex || 0));
+    if (!groupKey || !Number.isFinite(value) || value === 0) return;
+    const currentIndex = Number(state.oathDecisionVariantIndexByGroup?.[groupKey] || 0);
+    state.oathDecisionVariantIndexByGroup = {
+      ...(state.oathDecisionVariantIndexByGroup || {}),
+      [groupKey]: Math.max(0, Math.min(maximum, currentIndex + value)),
+    };
+    state.equipmentTunePopoverOpen = true;
+    state.equipmentTunePopoverSource = groupKey;
+    renderEnchantTable();
+    scheduleOpenTunePopoverShift();
+  }
+
   els.enchantRecommendList?.addEventListener('mouseover', (event) => {
     const step = event.target.closest('.enchant-recommend-step-tune');
     if (!step) {
@@ -8179,6 +8246,7 @@ export function installEnchantView(ctx) {
     if (
       !target ||
       event.target.closest('[data-equipment-tune-step]') ||
+      event.target.closest('[data-recommendation-variant-step]') ||
       event.target.closest('.enchant-recommend-popover')
     ) return;
     event.preventDefault();
@@ -8211,6 +8279,18 @@ export function installEnchantView(ctx) {
       changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
       return;
     }
+    const variantTarget = event.target.closest('[data-recommendation-variant-step]');
+    if (variantTarget) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (variantTarget.classList.contains('is-disabled')) return;
+      changeOathDecisionVariantStep(
+        Number(variantTarget.dataset.recommendationVariantStep || 0),
+        String(variantTarget.dataset.variantGroup || ''),
+        Number(variantTarget.dataset.variantMax || 0),
+      );
+      return;
+    }
     if (event.target.closest('.enchant-recommend-popover')) return;
     const simulatorTarget = event.target.closest('[data-simulator-recommendation-id], [data-applied-simulator-group]');
     if (!simulatorTarget) return;
@@ -8230,11 +8310,21 @@ export function installEnchantView(ctx) {
   els.enchantRecommendList?.addEventListener('keydown', (event) => {
     if (!['Enter', ' '].includes(event.key)) return;
     const target = event.target.closest('[data-equipment-tune-step]');
-    if (!target) return;
+    const variantTarget = event.target.closest('[data-recommendation-variant-step]');
+    if (!target && !variantTarget) return;
     event.preventDefault();
     event.stopPropagation();
-    if (target.classList.contains('is-disabled')) return;
-    changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
+    if (target) {
+      if (target.classList.contains('is-disabled')) return;
+      changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
+      return;
+    }
+    if (variantTarget.classList.contains('is-disabled')) return;
+    changeOathDecisionVariantStep(
+      Number(variantTarget.dataset.recommendationVariantStep || 0),
+      String(variantTarget.dataset.variantGroup || ''),
+      Number(variantTarget.dataset.variantMax || 0),
+    );
   });
 
   els.enchantSimulatorActions?.addEventListener('click', (event) => {
