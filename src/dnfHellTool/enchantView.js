@@ -285,6 +285,20 @@ const EQUIPMENT_TUNE_COST_BY_RARITY = {
   레전더리: { gold: 600000, materialKey: 'legendarySoul', materialAmount: 20, order: 0 },
   에픽: { gold: 1000000, materialKey: 'epicSoul', materialAmount: 10, order: 1 },
 };
+const EQUIPMENT_TUNE_SLOT_ORDER = [
+  '머리어깨',
+  '상의',
+  '하의',
+  '벨트',
+  '신발',
+  '무기',
+  '팔찌',
+  '목걸이',
+  '보조장비',
+  '반지',
+  '귀걸이',
+  '마법석',
+];
 const TUNE_SOURCE_TYPES = new Set(['equipmentTune', 'oathTune']);
 const ENCHANT_DAMAGE_BASELINE = {
   stat: 6500,
@@ -2016,7 +2030,11 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
       simulator.baseCreature?.effects || {},
       simulator.simulatedCreature?.effects || {},
     )
-    * (getSkillDamageMultiplier(simulator.simulatedCreature) / getSkillDamageMultiplier(simulator.baseCreature));
+    * (getSkillDamageMultiplier(simulator.simulatedCreature) / getSkillDamageMultiplier(simulator.baseCreature))
+    * getEquipmentTuneDamageMultiplier(
+      simulator.baseEquipmentUpgrades,
+      simulator.simulatedEquipmentUpgrades,
+    );
   const titleReferenceBaseline = buildSimulatedDamageBaseline(
     simulator.baseDamageBaseline,
     simulator.baseEnchants,
@@ -2136,6 +2154,8 @@ function addMaterialAmount(materials, key, amount) {
 function allocateEquipmentTuneCost(candidates = [], tuneCount = 0) {
   let remaining = Number(tuneCount || 0);
   const materials = [];
+  const steps = [];
+  const slotChanges = [];
   let gold = 0;
   const sorted = candidates
     .slice()
@@ -2144,7 +2164,10 @@ function allocateEquipmentTuneCost(candidates = [], tuneCount = 0) {
       const costB = EQUIPMENT_TUNE_COST_BY_RARITY[b.itemRarity] || {};
       const orderDiff = Number(costA.order || 0) - Number(costB.order || 0);
       if (orderDiff) return orderDiff;
-      return SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot);
+      const slotIndexA = EQUIPMENT_TUNE_SLOT_ORDER.indexOf(a.slot);
+      const slotIndexB = EQUIPMENT_TUNE_SLOT_ORDER.indexOf(b.slot);
+      return (slotIndexA < 0 ? EQUIPMENT_TUNE_SLOT_ORDER.length : slotIndexA)
+        - (slotIndexB < 0 ? EQUIPMENT_TUNE_SLOT_ORDER.length : slotIndexB);
     });
   sorted.forEach((equipment) => {
     if (remaining <= 0) return;
@@ -2154,8 +2177,27 @@ function allocateEquipmentTuneCost(candidates = [], tuneCount = 0) {
     remaining -= count;
     gold += Number(cost.gold || 0) * count;
     addMaterialAmount(materials, cost.materialKey, Number(cost.materialAmount || 0) * count);
+    const fromTuneLevel = Number(equipment.tuneLevel || 0);
+    const toTuneLevel = fromTuneLevel + count;
+    slotChanges.push({
+      slot: equipment.slot,
+      fromTuneLevel,
+      toTuneLevel,
+      count,
+    });
+    for (let level = fromTuneLevel; level < toTuneLevel; level += 1) {
+      steps.push({
+        slot: equipment.slot,
+        fromTuneLevel: level,
+        toTuneLevel: level + 1,
+      });
+    }
   });
-  return remaining > 0 ? null : { gold, materials };
+  return remaining > 0 ? null : {
+    gold,
+    materials,
+    tunePlan: { steps, slotChanges },
+  };
 }
 
 function getEquipmentTuneSetPoint(currentEquipmentUpgrades = []) {
@@ -2163,6 +2205,52 @@ function getEquipmentTuneSetPoint(currentEquipmentUpgrades = []) {
     const setPoint = Number(equipment.tuneSetPoint || 0);
     return sum + (Number.isFinite(setPoint) ? setPoint : 0);
   }, 0);
+}
+
+function getEquipmentTuneDamageMultiplier(baseEquipment = [], simulatedEquipment = baseEquipment) {
+  const baseStage = getEquipmentTuneStage(getEquipmentTuneSetPoint(baseEquipment));
+  const simulatedStage = getEquipmentTuneStage(getEquipmentTuneSetPoint(simulatedEquipment));
+  const baseMultiplier = 1 + baseStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE / 100;
+  const simulatedMultiplier = 1 + simulatedStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE / 100;
+  return baseMultiplier > 0 ? simulatedMultiplier / baseMultiplier : 1;
+}
+
+function applyEquipmentTunePlan(equipmentRows = [], tunePlan = {}) {
+  const nextEquipment = cloneSimulatorValue(equipmentRows || []);
+  const bySlot = new Map(nextEquipment.filter((equipment) => equipment?.slot).map((equipment) => [equipment.slot, equipment]));
+  const slotChanges = Array.isArray(tunePlan?.slotChanges) ? tunePlan.slotChanges : [];
+  const steps = Array.isArray(tunePlan?.steps) ? tunePlan.steps : [];
+  const plannedCount = slotChanges.reduce((sum, change) => sum + Number(change?.count || 0), 0);
+  if (!slotChanges.length || (steps.length && steps.length !== plannedCount)) return null;
+  for (const change of slotChanges) {
+    const equipment = bySlot.get(change?.slot);
+    const fromTuneLevel = Number(change?.fromTuneLevel);
+    const toTuneLevel = Number(change?.toTuneLevel);
+    const count = Number(change?.count);
+    if (
+      !equipment ||
+      Number(equipment.tuneLevel || 0) !== fromTuneLevel ||
+      !Number.isInteger(count) ||
+      count <= 0 ||
+      toTuneLevel !== fromTuneLevel + count ||
+      toTuneLevel > EQUIPMENT_TUNE_MAX_LEVEL
+    ) return null;
+  }
+  slotChanges.forEach((change) => {
+    const equipment = bySlot.get(change.slot);
+    const count = Number(change.count);
+    equipment.tuneLevel = Number(change.toTuneLevel);
+    equipment.tuneSetPoint = Number(equipment.tuneSetPoint || 0) + count * EQUIPMENT_TUNE_STEP_POINT;
+    equipment.tuneRemaining = Math.max(0, Number(equipment.tuneRemaining || 0) - count);
+  });
+  return nextEquipment;
+}
+
+function getChangedEquipmentTuneSlots(previousRows = [], nextRows = []) {
+  const previousBySlot = new Map((previousRows || []).filter((row) => row?.slot).map((row) => [row.slot, row]));
+  return (nextRows || [])
+    .filter((row) => row?.slot && Number(row.tuneLevel || 0) !== Number(previousBySlot.get(row.slot)?.tuneLevel || 0))
+    .map((row) => row.slot);
 }
 
 function getEquipmentTuneRows(currentEquipmentUpgrades = [], materialPrices = {}, bufferBaseline = null) {
@@ -2216,6 +2304,7 @@ function getEquipmentTuneRows(currentEquipmentUpgrades = [], materialPrices = {}
       targetBuffPower: buffPowerAfter,
       expectedGold: cost.gold,
       expectedMaterials,
+      tunePlan: cloneSimulatorValue(cost.tunePlan),
       effects: isBuffer
         ? { buffPower: buffPowerAfter - buffPowerBefore }
         : { skillDamageMultiplier: damageMultiplier },
@@ -2236,6 +2325,7 @@ function getEquipmentTuneRows(currentEquipmentUpgrades = [], materialPrices = {}
     auction: { minUnitPrice: first.expectedGold },
     expectedGold: first.expectedGold,
     expectedMaterials: first.expectedMaterials,
+    tunePlan: cloneSimulatorValue(first.tunePlan),
     tuneSteps,
     selectedTuneStepIndex: 0,
     currentSetPoint: first.currentSetPoint,
@@ -2900,18 +2990,35 @@ function getTitleCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getEquipmentTuneExclusiveGroupKey(row = {}) {
+  return row.sourceType === 'equipmentTune' ? 'equipmentTune' : '';
+}
+
+function getEquipmentTuneCandidateSignature(row = {}) {
+  const groupKey = getEquipmentTuneExclusiveGroupKey(row);
+  if (!groupKey) return '';
+  const steps = Array.isArray(row.tuneSteps) ? row.tuneSteps : [];
+  return [
+    groupKey,
+    Number(row.currentSetPoint || steps[0]?.currentSetPoint || 0),
+    steps.map((step) => `${Number(step.targetSetPoint || 0)}:${Number(step.tuneCount || 0)}`).join(','),
+  ].join(':');
+}
+
 function getSimulatorExclusiveGroupKey(row = {}) {
   return getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
     || getCreatureExclusiveGroupKey(row)
-    || getTitleExclusiveGroupKey(row);
+    || getTitleExclusiveGroupKey(row)
+    || getEquipmentTuneExclusiveGroupKey(row);
 }
 
 function getSimulatorCandidateSignature(row = {}) {
   return getEnchantCandidateSignature(row)
     || getAuraCandidateSignature(row)
     || getCreatureCandidateSignature(row)
-    || getTitleCandidateSignature(row);
+    || getTitleCandidateSignature(row)
+    || getEquipmentTuneCandidateSignature(row);
 }
 
 function getStableObjectSignature(value = {}) {
@@ -3849,6 +3956,9 @@ function applyEquipmentTuneDisplayStep(row = {}, stepIndex = 0, includeMaterialC
     auction: { ...(row.auction || {}), minUnitPrice: step.expectedGold },
     expectedGold: step.expectedGold,
     expectedMaterials: step.expectedMaterials || [],
+    ...(row.sourceType === 'equipmentTune' ? {
+      tunePlan: cloneSimulatorValue(step.tunePlan || { steps: [], slotChanges: [] }),
+    } : {}),
     selectedTuneStepIndex: step.index,
     currentSetPoint: step.currentSetPoint,
     targetSetPoint: step.targetSetPoint,
@@ -4088,6 +4198,12 @@ export function installEnchantView(ctx) {
       : state.currentEnchants;
   }
 
+  function getActiveEquipmentUpgrades() {
+    return isDealerSimulatorActive()
+      ? state.dealerSimulator.simulatedEquipmentUpgrades
+      : state.currentEquipmentUpgrades;
+  }
+
   function getCurrentAvatarAuraSlot() {
     const slots = state.currentAvatar?.avatar?.slots;
     return Array.isArray(slots)
@@ -4240,6 +4356,7 @@ export function installEnchantView(ctx) {
       return;
     }
     const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
+    const baseEquipmentUpgrades = cloneSimulatorValue(state.currentEquipmentUpgrades || []);
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
     const baseAura = getCanonicalCurrentAura();
     const baseCreature = getCanonicalCurrentCreatureBody();
@@ -4247,6 +4364,8 @@ export function installEnchantView(ctx) {
     state.dealerSimulator = {
       baseEnchants,
       simulatedEnchants: cloneSimulatorValue(baseEnchants),
+      baseEquipmentUpgrades,
+      simulatedEquipmentUpgrades: cloneSimulatorValue(baseEquipmentUpgrades),
       baseAura,
       simulatedAura: cloneSimulatorValue(baseAura),
       baseCreature,
@@ -4308,7 +4427,7 @@ export function installEnchantView(ctx) {
   function rebuildDealerSimulatorCalculationState() {
     const simulator = state.dealerSimulator;
     if (!simulator) return;
-    simulator.simulatedDamageBaseline = buildSimulatedDamageBaseline(
+    const simulatedDamageBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
       simulator.baseEnchants,
       simulator.simulatedEnchants,
@@ -4319,6 +4438,12 @@ export function installEnchantView(ctx) {
       simulator.baseTitle,
       simulator.simulatedTitle,
     );
+    const equipmentTuneSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades);
+    simulator.simulatedDamageBaseline = {
+      ...simulatedDamageBaseline,
+      equipmentTuneSetPoint,
+      equipmentTuneFinalDamage: getEquipmentTuneStage(equipmentTuneSetPoint) * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
+    };
   }
 
   function getDealerSimulatorRecommendationId(row = {}) {
@@ -4334,6 +4459,14 @@ export function installEnchantView(ctx) {
 
   function resolveDealerSimulatorTarget(row = {}) {
     if (state.currentBufferBaseline?.isBuffer) return null;
+    if (row.sourceType === 'equipmentTune') {
+      if (!Array.isArray(row.tunePlan?.slotChanges) || !row.tunePlan.slotChanges.length) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: '장비 조율',
+        applyType: 'applyEquipmentTunePlan',
+      };
+    }
     if (row.sourceType === 'aura') {
       const hasDamageEffect = Boolean(row.effects && Object.keys(row.effects).length);
       const hasSkillDamageEffect = Math.abs(getSkillDamageMultiplier(row) - 1) > 0.000001;
@@ -4378,6 +4511,7 @@ export function installEnchantView(ctx) {
     if (!simulator) return null;
     return {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
+      simulatedEquipmentUpgrades: cloneSimulatorValue(simulator.simulatedEquipmentUpgrades),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
       simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
@@ -4391,11 +4525,22 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator || !snapshot) return;
     simulator.simulatedEnchants = cloneSimulatorValue(snapshot.simulatedEnchants || []);
+    simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
+      snapshot.simulatedEquipmentUpgrades || simulator.baseEquipmentUpgrades || [],
+    );
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
     simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
     simulator.simulatedTitle = cloneSimulatorValue(snapshot.simulatedTitle || simulator.baseTitle || {});
     simulator.totalGold = Number(snapshot.totalGold || 0);
     simulator.activeSelectionByGroup = cloneSimulatorValue(snapshot.activeSelectionByGroup || {});
+    const equipmentTuneStepIndex = Number(
+      simulator.activeSelectionByGroup.equipmentTune?.selectedVariantIndex || 0,
+    );
+    state.tuneStepIndexBySource = {
+      ...(state.tuneStepIndexBySource || {}),
+      equipmentTune: equipmentTuneStepIndex,
+    };
+    state.equipmentTuneStepIndex = equipmentTuneStepIndex;
     simulator.lastChangedTarget = snapshot.lastChangedTarget ? { ...snapshot.lastChangedTarget } : null;
     simulator.selectedRecommendationId = '';
     rebuildDealerSimulatorCalculationState();
@@ -4470,11 +4615,25 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function applySimulatedEquipmentTunePlan(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'applyEquipmentTunePlan') return false;
+    const beforeTuneSnapshot = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+    const nextEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, row.tunePlan);
+    if (!nextEquipment) return false;
+    target.changedSlots = getChangedEquipmentTuneSlots(beforeTuneSnapshot, nextEquipment);
+    target.beforeTuneSnapshot = beforeTuneSnapshot;
+    simulator.simulatedEquipmentUpgrades = nextEquipment;
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function applySimulatorReplacement(row, target) {
     if (target?.applyType === 'replaceEnchant') return replaceSimulatedEnchant(row, target);
     if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
     if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
     if (target?.applyType === 'replaceTitle') return replaceSimulatedTitle(row, target);
+    if (target?.applyType === 'applyEquipmentTunePlan') return applySimulatedEquipmentTunePlan(row, target);
     return false;
   }
 
@@ -4527,11 +4686,21 @@ export function installEnchantView(ctx) {
         targetTab: target.targetTab,
         targetSlot: target.targetSlot,
         applyType: target.applyType,
+        ...(target.applyType === 'applyEquipmentTunePlan' ? {
+          actionType: 'equipmentTunePlan',
+          selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
+          beforeTuneSnapshot: cloneSimulatorValue(target.beforeTuneSnapshot || []),
+          variants: cloneSimulatorValue(row.tuneSteps || []),
+          appliedVariantSnapshot: cloneSimulatorValue(row),
+        } : {}),
       };
       simulator.totalGold = getDealerSimulatorTotalGold(simulator);
       simulator.selectedRecommendationId = '';
       simulator.lastChangedTarget = target;
-      triggerDealerSimulatorSweep(target.targetSlot);
+      const changedSlots = Array.isArray(target.changedSlots) && target.changedSlots.length
+        ? target.changedSlots
+        : [target.targetSlot];
+      changedSlots.forEach(triggerDealerSimulatorSweep);
       state.enchantLoadoutTab = target.targetTab;
       renderEnchantCharacterPortrait();
       renderEnchantTable();
@@ -4594,6 +4763,35 @@ export function installEnchantView(ctx) {
     const selection = simulator.activeSelectionByGroup?.[exclusiveGroupKey];
     if (!selection) return;
     const snapshot = getDealerSimulatorSnapshot();
+    if (selection.actionType === 'equipmentTunePlan') {
+      const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+      simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
+        selection.beforeTuneSnapshot || simulator.baseEquipmentUpgrades || [],
+      );
+      rebuildDealerSimulatorCalculationState();
+      simulator.history.push(snapshot);
+      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = {
+        targetTab: selection.targetTab,
+        targetSlot: selection.targetSlot,
+        applyType: selection.applyType,
+      };
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        equipmentTune: 0,
+      };
+      state.equipmentTuneStepIndex = 0;
+      state.enchantLoadoutTab = selection.targetTab || 'equipment';
+      getChangedEquipmentTuneSlots(
+        previousEquipment,
+        simulator.simulatedEquipmentUpgrades,
+      ).forEach(triggerDealerSimulatorSweep);
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
+    }
     const restored = selection.applyType === 'replaceAura'
       ? restoreSimulatedAuraToBase()
       : selection.applyType === 'replaceCreature'
@@ -4622,8 +4820,13 @@ export function installEnchantView(ctx) {
     if (!simulator?.history.length || simulator.applyingRecommendationId) return;
     const snapshot = simulator.history.pop();
     const changedSlot = simulator.lastChangedTarget?.targetSlot || snapshot?.lastChangedTarget?.targetSlot || '';
+    const changedTuneSlots = getChangedEquipmentTuneSlots(
+      simulator.simulatedEquipmentUpgrades,
+      snapshot?.simulatedEquipmentUpgrades,
+    );
     restoreDealerSimulatorSnapshot(snapshot);
-    triggerDealerSimulatorSweep(changedSlot);
+    if (changedTuneSlots.length) changedTuneSlots.forEach(triggerDealerSimulatorSweep);
+    else triggerDealerSimulatorSweep(changedSlot);
     state.enchantLoadoutTab = snapshot?.lastChangedTarget?.targetTab || 'equipment';
     renderEnchantCharacterPortrait();
     renderEnchantTable();
@@ -4633,6 +4836,7 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId) return;
     simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
+    simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
     simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
     simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
     simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
@@ -4643,6 +4847,11 @@ export function installEnchantView(ctx) {
     simulator.selectedRecommendationId = '';
     simulator.lastChangedTarget = null;
     simulator.activeSweepSlots.clear();
+    state.tuneStepIndexBySource = {
+      ...(state.tuneStepIndexBySource || {}),
+      equipmentTune: 0,
+    };
+    state.equipmentTuneStepIndex = 0;
     state.enchantLoadoutTab = 'equipment';
     renderEnchantCharacterPortrait();
     renderEnchantTable();
@@ -4650,7 +4859,12 @@ export function installEnchantView(ctx) {
 
   function buildEnchantPortraitSlotData() {
     const equipmentBySlot = new Map(
-      (state.currentEquipmentUpgrades || [])
+      (getActiveEquipmentUpgrades() || [])
+        .filter((item) => item?.slot)
+        .map((item) => [item.slot, item]),
+    );
+    const baseEquipmentBySlot = new Map(
+      (state.dealerSimulator?.baseEquipmentUpgrades || state.currentEquipmentUpgrades || [])
         .filter((item) => item?.slot)
         .map((item) => [item.slot, item]),
     );
@@ -4680,6 +4894,16 @@ export function installEnchantView(ctx) {
           enchant.reinforceSkill || [],
           state.currentBufferBaseline,
         );
+        const baseTuneLevel = Number(baseEquipmentBySlot.get(slot)?.tuneLevel || 0);
+        const simulatedTuneLevel = Number(equipment.tuneLevel || 0);
+        const isSimulatedTune = simulatedTuneLevel !== baseTuneLevel;
+        const tuneBadge = getEquipmentTuneBadge(equipment);
+        if (tuneBadge) {
+          tuneBadge.baseDisplayLevel = Math.max(
+            0,
+            Math.min(tuneBadge.displayLevel, Math.floor(baseTuneLevel)),
+          );
+        }
         slotData[slot] = {
           label: slot,
           iconUrl: equipment.iconUrl || '',
@@ -4688,10 +4912,15 @@ export function installEnchantView(ctx) {
           enchantBadge,
           isSimulatedEnchant: Boolean(enchant.simulatedEnchantItemName),
           upgradeBadge: getUpgradeBadge(equipment),
-          tuneBadge: getEquipmentTuneBadge(equipment),
+          tuneBadge,
+          isSimulatedTune,
           hoverLines: [
             { text: enchantDetailText, className: 'enchant-portrait-detail-line-effect' },
             getUpgradeDetailLine(equipment),
+            isSimulatedTune ? {
+              text: `조율 ${baseTuneLevel}회 → ${simulatedTuneLevel}회`,
+              className: 'enchant-portrait-detail-line-effect',
+            } : null,
           ].filter(Boolean),
         };
       }
@@ -4844,7 +5073,7 @@ export function installEnchantView(ctx) {
           ? `<span class="enchant-character-slot-badge enchant-character-slot-badge-${escapeHtml(data.upgradeBadge.kind)}">${escapeHtml(data.upgradeBadge.text)}</span>`
           : ''}
         ${data?.tuneBadge
-          ? `<span class="enchant-character-slot-tune-mark" role="img" title="${escapeHtml(data.tuneBadge.label)}" aria-label="${escapeHtml(data.tuneBadge.label)}">${Array.from({ length: data.tuneBadge.displayLevel }).map(() => '<span class="enchant-character-slot-tune-bar" aria-hidden="true"></span>').join('')}</span>`
+          ? `<span class="enchant-character-slot-tune-mark${data.isSimulatedTune ? ' is-simulated-equipment-tune' : ''}" role="img" title="${escapeHtml(data.tuneBadge.label)}" aria-label="${escapeHtml(data.tuneBadge.label)}">${Array.from({ length: data.tuneBadge.displayLevel }).map((_, index) => `<span class="enchant-character-slot-tune-bar${index >= Number(data.tuneBadge.baseDisplayLevel || 0) ? ' is-simulated' : ''}" aria-hidden="true"></span>`).join('')}</span>`
           : ''}
         ${slot === '크리쳐' ? renderCreatureArtifactRail(data?.artifacts || []) : ''}
       </span>
@@ -6388,6 +6617,20 @@ export function installEnchantView(ctx) {
         row.sourceType !== 'title' || eligibleTitleSignatures.has(getTitleCandidateSignature(row))
       ));
     }
+    if (simulator) {
+      const equipmentTuneStepIndex = getTuneStepIndexBySource(state, 'equipmentTune');
+      recommendations = recommendations.map((row) => (
+        row.sourceType === 'equipmentTune'
+          ? applyEquipmentTuneDisplayStep(
+            row,
+            equipmentTuneStepIndex,
+            includeMaterialCosts,
+            activeDamageBaseline,
+            state.currentBufferBaseline,
+          )
+          : row
+      ));
+    }
     const decoratedRecommendations = recommendations.map((row) => {
       const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
       const candidateSignature = getSimulatorCandidateSignature(row);
@@ -6418,7 +6661,7 @@ export function installEnchantView(ctx) {
       const tuneStepIndex = TUNE_SOURCE_TYPES.has(row.sourceType)
         ? getTuneStepIndexBySource(state, row.sourceType)
         : state.equipmentTuneStepIndex;
-      if (!isApplied) {
+      if (!isApplied || row.sourceType === 'equipmentTune') {
         row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, activeDamageBaseline, state.currentBufferBaseline);
       }
       const simulatorTarget = isApplied ? null : resolveDealerSimulatorTarget(row);
@@ -7205,6 +7448,64 @@ export function installEnchantView(ctx) {
     return getEquipmentTuneRows(state.currentEquipmentUpgrades, state.upgradeMaterialPrices, state.currentBufferBaseline);
   }
 
+  function getEquipmentTuneVariantRow(stepIndex) {
+    const row = getTuneRowsBySource('equipmentTune')[0];
+    if (!row) return null;
+    return applyEquipmentTuneDisplayStep(
+      row,
+      stepIndex,
+      els.enchantMaterialCostToggle?.checked === true,
+      getActiveDamageBaseline(),
+      state.currentBufferBaseline,
+    );
+  }
+
+  function replaceAppliedEquipmentTuneVariant(stepIndex) {
+    const simulator = state.dealerSimulator;
+    const selection = simulator?.activeSelectionByGroup?.equipmentTune;
+    if (!simulator || !selection || selection.actionType !== 'equipmentTunePlan') return false;
+    const row = getEquipmentTuneVariantRow(stepIndex);
+    if (!row || Number(row.selectedTuneStepIndex || 0) === Number(selection.selectedVariantIndex || 0)) return false;
+    const nextEquipment = applyEquipmentTunePlan(selection.beforeTuneSnapshot || [], row.tunePlan);
+    if (!nextEquipment) return false;
+    const rollbackSnapshot = getDealerSimulatorSnapshot();
+    const rollbackHistory = cloneSimulatorValue(simulator.history || []);
+    const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+    const updatedSelection = {
+      ...selection,
+      appliedGold: getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true),
+      selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
+      variants: cloneSimulatorValue(row.tuneSteps || []),
+      appliedVariantSnapshot: cloneSimulatorValue(row),
+    };
+    try {
+      simulator.simulatedEquipmentUpgrades = nextEquipment;
+      simulator.activeSelectionByGroup.equipmentTune = updatedSelection;
+      simulator.history.forEach((snapshot) => {
+        if (!snapshot?.activeSelectionByGroup?.equipmentTune) return;
+        snapshot.simulatedEquipmentUpgrades = cloneSimulatorValue(nextEquipment);
+        snapshot.activeSelectionByGroup.equipmentTune = cloneSimulatorValue(updatedSelection);
+        snapshot.totalGold = getDealerSimulatorTotalGold(snapshot);
+      });
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.lastChangedTarget = {
+        targetTab: 'equipment',
+        targetSlot: '장비 조율',
+        applyType: 'applyEquipmentTunePlan',
+      };
+      rebuildDealerSimulatorCalculationState();
+      getChangedEquipmentTuneSlots(previousEquipment, nextEquipment).forEach(triggerDealerSimulatorSweep);
+      state.enchantLoadoutTab = 'equipment';
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return true;
+    } catch {
+      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      simulator.history = rollbackHistory;
+      return false;
+    }
+  }
+
   function changeEquipmentTuneStep(delta, sourceType = 'equipmentTune') {
     const value = Number(delta || 0);
     if (!Number.isFinite(value) || value === 0) return;
@@ -7223,6 +7524,20 @@ export function installEnchantView(ctx) {
     }
     state.equipmentTunePopoverOpen = true;
     state.equipmentTunePopoverSource = sourceType;
+    if (sourceType === 'equipmentTune' && state.dealerSimulator?.activeSelectionByGroup?.equipmentTune) {
+      if (replaceAppliedEquipmentTuneVariant(state.tuneStepIndexBySource[sourceType])) return;
+      state.tuneStepIndexBySource[sourceType] = currentIndex;
+      state.equipmentTuneStepIndex = currentIndex;
+      renderEnchantTable();
+      return;
+    }
+    const selectedRow = state.dealerSimulatorRecommendations.get(state.dealerSimulator?.selectedRecommendationId || '');
+    if (sourceType === 'equipmentTune' && selectedRow?.sourceType === sourceType) {
+      const nextRow = getEquipmentTuneVariantRow(state.tuneStepIndexBySource[sourceType]);
+      state.dealerSimulator.selectedRecommendationId = nextRow
+        ? getDealerSimulatorRecommendationId(nextRow)
+        : '';
+    }
     renderEnchantTable();
     scheduleOpenTunePopoverShift();
   }

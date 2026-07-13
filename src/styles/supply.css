@@ -1078,6 +1078,18 @@
     .enchant-character-slot-tune-bar:last-child {
       margin-right: 1px;
     }
+    .enchant-character-slot-tune-mark.is-simulated-equipment-tune {
+      border-color: rgb(218 224 232 / 0.58);
+    }
+    .enchant-character-slot-tune-bar.is-simulated {
+      background: linear-gradient(
+        to bottom,
+        #ffffff 0%,
+        #dfe4ea 30%,
+        #aeb7c2 68%,
+        #727d89 100%
+      );
+    }
     .enchant-character-slot-tooltip {
       display: none;
     }
