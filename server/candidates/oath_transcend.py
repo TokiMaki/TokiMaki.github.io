@@ -207,6 +207,23 @@ def merge_oath_decision_materials(rows: list) -> list:
     return list(merged.values())
 
 
+def build_oath_decision_plan_entry(candidate: dict) -> dict:
+    return {
+        "slotIndex": int(candidate.get("targetSlotIndex") or 0),
+        "currentItemName": clean_text(candidate.get("currentItemName")),
+        "currentEffects": dict(candidate.get("currentEffects") or {}),
+        "currentSlotSetPoint": parse_percent_or_number(candidate.get("currentSlotSetPoint")),
+        "targetItemId": clean_text(candidate.get("itemId")),
+        "targetItemName": clean_text(candidate.get("targetItemName") or candidate.get("itemName")),
+        "targetRarity": clean_text(candidate.get("targetRarity")),
+        "targetIconUrl": clean_text(candidate.get("iconUrl")),
+        "targetEffects": dict(candidate.get("targetEffects") or {}),
+        "targetSlotSetPoint": parse_percent_or_number(candidate.get("targetSlotSetPoint")),
+        "expectedGold": int(candidate.get("expectedGold") or 0),
+        "materials": [dict(material) for material in candidate.get("materials") or []],
+    }
+
+
 def build_oath_decision_variant_rows(
     rows: list,
     max_count: int,
@@ -270,16 +287,8 @@ def build_oath_decision_variant_rows(
             "variantIndex": count - 1,
             "variantCount": count,
             "variantTotal": variant_total,
-            "decisionPlan": [
-                {
-                    "slotIndex": int(candidate.get("targetSlotIndex") or 0),
-                    "currentItemName": clean_text(candidate.get("currentItemName")),
-                    "targetItemId": clean_text(candidate.get("itemId")),
-                    "targetItemName": clean_text(candidate.get("targetItemName") or candidate.get("itemName")),
-                    "targetRarity": clean_text(candidate.get("targetRarity")),
-                }
-                for candidate in current_rows
-            ],
+            "decisionPlan": [build_oath_decision_plan_entry(candidate) for candidate in current_rows],
+            "decisionCandidatePool": [build_oath_decision_plan_entry(candidate) for candidate in rows],
         })
         variants.append(row)
     return variants

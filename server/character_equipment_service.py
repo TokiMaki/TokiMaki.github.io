@@ -822,6 +822,7 @@ def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: di
         rarity = clean_text(crystal.get("itemRarity"))
         tune = crystal.get("tune") or {}
         tune_level = int(parse_percent_or_number(tune.get("level")))
+        crystal_set_point = parse_percent_or_number(tune.get("setPoint")) or parse_percent_or_number(crystal.get("setPoint"))
         is_unique_crystal = unique_keyword in item_name if unique_keyword else False
         is_tune_target = rarity in {"레어", "유니크", "레전더리", "에픽"} and not is_unique_crystal
         crystals.append({
@@ -831,6 +832,7 @@ def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: di
             "itemRarity": rarity,
             "iconUrl": get_item_icon_url(item_id) if item_id else "",
             "effects": normalize_enchant_status((detail_by_id.get(item_id) or {}).get("itemStatus") or []),
+            "setPoint": crystal_set_point,
             "tuneLevel": tune_level,
             "tuneUpgradeable": is_tune_target,
             "tuneRemaining": max(0, max_tune_level - tune_level) if is_tune_target else 0,
