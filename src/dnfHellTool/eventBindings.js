@@ -523,6 +523,7 @@ if (els.enchantMaterialCostToggle) {
       // 설정 저장이 막혀도 현재 선택값으로 계산한다.
     }
     ctx.actions.renderEnchantTable?.();
+    ctx.actions.renderEnchantCharacterPortrait?.();
   });
 }
 if (els.safeAmplificationModeSelect) {

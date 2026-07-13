@@ -333,6 +333,17 @@ function formatCompactGold(value) {
   return Math.round(value).toLocaleString('ko-KR');
 }
 
+function formatKoreanGoldUnits(value) {
+  const gold = Math.max(0, Math.floor(Number(value) || 0));
+  const eok = Math.floor(gold / 100000000);
+  const man = Math.floor((gold % 100000000) / 10000);
+  if (eok > 0) {
+    return `${eok.toLocaleString('ko-KR')}억${man > 0 ? ` ${man.toLocaleString('ko-KR')}만` : ''}`;
+  }
+  if (man > 0) return `${man.toLocaleString('ko-KR')}만`;
+  return gold.toLocaleString('ko-KR');
+}
+
 function formatMaterialAmount(value) {
   if (!Number.isFinite(value) || value <= 0) return '';
   if (value >= 100) return Math.round(value).toLocaleString('ko-KR');
@@ -4666,8 +4677,8 @@ export function installEnchantView(ctx) {
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
     simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
     simulator.simulatedTitle = cloneSimulatorValue(snapshot.simulatedTitle || simulator.baseTitle || {});
-    simulator.totalGold = Number(snapshot.totalGold || 0);
     simulator.activeSelectionByGroup = cloneSimulatorValue(snapshot.activeSelectionByGroup || {});
+    simulator.totalGold = getDealerSimulatorTotalGold(simulator);
     const equipmentTuneStepIndex = Number(
       simulator.activeSelectionByGroup.equipmentTune?.selectedVariantIndex || 0,
     );
@@ -4816,9 +4827,34 @@ export function installEnchantView(ctx) {
     renderEnchantTable();
   }
 
-  function getDealerSimulatorTotalGold(simulator = state.dealerSimulator) {
-    return Object.values(simulator?.activeSelectionByGroup || {})
-      .reduce((sum, selection) => sum + Number(selection?.appliedGold || 0), 0);
+  function getDealerSimulatorSelectionGold(selection = {}, includeMaterialCosts = false) {
+    const selectedGold = includeMaterialCosts
+      ? Number(selection.goldWithMaterials)
+      : Number(selection.goldWithoutMaterials);
+    if (Number.isFinite(selectedGold) && selectedGold >= 0) return selectedGold;
+    const fallbackGold = Number(selection.appliedGold || 0);
+    return Number.isFinite(fallbackGold) && fallbackGold >= 0 ? fallbackGold : 0;
+  }
+
+  function getDealerSimulatorTotalGold(
+    simulator = state.dealerSimulator,
+    includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true,
+  ) {
+    return Object.values(simulator?.activeSelectionByGroup || {}).reduce(
+      (sum, selection) => sum + getDealerSimulatorSelectionGold(selection, includeMaterialCosts),
+      0,
+    );
+  }
+
+  function syncDealerSimulatorMaterialCostState() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return;
+    const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+    Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
+      selection.includeMaterialCost = includeMaterialCosts;
+      selection.appliedGold = getDealerSimulatorSelectionGold(selection, includeMaterialCosts);
+    });
+    simulator.totalGold = getDealerSimulatorTotalGold(simulator, includeMaterialCosts);
   }
 
   const DEALER_SIMULATOR_SWEEP_DURATION_MS = 800;
@@ -4846,9 +4882,10 @@ export function installEnchantView(ctx) {
     const candidateSignature = getSimulatorCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
     if (simulator.activeSelectionByGroup?.[exclusiveGroupKey]?.candidateSignature === candidateSignature) return;
-    const latestGold = row.sourceType === 'blackFang'
-      ? Number(row.expectedGold)
-      : getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true);
+    const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+    const goldWithoutMaterials = getRecommendationGold(row, false);
+    const goldWithMaterials = getRecommendationGold(row, true);
+    const latestGold = includeMaterialCosts ? goldWithMaterials : goldWithoutMaterials;
     if (!Number.isFinite(latestGold) || latestGold < 0) return;
     const snapshot = getDealerSimulatorSnapshot();
     simulator.applyingRecommendationId = recommendationId;
@@ -4858,6 +4895,9 @@ export function installEnchantView(ctx) {
       simulator.activeSelectionByGroup[exclusiveGroupKey] = {
         candidateSignature,
         appliedGold: latestGold,
+        includeMaterialCost: includeMaterialCosts,
+        goldWithoutMaterials,
+        goldWithMaterials,
         targetTab: target.targetTab,
         targetSlot: target.targetSlot,
         applyType: target.applyType,
@@ -6026,40 +6066,80 @@ export function installEnchantView(ctx) {
     if (resetButton) resetButton.disabled = !hasChanges;
   }
 
-  function renderDealerSimulatorMeta() {
+  function renderDealerSimulatorMeta(originalCharacterMeta = '') {
     const simulator = state.dealerSimulator;
     const score = Number(state.currentOfficialEquipmentScore);
     const scoreReady = Number.isFinite(score) && score > 0;
-    const hasChanges = Boolean(Object.keys(simulator?.activeSelectionByGroup || {}).length);
-    if (!hasChanges) {
-      const scoreText = state.currentOfficialEquipmentScoreStatus === 'loading'
-        ? '확인 중'
-        : scoreReady
-          ? score.toLocaleString('ko-KR')
-          : '확인 불가';
+    const hasSimulationChanges = Object.keys(simulator?.activeSelectionByGroup || {}).length > 0;
+    const currentScoreText = state.currentOfficialEquipmentScoreStatus === 'loading'
+      ? '확인 중'
+      : scoreReady
+        ? score.toLocaleString('ko-KR')
+        : '확인 불가';
+    if (!hasSimulationChanges) {
       return `
         <div class="enchant-portrait-equipment-score">
-          <strong><img src="${escapeHtml(EQUIPMENT_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(scoreText)}</strong>
+          <strong><img src="${escapeHtml(EQUIPMENT_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(currentScoreText)}</strong>
         </div>
+        ${originalCharacterMeta}
       `;
     }
     const cumulativeMultiplier = getSimulatorCumulativeDamageMultiplier(simulator);
-    const simulatedScore = getSimulatedEquipmentScore(simulator.baseEquipmentScore, cumulativeMultiplier);
-    const scoreDelta = Number.isFinite(simulatedScore) && Number.isFinite(simulator.baseEquipmentScore)
-      ? simulatedScore - simulator.baseEquipmentScore
+    const simulatedScore = getSimulatedEquipmentScore(score, cumulativeMultiplier);
+    const scoreDelta = Number.isFinite(simulatedScore) && scoreReady
+      ? simulatedScore - score
       : null;
     const scoreDeltaText = Number.isFinite(scoreDelta)
-      ? `${scoreDelta > 0 ? '▲' : scoreDelta < 0 ? '▼' : ''}${Math.abs(scoreDelta).toLocaleString('ko-KR')}`
-      : '';
-    const scoreText = Number.isFinite(simulatedScore)
-      ? `${simulatedScore.toLocaleString('ko-KR')} (${scoreDeltaText})`
+      ? scoreDelta === 0
+        ? '변동 없음'
+        : `${scoreDelta > 0 ? '▲' : '▼'}${Math.abs(scoreDelta).toLocaleString('ko-KR')}`
       : '확인 불가';
+    const simulatedScoreText = Number.isFinite(simulatedScore)
+      ? simulatedScore.toLocaleString('ko-KR')
+      : currentScoreText;
+    const rawDamageIncreasePercent = Number.isFinite(cumulativeMultiplier)
+      ? (cumulativeMultiplier - 1) * 100
+      : 0;
+    const damageIncreasePercent = Math.abs(rawDamageIncreasePercent) < 0.005
+      ? 0
+      : rawDamageIncreasePercent;
+    const damageIncreaseText = `${damageIncreasePercent > 0 ? '+' : ''}${damageIncreasePercent.toFixed(2)}%`;
+    const totalGold = Number.isFinite(Number(simulator?.totalGold))
+      ? Math.round(Number(simulator.totalGold))
+      : 0;
+    const costPerPointOnePercent = damageIncreasePercent > 0
+      ? totalGold * 0.1 / damageIncreasePercent
+      : null;
+    const efficiencyBand = Number.isFinite(costPerPointOnePercent)
+      ? getEfficiencyBand(costPerPointOnePercent)
+      : '';
+    const efficiencyColor = efficiencyBand === 'scale'
+      ? getEfficiencyColor(costPerPointOnePercent)
+      : '';
+    const efficiencyText = Number.isFinite(costPerPointOnePercent)
+      ? costPerPointOnePercent === 0
+        ? '0'
+        : formatCompactGold(costPerPointOnePercent)
+      : '-';
     return `
-      <div class="enchant-portrait-equipment-score is-simulated">
-        <strong><img src="${escapeHtml(EQUIPMENT_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(scoreText)}</strong>
-      </div>
-      <div class="enchant-simulator-summary">
-        <span>누적 골드 ${escapeHtml(Math.round(simulator.totalGold).toLocaleString('ko-KR'))}</span>
+      <div class="enchant-portrait-info-split">
+        <div class="enchant-portrait-info-simulation">
+          <span class="enchant-portrait-info-label">예상 장비점수</span>
+          <div class="enchant-portrait-equipment-score is-simulated">
+            <strong><img src="${escapeHtml(EQUIPMENT_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(simulatedScoreText)}</strong>
+          </div>
+          <span class="enchant-portrait-score-delta">${escapeHtml(scoreDeltaText)}</span>
+          <span class="enchant-portrait-damage-increase">딜 상승률 <strong>${escapeHtml(damageIncreaseText)}</strong></span>
+          <span class="enchant-simulator-summary">누적 골드 <strong>${escapeHtml(formatKoreanGoldUnits(totalGold))}</strong></span>
+          <span class="enchant-simulator-efficiency${efficiencyBand === 'rainbow' ? ' is-rainbow' : ''}"${efficiencyColor ? ` style="--simulator-efficiency-color: ${escapeHtml(efficiencyColor)}"` : ''}>0.1%당 <strong>${escapeHtml(efficiencyText)}</strong></span>
+        </div>
+        <div class="enchant-portrait-info-original">
+          <span class="enchant-portrait-info-label">현재 장비점수</span>
+          <div class="enchant-portrait-equipment-score">
+            <strong><img src="${escapeHtml(EQUIPMENT_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(currentScoreText)}</strong>
+          </div>
+          ${originalCharacterMeta}
+        </div>
       </div>
     `;
   }
@@ -6141,8 +6221,8 @@ export function installEnchantView(ctx) {
           <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다." title="버프점수 계산 중" aria-label="버프점수 계산 중"><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />계산 중</strong>
         </div>
       `);
-    } else if (meta && state.currentOfficialEquipmentScoreStatus !== 'idle') {
-      meta.insertAdjacentHTML('afterbegin', renderDealerSimulatorMeta());
+    } else if (meta) {
+      meta.innerHTML = renderDealerSimulatorMeta(meta.innerHTML);
     }
     bindCharacterAvatars(els.enchantCharacterPortrait);
     if (activeTab === 'oath') {
@@ -6590,6 +6670,7 @@ export function installEnchantView(ctx) {
       }
       return;
     }
+    syncDealerSimulatorMaterialCostState();
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
     const activeDamageBaseline = getActiveDamageBaseline();
     const renderStartedAt = getEnchantNowMs();
@@ -7701,6 +7782,9 @@ export function installEnchantView(ctx) {
     const updatedSelection = {
       ...selection,
       appliedGold: getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true),
+      includeMaterialCost: els.enchantMaterialCostToggle?.checked === true,
+      goldWithoutMaterials: getRecommendationGold(row, false),
+      goldWithMaterials: getRecommendationGold(row, true),
       selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
       variants: cloneSimulatorValue(row.tuneSteps || []),
       appliedVariantSnapshot: cloneSimulatorValue(row),
@@ -7921,6 +8005,7 @@ export function installEnchantView(ctx) {
     searchEnchantCharacter,
     showEnchantAnalysisLoading,
     showEnchantCandidateLoading,
+    renderEnchantCharacterPortrait,
     renderEnchantTable,
     renderEnchantRecommendations,
   });
