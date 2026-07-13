@@ -1537,10 +1537,13 @@ function getTitleRows(groups, currentTitle) {
       tier: candidate.variant || '일반',
       itemId: candidate.itemId,
       itemName: candidate.itemName || candidate.name,
+      titleItemName: candidate.itemName || candidate.name,
       itemRarity: candidate.itemRarity || '레어',
       fame: candidate.fame,
       iconUrl: candidate.priceItem?.iconUrl || candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+      titleIconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
       effects: candidate.effects || {},
+      titlePackageEffects: candidate.effects || {},
       itemReinforceSkill: candidate.itemReinforceSkill || [],
       itemBuff: candidate.itemBuff || {},
       itemExplain: candidate.itemExplain || '',
@@ -1916,6 +1919,16 @@ function normalizeSimulatorDamageDelta(effects = {}, baseline = {}) {
   return normalized;
 }
 
+function getTitleEffectsWithoutEnchantElement(title = {}) {
+  const effects = { ...(title?.effects || {}) };
+  const enchantElement = Number(title?.enchantEffects?.elementAll || 0);
+  if (enchantElement) {
+    effects.elementAll = Number(effects.elementAll || 0) - enchantElement;
+    if (Math.abs(effects.elementAll) <= 0.000001) delete effects.elementAll;
+  }
+  return effects;
+}
+
 function buildSimulatedDamageBaseline(
   baseBaseline = {},
   baseEnchants = [],
@@ -1924,16 +1937,24 @@ function buildSimulatedDamageBaseline(
   simulatedAura = baseAura,
   baseCreature = {},
   simulatedCreature = baseCreature,
+  baseTitle = {},
+  simulatedTitle = baseTitle,
 ) {
   const base = getDamageBaseline(baseBaseline);
   const effectDelta = subtractEffects(
     addEffects(
-      addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
-      simulatedCreature?.effects || {},
+      addEffects(
+        addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
+        simulatedCreature?.effects || {},
+      ),
+      getTitleEffectsWithoutEnchantElement(simulatedTitle),
     ),
     addEffects(
-      addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
-      baseCreature?.effects || {},
+      addEffects(
+        addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
+        baseCreature?.effects || {},
+      ),
+      getTitleEffectsWithoutEnchantElement(baseTitle),
     ),
   );
   delete effectDelta.finalDamage;
@@ -1943,7 +1964,7 @@ function buildSimulatedDamageBaseline(
   );
   const selectedStatDelta = getSelectedStatEffect(delta, base);
   const elementDelta = Number(delta.elementAll || 0);
-  return {
+  const simulatedBaseline = {
     ...(baseBaseline || {}),
     stat: base.stat + selectedStatDelta,
     element: base.element + elementDelta,
@@ -1957,6 +1978,11 @@ function buildSimulatedDamageBaseline(
     attackIncrease: base.attackIncrease + Number(delta.attackIncrease || 0),
     attackAmplification: base.attackAmplification + Number(delta.attackAmplification || 0),
   };
+  return getAdjustedElementBaselineForRecommendation(
+    { sourceType: 'title', ...simulatedTitle },
+    baseTitle,
+    simulatedBaseline,
+  ) || simulatedBaseline;
 }
 
 function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
@@ -1976,7 +2002,7 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
     effectDelta,
     simulator.baseDamageBaseline,
   );
-  return estimateDamageMultiplier(delta, simulator.baseDamageBaseline)
+  const nonTitleMultiplier = estimateDamageMultiplier(delta, simulator.baseDamageBaseline)
     * getEnchantFinalDamageChangeMultiplier(
       simulator.baseEnchants,
       simulator.simulatedEnchants,
@@ -1991,6 +2017,36 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
       simulator.simulatedCreature?.effects || {},
     )
     * (getSkillDamageMultiplier(simulator.simulatedCreature) / getSkillDamageMultiplier(simulator.baseCreature));
+  const titleReferenceBaseline = buildSimulatedDamageBaseline(
+    simulator.baseDamageBaseline,
+    simulator.baseEnchants,
+    simulator.simulatedEnchants,
+    simulator.baseAura,
+    simulator.simulatedAura,
+    simulator.baseCreature,
+    simulator.simulatedCreature,
+    simulator.baseTitle,
+    simulator.baseTitle,
+  );
+  const simulatedTitleRow = { sourceType: 'title', ...(simulator.simulatedTitle || {}) };
+  const adjustedTitleBaseline = getAdjustedElementBaselineForRecommendation(
+    simulatedTitleRow,
+    simulator.baseTitle,
+    titleReferenceBaseline,
+  );
+  const titleDamagePercent = adjustedTitleBaseline
+    ? getElementAdjustedReplacementIncrementalDamagePercent(
+      simulatedTitleRow,
+      simulator.baseTitle,
+      titleReferenceBaseline,
+      adjustedTitleBaseline,
+    )
+    : getReplacementIncrementalDamagePercent(
+      simulatedTitleRow,
+      simulator.baseTitle,
+      titleReferenceBaseline,
+    );
+  return nonTitleMultiplier * (1 + titleDamagePercent / 100);
 }
 
 function getSimulatedEquipmentScore(baseScore, cumulativeDamageMultiplier) {
@@ -2824,12 +2880,38 @@ function getCreatureCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getTitleExclusiveGroupKey(row = {}) {
+  return row.sourceType === 'title' ? 'title' : '';
+}
+
+function getTitleCandidateSignature(row = {}) {
+  const groupKey = getTitleExclusiveGroupKey(row);
+  if (!groupKey) return '';
+  return [
+    groupKey,
+    row.itemId || '',
+    row.tier || '',
+    getEffectSignature(row.titlePackageEffects || row.effects || {}),
+    row.titleEnchantElement || '',
+    getEffectSignature(row.targetTitleEnchantEffects || row.enchantEffects || {}),
+    row.titleBead?.itemId || '',
+    row.purchaseRoute || '',
+    row.priceItem?.itemId || '',
+  ].join(':');
+}
+
 function getSimulatorExclusiveGroupKey(row = {}) {
-  return getEnchantExclusiveGroupKey(row) || getAuraExclusiveGroupKey(row) || getCreatureExclusiveGroupKey(row);
+  return getEnchantExclusiveGroupKey(row)
+    || getAuraExclusiveGroupKey(row)
+    || getCreatureExclusiveGroupKey(row)
+    || getTitleExclusiveGroupKey(row);
 }
 
 function getSimulatorCandidateSignature(row = {}) {
-  return getEnchantCandidateSignature(row) || getAuraCandidateSignature(row) || getCreatureCandidateSignature(row);
+  return getEnchantCandidateSignature(row)
+    || getAuraCandidateSignature(row)
+    || getCreatureCandidateSignature(row)
+    || getTitleCandidateSignature(row);
 }
 
 function getStableObjectSignature(value = {}) {
@@ -3388,10 +3470,13 @@ function getCurrentTitleBeadRows(titleRows = [], currentTitle = null) {
     tier: currentTitle.variant || currentTitle.tier || '일반',
     itemId: currentTitle.itemId,
     itemName: bead.itemName,
+    titleItemName: currentTitle.itemName,
     itemRarity: currentTitle.itemRarity || '레어',
     fame: currentTitle.fame,
     iconUrl: bead.iconUrl || currentTitle.iconUrl || '',
+    titleIconUrl: currentTitle.iconUrl || '',
     effects: addEffects(currentBaseEffects, bead.effects || {}),
+    titlePackageEffects: addEffects(currentBaseEffects, bead.effects || {}),
     itemReinforceSkill: currentTitle.itemReinforceSkill || [],
     itemBuff: currentTitle.itemBuff || {},
     itemExplain: currentTitle.itemExplain || '',
@@ -3433,6 +3518,13 @@ function getTitleBeadOnlyRow(row, currentTitle) {
   }
   return {
     ...row,
+    itemId: currentTitle.itemId,
+    titleItemName: currentTitle.itemName,
+    titleIconUrl: currentTitle.iconUrl || '',
+    titlePackageEffects: addEffects(
+      subtractEffects(currentTitle.effects || {}, currentTitle.enchantEffects || {}),
+      row.titleBead.effects || row.enchantEffects || {},
+    ),
     auction: row.titleBead.auction,
     priceItem: {
       itemId: row.titleBead.itemId,
@@ -3508,6 +3600,8 @@ function getRepresentativeRecommendationRows(
         ? simulationOptions?.auraReferenceBaseline || baseline
       : row.sourceType === 'creature'
         ? simulationOptions?.creatureReferenceBaseline || baseline
+      : row.sourceType === 'title'
+        ? simulationOptions?.titleReferenceBaseline || baseline
         : baseline;
     const rowPreferredElement = getPreferredElementForRecommendationRow(
       row,
@@ -3562,8 +3656,11 @@ function getRepresentativeRecommendationRows(
         })()
       : row.sourceType === 'title'
         ? {
-          ...currentTitle,
-          estimatedDamagePercent: estimateDamagePercent(currentTitle?.effects || {}, evaluationBaseline),
+          ...(simulationOptions?.referenceTitle || currentTitle),
+          estimatedDamagePercent: estimateDamagePercent(
+            (simulationOptions?.referenceTitle || currentTitle)?.effects || {},
+            evaluationBaseline,
+          ),
         }
         : row.sourceType === 'aura'
           ? {
@@ -4031,6 +4128,12 @@ export function installEnchantView(ctx) {
       : getCanonicalCurrentCreatureBody();
   }
 
+  function getActiveTitle() {
+    return isDealerSimulatorActive()
+      ? state.dealerSimulator.simulatedTitle
+      : state.currentTitle;
+  }
+
   function getActiveDamageBaseline() {
     return isDealerSimulatorActive()
       ? state.dealerSimulator.simulatedDamageBaseline
@@ -4070,6 +4173,8 @@ export function installEnchantView(ctx) {
           simulator.simulatedAura,
           simulator.baseCreature,
           simulator.simulatedCreature,
+          simulator.baseTitle,
+          simulator.simulatedTitle,
         ),
       );
     });
@@ -4081,6 +4186,8 @@ export function installEnchantView(ctx) {
       simulator.baseAura,
       simulator.baseCreature,
       simulator.simulatedCreature,
+      simulator.baseTitle,
+      simulator.simulatedTitle,
     );
     const creatureReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -4090,6 +4197,19 @@ export function installEnchantView(ctx) {
       simulator.simulatedAura,
       simulator.baseCreature,
       simulator.baseCreature,
+      simulator.baseTitle,
+      simulator.simulatedTitle,
+    );
+    const titleReferenceBaseline = buildSimulatedDamageBaseline(
+      simulator.baseDamageBaseline,
+      simulator.baseEnchants,
+      simulator.simulatedEnchants,
+      simulator.baseAura,
+      simulator.simulatedAura,
+      simulator.baseCreature,
+      simulator.simulatedCreature,
+      simulator.baseTitle,
+      simulator.baseTitle,
     );
     return {
       rows: candidateRows,
@@ -4100,6 +4220,8 @@ export function installEnchantView(ctx) {
         auraReferenceBaseline,
         referenceCreature: simulator.baseCreature,
         creatureReferenceBaseline,
+        referenceTitle: simulator.baseTitle,
+        titleReferenceBaseline,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
       },
     };
@@ -4121,6 +4243,7 @@ export function installEnchantView(ctx) {
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
     const baseAura = getCanonicalCurrentAura();
     const baseCreature = getCanonicalCurrentCreatureBody();
+    const baseTitle = cloneSimulatorValue(state.currentTitle || {});
     state.dealerSimulator = {
       baseEnchants,
       simulatedEnchants: cloneSimulatorValue(baseEnchants),
@@ -4128,6 +4251,8 @@ export function installEnchantView(ctx) {
       simulatedAura: cloneSimulatorValue(baseAura),
       baseCreature,
       simulatedCreature: cloneSimulatorValue(baseCreature),
+      baseTitle,
+      simulatedTitle: cloneSimulatorValue(baseTitle),
       baseDamageBaseline,
       simulatedDamageBaseline: cloneSimulatorValue(baseDamageBaseline),
       baseEquipmentScore: Number(state.currentOfficialEquipmentScore) || null,
@@ -4137,6 +4262,7 @@ export function installEnchantView(ctx) {
       baseEligibleEnchantCandidateSignatures: [],
       baseEligibleAuraCandidateSignatures: [],
       baseEligibleCreatureCandidateSignatures: [],
+      baseEligibleTitleCandidateSignatures: [],
       selectedRecommendationId: '',
       applyingRecommendationId: '',
       lastChangedTarget: null,
@@ -4168,6 +4294,17 @@ export function installEnchantView(ctx) {
     rebuildDealerSimulatorCalculationState();
   }
 
+  function syncDealerSimulatorTitleState() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return;
+    const canonicalTitle = cloneSimulatorValue(state.currentTitle || {});
+    simulator.baseTitle = canonicalTitle;
+    if (!simulator.activeSelectionByGroup?.title) {
+      simulator.simulatedTitle = cloneSimulatorValue(canonicalTitle);
+    }
+    rebuildDealerSimulatorCalculationState();
+  }
+
   function rebuildDealerSimulatorCalculationState() {
     const simulator = state.dealerSimulator;
     if (!simulator) return;
@@ -4179,6 +4316,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedAura,
       simulator.baseCreature,
       simulator.simulatedCreature,
+      simulator.baseTitle,
+      simulator.simulatedTitle,
     );
   }
 
@@ -4215,6 +4354,14 @@ export function installEnchantView(ctx) {
         applyType: 'replaceCreature',
       };
     }
+    if (row.sourceType === 'title') {
+      if (!row.itemId || !Object.keys(row.titlePackageEffects || row.effects || {}).length) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: '칭호',
+        applyType: 'replaceTitle',
+      };
+    }
     if (row.sourceType !== 'enchant') return null;
     const targetSlot = String(row.slot || '').trim();
     if (!targetSlot || !SLOT_ORDER.includes(targetSlot)) return null;
@@ -4233,6 +4380,7 @@ export function installEnchantView(ctx) {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
+      simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
       totalGold: simulator.totalGold,
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup || {}),
       lastChangedTarget: simulator.lastChangedTarget ? { ...simulator.lastChangedTarget } : null,
@@ -4245,6 +4393,7 @@ export function installEnchantView(ctx) {
     simulator.simulatedEnchants = cloneSimulatorValue(snapshot.simulatedEnchants || []);
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
     simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
+    simulator.simulatedTitle = cloneSimulatorValue(snapshot.simulatedTitle || simulator.baseTitle || {});
     simulator.totalGold = Number(snapshot.totalGold || 0);
     simulator.activeSelectionByGroup = cloneSimulatorValue(snapshot.activeSelectionByGroup || {});
     simulator.lastChangedTarget = snapshot.lastChangedTarget ? { ...snapshot.lastChangedTarget } : null;
@@ -4307,10 +4456,25 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function replaceSimulatedTitle(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceTitle') return false;
+    simulator.simulatedTitle = {
+      ...cloneSimulatorValue(row),
+      itemName: row.titleItemName || row.candidateName || row.itemName || '',
+      iconUrl: row.titleIconUrl || row.iconUrl || '',
+      effects: cloneSimulatorValue(row.titlePackageEffects || row.effects || {}),
+      enchantEffects: cloneSimulatorValue(row.targetTitleEnchantEffects || row.enchantEffects || {}),
+    };
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function applySimulatorReplacement(row, target) {
     if (target?.applyType === 'replaceEnchant') return replaceSimulatedEnchant(row, target);
     if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
     if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
+    if (target?.applyType === 'replaceTitle') return replaceSimulatedTitle(row, target);
     return false;
   }
 
@@ -4416,6 +4580,14 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function restoreSimulatedTitleToBase() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return false;
+    simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle || {});
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function removeActiveDealerSimulatorSelection(exclusiveGroupKey) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
@@ -4426,7 +4598,9 @@ export function installEnchantView(ctx) {
       ? restoreSimulatedAuraToBase()
       : selection.applyType === 'replaceCreature'
         ? restoreSimulatedCreatureToBase()
-        : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
+        : selection.applyType === 'replaceTitle'
+          ? restoreSimulatedTitleToBase()
+          : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
     if (!restored) return;
     simulator.history.push(snapshot);
     delete simulator.activeSelectionByGroup[exclusiveGroupKey];
@@ -4461,6 +4635,7 @@ export function installEnchantView(ctx) {
     simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
     simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
     simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
+    simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
     rebuildDealerSimulatorCalculationState();
     simulator.totalGold = 0;
     simulator.history = [];
@@ -4522,7 +4697,7 @@ export function installEnchantView(ctx) {
       }
     });
 
-    const title = state.currentTitle || {};
+    const title = getActiveTitle() || {};
     const titleMainOption = formatTitleDetailMainOption(title);
     const titleBufferOption = state.currentBufferBaseline?.isBuffer
       ? String(title.itemBuff?.explain || '').replace(/\s+/g, ' ').trim()
@@ -6161,7 +6336,7 @@ export function installEnchantView(ctx) {
     const simulatorRecommendationContext = state.currentBufferBaseline?.isBuffer
       ? { rows, options: null }
       : getDealerSimulatorRecommendationContext(rows);
-    const recommendations = state.currentBufferBaseline?.isBuffer
+    let recommendations = state.currentBufferBaseline?.isBuffer
       ? getBufferRecommendationRows(
         rows,
         activeEnchants,
@@ -6200,6 +6375,18 @@ export function installEnchantView(ctx) {
         .filter((row) => row.sourceType === 'creature')
         .map(getCreatureCandidateSignature)
         .filter(Boolean);
+    }
+    if (simulator && !simulator.baseEligibleTitleCandidateSignatures.length) {
+      simulator.baseEligibleTitleCandidateSignatures = recommendations
+        .filter((row) => row.sourceType === 'title')
+        .map(getTitleCandidateSignature)
+        .filter(Boolean);
+    }
+    const eligibleTitleSignatures = new Set(simulator?.baseEligibleTitleCandidateSignatures || []);
+    if (simulator && Object.keys(simulator.activeSelectionByGroup || {}).length && eligibleTitleSignatures.size) {
+      recommendations = recommendations.filter((row) => (
+        row.sourceType !== 'title' || eligibleTitleSignatures.has(getTitleCandidateSignature(row))
+      ));
     }
     const decoratedRecommendations = recommendations.map((row) => {
       const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
@@ -6544,6 +6731,7 @@ export function installEnchantView(ctx) {
     const payload = await parseApiJsonResponse(response, '캐릭터 칭호 조회에 실패했습니다.');
     state.currentTitle = payload.title || null;
     state.currentTitleCharacterKey = characterKey;
+    syncDealerSimulatorTitleState();
     renderEnchantCharacterPortrait();
   }
 
