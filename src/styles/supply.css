@@ -1605,6 +1605,9 @@
     .enchant-portrait-equipment-score.is-simulated strong {
       color: #4ba658;
     }
+    .enchant-portrait-buffer-score.is-simulated strong {
+      color: #4ba658;
+    }
     .enchant-portrait-score-delta {
       color: #75c982;
       font-size: 10px;

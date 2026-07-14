@@ -1205,6 +1205,73 @@ function getBufferEnchantSkillDelta(row, current, baseline) {
   }, { selfStatSkillDelta: 0, auraStatDelta: 0, auraAttackDelta: 0, primaryLevels: 0, auraLevels: 0 });
 }
 
+const BUFFER_SIMULATOR_CHANGE_KEYS = [
+  'statDelta',
+  'currentStatDelta',
+  'switchingStatDelta',
+  'selfStatSkillDelta',
+  'buffPowerDelta',
+  'currentBuffAmplificationDelta',
+  'switchingBuffAmplificationDelta',
+  'buffSkillLevelDelta',
+  'awakeningSkillLevelDelta',
+  'auraStatDelta',
+  'auraAttackDelta',
+];
+
+function resolveBufferNetChanges(changesBySlot = {}) {
+  return Object.values(changesBySlot || {}).reduce((total, changes) => {
+    BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
+      const value = changes?.[key] == null ? 0 : Number(changes[key]);
+      if (!Number.isFinite(value)) throw new TypeError(`Invalid buffer simulator change: ${key}`);
+      total[key] += value;
+    });
+    return total;
+  }, Object.fromEntries(BUFFER_SIMULATOR_CHANGE_KEYS.map((key) => [key, 0])));
+}
+
+function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
+  if (row?.sourceType !== 'enchant' || row?.role !== 'buffer') return null;
+  const skillDelta = getBufferEnchantSkillDelta(row, baseEnchant || {}, baseline || {});
+  if (Object.values(skillDelta).some((value) => Number(value || 0) !== 0)) return null;
+  const protectedSkillNames = [
+    baseline?.buffSkillName,
+    baseline?.awakeningSkillName,
+    ...Object.keys(baseline?.currentSelfStatSkills || {}),
+  ].filter(Boolean);
+  const jobName = baseline?.jobName || '';
+  const protectedSkillLevelDelta = getReinforceSkillLevel(row.reinforceSkill || [], jobName, protectedSkillNames)
+    - getReinforceSkillLevel(baseEnchant?.reinforceSkill || [], jobName, protectedSkillNames);
+  if (protectedSkillLevelDelta !== 0) return null;
+  const targetEffects = getRoleRelevantEffects(row.effects || {}, true);
+  const currentEffects = getRoleRelevantEffects(baseEnchant?.effects || {}, true);
+  const changedKeys = new Set([
+    ...Object.keys(targetEffects || {}),
+    ...Object.keys(currentEffects || {}),
+  ].filter((key) => Number(targetEffects?.[key] || 0) !== Number(currentEffects?.[key] || 0)));
+  if ([...changedKeys].some((key) => key !== 'allStat')) return null;
+  const statDelta = Number(targetEffects?.allStat || 0) - Number(currentEffects?.allStat || 0);
+  if (!Number.isFinite(statDelta) || statDelta <= 0) return null;
+  return { statDelta };
+}
+
+function getBufferEnchantExclusiveGroupKey(row = {}) {
+  const slot = String(row.slot || '').trim();
+  return row.bufferSimulatorSupported && slot ? `bufferEnchant:${slot}` : '';
+}
+
+function getBufferEnchantCandidateSignature(row = {}) {
+  const groupKey = getBufferEnchantExclusiveGroupKey(row);
+  if (!groupKey) return '';
+  return [
+    groupKey,
+    row.itemId || '',
+    row.tier || '',
+    getEffectSignature(row.effects || {}),
+    getStableObjectSignature(row.reinforceSkill || []),
+  ].join(':');
+}
+
 function getItemSkillLevelBonus(item, baseline, skillName, requiredLevel) {
   const jobName = baseline?.jobName || '';
   const namedBonus = getReinforceSkillLevel(item?.itemReinforceSkill || [], jobName, [skillName]);
@@ -1345,11 +1412,15 @@ function getBufferRecommendationRows(
   currentAura,
   baseline,
   includeMaterialCosts = false,
+  simulator = null,
 ) {
   if (!baseline?.isBuffer) return [];
   const currentBySlot = new Map((currentEnchants || []).map((enchant) => [enchant.slot, enchant]));
   const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
-  const currentScore = calculateBufferScore(baseline);
+  const baseScore = calculateBufferScore(baseline);
+  const currentScore = simulator?.role === 'buffer'
+    ? Number(simulator.currentBufferScore || baseScore)
+    : baseScore;
   const bySlotTier = new Map();
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
@@ -1448,7 +1519,7 @@ function getBufferRecommendationRows(
       }
       : {};
     const itemSkillChanges = getBufferItemSkillChanges(row, current, baseline);
-    const candidateScore = calculateBufferScore(baseline, {
+    const baseCandidateChanges = {
       statDelta: Number(replacementStatChanges.statDelta || 0)
         + Number(avatarStatChanges.statDelta || 0)
         + Number(itemSkillChanges.statDelta || 0),
@@ -1470,12 +1541,26 @@ function getBufferRecommendationRows(
         + Number(itemSkillChanges.buffSkillLevelDelta || 0),
       awakeningSkillLevelDelta: Number(avatarSkillLevelChanges.awakeningSkillLevelDelta || 0)
         + Number(itemSkillChanges.awakeningSkillLevelDelta || 0),
-    });
-    const incrementalBuffScore = candidateScore - currentScore;
-    const incrementalBuffPercent = currentScore > 0 ? (candidateScore / currentScore - 1) * 100 : 0;
-    if (incrementalBuffScore <= 0.0001) return;
+    };
+    const baseCandidateScore = calculateBufferScore(baseline, baseCandidateChanges);
+    const baseIncrementalBuffScore = baseCandidateScore - baseScore;
+    if (baseIncrementalBuffScore <= 0.0001) return;
+    const bufferBaseRelativeChanges = getBufferEnchantBaseRelativeChanges(row, current, baseline);
+    const bufferSimulatorSupported = simulator?.role === 'buffer' && Boolean(bufferBaseRelativeChanges);
+    let candidateScore = baseCandidateScore;
+    let comparisonScore = baseScore;
+    if (bufferSimulatorSupported) {
+      const candidateChangesBySlot = {
+        ...(simulator.enchantChangesBySlot || {}),
+        [row.slot]: bufferBaseRelativeChanges,
+      };
+      candidateScore = calculateBufferScore(baseline, resolveBufferNetChanges(candidateChangesBySlot));
+      comparisonScore = currentScore;
+    }
+    const incrementalBuffScore = candidateScore - comparisonScore;
+    const incrementalBuffPercent = comparisonScore > 0 ? (candidateScore / comparisonScore - 1) * 100 : 0;
     const price = getRecommendationGold(row, includeMaterialCosts);
-    const buffCostPerHundredPoints = Number.isFinite(price) && price > 0
+    const buffCostPerHundredPoints = Number.isFinite(price) && price > 0 && incrementalBuffScore > 0
       ? price * 100 / incrementalBuffScore
       : 0;
     const key = row.sourceType === 'enchant'
@@ -1484,7 +1569,7 @@ function getBufferRecommendationRows(
         row.slot,
         getEffectSignature(scoringCurrentEffects),
         getEffectSignature(scoringTargetEffects),
-        getRoundedMetricKey(incrementalBuffScore),
+        getRoundedMetricKey(baseIncrementalBuffScore),
         getStableObjectSignature(skillDelta),
         getStableObjectSignature(itemSkillChanges),
       ].join(':')
@@ -1511,7 +1596,7 @@ function getBufferRecommendationRows(
         ...row,
         currentEnchant: current,
         metricType: 'buffer',
-        currentBufferScore: currentScore,
+        currentBufferScore: comparisonScore,
         candidateBufferScore: candidateScore,
         incrementalBuffScore,
         incrementalBuffPercent,
@@ -1521,6 +1606,8 @@ function getBufferRecommendationRows(
         bufferBuffPowerDelta: buffPowerDelta,
         bufferBuffAmplificationDelta: buffAmplificationDelta,
         incrementalDamagePercent: incrementalBuffPercent,
+        bufferSimulatorSupported,
+        bufferBaseRelativeChanges,
       });
     }
   });
@@ -4431,6 +4518,27 @@ function mergeAppliedOathAcquisitionSnapshots(rows = [], simulator = {}) {
   return mergedRows;
 }
 
+function mergeAppliedBufferEnchantSnapshots(rows = [], simulator = {}) {
+  if (simulator?.role !== 'buffer') return rows;
+  return rows.map((row) => {
+    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row);
+    const candidateSignature = getBufferEnchantCandidateSignature(row);
+    const selection = exclusiveGroupKey
+      ? simulator.activeSelectionByGroup?.[exclusiveGroupKey]
+      : null;
+    if (
+      !selection?.appliedRecommendationSnapshot
+      || selection.candidateSignature !== candidateSignature
+    ) return row;
+    return {
+      ...row,
+      ...cloneSimulatorValue(selection.appliedRecommendationSnapshot),
+      bufferSimulatorSupported: row.bufferSimulatorSupported,
+      bufferBaseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+    };
+  });
+}
+
 function mergeAppliedEquipmentProgressionSnapshots(
   rows = [],
   simulator = {},
@@ -4565,7 +4673,8 @@ function getBuffSimulatorCandidateSignature(row = {}) {
 }
 
 function getSimulatorExclusiveGroupKey(row = {}) {
-  return getEnchantExclusiveGroupKey(row)
+  return getBufferEnchantExclusiveGroupKey(row)
+    || getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
     || getCreatureExclusiveGroupKey(row)
     || getCreatureArtifactExclusiveGroupKey(row)
@@ -4580,7 +4689,8 @@ function getSimulatorExclusiveGroupKey(row = {}) {
 }
 
 function getSimulatorCandidateSignature(row = {}) {
-  return getEnchantCandidateSignature(row)
+  return getBufferEnchantCandidateSignature(row)
+    || getEnchantCandidateSignature(row)
     || getAuraCandidateSignature(row)
     || getCreatureCandidateSignature(row)
     || getCreatureArtifactCandidateSignature(row)
@@ -5810,12 +5920,20 @@ export function installEnchantView(ctx) {
   state.renderedOathAcquisitionCombinedRows = new Map();
   state.dealerSimulatorSuppressClickUntil = 0;
 
+  function getActiveSimulator() {
+    return state.dealerSimulator;
+  }
+
   function isDealerSimulatorActive() {
-    return Boolean(state.dealerSimulator && !state.currentBufferBaseline?.isBuffer);
+    return state.dealerSimulator?.role === 'dealer';
+  }
+
+  function isBufferSimulatorActive() {
+    return state.dealerSimulator?.role === 'buffer';
   }
 
   function getActiveEnchants() {
-    return isDealerSimulatorActive()
+    return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedEnchants
       : state.currentEnchants;
   }
@@ -6220,7 +6338,31 @@ export function installEnchantView(ctx) {
   }
 
   function initializeDealerSimulator() {
-    if (state.currentBufferBaseline?.isBuffer || !state.currentDamageBaseline) {
+    if (state.currentBufferBaseline?.isBuffer) {
+      const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
+      const baseBaseline = cloneSimulatorValue(state.currentBufferBaseline || {});
+      const baseBufferScore = calculateBufferScore(baseBaseline);
+      state.dealerSimulator = {
+        role: 'buffer',
+        baseBaseline,
+        baseBufferScore,
+        currentBufferScore: baseBufferScore,
+        baseEnchants,
+        simulatedEnchants: cloneSimulatorValue(baseEnchants),
+        enchantChangesBySlot: {},
+        totalGold: 0,
+        activeSelectionByGroup: {},
+        selectedRecommendationId: '',
+        applyingRecommendationId: '',
+        lastChangedTarget: null,
+        activeSweepSlots: new Map(),
+        sweepSequence: 0,
+      };
+      state.dealerSimulatorRecommendations = new Map();
+      state.renderedOathAcquisitionCombinedRows = new Map();
+      return;
+    }
+    if (!state.currentDamageBaseline) {
       resetDealerSimulator();
       return;
     }
@@ -6244,6 +6386,7 @@ export function installEnchantView(ctx) {
       ],
     );
     state.dealerSimulator = {
+      role: 'dealer',
       baseEnchants,
       simulatedEnchants: cloneSimulatorValue(baseEnchants),
       baseEquipmentUpgrades,
@@ -6286,7 +6429,7 @@ export function installEnchantView(ctx) {
 
   function syncDealerSimulatorAuraState() {
     const simulator = state.dealerSimulator;
-    if (!simulator) return;
+    if (simulator?.role !== 'dealer') return;
     const canonicalAura = getCanonicalCurrentAura();
     simulator.baseAura = canonicalAura;
     simulator.simulatedAura = simulator.activeSelectionByGroup?.aura
@@ -6297,7 +6440,7 @@ export function installEnchantView(ctx) {
 
   function syncDealerSimulatorAvatarState() {
     const simulator = state.dealerSimulator;
-    if (!simulator) return;
+    if (simulator?.role !== 'dealer') return;
     const canonicalAvatar = getCanonicalCurrentAvatar();
     simulator.baseAvatar = canonicalAvatar;
     const hasAvatarEmblemSelection = Object.keys(simulator.activeSelectionByGroup || {})
@@ -6310,7 +6453,7 @@ export function installEnchantView(ctx) {
 
   function syncDealerSimulatorCreatureState() {
     const simulator = state.dealerSimulator;
-    if (!simulator) return;
+    if (simulator?.role !== 'dealer') return;
     const canonicalCreature = getCanonicalCurrentCreatureBody();
     const canonicalArtifacts = getCanonicalCurrentCreatureArtifacts();
     simulator.baseCreature = canonicalCreature;
@@ -6335,7 +6478,7 @@ export function installEnchantView(ctx) {
 
   function syncDealerSimulatorTitleState() {
     const simulator = state.dealerSimulator;
-    if (!simulator) return;
+    if (simulator?.role !== 'dealer') return;
     const canonicalTitle = cloneSimulatorValue(state.currentTitle || {});
     simulator.baseTitle = canonicalTitle;
     if (!simulator.activeSelectionByGroup?.title) {
@@ -6346,7 +6489,7 @@ export function installEnchantView(ctx) {
 
   function rebuildDealerSimulatorCalculationState() {
     const simulator = state.dealerSimulator;
-    if (!simulator) return;
+    if (simulator?.role !== 'dealer') return;
     const simulatedDamageBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
       simulator.baseEnchants,
@@ -6562,6 +6705,54 @@ export function installEnchantView(ctx) {
       targetSlot,
       applyType: 'replaceEnchant',
     };
+  }
+
+  function resolveBufferSimulatorTarget(row = {}) {
+    if (!isBufferSimulatorActive() || !row?.bufferSimulatorSupported) return null;
+    const targetSlot = String(row.slot || '').trim();
+    if (!targetSlot || !SLOT_ORDER.includes(targetSlot) || !row.bufferBaseRelativeChanges) return null;
+    return {
+      targetTab: 'equipment',
+      targetSlot,
+      applyType: 'replaceBufferEnchant',
+      baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+    };
+  }
+
+  function resolveActiveSimulatorTarget(row = {}) {
+    return isBufferSimulatorActive()
+      ? resolveBufferSimulatorTarget(row)
+      : resolveDealerSimulatorTarget(row);
+  }
+
+  function rebuildBufferSimulatorCalculationState() {
+    const simulator = state.dealerSimulator;
+    if (simulator?.role !== 'buffer') return;
+    simulator.currentBufferScore = calculateBufferScore(
+      simulator.baseBaseline,
+      resolveBufferNetChanges(simulator.enchantChangesBySlot),
+    );
+  }
+
+  function replaceSimulatedBufferEnchant(row, target) {
+    const simulator = state.dealerSimulator;
+    if (simulator?.role !== 'buffer' || target?.applyType !== 'replaceBufferEnchant') return false;
+    const targetSlot = target.targetSlot;
+    const currentIndex = simulator.simulatedEnchants.findIndex((enchant) => enchant?.slot === targetSlot);
+    const baseEnchant = simulator.baseEnchants.find((enchant) => enchant?.slot === targetSlot) || {};
+    const current = currentIndex >= 0 ? simulator.simulatedEnchants[currentIndex] : baseEnchant;
+    const nextEnchant = {
+      ...cloneSimulatorValue(current),
+      slot: targetSlot,
+      effects: cloneSimulatorValue(row.effects || {}),
+      reinforceSkill: cloneSimulatorValue(row.reinforceSkill || []),
+      simulatedEnchantItemName: row.itemName || '',
+    };
+    if (currentIndex >= 0) simulator.simulatedEnchants.splice(currentIndex, 1, nextEnchant);
+    else simulator.simulatedEnchants.push(nextEnchant);
+    simulator.enchantChangesBySlot[targetSlot] = cloneSimulatorValue(target.baseRelativeChanges);
+    rebuildBufferSimulatorCalculationState();
+    return true;
   }
 
   function getDealerSimulatorSnapshot() {
@@ -7335,7 +7526,7 @@ export function installEnchantView(ctx) {
   }
 
   function syncDealerSimulatorMaterialCostState() {
-    const simulator = state.dealerSimulator;
+    const simulator = getActiveSimulator();
     if (!simulator) return;
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
     Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
@@ -7348,16 +7539,79 @@ export function installEnchantView(ctx) {
   const DEALER_SIMULATOR_SWEEP_DURATION_MS = 800;
 
   function triggerDealerSimulatorSweep(slot) {
-    const simulator = state.dealerSimulator;
+    const simulator = getActiveSimulator();
     if (!simulator || !slot) return;
     const token = simulator.sweepSequence + 1;
     simulator.sweepSequence = token;
     simulator.activeSweepSlots.set(slot, { token, startedAt: Date.now() });
     setTimeout(() => {
-      if (state.dealerSimulator !== simulator) return;
+      if (getActiveSimulator() !== simulator) return;
       const activeSweep = simulator.activeSweepSlots.get(slot);
       if (activeSweep?.token === token) simulator.activeSweepSlots.delete(slot);
     }, DEALER_SIMULATOR_SWEEP_DURATION_MS);
+  }
+
+  function applyBufferSimulatorRecommendation(recommendationId) {
+    const simulator = state.dealerSimulator;
+    if (simulator?.role !== 'buffer' || simulator.applyingRecommendationId) return;
+    const row = state.dealerSimulatorRecommendations.get(recommendationId);
+    const target = resolveBufferSimulatorTarget(row);
+    if (!row || !target) return;
+    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row);
+    const candidateSignature = getBufferEnchantCandidateSignature(row);
+    if (!exclusiveGroupKey || !candidateSignature) return;
+    if (simulator.activeSelectionByGroup?.[exclusiveGroupKey]?.candidateSignature === candidateSignature) return;
+    const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+    const goldWithoutMaterials = getRecommendationGold(row, false);
+    const goldWithMaterials = getRecommendationGold(row, true);
+    const appliedGold = includeMaterialCosts ? goldWithMaterials : goldWithoutMaterials;
+    if (!Number.isFinite(appliedGold) || appliedGold < 0) return;
+    const snapshot = {
+      simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
+      enchantChangesBySlot: cloneSimulatorValue(simulator.enchantChangesBySlot),
+      activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup),
+      currentBufferScore: simulator.currentBufferScore,
+      totalGold: simulator.totalGold,
+    };
+    simulator.applyingRecommendationId = recommendationId;
+    try {
+      if (!replaceSimulatedBufferEnchant(row, target)) return;
+      simulator.activeSelectionByGroup[exclusiveGroupKey] = {
+        candidateSignature,
+        appliedGold,
+        includeMaterialCost: includeMaterialCosts,
+        goldWithoutMaterials,
+        goldWithMaterials,
+        targetTab: target.targetTab,
+        targetSlot: target.targetSlot,
+        applyType: target.applyType,
+        baseRelativeChanges: cloneSimulatorValue(target.baseRelativeChanges),
+        appliedRecommendationSnapshot: cloneSimulatorValue(row),
+      };
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator, includeMaterialCosts);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = target;
+      triggerDealerSimulatorSweep(target.targetSlot);
+      state.enchantLoadoutTab = 'equipment';
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+    } catch {
+      simulator.simulatedEnchants = snapshot.simulatedEnchants;
+      simulator.enchantChangesBySlot = snapshot.enchantChangesBySlot;
+      simulator.activeSelectionByGroup = snapshot.activeSelectionByGroup;
+      simulator.currentBufferScore = snapshot.currentBufferScore;
+      simulator.totalGold = snapshot.totalGold;
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      setEnchantCharacterStatus('시뮬레이션 적용에 실패했습니다.');
+    } finally {
+      simulator.applyingRecommendationId = '';
+    }
+  }
+
+  function applyActiveSimulatorRecommendation(recommendationId) {
+    if (isBufferSimulatorActive()) applyBufferSimulatorRecommendation(recommendationId);
+    else applyDealerSimulatorRecommendation(recommendationId);
   }
 
   function applyDealerSimulatorRecommendation(recommendationId) {
@@ -7751,6 +8005,42 @@ export function installEnchantView(ctx) {
     renderEnchantTable();
   }
 
+  function removeActiveBufferSimulatorSelection(exclusiveGroupKey) {
+    const simulator = state.dealerSimulator;
+    if (simulator?.role !== 'buffer' || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
+    const selection = simulator.activeSelectionByGroup?.[exclusiveGroupKey];
+    if (!selection || selection.applyType !== 'replaceBufferEnchant') return;
+    const targetSlot = selection.targetSlot;
+    const baseEnchant = simulator.baseEnchants.find((enchant) => enchant?.slot === targetSlot);
+    const currentIndex = simulator.simulatedEnchants.findIndex((enchant) => enchant?.slot === targetSlot);
+    if (baseEnchant) {
+      const restored = cloneSimulatorValue(baseEnchant);
+      if (currentIndex >= 0) simulator.simulatedEnchants.splice(currentIndex, 1, restored);
+      else simulator.simulatedEnchants.push(restored);
+    } else if (currentIndex >= 0) {
+      simulator.simulatedEnchants.splice(currentIndex, 1);
+    }
+    delete simulator.enchantChangesBySlot[targetSlot];
+    delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+    rebuildBufferSimulatorCalculationState();
+    simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+    simulator.selectedRecommendationId = '';
+    simulator.lastChangedTarget = {
+      targetTab: 'equipment',
+      targetSlot,
+      applyType: selection.applyType,
+    };
+    state.enchantLoadoutTab = 'equipment';
+    triggerDealerSimulatorSweep(targetSlot);
+    renderEnchantCharacterPortrait();
+    renderEnchantTable();
+  }
+
+  function removeActiveSimulatorSelection(exclusiveGroupKey) {
+    if (isBufferSimulatorActive()) removeActiveBufferSimulatorSelection(exclusiveGroupKey);
+    else removeActiveDealerSimulatorSelection(exclusiveGroupKey);
+  }
+
   function removeActiveDealerSimulatorSelection(exclusiveGroupKey) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
@@ -7849,6 +8139,21 @@ export function installEnchantView(ctx) {
   function clearDealerSimulator() {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId) return;
+    if (simulator.role === 'buffer') {
+      simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
+      simulator.enchantChangesBySlot = {};
+      simulator.currentBufferScore = simulator.baseBufferScore;
+      simulator.totalGold = 0;
+      simulator.activeSelectionByGroup = {};
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = null;
+      simulator.activeSweepSlots.clear();
+      state.lastRecommendationDisplayOrder = [];
+      state.enchantLoadoutTab = 'equipment';
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
+    }
     simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
     simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
     simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
@@ -8897,9 +9202,58 @@ export function installEnchantView(ctx) {
 
   function renderDealerSimulatorActions() {
     if (!els.enchantSimulatorActions) return;
-    const simulator = state.dealerSimulator;
+    const simulator = getActiveSimulator();
     const hasChanges = Object.keys(simulator?.activeSelectionByGroup || {}).length > 0;
     els.enchantSimulatorActions.hidden = !hasChanges;
+  }
+
+  function renderBufferSimulatorMeta(originalCharacterMeta = '') {
+    const simulator = state.dealerSimulator;
+    const baseScore = Number(simulator?.baseBufferScore || calculateBufferScore(state.currentBufferBaseline));
+    const currentScore = Number(simulator?.currentBufferScore || baseScore);
+    const hasSimulationChanges = simulator?.role === 'buffer'
+      && Object.keys(simulator.activeSelectionByGroup || {}).length > 0;
+    const baseScoreText = Number.isFinite(baseScore) && baseScore > 0
+      ? Math.round(baseScore).toLocaleString('ko-KR')
+      : '확인 불가';
+    if (!hasSimulationChanges) {
+      return `
+        <div class="enchant-portrait-buffer-score">
+          <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다." title="버프점수 ${escapeHtml(baseScoreText)}" aria-label="버프점수 ${escapeHtml(baseScoreText)}"><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(baseScoreText)}</strong>
+        </div>
+        ${originalCharacterMeta}
+      `;
+    }
+    const scoreDelta = currentScore - baseScore;
+    const increasePercent = baseScore > 0 ? (currentScore / baseScore - 1) * 100 : 0;
+    const scoreDeltaText = Math.abs(scoreDelta) < 0.5
+      ? '변동 없음'
+      : `${scoreDelta > 0 ? '▲' : '▼'}${Math.abs(Math.round(scoreDelta)).toLocaleString('ko-KR')}`;
+    const increaseText = `${increasePercent > 0 ? '+' : ''}${increasePercent.toFixed(2)}%`;
+    const totalGold = Number.isFinite(Number(simulator.totalGold))
+      ? Math.round(Number(simulator.totalGold))
+      : 0;
+    const totalGoldFullText = `${totalGold.toLocaleString('ko-KR')} 골드`;
+    return `
+      <div class="enchant-portrait-info-split">
+        <div class="enchant-portrait-info-simulation">
+          <span class="enchant-portrait-info-label">예상 버프점수</span>
+          <div class="enchant-portrait-buffer-score is-simulated">
+            <strong tabindex="0" data-tooltip="현재 적용 중인 버퍼 시뮬레이션 결과입니다."><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(currentScore).toLocaleString('ko-KR'))}</strong>
+          </div>
+          <span class="enchant-portrait-score-delta">${escapeHtml(scoreDeltaText)}</span>
+          <span class="enchant-portrait-damage-increase">버프점수 상승률 <strong>${escapeHtml(increaseText)}</strong></span>
+          <span class="enchant-simulator-summary" tabindex="0" data-full-gold="${escapeHtml(totalGoldFullText)}" aria-label="누적 골드 ${escapeHtml(totalGoldFullText)}">누적 골드 <strong>${escapeHtml(formatKoreanGoldUnits(totalGold))}</strong></span>
+        </div>
+        <div class="enchant-portrait-info-original">
+          <span class="enchant-portrait-info-label">현재 버프점수</span>
+          <div class="enchant-portrait-buffer-score">
+            <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다."><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(baseScoreText)}</strong>
+          </div>
+          ${originalCharacterMeta}
+        </div>
+      </div>
+    `;
   }
 
   function renderDealerSimulatorMeta(originalCharacterMeta = '') {
@@ -9045,14 +9399,7 @@ export function installEnchantView(ctx) {
     }
     const meta = els.enchantCharacterPortrait.querySelector('.enchant-character-portrait .supply-detail-portrait-meta');
     if (state.currentBufferBaseline?.isBuffer) {
-      const bufferScore = calculateBufferScore(state.currentBufferBaseline);
-      if (meta && Number.isFinite(bufferScore) && bufferScore > 0) {
-        meta.insertAdjacentHTML('afterbegin', `
-          <div class="enchant-portrait-buffer-score">
-            <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다." title="버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}" aria-label="버프점수 ${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}"><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(bufferScore).toLocaleString('ko-KR'))}</strong>
-          </div>
-        `);
-      }
+      if (meta) meta.innerHTML = renderBufferSimulatorMeta(meta.innerHTML);
     } else if (meta && state.currentBufferScoreStatus === 'loading') {
       meta.insertAdjacentHTML('afterbegin', `
         <div class="enchant-portrait-buffer-score">
@@ -9726,8 +10073,9 @@ export function installEnchantView(ctx) {
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
     renderDealerSimulatorActions();
-    const simulator = state.currentBufferBaseline?.isBuffer ? null : state.dealerSimulator;
-    if (simulator) syncOathAcquisitionVariantIndexes();
+    const simulator = getActiveSimulator();
+    const dealerSimulator = simulator?.role === 'dealer' ? simulator : null;
+    if (dealerSimulator) syncOathAcquisitionVariantIndexes();
     const activeEnchants = getActiveEnchants();
     const activeDamageBaseline = getActiveDamageBaseline();
     const simulatorRecommendationContext = state.currentBufferBaseline?.isBuffer
@@ -9736,12 +10084,13 @@ export function installEnchantView(ctx) {
     let recommendations = state.currentBufferBaseline?.isBuffer
       ? getBufferRecommendationRows(
         rows,
-        activeEnchants,
+        state.currentEnchants,
         state.currentCreature,
         state.currentTitle,
         state.currentAura,
         state.currentBufferBaseline,
         includeMaterialCosts,
+        simulator,
       )
       : getRepresentativeRecommendationRows(
         simulatorRecommendationContext.rows,
@@ -9754,22 +10103,25 @@ export function installEnchantView(ctx) {
         simulatorRecommendationContext.options,
         getActiveCreature(),
       );
+    if (simulator?.role === 'buffer') {
+      recommendations = mergeAppliedBufferEnchantSnapshots(recommendations, simulator);
+    }
     recommendations = collapseOathDecisionRecommendationVariants(
       recommendations,
       state.oathDecisionVariantIndexByGroup,
     );
-    if (simulator) {
-      recommendations = mergeAppliedOathAcquisitionSnapshots(recommendations, simulator);
+    if (dealerSimulator) {
+      recommendations = mergeAppliedOathAcquisitionSnapshots(recommendations, dealerSimulator);
       recommendations = mergeAppliedEquipmentProgressionSnapshots(
         recommendations,
-        simulator,
+        dealerSimulator,
         simulatorRecommendationContext.options,
         includeMaterialCosts,
       );
     }
     recommendations = combineOathAcquisitionRecommendationRows(
       recommendations,
-      simulator || {},
+      dealerSimulator || {},
       state.oathAcquisitionCombinedCountsByPair,
       includeMaterialCosts,
       state.currentBufferBaseline?.isBuffer === true,
@@ -9785,37 +10137,37 @@ export function installEnchantView(ctx) {
         )
         : row
     ));
-    if (simulator && !simulator.baseEligibleEnchantCandidateSignatures.length) {
-      simulator.baseEligibleEnchantCandidateSignatures = recommendations
+    if (dealerSimulator && !dealerSimulator.baseEligibleEnchantCandidateSignatures.length) {
+      dealerSimulator.baseEligibleEnchantCandidateSignatures = recommendations
         .filter((row) => row.sourceType === 'enchant')
         .map(getEnchantCandidateSignature)
         .filter(Boolean);
     }
-    if (simulator && !simulator.baseEligibleAuraCandidateSignatures.length) {
-      simulator.baseEligibleAuraCandidateSignatures = recommendations
+    if (dealerSimulator && !dealerSimulator.baseEligibleAuraCandidateSignatures.length) {
+      dealerSimulator.baseEligibleAuraCandidateSignatures = recommendations
         .filter((row) => row.sourceType === 'aura')
         .map(getAuraCandidateSignature)
         .filter(Boolean);
     }
-    if (simulator && !simulator.baseEligibleCreatureCandidateSignatures.length) {
-      simulator.baseEligibleCreatureCandidateSignatures = recommendations
+    if (dealerSimulator && !dealerSimulator.baseEligibleCreatureCandidateSignatures.length) {
+      dealerSimulator.baseEligibleCreatureCandidateSignatures = recommendations
         .filter((row) => row.sourceType === 'creature')
         .map(getCreatureCandidateSignature)
         .filter(Boolean);
     }
-    if (simulator && !simulator.baseEligibleTitleCandidateSignatures.length) {
-      simulator.baseEligibleTitleCandidateSignatures = recommendations
+    if (dealerSimulator && !dealerSimulator.baseEligibleTitleCandidateSignatures.length) {
+      dealerSimulator.baseEligibleTitleCandidateSignatures = recommendations
         .filter((row) => row.sourceType === 'title')
         .map(getTitleCandidateSignature)
         .filter(Boolean);
     }
-    const eligibleTitleSignatures = new Set(simulator?.baseEligibleTitleCandidateSignatures || []);
-    if (simulator && Object.keys(simulator.activeSelectionByGroup || {}).length && eligibleTitleSignatures.size) {
+    const eligibleTitleSignatures = new Set(dealerSimulator?.baseEligibleTitleCandidateSignatures || []);
+    if (dealerSimulator && Object.keys(dealerSimulator.activeSelectionByGroup || {}).length && eligibleTitleSignatures.size) {
       recommendations = recommendations.filter((row) => (
         row.sourceType !== 'title' || eligibleTitleSignatures.has(getTitleCandidateSignature(row))
       ));
     }
-    if (simulator) {
+    if (dealerSimulator) {
       const equipmentTuneStepIndex = getTuneStepIndexBySource(state, 'equipmentTune');
       recommendations = recommendations.map((row) => (
         row.sourceType === 'equipmentTune'
@@ -9918,16 +10270,16 @@ export function installEnchantView(ctx) {
         row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, activeDamageBaseline, state.currentBufferBaseline);
       }
       const simulatorTarget = isCombinedOathAcquisition
-        ? !isCombinedPreviewOnly
+        ? dealerSimulator && !isCombinedPreviewOnly
           && Number(row.transcendCount || 0) + Number(row.craftCount || 0) > 0
           && !isApplied
           ? { applyType: 'proxyOathAcquisitionCombined' }
           : null
-        : isApplied ? null : resolveDealerSimulatorTarget(row);
-      const oathAcquisitionRecommendationId = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
+        : isApplied ? null : resolveActiveSimulatorTarget(row);
+      const oathAcquisitionRecommendationId = dealerSimulator && OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         ? getDealerSimulatorRecommendationId(row)
         : '';
-      const combinedRecommendationId = isCombinedOathAcquisition && !isCombinedPreviewOnly
+      const combinedRecommendationId = dealerSimulator && isCombinedOathAcquisition && !isCombinedPreviewOnly
         ? `oath-combined:${row.oathAcquisitionPairKey}:${Number(row.transcendCount || 0)}:${Number(row.craftCount || 0)}`
         : '';
       const simulatorRecommendationId = combinedRecommendationId || (simulatorTarget
@@ -9941,7 +10293,7 @@ export function installEnchantView(ctx) {
           : `applied:${row.exclusiveGroupKey}`
         : '';
       const simulatorSelectionId = appliedSelectionId || simulatorRecommendationId;
-      const simulatorSelected = simulatorSelectionId && state.dealerSimulator?.selectedRecommendationId === simulatorSelectionId;
+      const simulatorSelected = simulatorSelectionId && simulator?.selectedRecommendationId === simulatorSelectionId;
       const isBufferMetric = row.metricType === 'buffer';
       const materialAcquisition = isMaterialAcquisition(row);
       const band = materialAcquisition
@@ -9968,7 +10320,7 @@ export function installEnchantView(ctx) {
           simulatorHasUpgradeWarning: hasUpgradeWarning,
         });
       }
-      if (isCombinedOathAcquisition) {
+      if (dealerSimulator && isCombinedOathAcquisition) {
         [
           ...(row.transcendRecommendations || [row.transcendRecommendation]),
           ...(row.craftRecommendations || [row.craftRecommendation]),
@@ -10171,7 +10523,7 @@ export function installEnchantView(ctx) {
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
         { html: combinedAcquisitionMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { text: !isCombinedOathAcquisition && !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
-        { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
+        { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
         { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
         { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
@@ -11366,10 +11718,10 @@ export function installEnchantView(ctx) {
         return;
       }
       if (appliedGroupKey) {
-        removeActiveDealerSimulatorSelection(appliedGroupKey);
+        removeActiveSimulatorSelection(appliedGroupKey);
         return;
       }
-      applyDealerSimulatorRecommendation(recommendationId);
+      applyActiveSimulatorRecommendation(recommendationId);
       return;
     }
     state.dealerSimulator.selectedRecommendationId = selectionId;
@@ -11443,10 +11795,10 @@ export function installEnchantView(ctx) {
       return;
     }
     if (appliedGroupKey) {
-      removeActiveDealerSimulatorSelection(appliedGroupKey);
+      removeActiveSimulatorSelection(appliedGroupKey);
       return;
     }
-    applyDealerSimulatorRecommendation(String(simulatorTarget.dataset.simulatorRecommendationId || ''));
+    applyActiveSimulatorRecommendation(String(simulatorTarget.dataset.simulatorRecommendationId || ''));
   });
 
   els.enchantRecommendList?.addEventListener('keydown', (event) => {
