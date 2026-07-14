@@ -12,6 +12,8 @@ def build_avatar_emblem_recommendation_row(
     need_count: int,
     unit_price,
     target_stat: str,
+    target_slot_id: str,
+    socket_changes: list,
     buffer_stat_scope: str,
     recommendation_priority: int,
 ) -> dict:
@@ -26,9 +28,12 @@ def build_avatar_emblem_recommendation_row(
         "itemExplain": item_explain,
         "effects": effects,
         "auction": auction,
+        "expectedGold": auction.get("minUnitPrice"),
         "needCount": need_count,
         "unitPrice": unit_price,
         "targetStat": target_stat,
+        "targetSlotId": target_slot_id,
+        "socketChanges": socket_changes,
         "bufferStatScope": buffer_stat_scope,
         "recommendationPriority": recommendation_priority,
     }

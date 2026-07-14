@@ -36,6 +36,7 @@ from .item_skill_option_service import get_character_skill_context, get_item_rei
 from .candidates.avatar_emblem import (
     BUFFER_AVATAR_EMBLEM_RECOMMENDATIONS,
     BUFFER_SWITCHING_AVATAR_EMBLEM_RECOMMENDATIONS,
+    build_normalized_avatar_emblem,
     build_avatar_emblem_recommendations_debug,
     find_lowest_avatar_emblem_by_prefix,
     get_avatar_emblem_item_name,
@@ -5009,11 +5010,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         slot_id = clean_text(row.get("slotId"))
         item_id = clean_text(row.get("itemId"))
         emblems = [
-            {
-                "itemId": clean_text(emblem.get("itemId")),
-                "itemName": clean_item_display_name(emblem.get("itemName")),
-                "slotColor": clean_text(emblem.get("slotColor")),
-            }
+            build_normalized_avatar_emblem(emblem, primary_stat_name)
             for emblem in row.get("emblems") or []
             if (clean_text(emblem.get("itemId")) or clean_item_display_name(emblem.get("itemName")))
             and "플래티넘" not in clean_text(emblem.get("slotColor"))

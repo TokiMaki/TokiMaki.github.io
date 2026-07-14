@@ -125,6 +125,34 @@ def get_equipped_emblem_stat_value(emblem: dict, stat_name: str) -> float:
     return get_emblem_stat_value(item_name, stat_name, kind)
 
 
+def get_avatar_emblem_grade(item_name: str) -> str:
+    item_name = clean_text(item_name)
+    if "찬란한" in item_name:
+        return "brilliant"
+    if "화려한" in item_name:
+        return "ornate"
+    if "빛나는" in item_name:
+        return "shining"
+    return "unknown"
+
+
+def build_normalized_avatar_emblem(emblem: dict, stat_name: str, slot_color: str = "") -> dict:
+    item_name = clean_item_display_name(emblem.get("itemName"))
+    normalized_slot_color = clean_text(emblem.get("slotColor")) or clean_text(slot_color)
+    stat_key = "int" if clean_text(stat_name) == "지능" else "str"
+    stat_value = get_equipped_emblem_stat_value(
+        {**emblem, "itemName": item_name, "slotColor": normalized_slot_color},
+        stat_name,
+    )
+    return {
+        "itemId": clean_text(emblem.get("itemId")),
+        "itemName": item_name,
+        "slotColor": normalized_slot_color,
+        "grade": get_avatar_emblem_grade(item_name),
+        "effects": {stat_key: stat_value} if stat_value else {},
+    }
+
+
 def get_emblems_by_color(row: dict, color: str) -> list:
     color = clean_text(color)
     return [
@@ -271,10 +299,10 @@ def build_avatar_emblem_recommendations_debug(
         if (
             not buffer_mode
             and clean_text(row.get("itemRarity")) != "레어"
-            and clean_text(config.get("slotId")) not in {"AURORA", "SKIN"}
+            and clean_text(config.get("slotId")) not in {"WEAPON", "AURORA", "SKIN"}
         ):
             continue
-        emblems = get_avatar_damage_emblems(row, config)
+        emblems = get_avatar_damage_emblems(row, config)[:2]
         socket_count = max(len(emblems), 2)
         current_values = [
             get_equipped_emblem_stat_value(emblem, primary_stat_name)
@@ -301,6 +329,26 @@ def build_avatar_emblem_recommendations_debug(
                 "minUnitPrice": (item.get("auction") or {}).get("minUnitPrice"),
             })
         item = item_cache[item_cache_key]
+        target_emblem = build_normalized_avatar_emblem(
+            item or {"itemName": item_name},
+            primary_stat_name,
+            config.get("color"),
+        )
+        socket_changes = []
+        for socket_index, current_value in enumerate(current_values):
+            if current_value >= config.get("targetStat", 0):
+                continue
+            current_emblem = emblems[socket_index] if socket_index < len(emblems) else None
+            socket_changes.append({
+                "socketKey": f"regular:{socket_index}",
+                "socketIndex": socket_index,
+                "currentEmblem": (
+                    build_normalized_avatar_emblem(current_emblem, primary_stat_name)
+                    if current_emblem
+                    else None
+                ),
+                "targetEmblem": target_emblem,
+            })
         auction = dict(item.get("auction") or {})
         unit_price = auction.get("minUnitPrice")
         if isinstance(unit_price, (int, float)) and unit_price > 0:
@@ -329,6 +377,8 @@ def build_avatar_emblem_recommendations_debug(
             need_count=need_count,
             unit_price=unit_price,
             target_stat=primary_stat_name,
+            target_slot_id=config.get("slotId"),
+            socket_changes=socket_changes,
             buffer_stat_scope=clean_text(config.get("bufferStatScope")),
             recommendation_priority=0,
         ))

@@ -200,6 +200,12 @@ const AVATAR_PLATINUM_SLOT_LABEL_BY_KEY = {
   top: '상의 아바타',
   bottom: '하의 아바타',
 };
+const AVATAR_EQUIPMENT_SCORE_RED_SLOT_IDS = new Set(['HEADGEAR', 'HAIR', 'WEAPON', 'AURORA', 'SKIN']);
+const AVATAR_EQUIPMENT_SCORE_GREEN_YELLOW_SLOT_IDS = new Set(['FACE', 'BREAST', 'JACKET', 'PANTS']);
+const AVATAR_EQUIPMENT_SCORE_STAT_BY_GRADE = {
+  red: { shining: 10, ornate: 17, brilliant: 25 },
+  greenYellow: { shining: 0, ornate: 10, brilliant: 15 },
+};
 const BUFF_LOADOUT_EQUIPMENT_SLOT_ROWS = [
   ['상의', '하의', '무기', '칭호'],
   ['머리어깨', '허리', '팔찌', '목걸이'],
@@ -1719,9 +1725,12 @@ function getAvatarRows(currentAvatar) {
     effects: candidate.effects || {},
     itemExplain: candidate.itemExplain || '',
     auction: candidate.auction || {},
+    expectedGold: candidate.expectedGold,
     acquisition: candidate.acquisition || null,
     needCount: candidate.needCount || 0,
     unitPrice: candidate.unitPrice,
+    targetSlotId: candidate.targetSlotId || '',
+    socketChanges: Array.isArray(candidate.socketChanges) ? candidate.socketChanges : [],
     targetSkill: candidate.targetSkill || '',
     bufferStatScope: candidate.bufferStatScope || '',
     bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
@@ -1732,6 +1741,60 @@ function getAvatarRows(currentAvatar) {
     priceWarningText: candidate.priceWarningText || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
+}
+
+function normalizeAvatarSimulatorState(avatar = {}) {
+  const normalized = cloneSimulatorValue(avatar || {});
+  normalized.slots = (normalized.slots || []).map((slot) => {
+    const regularSockets = Array.isArray(slot?.emblems) ? slot.emblems.slice(0, 2) : [];
+    while (regularSockets.length < 2) regularSockets.push(null);
+    return {
+      ...slot,
+      emblems: regularSockets.map((emblem, socketIndex) => (
+        emblem
+          ? { ...emblem, socketKey: `regular:${socketIndex}`, socketIndex }
+          : null
+      )),
+    };
+  });
+  return normalized;
+}
+
+function getAvatarRegularEmblemEffectsTotal(avatar = {}, mode = 'actual', baseline = {}) {
+  const statKey = getDealerPrimaryStatKey(baseline);
+  return (avatar?.slots || []).reduce((total, slot) => {
+    const slotId = String(slot?.slotId || '').trim();
+    return (slot?.emblems || []).reduce((slotTotal, emblem) => {
+      if (!emblem) return slotTotal;
+      if (mode === 'equipmentScore') {
+        const grade = String(emblem.grade || '').trim();
+        const scoreGroup = AVATAR_EQUIPMENT_SCORE_RED_SLOT_IDS.has(slotId)
+          ? 'red'
+          : AVATAR_EQUIPMENT_SCORE_GREEN_YELLOW_SLOT_IDS.has(slotId)
+            ? 'greenYellow'
+            : '';
+        const recognizedStat = Number(AVATAR_EQUIPMENT_SCORE_STAT_BY_GRADE[scoreGroup]?.[grade] || 0);
+        return recognizedStat ? addEffects(slotTotal, { [statKey]: recognizedStat }) : slotTotal;
+      }
+      return addEffects(slotTotal, emblem.effects || {});
+    }, total);
+  }, {});
+}
+
+function getAvatarEmblemMetricBaseline(baseBaseline = {}, baseAvatar = {}, mode = 'actual') {
+  if (mode !== 'equipmentScore') return baseBaseline;
+  const base = getDamageBaseline(baseBaseline);
+  const recognitionDelta = normalizeSimulatorDamageDelta(
+    subtractEffects(
+      getAvatarRegularEmblemEffectsTotal(baseAvatar, 'equipmentScore', base),
+      getAvatarRegularEmblemEffectsTotal(baseAvatar, 'actual', base),
+    ),
+    base,
+  );
+  return {
+    ...baseBaseline,
+    stat: base.stat + getSelectedStatEffect(recognitionDelta, base),
+  };
 }
 
 function getBlackFangRows(recommendations = []) {
@@ -2009,13 +2072,24 @@ function buildSimulatedDamageBaseline(
   simulatedEquipment = baseEquipment,
   baseOath = {},
   simulatedOath = baseOath,
+  baseAvatar = {},
+  simulatedAvatar = baseAvatar,
+  avatarEmblemMode = 'actual',
 ) {
-  const base = getDamageBaseline(baseBaseline);
+  const metricBaseBaseline = getAvatarEmblemMetricBaseline(
+    baseBaseline,
+    baseAvatar,
+    avatarEmblemMode,
+  );
+  const base = getDamageBaseline(metricBaseBaseline);
   const effectDelta = subtractEffects(
     addEffects(
       addEffects(
-        addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
-        simulatedCreature?.effects || {},
+        addEffects(
+          addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
+          simulatedCreature?.effects || {},
+        ),
+        getAvatarRegularEmblemEffectsTotal(simulatedAvatar, avatarEmblemMode, base),
       ),
       addEffects(
         getTitleEffectsWithoutEnchantElement(simulatedTitle),
@@ -2027,8 +2101,11 @@ function buildSimulatedDamageBaseline(
     ),
     addEffects(
       addEffects(
-        addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
-        baseCreature?.effects || {},
+        addEffects(
+          addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
+          baseCreature?.effects || {},
+        ),
+        getAvatarRegularEmblemEffectsTotal(baseAvatar, avatarEmblemMode, base),
       ),
       addEffects(
         getTitleEffectsWithoutEnchantElement(baseTitle),
@@ -2047,7 +2124,7 @@ function buildSimulatedDamageBaseline(
   const selectedStatDelta = getSelectedStatEffect(delta, base);
   const elementDelta = Number(delta.elementAll || 0);
   const simulatedBaseline = {
-    ...(baseBaseline || {}),
+    ...(metricBaseBaseline || {}),
     stat: base.stat + selectedStatDelta,
     element: base.element + elementDelta,
     elementDamage: base.elementDamage + elementDelta * ELEMENT_DAMAGE_PER_ELEMENT,
@@ -2067,13 +2144,21 @@ function buildSimulatedDamageBaseline(
   ) || simulatedBaseline;
 }
 
-function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
+function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode = 'actual') {
   if (!simulator?.baseDamageBaseline) return 1;
+  const metricBaseBaseline = getAvatarEmblemMetricBaseline(
+    simulator.baseDamageBaseline,
+    simulator.baseAvatar,
+    avatarEmblemMode,
+  );
   const effectDelta = subtractEffects(
     addEffects(
       addEffects(
-        addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
-        simulator.simulatedCreature?.effects || {},
+        addEffects(
+          addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
+          simulator.simulatedCreature?.effects || {},
+        ),
+        getAvatarRegularEmblemEffectsTotal(simulator.simulatedAvatar, avatarEmblemMode, metricBaseBaseline),
       ),
       addEffects(
         getEquipmentBodyEffectsTotal(simulator.simulatedEquipmentUpgrades),
@@ -2082,8 +2167,11 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
     ),
     addEffects(
       addEffects(
-        addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
-        simulator.baseCreature?.effects || {},
+        addEffects(
+          addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
+          simulator.baseCreature?.effects || {},
+        ),
+        getAvatarRegularEmblemEffectsTotal(simulator.baseAvatar, avatarEmblemMode, metricBaseBaseline),
       ),
       addEffects(
         getEquipmentBodyEffectsTotal(simulator.baseEquipmentUpgrades),
@@ -2094,9 +2182,9 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
   delete effectDelta.finalDamage;
   const delta = normalizeSimulatorDamageDelta(
     effectDelta,
-    simulator.baseDamageBaseline,
+    metricBaseBaseline,
   );
-  const nonTitleMultiplier = estimateDamageMultiplier(delta, simulator.baseDamageBaseline)
+  const nonTitleMultiplier = estimateDamageMultiplier(delta, metricBaseBaseline)
     * getEnchantFinalDamageChangeMultiplier(
       simulator.baseEnchants,
       simulator.simulatedEnchants,
@@ -2142,6 +2230,9 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}) {
     simulator.simulatedEquipmentUpgrades,
     simulator.baseOathUpgrades,
     simulator.simulatedOathUpgrades,
+    simulator.baseAvatar,
+    simulator.simulatedAvatar,
+    avatarEmblemMode,
   );
   const simulatedTitleRow = { sourceType: 'title', ...(simulator.simulatedTitle || {}) };
   const adjustedTitleBaseline = getAdjustedElementBaselineForRecommendation(
@@ -2596,12 +2687,29 @@ function getChangedOathTuneSlots(previousOath = {}, nextOath = {}) {
     .map((crystal) => `oath:${Number(crystal.index)}`);
 }
 
-function normalizeActivePrimevalOathAcquisitionSlots(simulator = {}) {
+function getOrderedOathAcquisitionEntries(entries = []) {
+  const methodGroups = new Map();
+  entries.forEach((entry) => {
+    const method = String(entry.selection?.acquisitionMethod || '');
+    if (!method) return;
+    const group = methodGroups.get(method) || [];
+    group.push(entry);
+    methodGroups.set(method, group);
+  });
+  methodGroups.forEach((group) => group.sort((a, b) => a.slot - b.slot));
+  return [...methodGroups.entries()]
+    .sort(([, aEntries], [, bEntries]) => (
+      bEntries.length - aEntries.length || aEntries[0].slot - bEntries[0].slot
+    ))
+    .flatMap(([, group]) => group);
+}
+
+function normalizeActiveOathAcquisitionSlots(simulator = {}) {
   const activeSelections = simulator.activeSelectionByGroup || {};
   const entries = Object.entries(activeSelections)
     .filter(([, selection]) => (
       selection?.applyType === 'acquireOathDecision' &&
-      selection?.acquisitionTargetGroupKey === 'oathAcquireTarget:태초' &&
+      selection?.acquisitionTargetGroupKey &&
       selection?.acquisitionMethod
     ))
     .map(([groupKey, selection]) => ({
@@ -2610,108 +2718,116 @@ function normalizeActivePrimevalOathAcquisitionSlots(simulator = {}) {
       slot: Number(String(selection.targetSlot || groupKey).split(':').pop()),
     }))
     .filter(({ slot }) => Number.isInteger(slot));
-  if (entries.length < 2) return;
-
-  const methodGroups = new Map();
+  const entriesByTargetGroup = new Map();
   entries.forEach((entry) => {
-    const method = String(entry.selection.acquisitionMethod);
-    const group = methodGroups.get(method) || [];
+    const targetGroupKey = String(entry.selection.acquisitionTargetGroupKey);
+    const group = entriesByTargetGroup.get(targetGroupKey) || [];
     group.push(entry);
-    methodGroups.set(method, group);
+    entriesByTargetGroup.set(targetGroupKey, group);
   });
-  methodGroups.forEach((group) => group.sort((a, b) => a.slot - b.slot));
-  const orderedSelections = [...methodGroups.entries()]
-    .sort(([, aEntries], [, bEntries]) => (
-      bEntries.length - aEntries.length || aEntries[0].slot - bEntries[0].slot
-    ))
-    .flatMap(([, group]) => group);
-  const occupiedSlots = entries.map(({ slot }) => slot).sort((a, b) => a - b);
-
-  entries.forEach(({ groupKey }) => delete activeSelections[groupKey]);
-  occupiedSlots.forEach((slot, index) => {
-    const sourceSelection = orderedSelections[index]?.selection;
-    if (!sourceSelection) return;
-    const groupKey = `oathAcquire:${slot}`;
-    const acquisitionMethod = String(sourceSelection.acquisitionMethod || '');
-    const targetItemId = String(sourceSelection.targetItemId || '');
-    const targetDecision = cloneSimulatorValue(sourceSelection.targetDecision || {});
-    if (targetDecision && typeof targetDecision === 'object') targetDecision.slotIndex = slot;
-    activeSelections[groupKey] = {
-      ...cloneSimulatorValue(sourceSelection),
-      candidateSignature: [groupKey, acquisitionMethod, targetItemId].join(':'),
-      targetSlot: `oath:${slot}`,
-      targetDecision,
-    };
+  entriesByTargetGroup.forEach((targetEntries) => {
+    if (targetEntries.length < 2) return;
+    const orderedSelections = getOrderedOathAcquisitionEntries(targetEntries);
+    const occupiedSlots = targetEntries.map(({ slot }) => slot).sort((a, b) => a - b);
+    targetEntries.forEach(({ groupKey }) => delete activeSelections[groupKey]);
+    occupiedSlots.forEach((slot, index) => {
+      const sourceSelection = orderedSelections[index]?.selection;
+      if (!sourceSelection) return;
+      const groupKey = `oathAcquire:${slot}`;
+      const acquisitionMethod = String(sourceSelection.acquisitionMethod || '');
+      const targetItemId = String(sourceSelection.targetItemId || '');
+      const targetDecision = cloneSimulatorValue(sourceSelection.targetDecision || {});
+      if (targetDecision && typeof targetDecision === 'object') targetDecision.slotIndex = slot;
+      activeSelections[groupKey] = {
+        ...cloneSimulatorValue(sourceSelection),
+        candidateSignature: [groupKey, acquisitionMethod, targetItemId].join(':'),
+        targetSlot: `oath:${slot}`,
+        targetDecision,
+      };
+    });
   });
 }
 
-function arrangeSimulatedPrimevalOathSlots(crystals = [], simulator = {}) {
-  const hasActivePrimevalAcquisition = Object.values(simulator.activeSelectionByGroup || {})
-    .some((selection) => (
+function arrangeSimulatedOathAcquisitionSlots(crystals = [], simulator = {}) {
+  const acquisitionEntries = Object.entries(simulator.activeSelectionByGroup || {})
+    .filter(([, selection]) => (
       selection?.applyType === 'acquireOathDecision' &&
-      selection?.acquisitionTargetGroupKey === 'oathAcquireTarget:태초'
-    ));
-  if (!hasActivePrimevalAcquisition) return crystals;
+      selection?.acquisitionTargetGroupKey &&
+      selection?.acquisitionMethod
+    ))
+    .map(([groupKey, selection]) => ({
+      groupKey,
+      selection,
+      slot: Number(String(selection.targetSlot || groupKey).split(':').pop()),
+    }))
+    .filter(({ slot }) => Number.isInteger(slot));
+  if (!acquisitionEntries.length) return crystals;
 
   const arranged = crystals.slice();
-  const positionBySlot = new Map(
-    arranged.map((crystal, position) => [Number(crystal?.index), position]),
+  const placeCrystals = (selectedCrystals, targetPositions) => {
+    const selected = selectedCrystals.filter(Boolean).slice(0, targetPositions.length);
+    if (!selected.length) return;
+    const selectedSet = new Set(selected);
+    const sourcePositions = selected.map((crystal) => arranged.indexOf(crystal));
+    const affectedPositions = [...new Set([...sourcePositions, ...targetPositions])]
+      .filter((position) => position >= 0 && position < arranged.length)
+      .sort((a, b) => a - b);
+    const displacedCrystals = affectedPositions
+      .map((position) => arranged[position])
+      .filter((crystal) => crystal && !selectedSet.has(crystal));
+    const targetSet = new Set(targetPositions);
+    const openPositions = affectedPositions.filter((position) => !targetSet.has(position));
+    targetPositions.forEach((position, index) => {
+      if (position >= 0 && position < arranged.length) arranged[position] = selected[index];
+    });
+    openPositions.forEach((position, index) => {
+      if (displacedCrystals[index]) arranged[position] = displacedCrystals[index];
+    });
+  };
+  const crystalBySlot = new Map(
+    crystals.map((crystal) => [Number(crystal?.index), crystal]),
   );
-  const preferredSlots = [8, 9, 10];
-  const acquisitionMethodBySlot = new Map(
-    Object.entries(simulator.activeSelectionByGroup || {})
-      .filter(([, selection]) => (
-        selection?.applyType === 'acquireOathDecision' &&
-        selection?.acquisitionTargetGroupKey === 'oathAcquireTarget:태초'
-      ))
-      .map(([groupKey, selection]) => [
-        Number(String(selection?.targetSlot || groupKey).split(':').pop()),
-        String(selection?.acquisitionMethod || ''),
-      ]),
+  const epicEntries = acquisitionEntries.filter(({ selection }) => (
+    selection.acquisitionTargetGroupKey === 'oathAcquireTarget:에픽'
+  ));
+  const orderedEpicCrystals = getOrderedOathAcquisitionEntries(epicEntries)
+    .map(({ slot }) => crystalBySlot.get(slot));
+  placeCrystals(
+    orderedEpicCrystals,
+    Array.from({ length: orderedEpicCrystals.length }, (_, index) => index),
   );
-  const methodSlots = new Map();
-  acquisitionMethodBySlot.forEach((method, slot) => {
-    if (!method) return;
-    const slots = methodSlots.get(method) || [];
-    slots.push(slot);
-    methodSlots.set(method, slots);
-  });
-  methodSlots.forEach((slots) => slots.sort((a, b) => a - b));
-  const primevalCrystals = arranged
-    .filter((crystal) => String(crystal?.itemRarity || '').trim() === '태초')
-    .sort((a, b) => {
-      const aIndex = Number(a?.index);
-      const bIndex = Number(b?.index);
-      const aMethod = acquisitionMethodBySlot.get(aIndex) || '';
-      const bMethod = acquisitionMethodBySlot.get(bIndex) || '';
-      const countDifference = Number(methodSlots.get(bMethod)?.length || 0)
-        - Number(methodSlots.get(aMethod)?.length || 0);
-      if (countDifference !== 0) return countDifference;
-      const methodOrderDifference = Number(methodSlots.get(aMethod)?.[0] ?? Number.MAX_SAFE_INTEGER)
-        - Number(methodSlots.get(bMethod)?.[0] ?? Number.MAX_SAFE_INTEGER);
-      return methodOrderDifference || aIndex - bIndex;
-    })
-    .slice(0, preferredSlots.length);
-  const targetSlots = preferredSlots.slice(0, primevalCrystals.length);
-  const affectedSlots = [...new Set([
-    ...primevalCrystals.map((crystal) => Number(crystal?.index)),
-    ...targetSlots,
-  ])].sort((a, b) => a - b);
-  const primevalSet = new Set(primevalCrystals);
-  const displacedCrystals = affectedSlots
-    .map((slot) => arranged[positionBySlot.get(slot)])
-    .filter((crystal) => crystal && !primevalSet.has(crystal))
-    .sort((a, b) => Number(a?.index) - Number(b?.index));
-  const openSlots = affectedSlots.filter((slot) => !targetSlots.includes(slot));
 
-  targetSlots.forEach((slot, index) => {
-    const position = positionBySlot.get(slot);
-    if (position != null) arranged[position] = primevalCrystals[index];
-  });
-  openSlots.forEach((slot, index) => {
-    const position = positionBySlot.get(slot);
-    if (position != null && displacedCrystals[index]) arranged[position] = displacedCrystals[index];
-  });
+  const primevalEntries = acquisitionEntries.filter(({ selection }) => (
+    selection.acquisitionTargetGroupKey === 'oathAcquireTarget:태초'
+  ));
+  if (primevalEntries.length) {
+    const methodBySlot = new Map(
+      primevalEntries.map(({ slot, selection }) => [slot, selection.acquisitionMethod]),
+    );
+    const methodCounts = new Map();
+    primevalEntries.forEach(({ selection }) => {
+      const method = String(selection.acquisitionMethod || '');
+      methodCounts.set(method, Number(methodCounts.get(method) || 0) + 1);
+    });
+    const methodFirstSlots = new Map();
+    primevalEntries.forEach(({ slot, selection }) => {
+      const method = String(selection.acquisitionMethod || '');
+      methodFirstSlots.set(method, Math.min(Number(methodFirstSlots.get(method) ?? slot), slot));
+    });
+    const primevalCrystals = crystals
+      .filter((crystal) => String(crystal?.itemRarity || '').trim() === '태초')
+      .sort((a, b) => {
+        const aIndex = Number(a?.index);
+        const bIndex = Number(b?.index);
+        const aMethod = String(methodBySlot.get(aIndex) || '');
+        const bMethod = String(methodBySlot.get(bIndex) || '');
+        return Number(methodCounts.get(bMethod) || 0) - Number(methodCounts.get(aMethod) || 0)
+          || Number(methodFirstSlots.get(aMethod) ?? Number.MAX_SAFE_INTEGER)
+            - Number(methodFirstSlots.get(bMethod) ?? Number.MAX_SAFE_INTEGER)
+          || aIndex - bIndex;
+      });
+    placeCrystals(primevalCrystals, [8, 9, 10].slice(0, primevalCrystals.length));
+  }
   return arranged;
 }
 
@@ -3765,6 +3881,27 @@ function getBlackFangCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getAvatarEmblemExclusiveGroupKey(row = {}) {
+  const targetSlotId = String(row.targetSlotId || '').trim();
+  return row.sourceType === 'avatar' && row.kind === 'brilliantEmblem' && targetSlotId
+    ? `avatarEmblem:${targetSlotId}`
+    : '';
+}
+
+function getAvatarEmblemCandidateSignature(row = {}) {
+  const groupKey = getAvatarEmblemExclusiveGroupKey(row);
+  if (!groupKey || !Array.isArray(row.socketChanges) || !row.socketChanges.length) return '';
+  return [
+    groupKey,
+    row.itemId || '',
+    row.socketChanges.map((change) => [
+      change?.socketKey || `regular:${Number(change?.socketIndex)}`,
+      change?.targetEmblem?.itemId || row.itemId || '',
+      getEffectSignature(change?.targetEmblem?.effects || {}),
+    ].join(':')).join(','),
+  ].join(':');
+}
+
 function getSimulatorExclusiveGroupKey(row = {}) {
   return getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
@@ -3773,7 +3910,8 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getEquipmentTuneExclusiveGroupKey(row)
     || getOathTuneExclusiveGroupKey(row)
     || getOathAcquisitionExclusiveGroupKey(row)
-    || getBlackFangExclusiveGroupKey(row);
+    || getBlackFangExclusiveGroupKey(row)
+    || getAvatarEmblemExclusiveGroupKey(row);
 }
 
 function getSimulatorCandidateSignature(row = {}) {
@@ -3784,7 +3922,8 @@ function getSimulatorCandidateSignature(row = {}) {
     || getEquipmentTuneCandidateSignature(row)
     || getOathTuneCandidateSignature(row)
     || getOathAcquisitionCandidateSignature(row)
-    || getBlackFangCandidateSignature(row);
+    || getBlackFangCandidateSignature(row)
+    || getAvatarEmblemCandidateSignature(row);
 }
 
 function getStableObjectSignature(value = {}) {
@@ -4469,6 +4608,8 @@ function getRepresentativeRecommendationRows(
     if (shouldSkipByElementAlignmentOverride(row, elementAlignmentOverride, currentTitle)) return;
     const evaluationBaseline = row.sourceType === 'enchant'
       ? simulationOptions?.referenceBaselineBySlot?.get(row.slot) || baseline
+      : row.sourceType === 'avatar' && row.kind === 'brilliantEmblem'
+        ? simulationOptions?.avatarReferenceBaselineBySlotId?.get(row.targetSlotId) || baseline
       : row.sourceType === 'aura'
         ? simulationOptions?.auraReferenceBaseline || baseline
       : row.sourceType === 'creature'
@@ -5008,6 +5149,16 @@ export function installEnchantView(ctx) {
     return mergeAuraBodyWithEmblems(state.currentAura || {}, getCurrentAvatarAuraSlot() || {});
   }
 
+  function getCanonicalCurrentAvatar() {
+    return normalizeAvatarSimulatorState(state.currentAvatar?.avatar || {});
+  }
+
+  function getActiveAvatar() {
+    return isDealerSimulatorActive()
+      ? state.dealerSimulator.simulatedAvatar
+      : getCanonicalCurrentAvatar();
+  }
+
   function getActiveAura() {
     return isDealerSimulatorActive()
       ? state.dealerSimulator.simulatedAura
@@ -5077,6 +5228,8 @@ export function installEnchantView(ctx) {
           simulator.simulatedEquipmentUpgrades,
           simulator.baseOathUpgrades,
           simulator.simulatedOathUpgrades,
+          simulator.baseAvatar,
+          simulator.simulatedAvatar,
         ),
       );
     });
@@ -5094,6 +5247,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedEquipmentUpgrades,
       simulator.baseOathUpgrades,
       simulator.simulatedOathUpgrades,
+      simulator.baseAvatar,
+      simulator.simulatedAvatar,
     );
     const creatureReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -5109,6 +5264,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedEquipmentUpgrades,
       simulator.baseOathUpgrades,
       simulator.simulatedOathUpgrades,
+      simulator.baseAvatar,
+      simulator.simulatedAvatar,
     );
     const titleReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -5124,6 +5281,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedEquipmentUpgrades,
       simulator.baseOathUpgrades,
       simulator.simulatedOathUpgrades,
+      simulator.baseAvatar,
+      simulator.simulatedAvatar,
     );
     const baseEquipmentBySlot = new Map(
       simulator.baseEquipmentUpgrades.map((equipment) => [equipment?.slot, equipment]),
@@ -5152,6 +5311,46 @@ export function installEnchantView(ctx) {
           referenceEquipment,
           simulator.baseOathUpgrades,
           simulator.simulatedOathUpgrades,
+          simulator.baseAvatar,
+          simulator.simulatedAvatar,
+        ),
+      );
+    });
+    const baseAvatarBySlotId = new Map(
+      (simulator.baseAvatar?.slots || []).map((slot) => [slot?.slotId, slot]),
+    );
+    const avatarReferenceBaselineBySlotId = new Map();
+    candidateRows.forEach((row) => {
+      if (
+        row.sourceType !== 'avatar'
+        || row.kind !== 'brilliantEmblem'
+        || !row.targetSlotId
+        || avatarReferenceBaselineBySlotId.has(row.targetSlotId)
+      ) return;
+      const referenceAvatar = cloneSimulatorValue(simulator.simulatedAvatar || {});
+      const referenceSlot = (referenceAvatar.slots || [])
+        .find((slot) => slot?.slotId === row.targetSlotId);
+      const baseSlot = baseAvatarBySlotId.get(row.targetSlotId);
+      if (!referenceSlot || !baseSlot) return;
+      referenceSlot.emblems = cloneSimulatorValue(baseSlot.emblems || [null, null]);
+      avatarReferenceBaselineBySlotId.set(
+        row.targetSlotId,
+        buildSimulatedDamageBaseline(
+          simulator.baseDamageBaseline,
+          simulator.baseEnchants,
+          simulator.simulatedEnchants,
+          simulator.baseAura,
+          simulator.simulatedAura,
+          simulator.baseCreature,
+          simulator.simulatedCreature,
+          simulator.baseTitle,
+          simulator.simulatedTitle,
+          simulator.baseEquipmentUpgrades,
+          simulator.simulatedEquipmentUpgrades,
+          simulator.baseOathUpgrades,
+          simulator.simulatedOathUpgrades,
+          simulator.baseAvatar,
+          referenceAvatar,
         ),
       );
     });
@@ -5167,6 +5366,7 @@ export function installEnchantView(ctx) {
         referenceTitle: simulator.baseTitle,
         titleReferenceBaseline,
         blackFangReferenceBaselineBySlot,
+        avatarReferenceBaselineBySlotId,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
       },
     };
@@ -5191,6 +5391,7 @@ export function installEnchantView(ctx) {
     );
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
     const baseAura = getCanonicalCurrentAura();
+    const baseAvatar = getCanonicalCurrentAvatar();
     const baseCreature = getCanonicalCurrentCreatureBody();
     const baseTitle = cloneSimulatorValue(state.currentTitle || {});
     const baseOathUpgrades = attachOathAcquisitionBaseCalculationData(
@@ -5207,6 +5408,8 @@ export function installEnchantView(ctx) {
       simulatedEquipmentUpgrades: cloneSimulatorValue(baseEquipmentUpgrades),
       baseAura,
       simulatedAura: cloneSimulatorValue(baseAura),
+      baseAvatar,
+      simulatedAvatar: cloneSimulatorValue(baseAvatar),
       baseCreature,
       simulatedCreature: cloneSimulatorValue(baseCreature),
       baseTitle,
@@ -5241,6 +5444,19 @@ export function installEnchantView(ctx) {
     simulator.simulatedAura = simulator.activeSelectionByGroup?.aura
       ? mergeAuraBodyWithEmblems(simulator.simulatedAura || {}, canonicalAura)
       : cloneSimulatorValue(canonicalAura);
+    rebuildDealerSimulatorCalculationState();
+  }
+
+  function syncDealerSimulatorAvatarState() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return;
+    const canonicalAvatar = getCanonicalCurrentAvatar();
+    simulator.baseAvatar = canonicalAvatar;
+    const hasAvatarEmblemSelection = Object.keys(simulator.activeSelectionByGroup || {})
+      .some((groupKey) => groupKey.startsWith('avatarEmblem:'));
+    if (!hasAvatarEmblemSelection) {
+      simulator.simulatedAvatar = cloneSimulatorValue(canonicalAvatar);
+    }
     rebuildDealerSimulatorCalculationState();
   }
 
@@ -5283,6 +5499,8 @@ export function installEnchantView(ctx) {
       simulator.simulatedEquipmentUpgrades,
       simulator.baseOathUpgrades,
       simulator.simulatedOathUpgrades,
+      simulator.baseAvatar,
+      simulator.simulatedAvatar,
     );
     const equipmentTuneSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades);
     simulator.simulatedDamageBaseline = {
@@ -5373,6 +5591,29 @@ export function installEnchantView(ctx) {
         applyType: 'replaceTitle',
       };
     }
+    if (row.sourceType === 'avatar' && row.kind === 'brilliantEmblem') {
+      const targetSlotId = String(row.targetSlotId || '').trim();
+      const socketChanges = Array.isArray(row.socketChanges) ? row.socketChanges : [];
+      const socketIndexes = socketChanges.map((change) => Number(change?.socketIndex));
+      const validSocketChanges = socketChanges.every((change) => (
+        Number.isInteger(Number(change?.socketIndex))
+        && Number(change.socketIndex) >= 0
+        && Number(change.socketIndex) < 2
+        && change?.targetEmblem
+      ));
+      if (
+        !targetSlotId
+        || !socketChanges.length
+        || !validSocketChanges
+        || new Set(socketIndexes).size !== socketIndexes.length
+      ) return null;
+      return {
+        targetTab: 'avatar',
+        targetSlot: `avatar:${targetSlotId}`,
+        targetSlotId,
+        applyType: 'replaceAvatarEmblems',
+      };
+    }
     if (row.sourceType !== 'enchant') return null;
     const targetSlot = String(row.slot || '').trim();
     if (!targetSlot || !SLOT_ORDER.includes(targetSlot)) return null;
@@ -5391,6 +5632,7 @@ export function installEnchantView(ctx) {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
       simulatedEquipmentUpgrades: cloneSimulatorValue(simulator.simulatedEquipmentUpgrades),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
+      simulatedAvatar: cloneSimulatorValue(simulator.simulatedAvatar),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
       simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
       simulatedOathUpgrades: cloneSimulatorValue(simulator.simulatedOathUpgrades),
@@ -5409,6 +5651,7 @@ export function installEnchantView(ctx) {
       snapshot.simulatedEquipmentUpgrades || simulator.baseEquipmentUpgrades || [],
     );
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
+    simulator.simulatedAvatar = cloneSimulatorValue(snapshot.simulatedAvatar || simulator.baseAvatar || {});
     simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
     simulator.simulatedTitle = cloneSimulatorValue(snapshot.simulatedTitle || simulator.baseTitle || {});
     simulator.simulatedOathUpgrades = cloneSimulatorValue(
@@ -5500,6 +5743,32 @@ export function installEnchantView(ctx) {
       effects: cloneSimulatorValue(row.titlePackageEffects || row.effects || {}),
       enchantEffects: cloneSimulatorValue(row.targetTitleEnchantEffects || row.enchantEffects || {}),
     };
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
+  function replaceSimulatedAvatarEmblems(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceAvatarEmblems') return false;
+    const slot = (simulator.simulatedAvatar?.slots || [])
+      .find((avatarSlot) => avatarSlot?.slotId === target.targetSlotId);
+    const baseSlot = (simulator.baseAvatar?.slots || [])
+      .find((avatarSlot) => avatarSlot?.slotId === target.targetSlotId);
+    if (!slot || !baseSlot) return false;
+    const regularSockets = cloneSimulatorValue(baseSlot.emblems || []).slice(0, 2);
+    while (regularSockets.length < 2) regularSockets.push(null);
+    for (const change of row.socketChanges || []) {
+      const socketIndex = Number(change?.socketIndex);
+      if (!Number.isInteger(socketIndex) || socketIndex < 0 || socketIndex >= 2 || !change?.targetEmblem) {
+        return false;
+      }
+      regularSockets[socketIndex] = {
+        ...cloneSimulatorValue(change.targetEmblem),
+        socketKey: `regular:${socketIndex}`,
+        socketIndex,
+      };
+    }
+    slot.emblems = regularSockets;
     rebuildDealerSimulatorCalculationState();
     return true;
   }
@@ -5698,6 +5967,7 @@ export function installEnchantView(ctx) {
     if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
     if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
     if (target?.applyType === 'replaceTitle') return replaceSimulatedTitle(row, target);
+    if (target?.applyType === 'replaceAvatarEmblems') return replaceSimulatedAvatarEmblems(row, target);
     if (target?.applyType === 'replaceBlackFangBody') return replaceSimulatedBlackFangBody(row, target);
     if (target?.applyType === 'applyEquipmentTunePlan') return applySimulatedEquipmentTunePlan(row, target);
     if (target?.applyType === 'applyOathTunePlan') return applySimulatedOathTunePlan(row, target);
@@ -5766,9 +6036,7 @@ export function installEnchantView(ctx) {
       ...(state.oathDecisionVariantIndexByGroup || {}),
       [row.variantGroupKey]: selectedVariantIndex,
     };
-    if (acquisitionTargetGroupKey === 'oathAcquireTarget:태초') {
-      normalizeActivePrimevalOathAcquisitionSlots(simulator);
-    }
+    normalizeActiveOathAcquisitionSlots(simulator);
     return descriptors;
   }
 
@@ -5940,6 +6208,19 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function restoreSimulatedAvatarEmblemsToBase(targetSlotId) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !targetSlotId) return false;
+    const baseSlot = (simulator.baseAvatar?.slots || [])
+      .find((slot) => slot?.slotId === targetSlotId);
+    const simulatedSlot = (simulator.simulatedAvatar?.slots || [])
+      .find((slot) => slot?.slotId === targetSlotId);
+    if (!baseSlot || !simulatedSlot) return false;
+    simulatedSlot.emblems = cloneSimulatorValue(baseSlot.emblems || [null, null]);
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function restoreSimulatedEquipmentBodyToBase(targetSlot) {
     const simulator = state.dealerSimulator;
     if (!simulator || !BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)) return false;
@@ -5994,7 +6275,7 @@ export function installEnchantView(ctx) {
       }
       delete simulator.activeSelectionByGroup[descriptor.exclusiveGroupKey];
     });
-    normalizeActivePrimevalOathAcquisitionSlots(simulator);
+    normalizeActiveOathAcquisitionSlots(simulator);
     const hasActiveOathAcquisition = Object.keys(simulator.activeSelectionByGroup || {})
       .some((groupKey) => groupKey.startsWith('oathAcquire:'));
     const acquisitionBodyChanged = getChangedOathTuneSlots(
@@ -6106,6 +6387,10 @@ export function installEnchantView(ctx) {
           ? restoreSimulatedTitleToBase()
           : selection.applyType === 'replaceBlackFangBody'
             ? restoreSimulatedEquipmentBodyToBase(selection.targetSlot)
+          : selection.applyType === 'replaceAvatarEmblems'
+            ? restoreSimulatedAvatarEmblemsToBase(
+              String(selection.targetSlot || '').replace(/^avatar:/, ''),
+            )
           : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
     if (!restored) return;
     delete simulator.activeSelectionByGroup[exclusiveGroupKey];
@@ -6128,6 +6413,7 @@ export function installEnchantView(ctx) {
     simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
     simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
     simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
+    simulator.simulatedAvatar = cloneSimulatorValue(simulator.baseAvatar);
     simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
     simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
     simulator.simulatedOathUpgrades = cloneSimulatorValue(simulator.baseOathUpgrades);
@@ -6406,7 +6692,7 @@ export function installEnchantView(ctx) {
         .slice()
         .sort((a, b) => Number(a?.index || 0) - Number(b?.index || 0))
       : [];
-    const crystals = arrangeSimulatedPrimevalOathSlots(
+    const crystals = arrangeSimulatedOathAcquisitionSlots(
       sortedCrystals,
       state.dealerSimulator || {},
     );
@@ -6481,7 +6767,9 @@ export function installEnchantView(ctx) {
         : null;
     const detailLines = crystal ? buildOathDetailLines(crystal) : [];
     const tuneLevel = Math.max(0, Math.min(3, Math.floor(Number(crystal?.tuneLevel || 0))));
-    const baseTuneLevel = Math.max(0, Math.min(tuneLevel, Math.floor(Number(baseCrystal?.tuneLevel || 0))));
+    const baseTuneLevel = acquisitionMethod
+      ? 0
+      : Math.max(0, Math.min(tuneLevel, Math.floor(Number(baseCrystal?.tuneLevel || 0))));
     const isSimulatedTune = tuneLevel !== baseTuneLevel;
     const hasActiveSweep = Boolean(state.dealerSimulator?.activeSweepSlots?.has(`oath:${oathIndex}`));
     const sweepEntry = state.dealerSimulator?.activeSweepSlots?.get(`oath:${oathIndex}`);
@@ -6583,7 +6871,7 @@ export function installEnchantView(ctx) {
   }
 
   function getAvatarLoadoutSlotsById() {
-    const slots = state.currentAvatar?.avatar?.slots;
+    const slots = getActiveAvatar()?.slots;
     if (!Array.isArray(slots)) {
       return {};
     }
@@ -6598,8 +6886,7 @@ export function installEnchantView(ctx) {
     if (activeAura && Object.keys(activeAura).length) {
       const currentAuraSlot = slotsById.AURORA || {};
       slotsById.AURORA = {
-        ...currentAuraSlot,
-        ...cloneSimulatorValue(activeAura),
+        ...mergeAuraBodyWithEmblems(activeAura, currentAuraSlot),
         slotId: 'AURORA',
         slotName: currentAuraSlot.slotName || '오라 아바타',
       };
@@ -6619,7 +6906,7 @@ export function installEnchantView(ctx) {
 
   function getAvatarSlotEmblems(avatarSlot = {}) {
     const emblems = avatarSlot.emblems || avatarSlot.emblem || avatarSlot.emblemItems || [];
-    return Array.isArray(emblems) ? emblems.filter(hasAvatarEmblemIdentity) : [];
+    return Array.isArray(emblems) ? emblems.slice(0, 2) : [];
   }
 
   function getAvatarSlotPlatinumEmblems(avatarSlot = {}) {
@@ -6676,10 +6963,12 @@ export function installEnchantView(ctx) {
   }
 
   function getAvatarEmblemBadgeColors(slotKey, avatarSlot = {}) {
-    const normalEmblems = getAvatarSlotEmblems(avatarSlot).filter((emblem) => !isPlatinumAvatarEmblem(emblem));
-    const colors = normalEmblems
-      .slice(0, 2)
-      .map((emblem) => getAvatarEmblemColor(slotKey, emblem));
+    const colors = getAvatarSlotEmblems(avatarSlot)
+      .map((emblem) => (
+        emblem && !isPlatinumAvatarEmblem(emblem)
+          ? getAvatarEmblemColor(slotKey, emblem)
+          : 'gray'
+      ));
     while (colors.length < 2) {
       colors.push('gray');
     }
@@ -6715,8 +7004,7 @@ export function installEnchantView(ctx) {
 
   function buildAvatarSlotDetailLines(slotKey, avatarSlot = {}) {
     const normalEmblems = getAvatarSlotEmblems(avatarSlot)
-      .filter((emblem) => !isPlatinumAvatarEmblem(emblem))
-      .slice(0, 2);
+      .map((emblem) => (emblem && !isPlatinumAvatarEmblem(emblem) ? emblem : null));
     const lines = [];
     const platinumLine = getAvatarPlatinumDetailLine(slotKey, avatarSlot);
     if (platinumLine) {
@@ -6767,8 +7055,14 @@ export function installEnchantView(ctx) {
     const detailAttrs = itemName
       ? ` data-detail-title="${escapeHtml(ariaLabel)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"`
       : '';
+    const sweepEntry = state.dealerSimulator?.activeSweepSlots?.get(`avatar:${slotId}`);
+    const hasActiveSweep = Boolean(sweepEntry);
+    const sweepElapsedMs = Math.max(0, Date.now() - Number(sweepEntry?.startedAt || Date.now()));
+    const sweepStyle = hasActiveSweep
+      ? ` style="--simulator-sweep-delay: -${Math.floor(sweepElapsedMs)}ms"`
+      : '';
     return `
-      <span class="enchant-avatar-slot" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}"${detailAttrs}>
+      <span class="enchant-avatar-slot${hasActiveSweep ? ' is-simulator-sweep' : ''}" data-avatar-slot-key="${escapeHtml(key)}" data-avatar-slot-id="${escapeHtml(slotId)}" data-emblem-colors="${escapeHtml(emblemBadgeColors.join(','))}"${platinumBadgeState ? ` data-platinum-emblem="${escapeHtml(platinumBadgeState)}"` : ''} tabindex="0" aria-label="${escapeHtml(ariaLabel)}"${detailAttrs}${sweepStyle}>
         <span class="enchant-avatar-slot-icon" aria-hidden="true">
           ${iconUrl
             ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
@@ -7154,8 +7448,9 @@ export function installEnchantView(ctx) {
         ${originalCharacterMeta}
       `;
     }
-    const cumulativeMultiplier = getSimulatorCumulativeDamageMultiplier(simulator);
-    const simulatedScore = getSimulatedEquipmentScore(score, cumulativeMultiplier);
+    const cumulativeMultiplier = getSimulatorCumulativeDamageMultiplier(simulator, 'actual');
+    const equipmentScoreMultiplier = getSimulatorCumulativeDamageMultiplier(simulator, 'equipmentScore');
+    const simulatedScore = getSimulatedEquipmentScore(score, equipmentScoreMultiplier);
     const scoreDelta = Number.isFinite(simulatedScore) && scoreReady
       ? simulatedScore - score
       : null;
@@ -8418,6 +8713,7 @@ export function installEnchantView(ctx) {
     state.currentAvatar = payload || null;
     state.currentAvatarCharacterKey = characterKey;
     syncDealerSimulatorAuraState();
+    syncDealerSimulatorAvatarState();
     renderEnchantCharacterPortrait();
   }
 
