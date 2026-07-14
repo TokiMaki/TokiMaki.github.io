@@ -2085,6 +2085,8 @@ function buildSimulatedDamageBaseline(
   baseAvatar = {},
   simulatedAvatar = baseAvatar,
   avatarEmblemMode = 'actual',
+  baseCreatureArtifacts = [],
+  simulatedCreatureArtifacts = baseCreatureArtifacts,
 ) {
   const metricBaseBaseline = getAvatarEmblemMetricBaseline(
     baseBaseline,
@@ -2092,12 +2094,22 @@ function buildSimulatedDamageBaseline(
     avatarEmblemMode,
   );
   const base = getDamageBaseline(metricBaseBaseline);
+  const baseArtifactEffects = getCreatureArtifactEffectsTotal(
+    baseCreatureArtifacts,
+    metricBaseBaseline,
+    baseTitle,
+  );
+  const simulatedArtifactEffects = getCreatureArtifactEffectsTotal(
+    simulatedCreatureArtifacts,
+    metricBaseBaseline,
+    simulatedTitle,
+  );
   const effectDelta = subtractEffects(
     addEffects(
       addEffects(
         addEffects(
           addEffects(getEnchantEffectsTotal(simulatedEnchants), simulatedAura?.effects || {}),
-          simulatedCreature?.effects || {},
+          addEffects(simulatedCreature?.effects || {}, simulatedArtifactEffects),
         ),
         getAvatarRegularEmblemEffectsTotal(simulatedAvatar, avatarEmblemMode, base),
       ),
@@ -2113,7 +2125,7 @@ function buildSimulatedDamageBaseline(
       addEffects(
         addEffects(
           addEffects(getEnchantEffectsTotal(baseEnchants), baseAura?.effects || {}),
-          baseCreature?.effects || {},
+          addEffects(baseCreature?.effects || {}, baseArtifactEffects),
         ),
         getAvatarRegularEmblemEffectsTotal(baseAvatar, avatarEmblemMode, base),
       ),
@@ -2161,12 +2173,22 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
     simulator.baseAvatar,
     avatarEmblemMode,
   );
+  const baseArtifactEffects = getCreatureArtifactEffectsTotal(
+    simulator.baseCreatureArtifacts,
+    metricBaseBaseline,
+    simulator.baseTitle,
+  );
+  const simulatedArtifactEffects = getCreatureArtifactEffectsTotal(
+    simulator.simulatedCreatureArtifacts,
+    metricBaseBaseline,
+    simulator.simulatedTitle,
+  );
   const effectDelta = subtractEffects(
     addEffects(
       addEffects(
         addEffects(
           addEffects(getEnchantEffectsTotal(simulator.simulatedEnchants), simulator.simulatedAura?.effects || {}),
-          simulator.simulatedCreature?.effects || {},
+          addEffects(simulator.simulatedCreature?.effects || {}, simulatedArtifactEffects),
         ),
         getAvatarRegularEmblemEffectsTotal(simulator.simulatedAvatar, avatarEmblemMode, metricBaseBaseline),
       ),
@@ -2179,7 +2201,7 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
       addEffects(
         addEffects(
           addEffects(getEnchantEffectsTotal(simulator.baseEnchants), simulator.baseAura?.effects || {}),
-          simulator.baseCreature?.effects || {},
+          addEffects(simulator.baseCreature?.effects || {}, baseArtifactEffects),
         ),
         getAvatarRegularEmblemEffectsTotal(simulator.baseAvatar, avatarEmblemMode, metricBaseBaseline),
       ),
@@ -2209,6 +2231,10 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
       simulator.simulatedCreature?.effects || {},
     )
     * (getSkillDamageMultiplier(simulator.simulatedCreature) / getSkillDamageMultiplier(simulator.baseCreature))
+    * getCreatureArtifactReplacementMultiplier(
+      simulator.baseCreatureArtifacts,
+      simulator.simulatedCreatureArtifacts,
+    )
     * getEquipmentBodyFinalDamageChangeMultiplier(
       simulator.baseEquipmentUpgrades,
       simulator.simulatedEquipmentUpgrades,
@@ -2243,6 +2269,8 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
     simulator.baseAvatar,
     simulator.simulatedAvatar,
     avatarEmblemMode,
+    simulator.baseCreatureArtifacts,
+    simulator.simulatedCreatureArtifacts,
   );
   const simulatedTitleRow = { sourceType: 'title', ...(simulator.simulatedTitle || {}) };
   const adjustedTitleBaseline = getAdjustedElementBaselineForRecommendation(
@@ -3696,6 +3724,25 @@ function getCreatureCandidateSignature(row = {}) {
   ].join(':');
 }
 
+const CREATURE_ARTIFACT_TYPES = new Set(['RED', 'BLUE', 'GREEN']);
+
+function getCreatureArtifactType(row = {}) {
+  const artifactType = String(row.artifactType || row.slotColor || '').trim().toUpperCase();
+  return CREATURE_ARTIFACT_TYPES.has(artifactType) ? artifactType : '';
+}
+
+function getCreatureArtifactExclusiveGroupKey(row = {}) {
+  const artifactType = getCreatureArtifactType(row);
+  return row.sourceType === 'creatureArtifact' && artifactType
+    ? `creatureArtifact:${artifactType}`
+    : '';
+}
+
+function getCreatureArtifactCandidateSignature(row = {}) {
+  const groupKey = getCreatureArtifactExclusiveGroupKey(row);
+  return groupKey && row.itemId ? `${groupKey}:${row.itemId}` : '';
+}
+
 function getTitleExclusiveGroupKey(row = {}) {
   return row.sourceType === 'title' ? 'title' : '';
 }
@@ -4168,6 +4215,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
   return getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
     || getCreatureExclusiveGroupKey(row)
+    || getCreatureArtifactExclusiveGroupKey(row)
     || getTitleExclusiveGroupKey(row)
     || getEquipmentTuneExclusiveGroupKey(row)
     || getOathTuneExclusiveGroupKey(row)
@@ -4181,6 +4229,7 @@ function getSimulatorCandidateSignature(row = {}) {
   return getEnchantCandidateSignature(row)
     || getAuraCandidateSignature(row)
     || getCreatureCandidateSignature(row)
+    || getCreatureArtifactCandidateSignature(row)
     || getTitleCandidateSignature(row)
     || getEquipmentTuneCandidateSignature(row)
     || getOathTuneCandidateSignature(row)
@@ -4318,8 +4367,8 @@ function getReplacementIncrementalDamagePercent(row, current, baseline) {
 
 function getCurrentCreatureArtifactBySlot(currentCreature) {
   return new Map((currentCreature?.artifacts || [])
-    .filter((artifact) => artifact?.slotColor)
-    .map((artifact) => [artifact.slotColor, artifact]));
+    .map((artifact) => [getCreatureArtifactType(artifact), artifact])
+    .filter(([artifactType]) => artifactType));
 }
 
 function getCurrentElementPreferenceOrder(currentCreature, currentTitle, topElements = []) {
@@ -4828,6 +4877,36 @@ function getCreatureArtifactEffectiveEffects(row, baseline, preferredElement = '
   return effects;
 }
 
+function getCreatureArtifactEffectsTotal(artifacts = [], baseline = {}, currentTitle = {}) {
+  const creature = { artifacts: artifacts || [] };
+  const preferredElement = getPreferredElementForElementalUpgrades(
+    [],
+    baseline,
+    creature,
+    currentTitle,
+  );
+  return (artifacts || []).reduce((total, artifact) => addEffects(
+    total,
+    getCreatureArtifactEffectiveEffects(
+      { sourceType: 'creatureArtifact', ...artifact },
+      baseline,
+      preferredElement,
+    ),
+  ), {});
+}
+
+function getCreatureArtifactReplacementMultiplier(baseArtifacts = [], simulatedArtifacts = []) {
+  const baseByType = getCurrentCreatureArtifactBySlot({ artifacts: baseArtifacts });
+  const simulatedByType = getCurrentCreatureArtifactBySlot({ artifacts: simulatedArtifacts });
+  return [...CREATURE_ARTIFACT_TYPES].reduce((multiplier, artifactType) => {
+    const baseArtifact = baseByType.get(artifactType) || {};
+    const simulatedArtifact = simulatedByType.get(artifactType) || {};
+    return multiplier
+      * getFinalDamageReplacementMultiplier(baseArtifact.effects || {}, simulatedArtifact.effects || {})
+      * (getSkillDamageMultiplier(simulatedArtifact) / getSkillDamageMultiplier(baseArtifact));
+  }, 1);
+}
+
 function getCreatureArtifactDisplayEffects(row, baseline, preferredElement = '') {
   const effects = { ...(row?.effects || {}) };
   if (row?.sourceType !== 'creatureArtifact') return effects;
@@ -4878,15 +4957,22 @@ function getRepresentativeRecommendationRows(
         ? simulationOptions?.auraReferenceBaseline || baseline
       : row.sourceType === 'creature'
         ? simulationOptions?.creatureReferenceBaseline || baseline
+      : row.sourceType === 'creatureArtifact'
+        ? simulationOptions?.creatureArtifactReferenceBaselineByType?.get(getCreatureArtifactType(row)) || baseline
       : row.sourceType === 'title'
         ? simulationOptions?.titleReferenceBaseline || baseline
       : row.sourceType === 'blackFang'
         ? simulationOptions?.blackFangReferenceBaselineBySlot?.get(row.slot) || baseline
         : baseline;
+    const artifactReferenceCreature = row.sourceType === 'creatureArtifact'
+      ? simulationOptions?.referenceCreatureByArtifactType?.get(getCreatureArtifactType(row))
+      : null;
     const rowPreferredElement = getPreferredElementForRecommendationRow(
       row,
       evaluationBaseline,
-      preferredArtifactElement,
+      artifactReferenceCreature
+        ? getPreferredElementForElementalUpgrades(rows, evaluationBaseline, artifactReferenceCreature, currentTitle)
+        : preferredArtifactElement,
       elementAlignmentOverride,
       currentTitle,
     );
@@ -4925,7 +5011,9 @@ function getRepresentativeRecommendationRows(
       }
       : row.sourceType === 'creatureArtifact'
         ? (() => {
-          const artifact = currentArtifactBySlot.get(row.slotColor) || {};
+          const artifact = simulationOptions?.referenceCreatureArtifactByType?.get(getCreatureArtifactType(row))
+            || currentArtifactBySlot.get(getCreatureArtifactType(row))
+            || {};
           const effectiveEffects = getCreatureArtifactEffectiveEffects({ sourceType: 'creatureArtifact', ...artifact }, evaluationBaseline, rowPreferredElement);
           return {
             ...artifact,
@@ -5435,6 +5523,23 @@ export function installEnchantView(ctx) {
     return creature;
   }
 
+  function getCanonicalCurrentCreatureArtifacts() {
+    return cloneSimulatorValue(state.currentCreature?.artifacts || []);
+  }
+
+  function getActiveCreatureArtifacts() {
+    return isDealerSimulatorActive()
+      ? state.dealerSimulator.simulatedCreatureArtifacts
+      : getCanonicalCurrentCreatureArtifacts();
+  }
+
+  function getActiveCreatureWithArtifacts() {
+    return {
+      ...(getActiveCreature() || {}),
+      artifacts: cloneSimulatorValue(getActiveCreatureArtifacts()),
+    };
+  }
+
   function getActiveCreature() {
     return isDealerSimulatorActive()
       ? state.dealerSimulator.simulatedCreature
@@ -5494,6 +5599,9 @@ export function installEnchantView(ctx) {
           simulator.simulatedOathUpgrades,
           simulator.baseAvatar,
           simulator.simulatedAvatar,
+          'actual',
+          simulator.baseCreatureArtifacts,
+          simulator.simulatedCreatureArtifacts,
         ),
       );
     });
@@ -5513,6 +5621,9 @@ export function installEnchantView(ctx) {
       simulator.simulatedOathUpgrades,
       simulator.baseAvatar,
       simulator.simulatedAvatar,
+      'actual',
+      simulator.baseCreatureArtifacts,
+      simulator.simulatedCreatureArtifacts,
     );
     const creatureReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -5530,6 +5641,9 @@ export function installEnchantView(ctx) {
       simulator.simulatedOathUpgrades,
       simulator.baseAvatar,
       simulator.simulatedAvatar,
+      'actual',
+      simulator.baseCreatureArtifacts,
+      simulator.simulatedCreatureArtifacts,
     );
     const titleReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -5547,6 +5661,9 @@ export function installEnchantView(ctx) {
       simulator.simulatedOathUpgrades,
       simulator.baseAvatar,
       simulator.simulatedAvatar,
+      'actual',
+      simulator.baseCreatureArtifacts,
+      simulator.simulatedCreatureArtifacts,
     );
     const baseEquipmentBySlot = new Map(
       simulator.baseEquipmentUpgrades.map((equipment) => [equipment?.slot, equipment]),
@@ -5577,6 +5694,9 @@ export function installEnchantView(ctx) {
           simulator.simulatedOathUpgrades,
           simulator.baseAvatar,
           simulator.simulatedAvatar,
+          'actual',
+          simulator.baseCreatureArtifacts,
+          simulator.simulatedCreatureArtifacts,
         ),
       );
     });
@@ -5615,6 +5735,52 @@ export function installEnchantView(ctx) {
           simulator.simulatedOathUpgrades,
           simulator.baseAvatar,
           referenceAvatar,
+          'actual',
+          simulator.baseCreatureArtifacts,
+          simulator.simulatedCreatureArtifacts,
+        ),
+      );
+    });
+    const baseCreatureArtifactByType = getCurrentCreatureArtifactBySlot({
+      artifacts: simulator.baseCreatureArtifacts,
+    });
+    const referenceCreatureArtifactByType = new Map();
+    const referenceCreatureByArtifactType = new Map();
+    const creatureArtifactReferenceBaselineByType = new Map();
+    candidateRows.forEach((row) => {
+      const artifactType = getCreatureArtifactType(row);
+      if (row.sourceType !== 'creatureArtifact' || !artifactType || referenceCreatureByArtifactType.has(artifactType)) return;
+      const referenceArtifacts = cloneSimulatorValue(simulator.simulatedCreatureArtifacts || [])
+        .filter((artifact) => getCreatureArtifactType(artifact) !== artifactType);
+      const baseArtifact = baseCreatureArtifactByType.get(artifactType);
+      if (baseArtifact) referenceArtifacts.push(cloneSimulatorValue(baseArtifact));
+      const referenceCreature = {
+        ...(simulator.simulatedCreature || {}),
+        artifacts: referenceArtifacts,
+      };
+      referenceCreatureArtifactByType.set(artifactType, baseArtifact || {});
+      referenceCreatureByArtifactType.set(artifactType, referenceCreature);
+      creatureArtifactReferenceBaselineByType.set(
+        artifactType,
+        buildSimulatedDamageBaseline(
+          simulator.baseDamageBaseline,
+          simulator.baseEnchants,
+          simulator.simulatedEnchants,
+          simulator.baseAura,
+          simulator.simulatedAura,
+          simulator.baseCreature,
+          simulator.simulatedCreature,
+          simulator.baseTitle,
+          simulator.simulatedTitle,
+          simulator.baseEquipmentUpgrades,
+          simulator.simulatedEquipmentUpgrades,
+          simulator.baseOathUpgrades,
+          simulator.simulatedOathUpgrades,
+          simulator.baseAvatar,
+          simulator.simulatedAvatar,
+          'actual',
+          simulator.baseCreatureArtifacts,
+          referenceArtifacts,
         ),
       );
     });
@@ -5627,6 +5793,9 @@ export function installEnchantView(ctx) {
         auraReferenceBaseline,
         referenceCreature: simulator.baseCreature,
         creatureReferenceBaseline,
+        referenceCreatureArtifactByType,
+        referenceCreatureByArtifactType,
+        creatureArtifactReferenceBaselineByType,
         referenceTitle: simulator.baseTitle,
         titleReferenceBaseline,
         blackFangReferenceBaselineBySlot,
@@ -5657,6 +5826,7 @@ export function installEnchantView(ctx) {
     const baseAura = getCanonicalCurrentAura();
     const baseAvatar = getCanonicalCurrentAvatar();
     const baseCreature = getCanonicalCurrentCreatureBody();
+    const baseCreatureArtifacts = getCanonicalCurrentCreatureArtifacts();
     const baseTitle = cloneSimulatorValue(state.currentTitle || {});
     const baseBuffLoadout = cloneSimulatorValue(state.currentBuffLoadout || {});
     const baseOathUpgrades = attachOathAcquisitionBaseCalculationData(
@@ -5677,6 +5847,8 @@ export function installEnchantView(ctx) {
       simulatedAvatar: cloneSimulatorValue(baseAvatar),
       baseCreature,
       simulatedCreature: cloneSimulatorValue(baseCreature),
+      baseCreatureArtifacts,
+      simulatedCreatureArtifacts: cloneSimulatorValue(baseCreatureArtifacts),
       baseTitle,
       simulatedTitle: cloneSimulatorValue(baseTitle),
       baseBuffLoadout,
@@ -5731,10 +5903,24 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator) return;
     const canonicalCreature = getCanonicalCurrentCreatureBody();
+    const canonicalArtifacts = getCanonicalCurrentCreatureArtifacts();
     simulator.baseCreature = canonicalCreature;
+    simulator.baseCreatureArtifacts = canonicalArtifacts;
     if (!simulator.activeSelectionByGroup?.creature) {
       simulator.simulatedCreature = cloneSimulatorValue(canonicalCreature);
     }
+    const activeArtifactTypes = new Set(Object.keys(simulator.activeSelectionByGroup || {})
+      .filter((groupKey) => groupKey.startsWith('creatureArtifact:'))
+      .map((groupKey) => groupKey.split(':').pop()));
+    const selectedArtifacts = (simulator.simulatedCreatureArtifacts || []).filter(
+      (artifact) => activeArtifactTypes.has(getCreatureArtifactType(artifact)),
+    );
+    simulator.simulatedCreatureArtifacts = [
+      ...canonicalArtifacts.filter(
+        (artifact) => !activeArtifactTypes.has(getCreatureArtifactType(artifact)),
+      ),
+      ...selectedArtifacts,
+    ].map(cloneSimulatorValue);
     rebuildDealerSimulatorCalculationState();
   }
 
@@ -5768,6 +5954,9 @@ export function installEnchantView(ctx) {
       simulator.simulatedOathUpgrades,
       simulator.baseAvatar,
       simulator.simulatedAvatar,
+      'actual',
+      simulator.baseCreatureArtifacts,
+      simulator.simulatedCreatureArtifacts,
     );
     const equipmentTuneSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades);
     simulator.simulatedDamageBaseline = {
@@ -5848,6 +6037,17 @@ export function installEnchantView(ctx) {
         targetTab: 'equipment',
         targetSlot: '크리쳐',
         applyType: 'replaceCreature',
+      };
+    }
+    if (row.sourceType === 'creatureArtifact') {
+      const artifactType = getCreatureArtifactType(row);
+      if (!artifactType || !row.itemId || !Object.keys(row.effects || {}).length) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: `creatureArtifact:${artifactType}`,
+        changedSlots: [`creatureArtifact:${artifactType}`, '크리쳐'],
+        artifactType,
+        applyType: 'replaceCreatureArtifact',
       };
     }
     if (row.sourceType === 'title') {
@@ -5943,6 +6143,7 @@ export function installEnchantView(ctx) {
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       simulatedAvatar: cloneSimulatorValue(simulator.simulatedAvatar),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
+      simulatedCreatureArtifacts: cloneSimulatorValue(simulator.simulatedCreatureArtifacts),
       simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
       simulatedBuffLoadout: cloneSimulatorValue(simulator.simulatedBuffLoadout),
       simulatedOathUpgrades: cloneSimulatorValue(simulator.simulatedOathUpgrades),
@@ -5963,6 +6164,9 @@ export function installEnchantView(ctx) {
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
     simulator.simulatedAvatar = cloneSimulatorValue(snapshot.simulatedAvatar || simulator.baseAvatar || {});
     simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
+    simulator.simulatedCreatureArtifacts = cloneSimulatorValue(
+      snapshot.simulatedCreatureArtifacts || simulator.baseCreatureArtifacts || [],
+    );
     simulator.simulatedTitle = cloneSimulatorValue(snapshot.simulatedTitle || simulator.baseTitle || {});
     simulator.simulatedBuffLoadout = cloneSimulatorValue(
       snapshot.simulatedBuffLoadout || simulator.baseBuffLoadout || {},
@@ -6042,6 +6246,33 @@ export function installEnchantView(ctx) {
         ? [{ name: row.reinforceSkillName, value: Number(row.reinforceSkillLevel) }]
         : [],
     };
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
+  function replaceSimulatedCreatureArtifact(row, target) {
+    const simulator = state.dealerSimulator;
+    const artifactType = getCreatureArtifactType(target || row);
+    if (
+      !simulator
+      || target?.applyType !== 'replaceCreatureArtifact'
+      || !artifactType
+      || !row.itemId
+    ) return false;
+    const artifacts = simulator.simulatedCreatureArtifacts || [];
+    const currentIndex = artifacts.findIndex(
+      (artifact) => getCreatureArtifactType(artifact) === artifactType,
+    );
+    const nextArtifact = {
+      ...cloneSimulatorValue(row),
+      slotColor: artifactType,
+      itemName: row.candidateName || row.itemName || '',
+      iconUrl: row.iconUrl || '',
+      effects: cloneSimulatorValue(row.effects || {}),
+    };
+    if (currentIndex >= 0) artifacts.splice(currentIndex, 1, nextArtifact);
+    else artifacts.push(nextArtifact);
+    simulator.simulatedCreatureArtifacts = artifacts;
     rebuildDealerSimulatorCalculationState();
     return true;
   }
@@ -6395,6 +6626,7 @@ export function installEnchantView(ctx) {
     if (target?.applyType === 'replaceEnchant') return replaceSimulatedEnchant(row, target);
     if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
     if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
+    if (target?.applyType === 'replaceCreatureArtifact') return replaceSimulatedCreatureArtifact(row, target);
     if (target?.applyType === 'replaceTitle') return replaceSimulatedTitle(row, target);
     if (target?.applyType === 'replaceAvatarEmblems') return replaceSimulatedAvatarEmblems(row, target);
     if (target?.applyType === 'replaceBuffEquipment') return replaceSimulatedBuffEquipment(row, target);
@@ -6570,6 +6802,7 @@ export function installEnchantView(ctx) {
           goldWithMaterials,
           targetTab: target.targetTab,
           targetSlot: target.targetSlot,
+          artifactType: target.artifactType || '',
           buffSlotId: target.buffSlotId || '',
           applyType: target.applyType,
           appliedRecommendationSnapshot: cloneSimulatorValue(row),
@@ -6635,6 +6868,27 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator) return false;
     simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature || {});
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
+  function restoreSimulatedCreatureArtifactToBase(artifactType) {
+    const simulator = state.dealerSimulator;
+    const normalizedType = getCreatureArtifactType({ slotColor: artifactType });
+    if (!simulator || !normalizedType) return false;
+    const baseArtifact = (simulator.baseCreatureArtifacts || []).find(
+      (artifact) => getCreatureArtifactType(artifact) === normalizedType,
+    );
+    const currentIndex = (simulator.simulatedCreatureArtifacts || []).findIndex(
+      (artifact) => getCreatureArtifactType(artifact) === normalizedType,
+    );
+    if (baseArtifact) {
+      const restoredArtifact = cloneSimulatorValue(baseArtifact);
+      if (currentIndex >= 0) simulator.simulatedCreatureArtifacts.splice(currentIndex, 1, restoredArtifact);
+      else simulator.simulatedCreatureArtifacts.push(restoredArtifact);
+    } else if (currentIndex >= 0) {
+      simulator.simulatedCreatureArtifacts.splice(currentIndex, 1);
+    }
     rebuildDealerSimulatorCalculationState();
     return true;
   }
@@ -6914,6 +7168,8 @@ export function installEnchantView(ctx) {
       ? restoreSimulatedAuraToBase()
       : selection.applyType === 'replaceCreature'
         ? restoreSimulatedCreatureToBase()
+        : selection.applyType === 'replaceCreatureArtifact'
+          ? restoreSimulatedCreatureArtifactToBase(selection.artifactType)
         : selection.applyType === 'replaceTitle'
           ? restoreSimulatedTitleToBase()
           : selection.applyType === 'replaceBlackFangBody'
@@ -6936,6 +7192,9 @@ export function installEnchantView(ctx) {
     };
     state.enchantLoadoutTab = selection.targetTab || 'equipment';
     triggerDealerSimulatorSweep(selection.targetSlot);
+    if (selection.applyType === 'replaceCreatureArtifact') {
+      triggerDealerSimulatorSweep('크리쳐');
+    }
     renderEnchantCharacterPortrait();
     renderEnchantTable();
   }
@@ -6948,6 +7207,7 @@ export function installEnchantView(ctx) {
     simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
     simulator.simulatedAvatar = cloneSimulatorValue(simulator.baseAvatar);
     simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
+    simulator.simulatedCreatureArtifacts = cloneSimulatorValue(simulator.baseCreatureArtifacts);
     simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
     simulator.simulatedBuffLoadout = cloneSimulatorValue(simulator.baseBuffLoadout);
     simulator.simulatedOathUpgrades = cloneSimulatorValue(simulator.baseOathUpgrades);
@@ -7095,7 +7355,7 @@ export function installEnchantView(ctx) {
       iconUrl: creature.iconUrl || '',
       itemName: creature.itemName || '크리쳐',
       itemRarity: creature.itemRarity || '',
-      artifacts: Array.isArray(state.currentCreature?.artifacts) ? state.currentCreature.artifacts : [],
+      artifacts: getActiveCreatureArtifacts(),
       enchantBadge: getRoleEquipmentBadge(creature.effects || {}, state.currentBufferBaseline?.isBuffer),
       hoverLines: (creatureHoverLines.length ? creatureHoverLines : ['없음'])
         .map((text) => ({ text, className: 'enchant-portrait-detail-line-effect' })),
@@ -7138,6 +7398,10 @@ export function installEnchantView(ctx) {
           const itemName = String(artifact?.itemName || '').trim();
           const iconUrl = String(artifact?.iconUrl || '').trim();
           const rarityClass = getLoadoutRarityClass(artifact);
+          const activeSweep = state.dealerSimulator?.activeSweepSlots?.get(`creatureArtifact:${color}`);
+          const sweepElapsedMs = activeSweep ? Date.now() - activeSweep.startedAt : DEALER_SIMULATOR_SWEEP_DURATION_MS;
+          const hasActiveSweep = sweepElapsedMs >= 0 && sweepElapsedMs < DEALER_SIMULATOR_SWEEP_DURATION_MS;
+          const sweepStyle = hasActiveSweep ? ` style="--simulator-sweep-delay: -${Math.floor(sweepElapsedMs)}ms"` : '';
           const mainOptionText = artifact
             ? formatEffects(getCreatureArtifactDisplayEffects(
               { sourceType: 'creatureArtifact', ...artifact },
@@ -7154,7 +7418,7 @@ export function installEnchantView(ctx) {
             }]
             : [];
           return `
-            <span class="enchant-character-slot enchant-creature-artifact-slot enchant-creature-artifact-slot-${color.toLowerCase()}${itemName ? '' : ' is-empty'}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}" data-creature-artifact-slot-key="${key}"${itemName ? ` tabindex="0" aria-label="${escapeHtml(itemName)}" data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"` : ` aria-label="${color} 아티팩트 비어 있음"`}>
+            <span class="enchant-character-slot enchant-creature-artifact-slot enchant-creature-artifact-slot-${color.toLowerCase()}${itemName ? '' : ' is-empty'}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}${hasActiveSweep ? ' is-simulator-sweep' : ''}" data-creature-artifact-slot-key="${key}"${sweepStyle}${itemName ? ` tabindex="0" aria-label="${escapeHtml(itemName)}" data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"` : ` aria-label="${color} 아티팩트 비어 있음"`}>
               ${iconUrl
                 ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
                 : '<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>'}
@@ -8787,8 +9051,8 @@ export function installEnchantView(ctx) {
       : getRepresentativeRecommendationRows(
         simulatorRecommendationContext.rows,
         activeEnchants,
-        state.currentCreature,
-        state.currentTitle,
+        getActiveCreatureWithArtifacts(),
+        getActiveTitle(),
         getActiveAura(),
         activeDamageBaseline,
         includeMaterialCosts,

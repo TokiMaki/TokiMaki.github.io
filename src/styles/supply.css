@@ -1818,6 +1818,7 @@
     .enchant-character-slot-wrap-earring { top: 114px; right: 42px; }
     .enchant-character-slot-wrap-magic-stone { top: 114px; right: 6px; }
     .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after,
+    .enchant-creature-artifact-slot.is-simulator-sweep::after,
     .enchant-oath-slot.is-simulator-sweep::after,
     .enchant-avatar-slot.is-simulator-sweep .enchant-avatar-slot-icon::after,
     .enchant-buff-slot.is-simulator-sweep .enchant-character-slot::after {
@@ -1851,6 +1852,22 @@
       88% { top: 0; left: 0; width: 12px; height: 3px; }
       99% { top: 0; left: 10px; width: 12px; height: 3px; opacity: 1; }
       100% { top: 0; left: 10px; width: 12px; height: 3px; opacity: 0; }
+    }
+    .enchant-creature-artifact-slot.is-simulator-sweep::after {
+      animation-name: enchant-simulator-artifact-sweep;
+    }
+    @keyframes enchant-simulator-artifact-sweep {
+      0% { top: 0; left: 6px; width: 8px; height: 3px; opacity: 1; }
+      12.5% { top: 0; left: 10px; width: 8px; height: 3px; }
+      13% { top: 0; left: 17px; width: 3px; height: 8px; }
+      37.5% { top: 10px; left: 17px; width: 3px; height: 8px; }
+      38% { top: 17px; left: 10px; width: 8px; height: 3px; }
+      62.5% { top: 17px; left: 0; width: 8px; height: 3px; }
+      63% { top: 10px; left: 0; width: 3px; height: 8px; }
+      87.5% { top: 0; left: 0; width: 3px; height: 8px; opacity: 1; }
+      88% { top: 0; left: 0; width: 8px; height: 3px; }
+      99% { top: 0; left: 6px; width: 8px; height: 3px; opacity: 1; }
+      100% { top: 0; left: 6px; width: 8px; height: 3px; opacity: 0; }
     }
     .enchant-creature-artifact-rail {
       position: absolute;
@@ -1908,6 +1925,7 @@
         transition: none;
       }
       .enchant-character-slot-wrap.is-simulator-sweep .enchant-character-slot::after,
+      .enchant-creature-artifact-slot.is-simulator-sweep::after,
       .enchant-oath-slot.is-simulator-sweep::after,
       .enchant-avatar-slot.is-simulator-sweep .enchant-avatar-slot-icon::after,
       .enchant-buff-slot.is-simulator-sweep .enchant-character-slot::after {
