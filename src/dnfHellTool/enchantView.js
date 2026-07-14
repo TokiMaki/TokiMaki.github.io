@@ -9737,7 +9737,7 @@ export function installEnchantView(ctx) {
         <span class="enchant-recommend-step${hasVariantActions ? ` enchant-recommend-step-tune${state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === variantPopoverSource ? ' is-tune-popover-open' : ''}` : ''}"${hasVariantActions ? ` data-tune-source="${escapeHtml(variantPopoverSource)}"` : ''}>
           ${connector}
           <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}${isApplied ? ' is-applied' : ''}"${bandStyle}${simulatorRecommendationId && !isApplied ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}${isApplied && oathAcquisitionRecommendationId ? ` data-applied-oath-acquisition-id="${escapeHtml(oathAcquisitionRecommendationId)}"` : isApplied ? ` data-applied-simulator-group="${escapeHtml(row.exclusiveGroupKey)}"` : ''}${isApplied ? ` aria-label="${escapeHtml(`${displayTitle} 적용됨`)}"` : ''}>
-            ${isApplied ? '<span class="enchant-simulator-applied-badge">✓ 적용됨</span>' : ''}
+            ${isApplied ? '<span class="enchant-simulator-applied-badge">✓ 적용</span>' : ''}
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
               <span class="enchant-recommend-title" title="${escapeHtml(displayTitle)}"><span class="enchant-recommend-title-text">${escapeHtml(displayTitle)}</span></span>

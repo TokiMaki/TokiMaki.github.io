@@ -1332,26 +1332,30 @@
     }
     .enchant-recommend-item.is-applied {
       cursor: pointer;
+      outline: 2px solid rgb(95 235 90 / 0.95);
+      outline-offset: 1px;
     }
     .enchant-simulator-applied-badge {
       position: absolute;
-      top: -5px;
-      right: 3px;
+      top: 0;
+      right: 2px;
       z-index: 3;
       display: inline-flex;
       align-items: center;
-      height: 13px;
-      padding: 0 4px;
-      border: 1px solid rgb(184 190 199 / 0.62);
+      height: 14px;
+      padding: 0 5px;
+      border: 1px solid rgb(95 235 90 / 0.82);
       border-radius: 2px;
-      background: rgb(17 19 22 / 0.92);
+      background: rgb(7 14 8 / 0.94);
       box-shadow: 0 1px 3px rgb(0 0 0 / 0.58);
-      color: #d7dce3;
-      font-size: 8px;
-      font-weight: 800;
+      color: #a8f39a;
+      font-size: 10px;
+      font-weight: 900;
       line-height: 1;
+      text-shadow: 0 1px 2px #000;
       white-space: nowrap;
       pointer-events: none;
+      transform: translateY(-60%);
     }
     .enchant-recommend-item.is-touch-selected {
       border-color: var(--accent-2);
