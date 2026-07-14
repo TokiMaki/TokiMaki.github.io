@@ -447,6 +447,21 @@ function getUpgradeMaterialParts(materials = [], upgradeMode = '') {
     .filter(Boolean);
 }
 
+function mergeUpgradeMaterials(...materialGroups) {
+  const merged = new Map();
+  materialGroups.flat().filter(Boolean).forEach((material) => {
+    const key = material.priceKey || material.key || material.itemId || material.itemName;
+    if (!key) return;
+    const previous = merged.get(key);
+    merged.set(key, {
+      ...(previous || {}),
+      ...cloneSimulatorValue(material),
+      amount: Number(previous?.amount || 0) + Number(material.amount || 0),
+    });
+  });
+  return [...merged.values()];
+}
+
 function getBlackFangMaterialParts(materials = []) {
   return (materials || [])
     .map((material) => {
@@ -2057,6 +2072,57 @@ function getEquipmentBodyEffectsTotal(equipmentRows = []) {
   );
 }
 
+function getEquipmentProgressionMode(equipment = {}) {
+  return equipment.isAmplified ? 'amplification' : 'reinforcement';
+}
+
+function getEquipmentProgressionEffectsTotal(equipmentRows = [], upgradeDb = {}, baseline = {}) {
+  return (equipmentRows || []).reduce((total, equipment) => addEffects(
+    total,
+    getCumulativeUpgradeEffectsForEquipment(
+      equipment,
+      Number(equipment?.reinforce || 0),
+      getEquipmentProgressionMode(equipment),
+      upgradeDb,
+      baseline,
+      false,
+    ),
+  ), {});
+}
+
+function getEquipmentProgressionFinalDamageChangeMultiplier(
+  baseEquipment = [],
+  simulatedEquipment = baseEquipment,
+  upgradeDb = {},
+  baseline = {},
+) {
+  const baseBySlot = new Map((baseEquipment || []).map((equipment) => [equipment?.slot, equipment]));
+  const simulatedBySlot = new Map((simulatedEquipment || []).map((equipment) => [equipment?.slot, equipment]));
+  const slots = new Set([...baseBySlot.keys(), ...simulatedBySlot.keys()]);
+  return [...slots].reduce((multiplier, slot) => {
+    const baseRow = baseBySlot.get(slot) || {};
+    const simulatedRow = simulatedBySlot.get(slot) || baseRow;
+    return multiplier * getFinalDamageReplacementMultiplier(
+      getCumulativeUpgradeEffectsForEquipment(
+        baseRow,
+        Number(baseRow.reinforce || 0),
+        getEquipmentProgressionMode(baseRow),
+        upgradeDb,
+        baseline,
+        false,
+      ),
+      getCumulativeUpgradeEffectsForEquipment(
+        simulatedRow,
+        Number(simulatedRow.reinforce || 0),
+        getEquipmentProgressionMode(simulatedRow),
+        upgradeDb,
+        baseline,
+        false,
+      ),
+    );
+  }, 1);
+}
+
 function getEquipmentBodyFinalDamageChangeMultiplier(baseEquipment = [], simulatedEquipment = baseEquipment) {
   const baseBySlot = new Map((baseEquipment || []).map((equipment) => [equipment?.slot, equipment]));
   const simulatedBySlot = new Map((simulatedEquipment || []).map((equipment) => [equipment?.slot, equipment]));
@@ -2087,6 +2153,7 @@ function buildSimulatedDamageBaseline(
   avatarEmblemMode = 'actual',
   baseCreatureArtifacts = [],
   simulatedCreatureArtifacts = baseCreatureArtifacts,
+  upgradeDb = {},
 ) {
   const metricBaseBaseline = getAvatarEmblemMetricBaseline(
     baseBaseline,
@@ -2116,7 +2183,10 @@ function buildSimulatedDamageBaseline(
       addEffects(
         getTitleEffectsWithoutEnchantElement(simulatedTitle),
         addEffects(
-          getEquipmentBodyEffectsTotal(simulatedEquipment),
+          addEffects(
+            getEquipmentBodyEffectsTotal(simulatedEquipment),
+            getEquipmentProgressionEffectsTotal(simulatedEquipment, upgradeDb, metricBaseBaseline),
+          ),
           getOathCrystalEffectsTotal(simulatedOath),
         ),
       ),
@@ -2132,7 +2202,10 @@ function buildSimulatedDamageBaseline(
       addEffects(
         getTitleEffectsWithoutEnchantElement(baseTitle),
         addEffects(
-          getEquipmentBodyEffectsTotal(baseEquipment),
+          addEffects(
+            getEquipmentBodyEffectsTotal(baseEquipment),
+            getEquipmentProgressionEffectsTotal(baseEquipment, upgradeDb, metricBaseBaseline),
+          ),
           getOathCrystalEffectsTotal(baseOath),
         ),
       ),
@@ -2193,7 +2266,14 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
         getAvatarRegularEmblemEffectsTotal(simulator.simulatedAvatar, avatarEmblemMode, metricBaseBaseline),
       ),
       addEffects(
-        getEquipmentBodyEffectsTotal(simulator.simulatedEquipmentUpgrades),
+        addEffects(
+          getEquipmentBodyEffectsTotal(simulator.simulatedEquipmentUpgrades),
+          getEquipmentProgressionEffectsTotal(
+            simulator.simulatedEquipmentUpgrades,
+            simulator.upgradeDb,
+            metricBaseBaseline,
+          ),
+        ),
         getOathCrystalEffectsTotal(simulator.simulatedOathUpgrades),
       ),
     ),
@@ -2206,7 +2286,14 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
         getAvatarRegularEmblemEffectsTotal(simulator.baseAvatar, avatarEmblemMode, metricBaseBaseline),
       ),
       addEffects(
-        getEquipmentBodyEffectsTotal(simulator.baseEquipmentUpgrades),
+        addEffects(
+          getEquipmentBodyEffectsTotal(simulator.baseEquipmentUpgrades),
+          getEquipmentProgressionEffectsTotal(
+            simulator.baseEquipmentUpgrades,
+            simulator.upgradeDb,
+            metricBaseBaseline,
+          ),
+        ),
         getOathCrystalEffectsTotal(simulator.baseOathUpgrades),
       ),
     ),
@@ -2238,6 +2325,12 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
     * getEquipmentBodyFinalDamageChangeMultiplier(
       simulator.baseEquipmentUpgrades,
       simulator.simulatedEquipmentUpgrades,
+    )
+    * getEquipmentProgressionFinalDamageChangeMultiplier(
+      simulator.baseEquipmentUpgrades,
+      simulator.simulatedEquipmentUpgrades,
+      simulator.upgradeDb,
+      metricBaseBaseline,
     )
     * getEquipmentTuneDamageMultiplier(
       simulator.baseEquipmentUpgrades,
@@ -2271,6 +2364,7 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
     avatarEmblemMode,
     simulator.baseCreatureArtifacts,
     simulator.simulatedCreatureArtifacts,
+    simulator.upgradeDb,
   );
   const simulatedTitleRow = { sourceType: 'title', ...(simulator.simulatedTitle || {}) };
   const adjustedTitleBaseline = getAdjustedElementBaselineForRecommendation(
@@ -4136,6 +4230,41 @@ function mergeAppliedOathAcquisitionSnapshots(rows = [], simulator = {}) {
   return mergedRows;
 }
 
+function mergeAppliedEquipmentProgressionSnapshots(
+  rows = [],
+  simulator = {},
+  simulationOptions = null,
+  includeMaterialCosts = false,
+) {
+  const mergedRows = rows.slice();
+  Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
+    if (
+      selection?.applyType !== 'replaceEquipmentProgression'
+      || !selection.appliedRecommendationSnapshot
+      || !selection.candidateSignature
+    ) return;
+    const alreadyRendered = mergedRows.some(
+      (row) => getEquipmentProgressionCandidateSignature(row) === selection.candidateSignature,
+    );
+    if (alreadyRendered) return;
+    const snapshot = cloneSimulatorValue(selection.appliedRecommendationSnapshot);
+    const evaluationBaseline = simulationOptions?.progressionReferenceBaselineBySlot?.get(snapshot.slot)
+      || simulator.simulatedDamageBaseline
+      || simulator.baseDamageBaseline;
+    const incrementalDamagePercent = estimateDamagePercent(snapshot.effects || {}, evaluationBaseline);
+    mergedRows.push({
+      ...snapshot,
+      incrementalDamagePercent,
+      estimatedDamagePercent: incrementalDamagePercent,
+      costPerPointOnePercent: getCostPerPointOnePercent(
+        { ...snapshot, incrementalDamagePercent },
+        includeMaterialCosts,
+      ),
+    });
+  });
+  return mergedRows;
+}
+
 function getBlackFangExclusiveGroupKey(row = {}) {
   const slot = String(row.slot || '').trim();
   return row.sourceType === 'blackFang' && BLACK_FANG_SIMULATOR_SLOTS.has(slot)
@@ -4151,6 +4280,29 @@ function getBlackFangCandidateSignature(row = {}) {
     row.targetItemId,
     getEffectSignature(row.targetEffects || {}),
   ].join(':');
+}
+
+function getEquipmentProgressionType(row = {}) {
+  return ['amplification', 'safeAmplification', 'amplificationConversion'].includes(row.upgradeMode)
+    ? 'amplify'
+    : ['reinforcement', 'safeReinforcement'].includes(row.upgradeMode)
+      ? 'reinforce'
+      : '';
+}
+
+function getEquipmentProgressionExclusiveGroupKey(row = {}) {
+  const slot = String(row.slot || '').trim();
+  return row.sourceType === 'upgrade' && slot && UPGRADE_SLOT_LABELS[slot]
+    ? `equipmentProgression:${slot}`
+    : '';
+}
+
+function getEquipmentProgressionCandidateSignature(row = {}) {
+  const groupKey = getEquipmentProgressionExclusiveGroupKey(row);
+  const progressionType = getEquipmentProgressionType(row);
+  const targetLevel = Number(row.targetLevel);
+  if (!groupKey || !progressionType || !Number.isFinite(targetLevel)) return '';
+  return `${groupKey}:${progressionType}:${targetLevel}`;
 }
 
 function getAvatarEmblemExclusiveGroupKey(row = {}) {
@@ -4221,6 +4373,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getOathTuneExclusiveGroupKey(row)
     || getOathAcquisitionExclusiveGroupKey(row)
     || getBlackFangExclusiveGroupKey(row)
+    || getEquipmentProgressionExclusiveGroupKey(row)
     || getAvatarEmblemExclusiveGroupKey(row)
     || getBuffSimulatorExclusiveGroupKey(row);
 }
@@ -4235,6 +4388,7 @@ function getSimulatorCandidateSignature(row = {}) {
     || getOathTuneCandidateSignature(row)
     || getOathAcquisitionCandidateSignature(row)
     || getBlackFangCandidateSignature(row)
+    || getEquipmentProgressionCandidateSignature(row)
     || getAvatarEmblemCandidateSignature(row)
     || getBuffSimulatorCandidateSignature(row);
 }
@@ -5602,6 +5756,7 @@ export function installEnchantView(ctx) {
           'actual',
           simulator.baseCreatureArtifacts,
           simulator.simulatedCreatureArtifacts,
+          simulator.upgradeDb,
         ),
       );
     });
@@ -5624,6 +5779,7 @@ export function installEnchantView(ctx) {
       'actual',
       simulator.baseCreatureArtifacts,
       simulator.simulatedCreatureArtifacts,
+      simulator.upgradeDb,
     );
     const creatureReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -5644,6 +5800,7 @@ export function installEnchantView(ctx) {
       'actual',
       simulator.baseCreatureArtifacts,
       simulator.simulatedCreatureArtifacts,
+      simulator.upgradeDb,
     );
     const titleReferenceBaseline = buildSimulatedDamageBaseline(
       simulator.baseDamageBaseline,
@@ -5664,10 +5821,49 @@ export function installEnchantView(ctx) {
       'actual',
       simulator.baseCreatureArtifacts,
       simulator.simulatedCreatureArtifacts,
+      simulator.upgradeDb,
     );
     const baseEquipmentBySlot = new Map(
       simulator.baseEquipmentUpgrades.map((equipment) => [equipment?.slot, equipment]),
     );
+    const progressionReferenceBaselineBySlot = new Map();
+    Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
+      if (selection?.applyType !== 'replaceEquipmentProgression' || !selection.targetSlot) return;
+      const baseEquipment = baseEquipmentBySlot.get(selection.targetSlot);
+      if (!baseEquipment) return;
+      const referenceEquipment = simulator.simulatedEquipmentUpgrades.map((equipment) => {
+        if (equipment?.slot !== selection.targetSlot) return cloneSimulatorValue(equipment);
+        const reference = cloneSimulatorValue(equipment);
+        reference.reinforce = Number(baseEquipment.reinforce || 0);
+        reference.isAmplified = Boolean(baseEquipment.isAmplified);
+        reference.amplificationName = baseEquipment.amplificationName || '';
+        return reference;
+      });
+      progressionReferenceBaselineBySlot.set(
+        selection.targetSlot,
+        buildSimulatedDamageBaseline(
+          simulator.baseDamageBaseline,
+          simulator.baseEnchants,
+          simulator.simulatedEnchants,
+          simulator.baseAura,
+          simulator.simulatedAura,
+          simulator.baseCreature,
+          simulator.simulatedCreature,
+          simulator.baseTitle,
+          simulator.simulatedTitle,
+          simulator.baseEquipmentUpgrades,
+          referenceEquipment,
+          simulator.baseOathUpgrades,
+          simulator.simulatedOathUpgrades,
+          simulator.baseAvatar,
+          simulator.simulatedAvatar,
+          'actual',
+          simulator.baseCreatureArtifacts,
+          simulator.simulatedCreatureArtifacts,
+          simulator.upgradeDb,
+        ),
+      );
+    });
     const blackFangReferenceBaselineBySlot = new Map();
     candidateRows.forEach((row) => {
       if (row.sourceType !== 'blackFang' || blackFangReferenceBaselineBySlot.has(row.slot)) return;
@@ -5697,6 +5893,7 @@ export function installEnchantView(ctx) {
           'actual',
           simulator.baseCreatureArtifacts,
           simulator.simulatedCreatureArtifacts,
+          simulator.upgradeDb,
         ),
       );
     });
@@ -5738,6 +5935,7 @@ export function installEnchantView(ctx) {
           'actual',
           simulator.baseCreatureArtifacts,
           simulator.simulatedCreatureArtifacts,
+          simulator.upgradeDb,
         ),
       );
     });
@@ -5781,6 +5979,7 @@ export function installEnchantView(ctx) {
           'actual',
           simulator.baseCreatureArtifacts,
           referenceArtifacts,
+          simulator.upgradeDb,
         ),
       );
     });
@@ -5798,6 +5997,7 @@ export function installEnchantView(ctx) {
         creatureArtifactReferenceBaselineByType,
         referenceTitle: simulator.baseTitle,
         titleReferenceBaseline,
+        progressionReferenceBaselineBySlot,
         blackFangReferenceBaselineBySlot,
         avatarReferenceBaselineBySlotId,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
@@ -5856,6 +6056,7 @@ export function installEnchantView(ctx) {
       baseOathUpgrades,
       simulatedOathUpgrades: cloneSimulatorValue(baseOathUpgrades),
       oathTuneDb: cloneSimulatorValue(state.oathTuneStageDb || {}),
+      upgradeDb: cloneSimulatorValue(state.upgradeExpectedDb || {}),
       baseDamageBaseline,
       simulatedDamageBaseline: cloneSimulatorValue(baseDamageBaseline),
       baseEquipmentScore: Number(state.currentOfficialEquipmentScore) || null,
@@ -5957,6 +6158,7 @@ export function installEnchantView(ctx) {
       'actual',
       simulator.baseCreatureArtifacts,
       simulator.simulatedCreatureArtifacts,
+      simulator.upgradeDb,
     );
     const equipmentTuneSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades);
     simulator.simulatedDamageBaseline = {
@@ -5988,6 +6190,26 @@ export function installEnchantView(ctx) {
         targetSlots: descriptors.map((descriptor) => `oath:${descriptor.entry.slotIndex}`),
         applyType: 'acquireOathDecision',
         selectionDescriptors: descriptors,
+      };
+    }
+    if (row.sourceType === 'upgrade') {
+      const targetSlot = String(row.slot || '').trim();
+      const progressionType = getEquipmentProgressionType(row);
+      const currentLevel = Number(row.currentLevel);
+      const targetLevel = Number(row.targetLevel);
+      if (
+        !targetSlot
+        || !UPGRADE_SLOT_LABELS[targetSlot]
+        || !progressionType
+        || !Number.isFinite(currentLevel)
+        || !Number.isFinite(targetLevel)
+        || (row.upgradeMode !== 'amplificationConversion' && targetLevel <= currentLevel)
+      ) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot,
+        progressionType,
+        applyType: 'replaceEquipmentProgression',
       };
     }
     if (row.sourceType === 'blackFang') {
@@ -6470,6 +6692,28 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function replaceSimulatedEquipmentProgression(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceEquipmentProgression') return false;
+    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
+      (equipment) => equipment?.slot === target.targetSlot,
+    );
+    if (equipmentIndex < 0) return false;
+    const targetLevel = Number(row.targetLevel);
+    if (!Number.isFinite(targetLevel) || targetLevel < 0) return false;
+    const current = simulator.simulatedEquipmentUpgrades[equipmentIndex];
+    const next = cloneSimulatorValue(current);
+    next.reinforce = targetLevel;
+    next.isAmplified = target.progressionType === 'amplify';
+    next.amplificationName = next.isAmplified
+      ? String(current.amplificationName || '').trim()
+        || `차원의 ${getDamageBaseline(simulator.baseDamageBaseline).statName}`
+      : '';
+    simulator.simulatedEquipmentUpgrades.splice(equipmentIndex, 1, next);
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
   function applySimulatedEquipmentTunePlan(row, target) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'applyEquipmentTunePlan') return false;
@@ -6635,6 +6879,7 @@ export function installEnchantView(ctx) {
     if (target?.applyType === 'replaceBuffAvatarPackage') return replaceSimulatedBuffAvatar(row, target, false);
     if (target?.applyType === 'replaceBuffAvatarPlatinum') return replaceSimulatedBuffAvatar(row, target, true);
     if (target?.applyType === 'replaceBlackFangBody') return replaceSimulatedBlackFangBody(row, target);
+    if (target?.applyType === 'replaceEquipmentProgression') return replaceSimulatedEquipmentProgression(row, target);
     if (target?.applyType === 'applyEquipmentTunePlan') return applySimulatedEquipmentTunePlan(row, target);
     if (target?.applyType === 'applyOathTunePlan') return applySimulatedOathTunePlan(row, target);
     if (target?.applyType === 'acquireOathDecision') return applySimulatedOathAcquisition(row, target);
@@ -6662,6 +6907,88 @@ export function installEnchantView(ctx) {
     return includeMaterialCosts
       ? baseGold + getMaterialGold(entry.expectedMaterials || [])
       : baseGold;
+  }
+
+  function buildAppliedEquipmentProgressionSelection(
+    row,
+    target,
+    previousSelection,
+    goldWithoutMaterials,
+    goldWithMaterials,
+    includeMaterialCosts,
+  ) {
+    const simulator = state.dealerSimulator;
+    const baseEquipment = simulator?.baseEquipmentUpgrades?.find(
+      (equipment) => equipment?.slot === target.targetSlot,
+    );
+    const simulatedEquipment = simulator?.simulatedEquipmentUpgrades?.find(
+      (equipment) => equipment?.slot === target.targetSlot,
+    );
+    if (!simulator || !baseEquipment || !simulatedEquipment) return null;
+    const isContinuousStep = Boolean(
+      previousSelection
+      && previousSelection.applyType === 'replaceEquipmentProgression'
+      && previousSelection.progressionType === target.progressionType
+      && Number(previousSelection.targetLevel) === Number(row.currentLevel),
+    );
+    const cumulativeGoldWithoutMaterials = (isContinuousStep
+      ? Number(previousSelection.goldWithoutMaterials || 0)
+      : 0) + goldWithoutMaterials;
+    const cumulativeGoldWithMaterials = (isContinuousStep
+      ? Number(previousSelection.goldWithMaterials || 0)
+      : 0) + goldWithMaterials;
+    const expectedMaterials = isContinuousStep
+      ? mergeUpgradeMaterials(
+        previousSelection.appliedRecommendationSnapshot?.expectedMaterials || [],
+        row.expectedMaterials || [],
+      )
+      : cloneSimulatorValue(row.expectedMaterials || []);
+    const baseMode = getEquipmentProgressionMode(baseEquipment);
+    const simulatedMode = getEquipmentProgressionMode(simulatedEquipment);
+    const effects = subtractEffects(
+      getCumulativeUpgradeEffectsForEquipment(
+        simulatedEquipment,
+        Number(simulatedEquipment.reinforce || 0),
+        simulatedMode,
+        simulator.upgradeDb,
+        simulator.baseDamageBaseline,
+        false,
+      ),
+      getCumulativeUpgradeEffectsForEquipment(
+        baseEquipment,
+        Number(baseEquipment.reinforce || 0),
+        baseMode,
+        simulator.upgradeDb,
+        simulator.baseDamageBaseline,
+        false,
+      ),
+    );
+    const appliedSnapshot = {
+      ...cloneSimulatorValue(row),
+      itemName: `${target.targetSlot} ${Number(baseEquipment.reinforce || 0)}->${Number(simulatedEquipment.reinforce || 0)} ${target.progressionType === 'amplify' ? '증폭' : '강화'}`,
+      effects,
+      currentLevel: Number(baseEquipment.reinforce || 0),
+      targetLevel: Number(simulatedEquipment.reinforce || 0),
+      upgradeMode: target.progressionType === 'amplify' ? 'amplification' : 'reinforcement',
+      expectedGold: cumulativeGoldWithoutMaterials,
+      auction: { ...(row.auction || {}), minUnitPrice: cumulativeGoldWithoutMaterials },
+      expectedMaterials,
+      isAppliedProgressionSnapshot: true,
+    };
+    return {
+      candidateSignature: getEquipmentProgressionCandidateSignature(appliedSnapshot),
+      appliedGold: includeMaterialCosts ? cumulativeGoldWithMaterials : cumulativeGoldWithoutMaterials,
+      includeMaterialCost: includeMaterialCosts,
+      goldWithoutMaterials: cumulativeGoldWithoutMaterials,
+      goldWithMaterials: cumulativeGoldWithMaterials,
+      targetTab: target.targetTab,
+      targetSlot: target.targetSlot,
+      progressionType: target.progressionType,
+      baseLevel: Number(baseEquipment.reinforce || 0),
+      targetLevel: Number(simulatedEquipment.reinforce || 0),
+      applyType: target.applyType,
+      appliedRecommendationSnapshot: appliedSnapshot,
+    };
   }
 
   function setActiveOathAcquisitionSelections(
@@ -6764,6 +7091,9 @@ export function installEnchantView(ctx) {
     if (!exclusiveGroupKey || !candidateSignature) return;
     const oathAcquisitionDescriptors = getOathAcquisitionSelectionDescriptors(row);
     const isOathAcquisition = target.applyType === 'acquireOathDecision';
+    const previousSelection = cloneSimulatorValue(
+      simulator.activeSelectionByGroup?.[exclusiveGroupKey] || null,
+    );
     const isAlreadyApplied = isOathAcquisition
       ? oathAcquisitionDescriptors.length > 0 && oathAcquisitionDescriptors.every((descriptor) => (
         simulator.activeSelectionByGroup?.[descriptor.exclusiveGroupKey]?.candidateSignature
@@ -6793,6 +7123,20 @@ export function installEnchantView(ctx) {
           includeMaterialCosts,
         );
         syncOathAcquisitionVariantIndexes();
+      } else if (target.applyType === 'replaceEquipmentProgression') {
+        const progressionSelection = buildAppliedEquipmentProgressionSelection(
+          row,
+          target,
+          previousSelection,
+          goldWithoutMaterials,
+          goldWithMaterials,
+          includeMaterialCosts,
+        );
+        if (!progressionSelection?.candidateSignature) {
+          restoreDealerSimulatorSnapshot(snapshot);
+          return;
+        }
+        simulator.activeSelectionByGroup[exclusiveGroupKey] = progressionSelection;
       } else {
         simulator.activeSelectionByGroup[exclusiveGroupKey] = {
           candidateSignature,
@@ -6849,6 +7193,25 @@ export function installEnchantView(ctx) {
     } else if (currentIndex >= 0) {
       simulator.simulatedEnchants.splice(currentIndex, 1);
     }
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
+  function restoreSimulatedEquipmentProgressionToBase(targetSlot) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !targetSlot) return false;
+    const baseEquipment = simulator.baseEquipmentUpgrades.find(
+      (equipment) => equipment?.slot === targetSlot,
+    );
+    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
+      (equipment) => equipment?.slot === targetSlot,
+    );
+    if (!baseEquipment || equipmentIndex < 0) return false;
+    const current = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades[equipmentIndex]);
+    current.reinforce = Number(baseEquipment.reinforce || 0);
+    current.isAmplified = Boolean(baseEquipment.isAmplified);
+    current.amplificationName = baseEquipment.amplificationName || '';
+    simulator.simulatedEquipmentUpgrades.splice(equipmentIndex, 1, current);
     rebuildDealerSimulatorCalculationState();
     return true;
   }
@@ -7174,6 +7537,8 @@ export function installEnchantView(ctx) {
           ? restoreSimulatedTitleToBase()
           : selection.applyType === 'replaceBlackFangBody'
             ? restoreSimulatedEquipmentBodyToBase(selection.targetSlot)
+          : selection.applyType === 'replaceEquipmentProgression'
+            ? restoreSimulatedEquipmentProgressionToBase(selection.targetSlot)
           : selection.applyType === 'replaceAvatarEmblems'
             ? restoreSimulatedAvatarEmblemsToBase(
               String(selection.targetSlot || '').replace(/^avatar:/, ''),
@@ -7270,6 +7635,11 @@ export function installEnchantView(ctx) {
         const baseTuneLevel = Number(baseEquipmentBySlot.get(slot)?.tuneLevel || 0);
         const simulatedTuneLevel = Number(equipment.tuneLevel || 0);
         const isSimulatedTune = simulatedTuneLevel !== baseTuneLevel;
+        const baseProgression = baseEquipmentBySlot.get(slot) || {};
+        const isSimulatedProgression = (
+          Number(equipment.reinforce || 0) !== Number(baseProgression.reinforce || 0)
+          || Boolean(equipment.isAmplified) !== Boolean(baseProgression.isAmplified)
+        );
         const isSimulatedEquipmentBody = Boolean(
           baseEquipmentBySlot.get(slot)?.itemId &&
           equipment.itemId !== baseEquipmentBySlot.get(slot)?.itemId,
@@ -7289,6 +7659,7 @@ export function installEnchantView(ctx) {
           enchantBadge,
           isSimulatedEnchant: Boolean(enchant.simulatedEnchantItemName),
           upgradeBadge: getUpgradeBadge(equipment),
+          isSimulatedProgression,
           tuneBadge,
           isSimulatedTune,
           hoverLines: [
@@ -7297,7 +7668,10 @@ export function installEnchantView(ctx) {
               className: 'enchant-portrait-detail-line-effect',
             } : null,
             { text: enchantDetailText, className: 'enchant-portrait-detail-line-effect' },
-            getUpgradeDetailLine(equipment),
+            isSimulatedProgression ? {
+              text: `${formatUpgradeState(baseProgression)} → ${formatUpgradeState(equipment)}`,
+              className: 'enchant-portrait-detail-line-effect',
+            } : getUpgradeDetailLine(equipment),
             isSimulatedTune ? {
               text: `조율 ${baseTuneLevel}회 → ${simulatedTuneLevel}회`,
               className: 'enchant-portrait-detail-line-effect',
@@ -7455,7 +7829,7 @@ export function installEnchantView(ctx) {
             : ''}
         </span>
         ${data?.upgradeBadge
-          ? `<span class="enchant-character-slot-badge enchant-character-slot-badge-${escapeHtml(data.upgradeBadge.kind)}">${escapeHtml(data.upgradeBadge.text)}</span>`
+          ? `<span class="enchant-character-slot-badge enchant-character-slot-badge-${escapeHtml(data.upgradeBadge.kind)}${data.isSimulatedProgression ? ' is-simulated' : ''}">${escapeHtml(data.upgradeBadge.text)}</span>`
           : ''}
         ${data?.tuneBadge
           ? `<span class="enchant-character-slot-tune-mark${data.isSimulatedTune ? ' is-simulated-equipment-tune' : ''}" role="img" title="${escapeHtml(data.tuneBadge.label)}" aria-label="${escapeHtml(data.tuneBadge.label)}">${Array.from({ length: data.tuneBadge.displayLevel }).map((_, index) => `<span class="enchant-character-slot-tune-bar${index >= Number(data.tuneBadge.baseDisplayLevel || 0) ? ' is-simulated' : ''}" aria-hidden="true"></span>`).join('')}</span>`
@@ -8298,6 +8672,7 @@ export function installEnchantView(ctx) {
         ? '0'
         : formatCompactGold(costPerPointOnePercent)
       : '-';
+    const totalGoldFullText = `${totalGold.toLocaleString('ko-KR')} 골드`;
     return `
       <div class="enchant-portrait-info-split">
         <div class="enchant-portrait-info-simulation">
@@ -8307,7 +8682,7 @@ export function installEnchantView(ctx) {
           </div>
           <span class="enchant-portrait-score-delta">${escapeHtml(scoreDeltaText)}</span>
           <span class="enchant-portrait-damage-increase">딜 상승률 <strong>${escapeHtml(damageIncreaseText)}</strong></span>
-          <span class="enchant-simulator-summary">누적 골드 <strong>${escapeHtml(formatKoreanGoldUnits(totalGold))}</strong></span>
+          <span class="enchant-simulator-summary" title="${escapeHtml(totalGoldFullText)}" aria-label="누적 골드 ${escapeHtml(totalGoldFullText)}">누적 골드 <strong>${escapeHtml(formatKoreanGoldUnits(totalGold))}</strong></span>
           <span class="enchant-simulator-efficiency${efficiencyBand === 'rainbow' ? ' is-rainbow' : ''}"${efficiencyColor ? ` style="--simulator-efficiency-color: ${escapeHtml(efficiencyColor)}"` : ''}>0.1%당 <strong>${escapeHtml(efficiencyText)}</strong></span>
         </div>
         <div class="enchant-portrait-info-original">
@@ -8863,7 +9238,7 @@ export function installEnchantView(ctx) {
       ...getAuraRows(state.auraUpgradeGroups),
       ...getAvatarRows(state.currentAvatar),
       ...getUpgradeRows(
-        state.currentEquipmentUpgrades,
+        getActiveEquipmentUpgrades(),
         state.upgradeExpectedDb,
         activeDamageBaseline,
         state.currentBufferBaseline,
@@ -9065,6 +9440,12 @@ export function installEnchantView(ctx) {
     );
     if (simulator) {
       recommendations = mergeAppliedOathAcquisitionSnapshots(recommendations, simulator);
+      recommendations = mergeAppliedEquipmentProgressionSnapshots(
+        recommendations,
+        simulator,
+        simulatorRecommendationContext.options,
+        includeMaterialCosts,
+      );
     }
     if (simulator && !simulator.baseEligibleEnchantCandidateSignatures.length) {
       simulator.baseEligibleEnchantCandidateSignatures = recommendations

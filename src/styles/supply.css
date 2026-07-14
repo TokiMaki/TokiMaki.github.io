@@ -1040,6 +1040,10 @@
     .enchant-character-slot-badge-reinforce {
       color: #6fd6ff;
     }
+    .enchant-character-slot-badge.is-simulated {
+      border-color: rgb(117 210 91 / 0.82);
+      box-shadow: 0 0 3px rgb(76 195 67 / 0.68);
+    }
     .enchant-character-slot-tune-mark {
       position: absolute;
       right: 0;
