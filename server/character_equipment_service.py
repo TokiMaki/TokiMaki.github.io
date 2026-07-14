@@ -49,6 +49,7 @@ from .candidates.switching_fragment import (
     get_switching_fragment_auction_candidate_groups,
     get_switching_fragment_candidate_items,
     get_switching_fragment_slot,
+    is_switching_fragment_item_name,
     item_detail_matches_job,
 )
 from .neople_client import (
@@ -298,12 +299,22 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
         switching_context,
         is_dealer_crusader=job_name == "프리스트(남)" and buff_skill_name == "성령의 메이스",
     )
+    current_coefficients = match_current_switching_coefficients(skill_info, switching_entry or {})
+    per_level_coefficients = [
+        float(row.get("value") or 0)
+        for row in (switching_entry or {}).get("damageIncreasePerLevelCoefficients") or []
+    ]
+    if len(per_level_coefficients) == 1 and len(current_coefficients) > 1:
+        per_level_coefficients *= len(current_coefficients)
+    damage_application_ratio = float((switching_entry or {}).get("damageApplicationRatio") or 1)
+    if not (0 < damage_application_ratio <= 1):
+        damage_application_ratio = 1
     max_skill_level = int((load_dealer_switching_buff_db().get("metadata") or {}).get("baseLevel") or 0) if (
         switching_entry and clean_text(switching_entry.get("buffSkillName")) == buff_skill_name
     ) else 0
     equivalent_skill_names = [
         clean_text(skill_name)
-        for skill_name in switching_entry.get("equivalentSwitchingPlatinumSkills") or []
+        for skill_name in (switching_entry or {}).get("equivalentSwitchingPlatinumSkills") or []
         if clean_text(skill_name)
     ]
     target_skill_names = get_switching_creature_target_skill_names(buff_skill_name, equivalent_skill_names)
@@ -344,14 +355,20 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
                 target_required_levels,
             )
             return {"skillLevel": skill_level}
-        additional_rate = None if not detail else get_switching_fragment_coefficients(
+        additional_rates = [] if not detail else get_switching_fragment_coefficients(
             detail,
             buff_skill_name,
-            1,
-        )[0]
+            len(current_coefficients) or 1,
+        )
+        additional_rate = additional_rates[0] if additional_rates else None
         return {
             "additionalRatePercent": additional_rate,
+            "additionalRatePercents": additional_rates,
             "additionalRateText": clean_text(get_item_explain(detail)) if additional_rate else "",
+            "isDenseFragment": is_switching_fragment_item_name(
+                clean_item_display_name(row.get("itemName")),
+                buff_skill_name,
+            ),
         }
 
     def build_avatar_contribution(row: dict) -> dict:
@@ -388,6 +405,9 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
             "level": int(((skill_info.get("option") or {}).get("level")) or 0),
             "maxLevel": max_skill_level,
             "iconUrl": "",
+            "currentCoefficients": current_coefficients,
+            "perLevelCoefficients": per_level_coefficients,
+            "damageApplicationRatio": damage_application_ratio,
         },
         "equipment": [
             item
@@ -1485,6 +1505,20 @@ def load_dealer_switching_fragment_recommendations(
                 item_explain=item_explain,
                 buff_skill_name=buff_skill_name,
                 switching_slot=slot,
+                target_buff_changes={
+                    "equipment": {
+                        "slotName": slot,
+                        "itemId": item_id,
+                        "itemName": clean_item_display_name(row.get("itemName")),
+                        "itemRarity": clean_text(row.get("itemRarity")) or "유니크",
+                        "iconUrl": get_item_icon_url(item_id),
+                        "buffContribution": {
+                            "additionalRatePercent": candidate_delta[0] if candidate_delta else 0,
+                            "additionalRatePercents": candidate_delta,
+                            "isDenseFragment": True,
+                        },
+                    },
+                },
             ))
             break
     return recommendations
@@ -3687,6 +3721,7 @@ def build_switching_avatar_recommendation_row(
     price_warning_text: str = "",
     debug: dict | None = None,
 ) -> dict:
+    target_slot_id = "JACKET" if "상의" in clean_text(slot) else "PANTS"
     return {
         "kind": "switchingAvatar",
         "slot": slot,
@@ -3703,6 +3738,22 @@ def build_switching_avatar_recommendation_row(
         "auction": selected_avatar.get("auction") or {},
         "needCount": 1,
         "targetSkill": target_skill,
+        "targetBuffSlot": target_slot_id,
+        "targetBuffChanges": {
+            "avatar": {
+                "slotId": target_slot_id,
+                "slotName": "상의" if target_slot_id == "JACKET" else "하의",
+                "itemId": clean_text(selected_avatar.get("itemId")),
+                "itemName": clean_item_display_name(selected_avatar.get("itemName")),
+                "itemRarity": clean_text(selected_avatar.get("itemRarity") or "레어"),
+                "iconUrl": selected_avatar.get("iconUrl") or get_item_icon_url(selected_avatar.get("itemId")),
+                "optionAbility": target_skill if target_slot_id == "JACKET" else "",
+                "buffContribution": {
+                    "topOptionSkillLevel": 1 if target_slot_id == "JACKET" else 0,
+                    "platinumSkillLevel": 1,
+                },
+            },
+        },
         "equivalentTargetSkills": equivalent_target_skills,
         "currentSwitchingMultiplier": current_switching_multiplier,
         "candidateSwitchingMultiplier": candidate_switching_multiplier,

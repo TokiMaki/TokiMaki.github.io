@@ -11,6 +11,7 @@ def build_switching_fragment_recommendation_row(
     item_explain: str,
     buff_skill_name: str,
     switching_slot: str,
+    target_buff_changes: dict,
 ) -> dict:
     return {
         "kind": "switchingFragment",
@@ -29,5 +30,7 @@ def build_switching_fragment_recommendation_row(
         "itemExplain": item_explain,
         "buffSkillName": buff_skill_name,
         "switchingSlot": switching_slot,
+        "targetBuffSlot": switching_slot,
+        "targetBuffChanges": target_buff_changes,
         "purchaseRouteLabel": "",
     }

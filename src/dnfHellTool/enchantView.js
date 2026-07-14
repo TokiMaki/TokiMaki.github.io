@@ -1627,6 +1627,7 @@ function getSwitchingTitleRows(recommendations = []) {
     auraAttackDelta: Number(candidate.auraAttackDelta || 0),
     currentTitleContribution: Number(candidate.currentTitleContribution || 0),
     candidateTitleContribution: Number(candidate.candidateTitleContribution || 0),
+    targetBuffSlot: 'TITLE',
     purchaseRoute: candidate.purchaseRoute || '',
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
@@ -1650,6 +1651,8 @@ function getSwitchingFragmentRows(recommendations = []) {
     auction: candidate.auction || {},
     candidateName: candidate.itemName,
     switchingSlot: candidate.switchingSlot || '',
+    targetBuffSlot: candidate.targetBuffSlot || candidate.switchingSlot || '',
+    targetBuffChanges: candidate.targetBuffChanges || null,
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
   }));
 }
@@ -1676,6 +1679,7 @@ function getSwitchingCreatureRows(recommendations = []) {
     bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
     currentCreatureContribution: Number(candidate.currentCreatureContribution || 0),
     candidateCreatureContribution: Number(candidate.candidateCreatureContribution || 0),
+    targetBuffSlot: 'CREATURE',
     purchaseRoute: candidate.purchaseRoute || '',
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
     targetCreatureName: candidate.targetCreatureName || '',
@@ -1730,8 +1734,14 @@ function getAvatarRows(currentAvatar) {
     needCount: candidate.needCount || 0,
     unitPrice: candidate.unitPrice,
     targetSlotId: candidate.targetSlotId || '',
+    targetBuffSlot: candidate.targetBuffSlot || '',
+    targetBuffChanges: candidate.targetBuffChanges || null,
     socketChanges: Array.isArray(candidate.socketChanges) ? candidate.socketChanges : [],
     targetSkill: candidate.targetSkill || '',
+    equivalentTargetSkills: candidate.equivalentTargetSkills || [],
+    currentSwitchingMultiplier: Number(candidate.currentSwitchingMultiplier || 0),
+    candidateSwitchingMultiplier: Number(candidate.candidateSwitchingMultiplier || 0),
+    priceMode: candidate.priceMode || '',
     bufferStatScope: candidate.bufferStatScope || '',
     bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
     bufferAwakeningSkillLevelDelta: Number(candidate.bufferAwakeningSkillLevelDelta || 0),
@@ -2252,7 +2262,222 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
       simulator.baseTitle,
       titleReferenceBaseline,
     );
-  return nonTitleMultiplier * (1 + titleDamagePercent / 100);
+  return nonTitleMultiplier
+    * (1 + titleDamagePercent / 100)
+    * getBuffEnhancementMetricMultiplier(simulator, avatarEmblemMode);
+}
+
+function getBuffLoadoutRowsForMetric(value) {
+  if (Array.isArray(value)) return value.filter((row) => row && typeof row === 'object');
+  return value && typeof value === 'object' ? [value] : [];
+}
+
+function getBuffLoadoutLevelContribution(loadout = {}) {
+  const titleLevel = getBuffLoadoutRowsForMetric(loadout.equipment)
+    .filter((row) => String(row?.slotId || '').trim() === 'TITLE')
+    .reduce((sum, row) => sum + Number(row?.buffContribution?.skillLevel || 0), 0);
+  const avatarLevel = getBuffLoadoutRowsForMetric(loadout.avatar).reduce((sum, row) => (
+    sum
+    + Number(row?.buffContribution?.topOptionSkillLevel || 0)
+    + Number(row?.buffContribution?.platinumSkillLevel || 0)
+  ), 0);
+  const creatureLevel = getBuffLoadoutRowsForMetric(loadout.creature)
+    .reduce((sum, row) => sum + Number(row?.buffContribution?.skillLevel || 0), 0);
+  return titleLevel + avatarLevel + creatureLevel;
+}
+
+function getBuffLoadoutDenseFragmentCount(loadout = {}) {
+  return Math.max(0, Math.min(12, getBuffLoadoutRowsForMetric(loadout.equipment)
+    .filter((row) => row?.buffContribution?.isDenseFragment === true)
+    .length));
+}
+
+function getBuffLoadoutFragmentCoefficients(loadout = {}, coefficientCount = 0) {
+  const result = Array.from({ length: Math.max(0, coefficientCount) }, () => 0);
+  getBuffLoadoutRowsForMetric(loadout.equipment).forEach((row) => {
+    const contribution = row?.buffContribution || {};
+    const values = Array.isArray(contribution.additionalRatePercents)
+      ? contribution.additionalRatePercents
+      : [contribution.additionalRatePercent];
+    result.forEach((_, index) => {
+      result[index] += Number(values[index] || 0);
+    });
+  });
+  return result;
+}
+
+function getBuffEnhancementState(loadout = {}, baseLoadout = loadout) {
+  const skillInfo = baseLoadout?.skillInfo || loadout?.skillInfo || {};
+  const baseLevel = Number(skillInfo.level || 0);
+  const levelDelta = getBuffLoadoutLevelContribution(loadout)
+    - getBuffLoadoutLevelContribution(baseLoadout);
+  const effectiveLevel = Math.max(0, Math.min(20, baseLevel + levelDelta));
+  return {
+    effectiveLevel,
+    denseFragmentCount: getBuffLoadoutDenseFragmentCount(loadout),
+  };
+}
+
+function getBuffEquipmentScoreCoefficient(loadout = {}, baseLoadout = loadout) {
+  const { effectiveLevel, denseFragmentCount } = getBuffEnhancementState(loadout, baseLoadout);
+  return 100 - (20 - effectiveLevel) * 2 + denseFragmentCount * 0.25;
+}
+
+function getBuffActualDamageMultiplier(loadout = {}, baseLoadout = loadout) {
+  const skillInfo = baseLoadout?.skillInfo || {};
+  const currentCoefficients = (skillInfo.currentCoefficients || []).map(Number);
+  let perLevelCoefficients = (skillInfo.perLevelCoefficients || []).map(Number);
+  if (!currentCoefficients.length) return 1;
+  if (perLevelCoefficients.length === 1 && currentCoefficients.length > 1) {
+    perLevelCoefficients = Array.from({ length: currentCoefficients.length }, () => perLevelCoefficients[0]);
+  }
+  if (perLevelCoefficients.length !== currentCoefficients.length) return 1;
+  const { effectiveLevel } = getBuffEnhancementState(loadout, baseLoadout);
+  const baseEffectiveLevel = getBuffEnhancementState(baseLoadout, baseLoadout).effectiveLevel;
+  const levelDelta = effectiveLevel - baseEffectiveLevel;
+  const baseFragmentCoefficients = getBuffLoadoutFragmentCoefficients(
+    baseLoadout,
+    currentCoefficients.length,
+  );
+  const simulatedFragmentCoefficients = getBuffLoadoutFragmentCoefficients(
+    loadout,
+    currentCoefficients.length,
+  );
+  const simulatedCoefficients = currentCoefficients.map((value, index) => (
+    value
+    + levelDelta * Number(perLevelCoefficients[index] || 0)
+    - Number(baseFragmentCoefficients[index] || 0)
+    + Number(simulatedFragmentCoefficients[index] || 0)
+  ));
+  const coefficientMultiplier = (values) => values.reduce(
+    (multiplier, value) => multiplier * (1 + Number(value || 0) / 100),
+    1,
+  );
+  const baseMultiplier = coefficientMultiplier(currentCoefficients);
+  if (!(baseMultiplier > 0)) return 1;
+  const rawMultiplier = coefficientMultiplier(simulatedCoefficients) / baseMultiplier;
+  const applicationRatio = Number(skillInfo.damageApplicationRatio || 1);
+  const safeRatio = applicationRatio > 0 && applicationRatio <= 1 ? applicationRatio : 1;
+  return 1 + (rawMultiplier - 1) * safeRatio;
+}
+
+function getBuffEnhancementMetricMultiplier(simulator = {}, mode = 'actual') {
+  const baseLoadout = simulator.baseBuffLoadout || {};
+  const simulatedLoadout = simulator.simulatedBuffLoadout || baseLoadout;
+  if (!baseLoadout?.skillInfo) return 1;
+  if (mode === 'equipmentScore') {
+    const baseCoefficient = getBuffEquipmentScoreCoefficient(baseLoadout, baseLoadout);
+    const simulatedCoefficient = getBuffEquipmentScoreCoefficient(simulatedLoadout, baseLoadout);
+    return baseCoefficient > 0 ? simulatedCoefficient / baseCoefficient : 1;
+  }
+  return getBuffActualDamageMultiplier(simulatedLoadout, baseLoadout);
+}
+
+function replaceBuffMetricRow(loadout, collectionName, predicate, nextRow) {
+  const rows = getBuffLoadoutRowsForMetric(loadout?.[collectionName]);
+  const index = rows.findIndex(predicate);
+  if (index >= 0) rows.splice(index, 1, cloneSimulatorValue(nextRow));
+  else rows.push(cloneSimulatorValue(nextRow));
+  loadout[collectionName] = rows;
+}
+
+function adaptBuffEnhancementRecommendation(row = {}, simulator = {}) {
+  const groupKey = getBuffSimulatorExclusiveGroupKey(row);
+  const baseLoadout = simulator?.baseBuffLoadout;
+  if (!groupKey || !baseLoadout?.skillInfo) return row;
+  const reference = cloneSimulatorValue(simulator.simulatedBuffLoadout || baseLoadout);
+  const candidate = cloneSimulatorValue(reference);
+  const targetSlotId = getBuffSimulatorTargetSlotId(row);
+  if (row.sourceType === 'switchingFragment') {
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.equipment)
+      .find((item) => String(item?.slotName || '').trim() === targetSlotId) || {
+      slotName: targetSlotId,
+      buffContribution: {
+        additionalRatePercent: 0,
+        additionalRatePercents: [],
+        isDenseFragment: false,
+      },
+    };
+    const targetRow = row.targetBuffChanges?.equipment;
+    if (!targetRow) return row;
+    replaceBuffMetricRow(reference, 'equipment', (item) => (
+      String(item?.slotName || '').trim() === targetSlotId
+    ), baseRow);
+    replaceBuffMetricRow(candidate, 'equipment', (item) => (
+      String(item?.slotName || '').trim() === targetSlotId
+    ), { ...baseRow, ...targetRow });
+  } else if (row.sourceType === 'switchingTitle') {
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.equipment)
+      .find((item) => String(item?.slotId || '').trim() === 'TITLE');
+    if (!baseRow) return row;
+    replaceBuffMetricRow(reference, 'equipment', (item) => (
+      String(item?.slotId || '').trim() === 'TITLE'
+    ), baseRow);
+    replaceBuffMetricRow(candidate, 'equipment', (item) => (
+      String(item?.slotId || '').trim() === 'TITLE'
+    ), {
+      ...baseRow,
+      itemId: row.itemId,
+      buffContribution: { skillLevel: Number(row.candidateTitleContribution || 0) },
+    });
+  } else if (row.sourceType === 'switchingCreature') {
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.creature)[0];
+    if (!baseRow) return row;
+    reference.creature = [cloneSimulatorValue(baseRow)];
+    candidate.creature = [{
+      ...cloneSimulatorValue(baseRow),
+      itemId: row.itemId,
+      buffContribution: { skillLevel: Number(row.candidateCreatureContribution || 0) },
+    }];
+  } else if (row.kind === 'switchingAvatar') {
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.avatar)
+      .find((item) => String(item?.slotId || '').trim() === targetSlotId);
+    const targetRow = row.targetBuffChanges?.avatar;
+    if (!baseRow || !targetRow) return row;
+    replaceBuffMetricRow(reference, 'avatar', (item) => (
+      String(item?.slotId || '').trim() === targetSlotId
+    ), baseRow);
+    replaceBuffMetricRow(candidate, 'avatar', (item) => (
+      String(item?.slotId || '').trim() === targetSlotId
+    ), { ...baseRow, ...targetRow });
+  } else if (row.kind === 'switchingPlatinumEmblem') {
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.avatar)
+      .find((item) => String(item?.slotId || '').trim() === targetSlotId);
+    const targetLevel = Number(row.targetBuffChanges?.platinumEmblem?.skillLevel || 0);
+    if (!baseRow || targetLevel <= 0) return row;
+    const currentRow = getBuffLoadoutRowsForMetric(reference.avatar)
+      .find((item) => String(item?.slotId || '').trim() === targetSlotId) || baseRow;
+    replaceBuffMetricRow(reference, 'avatar', (item) => (
+      String(item?.slotId || '').trim() === targetSlotId
+    ), {
+      ...currentRow,
+      buffContribution: {
+        ...(currentRow.buffContribution || {}),
+        platinumSkillLevel: Number(baseRow?.buffContribution?.platinumSkillLevel || 0),
+      },
+    });
+    replaceBuffMetricRow(candidate, 'avatar', (item) => (
+      String(item?.slotId || '').trim() === targetSlotId
+    ), {
+      ...currentRow,
+      buffContribution: {
+        ...(currentRow.buffContribution || {}),
+        platinumSkillLevel: targetLevel,
+      },
+    });
+  } else {
+    return row;
+  }
+  const referenceMultiplier = getBuffActualDamageMultiplier(reference, baseLoadout);
+  const candidateMultiplier = getBuffActualDamageMultiplier(candidate, baseLoadout);
+  if (!(referenceMultiplier > 0) || !(candidateMultiplier > referenceMultiplier)) return row;
+  const skillDamageMultiplier = candidateMultiplier / referenceMultiplier;
+  return {
+    ...row,
+    effects: { ...(row.effects || {}), skillDamageMultiplier },
+    skillDamageMultiplier,
+    rawSkillDamageMultiplier: skillDamageMultiplier,
+  };
 }
 
 function getSimulatedEquipmentScore(baseScore, cumulativeDamageMultiplier) {
@@ -3902,6 +4127,43 @@ function getAvatarEmblemCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getBuffSimulatorTargetSlotId(row = {}) {
+  if (row.sourceType === 'switchingTitle') return 'TITLE';
+  if (row.sourceType === 'switchingCreature') return 'CREATURE';
+  if (row.sourceType === 'switchingFragment') {
+    return String(row.targetBuffSlot || row.switchingSlot || '').trim();
+  }
+  if (row.sourceType === 'avatar' && ['switchingAvatar', 'switchingPlatinumEmblem'].includes(row.kind)) {
+    if (row.targetSlotId) return String(row.targetSlotId).trim();
+    return String(row.slot || '').includes('상의') ? 'JACKET' : 'PANTS';
+  }
+  return '';
+}
+
+function getBuffSimulatorExclusiveGroupKey(row = {}) {
+  const targetSlotId = getBuffSimulatorTargetSlotId(row);
+  if (!targetSlotId) return '';
+  if (row.sourceType === 'switchingTitle') return 'buffTitle';
+  if (row.sourceType === 'switchingCreature') return 'buffCreature';
+  if (row.sourceType === 'switchingFragment') return `buffEquipment:${targetSlotId}`;
+  if (row.kind === 'switchingAvatar') return `buffAvatarPackage:${targetSlotId}`;
+  if (row.kind === 'switchingPlatinumEmblem') return `buffAvatarPlatinum:${targetSlotId}`;
+  return '';
+}
+
+function getBuffSimulatorCandidateSignature(row = {}) {
+  const groupKey = getBuffSimulatorExclusiveGroupKey(row);
+  if (!groupKey) return '';
+  return [
+    groupKey,
+    row.itemId || '',
+    row.targetSkill || '',
+    row.candidateTitleContribution || row.candidateCreatureContribution || '',
+    getStableObjectSignature(row.targetBuffChanges || {}),
+    row.priceMode || '',
+  ].join(':');
+}
+
 function getSimulatorExclusiveGroupKey(row = {}) {
   return getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
@@ -3911,7 +4173,8 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getOathTuneExclusiveGroupKey(row)
     || getOathAcquisitionExclusiveGroupKey(row)
     || getBlackFangExclusiveGroupKey(row)
-    || getAvatarEmblemExclusiveGroupKey(row);
+    || getAvatarEmblemExclusiveGroupKey(row)
+    || getBuffSimulatorExclusiveGroupKey(row);
 }
 
 function getSimulatorCandidateSignature(row = {}) {
@@ -3923,7 +4186,8 @@ function getSimulatorCandidateSignature(row = {}) {
     || getOathTuneCandidateSignature(row)
     || getOathAcquisitionCandidateSignature(row)
     || getBlackFangCandidateSignature(row)
-    || getAvatarEmblemCandidateSignature(row);
+    || getAvatarEmblemCandidateSignature(row)
+    || getBuffSimulatorCandidateSignature(row);
 }
 
 function getStableObjectSignature(value = {}) {
@@ -5394,6 +5658,7 @@ export function installEnchantView(ctx) {
     const baseAvatar = getCanonicalCurrentAvatar();
     const baseCreature = getCanonicalCurrentCreatureBody();
     const baseTitle = cloneSimulatorValue(state.currentTitle || {});
+    const baseBuffLoadout = cloneSimulatorValue(state.currentBuffLoadout || {});
     const baseOathUpgrades = attachOathAcquisitionBaseCalculationData(
       state.currentOathUpgrades || {},
       [
@@ -5414,6 +5679,8 @@ export function installEnchantView(ctx) {
       simulatedCreature: cloneSimulatorValue(baseCreature),
       baseTitle,
       simulatedTitle: cloneSimulatorValue(baseTitle),
+      baseBuffLoadout,
+      simulatedBuffLoadout: cloneSimulatorValue(baseBuffLoadout),
       baseOathUpgrades,
       simulatedOathUpgrades: cloneSimulatorValue(baseOathUpgrades),
       oathTuneDb: cloneSimulatorValue(state.oathTuneStageDb || {}),
@@ -5614,6 +5881,48 @@ export function installEnchantView(ctx) {
         applyType: 'replaceAvatarEmblems',
       };
     }
+    if (row.sourceType === 'switchingFragment') {
+      const targetSlot = getBuffSimulatorTargetSlotId(row);
+      const targetEquipment = row.targetBuffChanges?.equipment;
+      if (!targetSlot || !targetEquipment?.itemId) return null;
+      return {
+        targetTab: 'buff',
+        targetSlot: `buffEquipment:${targetSlot}`,
+        buffSlotId: targetSlot,
+        applyType: 'replaceBuffEquipment',
+      };
+    }
+    if (row.sourceType === 'switchingTitle' && row.itemId) {
+      return {
+        targetTab: 'buff',
+        targetSlot: 'buffTitle',
+        buffSlotId: 'TITLE',
+        applyType: 'replaceBuffTitle',
+      };
+    }
+    if (row.sourceType === 'switchingCreature' && row.itemId) {
+      return {
+        targetTab: 'buff',
+        targetSlot: 'buffCreature',
+        buffSlotId: 'CREATURE',
+        applyType: 'replaceBuffCreature',
+      };
+    }
+    if (
+      row.sourceType === 'avatar'
+      && ['switchingAvatar', 'switchingPlatinumEmblem'].includes(row.kind)
+    ) {
+      const targetSlotId = getBuffSimulatorTargetSlotId(row);
+      if (!targetSlotId || !row.itemId) return null;
+      return {
+        targetTab: 'buff',
+        targetSlot: `buffAvatar:${targetSlotId}`,
+        buffSlotId: targetSlotId,
+        applyType: row.kind === 'switchingAvatar'
+          ? 'replaceBuffAvatarPackage'
+          : 'replaceBuffAvatarPlatinum',
+      };
+    }
     if (row.sourceType !== 'enchant') return null;
     const targetSlot = String(row.slot || '').trim();
     if (!targetSlot || !SLOT_ORDER.includes(targetSlot)) return null;
@@ -5635,6 +5944,7 @@ export function installEnchantView(ctx) {
       simulatedAvatar: cloneSimulatorValue(simulator.simulatedAvatar),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
       simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
+      simulatedBuffLoadout: cloneSimulatorValue(simulator.simulatedBuffLoadout),
       simulatedOathUpgrades: cloneSimulatorValue(simulator.simulatedOathUpgrades),
       totalGold: simulator.totalGold,
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup || {}),
@@ -5654,6 +5964,9 @@ export function installEnchantView(ctx) {
     simulator.simulatedAvatar = cloneSimulatorValue(snapshot.simulatedAvatar || simulator.baseAvatar || {});
     simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
     simulator.simulatedTitle = cloneSimulatorValue(snapshot.simulatedTitle || simulator.baseTitle || {});
+    simulator.simulatedBuffLoadout = cloneSimulatorValue(
+      snapshot.simulatedBuffLoadout || simulator.baseBuffLoadout || {},
+    );
     simulator.simulatedOathUpgrades = cloneSimulatorValue(
       snapshot.simulatedOathUpgrades || simulator.baseOathUpgrades || {},
     );
@@ -5771,6 +6084,122 @@ export function installEnchantView(ctx) {
     slot.emblems = regularSockets;
     rebuildDealerSimulatorCalculationState();
     return true;
+  }
+
+  function replaceBuffLoadoutRow(collectionName, predicate, nextRow) {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return false;
+    const rows = getBuffLoadoutRowsForMetric(simulator.simulatedBuffLoadout?.[collectionName]);
+    const index = rows.findIndex(predicate);
+    if (index >= 0) rows.splice(index, 1, nextRow);
+    else rows.push(nextRow);
+    simulator.simulatedBuffLoadout[collectionName] = rows;
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
+  function replaceSimulatedBuffEquipment(row, target) {
+    const targetBody = row.targetBuffChanges?.equipment;
+    if (!targetBody?.itemId || !target?.buffSlotId) return false;
+    const current = getBuffLoadoutRowsForMetric(state.dealerSimulator?.simulatedBuffLoadout?.equipment)
+      .find((item) => String(item?.slotName || '').trim() === target.buffSlotId) || {};
+    return replaceBuffLoadoutRow(
+      'equipment',
+      (item) => String(item?.slotName || '').trim() === target.buffSlotId,
+      {
+        ...cloneSimulatorValue(current),
+        ...cloneSimulatorValue(targetBody),
+        slotId: current.slotId || targetBody.slotId || '',
+        slotName: target.buffSlotId,
+      },
+    );
+  }
+
+  function replaceSimulatedBuffTitle(row) {
+    const current = getBuffLoadoutRowsForMetric(state.dealerSimulator?.simulatedBuffLoadout?.equipment)
+      .find((item) => String(item?.slotId || '').trim() === 'TITLE') || {};
+    return replaceBuffLoadoutRow(
+      'equipment',
+      (item) => String(item?.slotId || '').trim() === 'TITLE',
+      {
+        ...cloneSimulatorValue(current),
+        slotId: 'TITLE',
+        slotName: current.slotName || '칭호',
+        itemId: row.itemId,
+        itemName: row.itemName,
+        itemRarity: row.itemRarity,
+        iconUrl: row.iconUrl,
+        optionAbility: row.itemExplain || '',
+        buffContribution: {
+          skillLevel: Number(row.candidateTitleContribution || 0),
+        },
+      },
+    );
+  }
+
+  function replaceSimulatedBuffCreature(row) {
+    const current = getBuffLoadoutRowsForMetric(state.dealerSimulator?.simulatedBuffLoadout?.creature)[0] || {};
+    return replaceBuffLoadoutRow(
+      'creature',
+      () => true,
+      {
+        ...cloneSimulatorValue(current),
+        itemId: row.itemId,
+        itemName: row.targetCreatureName || row.itemName,
+        itemRarity: row.itemRarity,
+        iconUrl: row.iconUrl,
+        optionAbility: row.itemExplain || '',
+        buffContribution: {
+          skillLevel: Number(row.candidateCreatureContribution || 0),
+        },
+      },
+    );
+  }
+
+  function replaceSimulatedBuffAvatar(row, target, platinumOnly = false) {
+    const targetSlotId = target?.buffSlotId;
+    if (!targetSlotId) return false;
+    const current = getBuffLoadoutRowsForMetric(state.dealerSimulator?.simulatedBuffLoadout?.avatar)
+      .find((item) => String(item?.slotId || '').trim() === targetSlotId) || {};
+    const currentContribution = cloneSimulatorValue(current.buffContribution || {});
+    const targetAvatar = row.targetBuffChanges?.avatar || {};
+    const targetPlatinum = row.targetBuffChanges?.platinumEmblem || {};
+    const nextContribution = platinumOnly
+      ? { ...currentContribution, platinumSkillLevel: Number(targetPlatinum.skillLevel || 0) }
+      : cloneSimulatorValue(targetAvatar.buffContribution || {});
+    const nextRow = platinumOnly
+      ? {
+        ...cloneSimulatorValue(current),
+        buffContribution: nextContribution,
+        simulatedPlatinumEmblem: {
+          itemId: targetPlatinum.itemId || row.itemId,
+          itemName: targetPlatinum.itemName || row.itemName,
+          itemRarity: targetPlatinum.itemRarity || row.itemRarity,
+          iconUrl: targetPlatinum.iconUrl || row.iconUrl,
+          targetSkill: targetPlatinum.targetSkill || row.targetSkill,
+        },
+      }
+      : {
+        ...cloneSimulatorValue(current),
+        slotId: targetSlotId,
+        slotName: targetAvatar.slotName || current.slotName || (targetSlotId === 'JACKET' ? '상의' : '하의'),
+        itemId: targetAvatar.itemId || row.itemId,
+        itemName: targetAvatar.itemName || row.itemName,
+        itemRarity: targetAvatar.itemRarity || row.itemRarity,
+        iconUrl: targetAvatar.iconUrl || row.iconUrl,
+        optionAbility: targetAvatar.optionAbility || '',
+        buffContribution: nextContribution,
+        simulatedPlatinumEmblem: {
+          itemId: row.itemId,
+          itemName: `플래티넘 엠블렘[${row.targetSkill || ''}]`,
+          targetSkill: row.targetSkill,
+        },
+      };
+    return replaceBuffLoadoutRow(
+      'avatar',
+      (item) => String(item?.slotId || '').trim() === targetSlotId,
+      nextRow,
+    );
   }
 
   function replaceEquipmentBodyPreservingState(currentEquipment = {}, targetBody = {}) {
@@ -5968,6 +6397,11 @@ export function installEnchantView(ctx) {
     if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
     if (target?.applyType === 'replaceTitle') return replaceSimulatedTitle(row, target);
     if (target?.applyType === 'replaceAvatarEmblems') return replaceSimulatedAvatarEmblems(row, target);
+    if (target?.applyType === 'replaceBuffEquipment') return replaceSimulatedBuffEquipment(row, target);
+    if (target?.applyType === 'replaceBuffTitle') return replaceSimulatedBuffTitle(row, target);
+    if (target?.applyType === 'replaceBuffCreature') return replaceSimulatedBuffCreature(row, target);
+    if (target?.applyType === 'replaceBuffAvatarPackage') return replaceSimulatedBuffAvatar(row, target, false);
+    if (target?.applyType === 'replaceBuffAvatarPlatinum') return replaceSimulatedBuffAvatar(row, target, true);
     if (target?.applyType === 'replaceBlackFangBody') return replaceSimulatedBlackFangBody(row, target);
     if (target?.applyType === 'applyEquipmentTunePlan') return applySimulatedEquipmentTunePlan(row, target);
     if (target?.applyType === 'applyOathTunePlan') return applySimulatedOathTunePlan(row, target);
@@ -6116,6 +6550,9 @@ export function installEnchantView(ctx) {
     simulator.applyingRecommendationId = recommendationId;
     try {
       if (!applySimulatorReplacement(row, target)) return;
+      if (target.applyType === 'replaceBuffAvatarPackage') {
+        delete simulator.activeSelectionByGroup[`buffAvatarPlatinum:${target.buffSlotId}`];
+      }
       if (isOathAcquisition) {
         setActiveOathAcquisitionSelections(
           row,
@@ -6133,7 +6570,9 @@ export function installEnchantView(ctx) {
           goldWithMaterials,
           targetTab: target.targetTab,
           targetSlot: target.targetSlot,
+          buffSlotId: target.buffSlotId || '',
           applyType: target.applyType,
+          appliedRecommendationSnapshot: cloneSimulatorValue(row),
           ...(['applyEquipmentTunePlan', 'applyOathTunePlan'].includes(target.applyType) ? {
             actionType: target.applyType === 'applyOathTunePlan' ? 'oathTunePlan' : 'equipmentTunePlan',
             selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
@@ -6244,6 +6683,98 @@ export function installEnchantView(ctx) {
         },
       ),
     );
+    rebuildDealerSimulatorCalculationState();
+    return true;
+  }
+
+  function restoreSimulatedBuffSelectionToBase(selection = {}) {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return false;
+    const applyType = selection.applyType;
+    if (applyType === 'replaceBuffCreature') {
+      simulator.simulatedBuffLoadout.creature = cloneSimulatorValue(
+        simulator.baseBuffLoadout?.creature || [],
+      );
+    } else if (applyType === 'replaceBuffTitle' || applyType === 'replaceBuffEquipment') {
+      const targetSlotId = applyType === 'replaceBuffTitle'
+        ? 'TITLE'
+        : String(
+          selection.buffSlotId
+          || selection.targetSlot
+          || '',
+        ).replace(/^buffEquipment:/, '').trim();
+      const baseRows = getBuffLoadoutRowsForMetric(simulator.baseBuffLoadout?.equipment);
+      const simulatedRows = getBuffLoadoutRowsForMetric(simulator.simulatedBuffLoadout?.equipment);
+      const baseRow = baseRows.find((item) => (
+        applyType === 'replaceBuffTitle'
+          ? String(item?.slotId || '').trim() === 'TITLE'
+          : String(item?.slotName || '').trim() === targetSlotId
+      ));
+      const index = simulatedRows.findIndex((item) => (
+        applyType === 'replaceBuffTitle'
+          ? String(item?.slotId || '').trim() === 'TITLE'
+          : String(item?.slotName || '').trim() === targetSlotId
+      ));
+      if (index >= 0 && baseRow) simulatedRows.splice(index, 1, cloneSimulatorValue(baseRow));
+      else if (index >= 0) simulatedRows.splice(index, 1);
+      simulator.simulatedBuffLoadout.equipment = simulatedRows;
+    } else if (['replaceBuffAvatarPackage', 'replaceBuffAvatarPlatinum'].includes(applyType)) {
+      const targetSlotId = String(
+        selection.buffSlotId
+        || selection.targetSlot
+        || '',
+      ).replace(/^buffAvatar:/, '').trim();
+      const baseRow = getBuffLoadoutRowsForMetric(simulator.baseBuffLoadout?.avatar)
+        .find((item) => String(item?.slotId || '').trim() === targetSlotId);
+      const simulatedRows = getBuffLoadoutRowsForMetric(simulator.simulatedBuffLoadout?.avatar);
+      const index = simulatedRows.findIndex(
+        (item) => String(item?.slotId || '').trim() === targetSlotId,
+      );
+      if (applyType === 'replaceBuffAvatarPackage') {
+        if (index >= 0 && baseRow) simulatedRows.splice(index, 1, cloneSimulatorValue(baseRow));
+        else if (index >= 0) simulatedRows.splice(index, 1);
+        const platinumSelection = simulator.activeSelectionByGroup?.[`buffAvatarPlatinum:${targetSlotId}`];
+        const platinumTarget = platinumSelection?.appliedRecommendationSnapshot?.targetBuffChanges?.platinumEmblem;
+        const restoredIndex = simulatedRows.findIndex(
+          (item) => String(item?.slotId || '').trim() === targetSlotId,
+        );
+        if (platinumTarget && restoredIndex >= 0) {
+          simulatedRows[restoredIndex] = {
+            ...simulatedRows[restoredIndex],
+            buffContribution: {
+              ...(simulatedRows[restoredIndex].buffContribution || {}),
+              platinumSkillLevel: Number(platinumTarget.skillLevel || 0),
+            },
+            simulatedPlatinumEmblem: cloneSimulatorValue(platinumTarget),
+          };
+        }
+      } else {
+        if (index < 0) {
+          simulator.simulatedBuffLoadout.avatar = simulatedRows;
+          rebuildDealerSimulatorCalculationState();
+          return true;
+        }
+        const current = simulatedRows[index];
+        const packageSelection = simulator.activeSelectionByGroup?.[`buffAvatarPackage:${targetSlotId}`];
+        const packageTarget = packageSelection?.appliedRecommendationSnapshot?.targetBuffChanges?.avatar;
+        const restoredPlatinumLevel = packageTarget
+          ? Number(packageTarget?.buffContribution?.platinumSkillLevel || 0)
+          : Number(baseRow?.buffContribution?.platinumSkillLevel || 0);
+        simulatedRows.splice(index, 1, {
+          ...current,
+          buffContribution: {
+            ...(current.buffContribution || {}),
+            platinumSkillLevel: restoredPlatinumLevel,
+          },
+          simulatedPlatinumEmblem: cloneSimulatorValue(
+            packageTarget ? current.simulatedPlatinumEmblem : baseRow.simulatedPlatinumEmblem || null,
+          ),
+        });
+      }
+      simulator.simulatedBuffLoadout.avatar = simulatedRows;
+    } else {
+      return false;
+    }
     rebuildDealerSimulatorCalculationState();
     return true;
   }
@@ -6391,6 +6922,8 @@ export function installEnchantView(ctx) {
             ? restoreSimulatedAvatarEmblemsToBase(
               String(selection.targetSlot || '').replace(/^avatar:/, ''),
             )
+          : selection.applyType?.startsWith('replaceBuff')
+            ? restoreSimulatedBuffSelectionToBase(selection)
           : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
     if (!restored) return;
     delete simulator.activeSelectionByGroup[exclusiveGroupKey];
@@ -6416,6 +6949,7 @@ export function installEnchantView(ctx) {
     simulator.simulatedAvatar = cloneSimulatorValue(simulator.baseAvatar);
     simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
     simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
+    simulator.simulatedBuffLoadout = cloneSimulatorValue(simulator.baseBuffLoadout);
     simulator.simulatedOathUpgrades = cloneSimulatorValue(simulator.baseOathUpgrades);
     rebuildDealerSimulatorCalculationState();
     simulator.totalGold = 0;
@@ -7119,7 +7653,8 @@ export function installEnchantView(ctx) {
   }
 
   function getBuffLoadoutData() {
-    const loadout = state.currentBuffLoadout || {};
+    const simulator = state.dealerSimulator;
+    const loadout = simulator?.simulatedBuffLoadout || state.currentBuffLoadout || {};
     const equipmentRows = getBuffLoadoutRows(loadout.equipment);
     const equipmentBySlotName = equipmentRows.reduce((map, row) => {
       const rawSlotName = String(row?.slotName || '').trim();
@@ -7138,7 +7673,9 @@ export function installEnchantView(ctx) {
     const baseline = state.currentBufferBaseline || {};
     const skillId = String(skillInfo.skillId || '').trim();
     const className = String(state.enchantTargetCharacter?.jobName || baseline.jobName || '').trim();
-    const skillLevel = Number(skillInfo.level || baseline.buffSkillLevel || 0);
+    const skillLevel = simulator?.baseBuffLoadout
+      ? getBuffEnhancementState(loadout, simulator.baseBuffLoadout).effectiveLevel
+      : Number(skillInfo.level || baseline.buffSkillLevel || 0);
     const maxSkillLevel = Number(skillInfo.maxLevel || 0);
     return {
       equipmentBySlotName,
@@ -7201,10 +7738,15 @@ export function installEnchantView(ctx) {
       : [{ text: '버프강화 적용 효과 없음', className: subClass }];
   }
 
-  function renderBuffLoadoutSlot(item, label, buffSkillName, extraClass = '') {
+  function renderBuffLoadoutSlot(item, label, buffSkillName, extraClass = '', sweepKey = '') {
+    const sweepEntry = state.dealerSimulator?.activeSweepSlots?.get(sweepKey);
+    const hasActiveSweep = Boolean(sweepEntry);
+    const sweepStyle = hasActiveSweep
+      ? ` style="--simulator-sweep-sequence:${Number(sweepEntry.token || 0)}"`
+      : '';
     if (!item) {
       return `
-        <span class="enchant-buff-slot ${escapeHtml(extraClass)}" aria-label="${escapeHtml(label)} 비어 있음">
+        <span class="enchant-buff-slot ${escapeHtml(extraClass)}${hasActiveSweep ? ' is-simulator-sweep' : ''}" aria-label="${escapeHtml(label)} 비어 있음"${sweepStyle}>
           <span class="enchant-character-slot is-empty">
             <span class="enchant-character-slot-placeholder" aria-hidden="true"></span>
           </span>
@@ -7216,7 +7758,7 @@ export function installEnchantView(ctx) {
     const rarityClass = getLoadoutRarityClass(item);
     const detailLines = getBuffContributionDetailLines(item, label, buffSkillName);
     return `
-      <span class="enchant-buff-slot ${escapeHtml(extraClass)}" tabindex="0" aria-label="${escapeHtml(itemName)}" data-buff-loadout-detail data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
+      <span class="enchant-buff-slot ${escapeHtml(extraClass)}${hasActiveSweep ? ' is-simulator-sweep' : ''}" tabindex="0" aria-label="${escapeHtml(itemName)}" data-buff-loadout-detail data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"${sweepStyle}>
         <span class="enchant-character-slot${iconUrl ? '' : ' is-empty'}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}">
           ${iconUrl
             ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
@@ -7255,7 +7797,13 @@ export function installEnchantView(ctx) {
             <div class="enchant-buff-equipment-grid">
               ${BUFF_LOADOUT_EQUIPMENT_SLOT_ROWS.flatMap((row) => row).map((slotName) => (
                 slotName
-                  ? renderBuffLoadoutSlot(equipmentBySlotName[slotName], slotName, skill.name, `enchant-buff-slot-${slotName}`)
+                  ? renderBuffLoadoutSlot(
+                    equipmentBySlotName[slotName],
+                    slotName,
+                    skill.name,
+                    `enchant-buff-slot-${slotName}`,
+                    slotName === '칭호' ? 'buffTitle' : `buffEquipment:${slotName}`,
+                  )
                   : '<span class="enchant-buff-slot-gap" aria-hidden="true"></span>'
               )).join('')}
             </div>
@@ -7265,15 +7813,15 @@ export function installEnchantView(ctx) {
           <h3>아바타</h3>
           <div class="enchant-buff-section-body">
             <div class="enchant-buff-avatar-stack">
-              ${renderBuffLoadoutSlot(avatarBySlotId.JACKET, '상의 아바타', skill.name)}
-              ${renderBuffLoadoutSlot(avatarBySlotId.PANTS, '하의 아바타', skill.name)}
+              ${renderBuffLoadoutSlot(avatarBySlotId.JACKET, '상의 아바타', skill.name, '', 'buffAvatar:JACKET')}
+              ${renderBuffLoadoutSlot(avatarBySlotId.PANTS, '하의 아바타', skill.name, '', 'buffAvatar:PANTS')}
             </div>
           </div>
         </section>
         <section class="enchant-buff-section enchant-buff-section-creature">
           <h3>크리쳐</h3>
           <div class="enchant-buff-section-body">
-            ${renderBuffLoadoutSlot(creature, '크리쳐', skill.name)}
+            ${renderBuffLoadoutSlot(creature, '크리쳐', skill.name, '', 'buffCreature')}
           </div>
         </section>
       </div>
@@ -8063,7 +8611,7 @@ export function installEnchantView(ctx) {
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
-    ];
+    ].map((row) => adaptBuffEnhancementRecommendation(row, state.dealerSimulator));
     renderEnchantFilters(allRows);
 
     const slotFilter = els.enchantSlotFilter?.value || 'all';

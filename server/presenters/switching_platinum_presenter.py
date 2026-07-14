@@ -17,6 +17,7 @@ def build_switching_platinum_recommendation_row(
     price_source,
     price_warning_text,
 ) -> dict:
+    target_slot_id = "JACKET" if "상의" in str(slot or "") else "PANTS"
     return {
         "kind": "switchingPlatinumEmblem",
         "slot": slot,
@@ -33,6 +34,18 @@ def build_switching_platinum_recommendation_row(
         "auction": auction,
         "needCount": 1,
         "targetSkill": target_skill,
+        "targetBuffSlot": target_slot_id,
+        "targetBuffChanges": {
+            "platinumEmblem": {
+                "slotId": target_slot_id,
+                "itemId": item_id,
+                "itemName": item_name,
+                "itemRarity": item_rarity,
+                "iconUrl": icon_url,
+                "targetSkill": target_skill,
+                "skillLevel": 1,
+            },
+        },
         "equivalentTargetSkills": equivalent_target_skills,
         "currentPlatinumSkill": current_platinum_skill,
         "currentSwitchingMultiplier": current_switching_multiplier,
