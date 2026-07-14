@@ -307,7 +307,8 @@ def build_material_enchant_sources(item: dict, detail: dict) -> list:
     sources = []
     for enchant in enchant_rows:
         effects = order_effects(normalize_enchant_status(enchant.get("status") or []))
-        if not effects:
+        reinforce_skill = enchant.get("reinforceSkill") or []
+        if not effects and not reinforce_skill:
             continue
         fallback_slot = clean_text(fallback_sources[0].get("slot")) if fallback_sources else ""
         for slot in slots or [fallback_slot]:
@@ -318,7 +319,7 @@ def build_material_enchant_sources(item: dict, detail: dict) -> list:
                 "tier": tier,
                 "role": clean_text(item.get("role")) or "dealer",
                 "effects": effects,
-                "reinforceSkill": enchant.get("reinforceSkill") or [],
+                "reinforceSkill": reinforce_skill,
                 "searchName": search_name,
             })
     return sources or fallback_sources
@@ -344,7 +345,8 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
         return fallback_sources
     max_enchant = max(enchant_rows, key=lambda enchant: int(enchant.get("upgrade") or 0))
     effects = order_effects(normalize_enchant_status(max_enchant.get("status") or []))
-    if not effects:
+    reinforce_skill = max_enchant.get("reinforceSkill") or []
+    if not effects and not reinforce_skill:
         return fallback_sources
     tier = clean_text(card.get("tier")) or clean_text((fallback_sources[0] or {}).get("tier")) or "일반"
     search_name = clean_text(card.get("searchName") or card.get("itemName") or detail.get("itemName"))
@@ -355,7 +357,7 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
             "tier": tier,
             "role": clean_text(card.get("role")) or "dealer",
             "effects": effects,
-            "reinforceSkill": max_enchant.get("reinforceSkill") or [],
+            "reinforceSkill": reinforce_skill,
             "searchName": search_name,
         })
     return sources or fallback_sources

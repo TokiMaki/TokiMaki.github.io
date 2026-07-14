@@ -14,6 +14,7 @@ from threading import BoundedSemaphore, Event, Lock
 from urllib.parse import parse_qs, quote, urlparse
 
 from server.character_equipment_service import (
+    build_buffer_enchant_skill_context_payload,
     load_character_aura,
     load_character_avatar,
     load_character_creature,
@@ -691,10 +692,21 @@ class HellApiHandler(SimpleHTTPRequestHandler):
     def handle_enchant_cards(self, parsed):
         query = parse_qs(parsed.query)
         force_refresh = (query.get("refresh") or [""])[0] == "1"
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
+        is_buffer = clean_text((query.get("role") or [""])[0]) == "buffer"
         try:
             body, cache_hit = load_public_response_body(
-                get_public_response_cache_key("enchant-cards", query),
-                lambda: load_enchant_cards_with_prices(force_refresh=force_refresh),
+                get_public_response_cache_key(
+                    "enchant-cards",
+                    query,
+                    include_character=bool(is_buffer and server_id and character_id),
+                ),
+                lambda: build_buffer_enchant_skill_context_payload(
+                    server_id,
+                    character_id,
+                    load_enchant_cards_with_prices(force_refresh=force_refresh),
+                ) if is_buffer and server_id and character_id else load_enchant_cards_with_prices(force_refresh=force_refresh),
                 force_refresh=force_refresh,
             )
             self.send_json_body(body, cache_control="public, max-age=60", cache_hit=cache_hit)

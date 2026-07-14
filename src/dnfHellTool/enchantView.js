@@ -1219,30 +1219,75 @@ const BUFFER_SIMULATOR_CHANGE_KEYS = [
   'auraAttackDelta',
 ];
 
-function resolveBufferNetChanges(changesBySlot = {}) {
-  return Object.values(changesBySlot || {}).reduce((total, changes) => {
+function getBufferSkillContributionMap(contributions = []) {
+  if (!Array.isArray(contributions)) return null;
+  const result = {};
+  for (const contribution of contributions) {
+    const contextKey = String(contribution?.contextKey || '').trim();
+    const levelContribution = Number(contribution?.levelContribution);
+    if (!contextKey || !Number.isFinite(levelContribution)) return null;
+    result[contextKey] = (result[contextKey] || 0) + levelContribution;
+  }
+  return result;
+}
+
+function resolveBufferNetChanges(changesBySlot = {}, skillContexts = {}) {
+  const changes = Object.values(changesBySlot || {});
+  const total = changes.reduce((result, slotChanges) => {
     BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
-      const value = changes?.[key] == null ? 0 : Number(changes[key]);
+      const value = slotChanges?.[key] == null ? 0 : Number(slotChanges[key]);
       if (!Number.isFinite(value)) throw new TypeError(`Invalid buffer simulator change: ${key}`);
+      result[key] += value;
+    });
+    return result;
+  }, Object.fromEntries(BUFFER_SIMULATOR_CHANGE_KEYS.map((key) => [key, 0])));
+
+  const levelDeltaByContext = {};
+  changes.forEach((slotChanges) => {
+    const baseMap = getBufferSkillContributionMap(slotChanges?.baseSkillContributions || []);
+    const targetMap = getBufferSkillContributionMap(slotChanges?.targetSkillContributions || []);
+    if (baseMap == null || targetMap == null) throw new TypeError('Invalid buffer skill contribution');
+    new Set([...Object.keys(baseMap), ...Object.keys(targetMap)]).forEach((contextKey) => {
+      levelDeltaByContext[contextKey] = (levelDeltaByContext[contextKey] || 0)
+        + Number(targetMap[contextKey] || 0)
+        - Number(baseMap[contextKey] || 0);
+    });
+  });
+
+  Object.entries(levelDeltaByContext).forEach(([contextKey, levelDelta]) => {
+    if (!levelDelta) return;
+    const context = skillContexts?.[contextKey];
+    const simulatedLevel = Number(context?.currentLevel) + levelDelta;
+    const netChanges = context?.netChangesByLevel?.[String(simulatedLevel)];
+    if (!context || !Number.isInteger(simulatedLevel) || !netChanges) {
+      throw new RangeError(`Unsupported buffer skill level: ${contextKey}:${simulatedLevel}`);
+    }
+    ['selfStatSkillDelta', 'auraStatDelta', 'auraAttackDelta'].forEach((key) => {
+      const value = Number(netChanges[key] || 0);
+      if (!Number.isFinite(value)) throw new TypeError(`Invalid buffer skill change: ${contextKey}:${key}`);
       total[key] += value;
     });
-    return total;
-  }, Object.fromEntries(BUFFER_SIMULATOR_CHANGE_KEYS.map((key) => [key, 0])));
+  });
+  return total;
 }
 
 function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
   if (row?.sourceType !== 'enchant' || row?.role !== 'buffer') return null;
-  const skillDelta = getBufferEnchantSkillDelta(row, baseEnchant || {}, baseline || {});
-  if (Object.values(skillDelta).some((value) => Number(value || 0) !== 0)) return null;
-  const protectedSkillNames = [
-    baseline?.buffSkillName,
-    baseline?.awakeningSkillName,
-    ...Object.keys(baseline?.currentSelfStatSkills || {}),
-  ].filter(Boolean);
   const jobName = baseline?.jobName || '';
-  const protectedSkillLevelDelta = getReinforceSkillLevel(row.reinforceSkill || [], jobName, protectedSkillNames)
-    - getReinforceSkillLevel(baseEnchant?.reinforceSkill || [], jobName, protectedSkillNames);
-  if (protectedSkillLevelDelta !== 0) return null;
+  const rawSkillLevel = getReinforceSkillLevel(row.reinforceSkill || [], jobName);
+  const rawBaseSkillLevel = getReinforceSkillLevel(baseEnchant?.reinforceSkill || [], jobName);
+  if (rawSkillLevel && !Array.isArray(row.bufferSkillContributions)) return null;
+  if (rawBaseSkillLevel && !Array.isArray(baseEnchant?.bufferSkillContributions)) return null;
+  const targetSkillContributions = row.bufferSkillContributions || [];
+  const baseSkillContributions = baseEnchant?.bufferSkillContributions || [];
+  const targetContributionMap = getBufferSkillContributionMap(targetSkillContributions);
+  const baseContributionMap = getBufferSkillContributionMap(baseSkillContributions);
+  if (targetContributionMap == null || baseContributionMap == null) return null;
+  const contextKeys = new Set([
+    ...Object.keys(targetContributionMap),
+    ...Object.keys(baseContributionMap),
+  ]);
+  if ([...contextKeys].some((contextKey) => !baseline?.bufferSkillContexts?.[contextKey])) return null;
   const targetEffects = getRoleRelevantEffects(row.effects || {}, true);
   const currentEffects = getRoleRelevantEffects(baseEnchant?.effects || {}, true);
   const changedKeys = new Set([
@@ -1251,8 +1296,12 @@ function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
   ].filter((key) => Number(targetEffects?.[key] || 0) !== Number(currentEffects?.[key] || 0)));
   if ([...changedKeys].some((key) => key !== 'allStat')) return null;
   const statDelta = Number(targetEffects?.allStat || 0) - Number(currentEffects?.allStat || 0);
-  if (!Number.isFinite(statDelta) || statDelta <= 0) return null;
-  return { statDelta };
+  if (!Number.isFinite(statDelta)) return null;
+  return {
+    statDelta,
+    baseSkillContributions,
+    targetSkillContributions,
+  };
 }
 
 function getBufferEnchantExclusiveGroupKey(row = {}) {
@@ -1542,11 +1591,24 @@ function getBufferRecommendationRows(
       awakeningSkillLevelDelta: Number(avatarSkillLevelChanges.awakeningSkillLevelDelta || 0)
         + Number(itemSkillChanges.awakeningSkillLevelDelta || 0),
     };
-    const baseCandidateScore = calculateBufferScore(baseline, baseCandidateChanges);
+    const bufferBaseRelativeChanges = getBufferEnchantBaseRelativeChanges(row, current, baseline);
+    let bufferSimulatorSupported = simulator?.role === 'buffer' && Boolean(bufferBaseRelativeChanges);
+    let baseCandidateScore = calculateBufferScore(baseline, baseCandidateChanges);
+    if (bufferSimulatorSupported) {
+      try {
+        baseCandidateScore = calculateBufferScore(
+          baseline,
+          resolveBufferNetChanges(
+            { [row.slot]: bufferBaseRelativeChanges },
+            simulator.bufferSkillContexts,
+          ),
+        );
+      } catch {
+        bufferSimulatorSupported = false;
+      }
+    }
     const baseIncrementalBuffScore = baseCandidateScore - baseScore;
     if (baseIncrementalBuffScore <= 0.0001) return;
-    const bufferBaseRelativeChanges = getBufferEnchantBaseRelativeChanges(row, current, baseline);
-    const bufferSimulatorSupported = simulator?.role === 'buffer' && Boolean(bufferBaseRelativeChanges);
     let candidateScore = baseCandidateScore;
     let comparisonScore = baseScore;
     if (bufferSimulatorSupported) {
@@ -1554,8 +1616,17 @@ function getBufferRecommendationRows(
         ...(simulator.enchantChangesBySlot || {}),
         [row.slot]: bufferBaseRelativeChanges,
       };
-      candidateScore = calculateBufferScore(baseline, resolveBufferNetChanges(candidateChangesBySlot));
-      comparisonScore = currentScore;
+      try {
+        candidateScore = calculateBufferScore(
+          baseline,
+          resolveBufferNetChanges(candidateChangesBySlot, simulator.bufferSkillContexts),
+        );
+        comparisonScore = currentScore;
+      } catch {
+        bufferSimulatorSupported = false;
+        candidateScore = baseCandidateScore;
+        comparisonScore = baseScore;
+      }
     }
     const incrementalBuffScore = candidateScore - comparisonScore;
     const incrementalBuffPercent = comparisonScore > 0 ? (candidateScore / comparisonScore - 1) * 100 : 0;
@@ -5887,6 +5958,7 @@ export function installEnchantView(ctx) {
   state.upgradeMaterialPrices = {};
   state.currentDamageBaseline = null;
   state.currentBufferBaseline = null;
+  state.currentBufferSkillContexts = {};
   state.currentBufferScoreStatus = 'idle';
   state.currentOfficialEquipmentScore = null;
   state.currentOfficialEquipmentScoreStatus = 'idle';
@@ -6340,7 +6412,10 @@ export function installEnchantView(ctx) {
   function initializeDealerSimulator() {
     if (state.currentBufferBaseline?.isBuffer) {
       const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
-      const baseBaseline = cloneSimulatorValue(state.currentBufferBaseline || {});
+      const baseBaseline = {
+        ...cloneSimulatorValue(state.currentBufferBaseline || {}),
+        bufferSkillContexts: cloneSimulatorValue(state.currentBufferSkillContexts || {}),
+      };
       const baseBufferScore = calculateBufferScore(baseBaseline);
       state.dealerSimulator = {
         role: 'buffer',
@@ -6350,6 +6425,7 @@ export function installEnchantView(ctx) {
         baseEnchants,
         simulatedEnchants: cloneSimulatorValue(baseEnchants),
         enchantChangesBySlot: {},
+        bufferSkillContexts: cloneSimulatorValue(state.currentBufferSkillContexts || {}),
         totalGold: 0,
         activeSelectionByGroup: {},
         selectedRecommendationId: '',
@@ -6730,7 +6806,7 @@ export function installEnchantView(ctx) {
     if (simulator?.role !== 'buffer') return;
     simulator.currentBufferScore = calculateBufferScore(
       simulator.baseBaseline,
-      resolveBufferNetChanges(simulator.enchantChangesBySlot),
+      resolveBufferNetChanges(simulator.enchantChangesBySlot, simulator.bufferSkillContexts),
     );
   }
 
@@ -6746,6 +6822,7 @@ export function installEnchantView(ctx) {
       slot: targetSlot,
       effects: cloneSimulatorValue(row.effects || {}),
       reinforceSkill: cloneSimulatorValue(row.reinforceSkill || []),
+      bufferSkillContributions: cloneSimulatorValue(row.bufferSkillContributions || []),
       simulatedEnchantItemName: row.itemName || '',
     };
     if (currentIndex >= 0) simulator.simulatedEnchants.splice(currentIndex, 1, nextEnchant);
@@ -9631,6 +9708,7 @@ export function installEnchantView(ctx) {
     state.upgradeMaterialPrices = {};
     state.currentDamageBaseline = null;
     state.currentBufferBaseline = null;
+    state.currentBufferSkillContexts = {};
     state.currentBufferScoreStatus = 'idle';
     state.currentOfficialEquipmentScore = null;
     state.currentOfficialEquipmentScoreStatus = 'idle';
@@ -10088,7 +10166,7 @@ export function installEnchantView(ctx) {
         state.currentCreature,
         state.currentTitle,
         state.currentAura,
-        state.currentBufferBaseline,
+        simulator?.role === 'buffer' ? simulator.baseBaseline : state.currentBufferBaseline,
         includeMaterialCosts,
         simulator,
       )
@@ -10912,7 +10990,11 @@ export function installEnchantView(ctx) {
     try {
       await loadCurrentCharacterLoadout(requestId);
       if (requestId !== state.enchantRequestId) return;
-      if (!state.enchantPriceLoaded || !hasEnchantPriceRecommendationData()) {
+      if (
+        state.currentBufferBaseline?.isBuffer
+        || !state.enchantPriceLoaded
+        || !hasEnchantPriceRecommendationData()
+      ) {
         await loadEnchantCards(false, { refreshCurrentCharacter: false, skipImmediateRender: true, requestId });
       } else {
         await Promise.all([
@@ -11067,6 +11149,7 @@ export function installEnchantView(ctx) {
       if (currentCharacter.serverId && currentCharacter.characterId) {
         queryParams.set('serverId', currentCharacter.serverId);
         queryParams.set('characterId', currentCharacter.characterId);
+        if (state.currentBufferBaseline?.isBuffer) queryParams.set('role', 'buffer');
       }
       const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const priceStartedAt = getEnchantNowMs();
@@ -11082,6 +11165,10 @@ export function installEnchantView(ctx) {
       const auraPayload = await parseApiJsonResponse(auraResponse, '오라 가격 조회에 실패했습니다.');
       if (isStalePriceRequest()) return;
       state.enchantCards = Array.isArray(payload.cards) ? payload.cards : [];
+      state.currentBufferSkillContexts = payload.bufferSkillContexts && typeof payload.bufferSkillContexts === 'object'
+        ? payload.bufferSkillContexts
+        : {};
+      if (state.currentBufferBaseline?.isBuffer) initializeDealerSimulator();
       state.creatureUpgradeGroups = Array.isArray(creaturePayload.groups) ? creaturePayload.groups : [];
       state.creatureArtifactGroups = Array.isArray(creaturePayload.artifactGroups) ? creaturePayload.artifactGroups : [];
       state.titleUpgradeGroups = Array.isArray(titlePayload.groups) ? titlePayload.groups : [];

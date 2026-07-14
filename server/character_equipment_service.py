@@ -1,3 +1,4 @@
+import copy
 import re
 import threading
 import time
@@ -536,7 +537,11 @@ def load_character_damage_baseline(server_id: str, character_id: str, equipment_
     return build_damage_baseline_from_status_payload(payload, equipment_base_element)
 
 
-def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | None:
+def load_character_buffer_baseline(
+    server_id: str,
+    character_id: str,
+    include_skill_details: bool = False,
+) -> dict | None:
     payload = get_character_cached_payload(server_id, character_id, "status", "status")
     status = status_rows_to_map(payload.get("status") or [])
     job_name = clean_text(payload.get("jobName"))
@@ -568,6 +573,7 @@ def load_character_buffer_baseline(server_id: str, character_id: str) -> dict | 
         stat_name,
         skill_levels.get("buffSkillName") or "",
         skill_levels.get("awakeningSkillName") or "",
+        include_skill_details=include_skill_details,
     )
     return {
         "isBuffer": True,
@@ -614,6 +620,41 @@ def get_named_skill_level_bonus_any(reinforce_skill: list, job_name: str, skill_
         get_named_skill_level_bonus(reinforce_skill, job_name, skill_name)
         for skill_name in target_skill_names
     )
+
+
+def normalize_buffer_skill_contributions(reinforce_skill: list, job_id: str, job_name: str) -> list:
+    contributions = {}
+    normalized_job_id = clean_text(job_id)
+    normalized_job_name = clean_text(job_name)
+    has_matching_job_id = any(
+        normalized_job_id and clean_text(job.get("jobId")) == normalized_job_id
+        for job in reinforce_skill or []
+    )
+    for job in reinforce_skill or []:
+        source_job_id = clean_text(job.get("jobId"))
+        source_job_name = clean_text(job.get("jobName"))
+        if source_job_id:
+            if has_matching_job_id and source_job_id != normalized_job_id:
+                continue
+            if not has_matching_job_id and source_job_name not in {"공통", normalized_job_name}:
+                continue
+        elif source_job_name not in {"", "공통", normalized_job_name}:
+            continue
+        for skill in job.get("skills") or []:
+            skill_id = clean_text(skill.get("skillId"))
+            skill_name = clean_text(skill.get("name"))
+            if not skill_id:
+                continue
+            context_key = f"{normalized_job_id}:{skill_id}"
+            contribution = contributions.setdefault(context_key, {
+                "contextKey": context_key,
+                "jobId": normalized_job_id,
+                "skillId": skill_id,
+                "skillName": skill_name,
+                "levelContribution": 0,
+            })
+            contribution["levelContribution"] += int(skill.get("value") or 0)
+    return list(contributions.values())
 
 
 def normalize_job_grow_name(value: str) -> str:
@@ -799,13 +840,14 @@ def build_equipment_enchant_rows_and_upgrades(equipment_rows: list) -> tuple[lis
             equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
         enchant = equipment.get("enchant") or {}
         status_rows = enchant.get("status") or []
-        if not slot_name or not status_rows:
+        reinforce_skill = enchant.get("reinforceSkill") or []
+        if not slot_name or (not status_rows and not reinforce_skill):
             continue
         rows.append({
             "slot": slot_name,
             "itemName": clean_text(equipment.get("itemName")),
             "effects": normalize_enchant_status(status_rows),
-            "reinforceSkill": enchant.get("reinforceSkill") or [],
+            "reinforceSkill": reinforce_skill,
             "rawStatus": status_rows,
         })
     return rows, equipment_upgrades
@@ -935,6 +977,13 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         lambda: load_character_oath_upgrades(server_id, character_id),
     )
     buffer_baseline = load_character_buffer_baseline(server_id, character_id)
+    if buffer_baseline:
+        for row in rows:
+            row["bufferSkillContributions"] = normalize_buffer_skill_contributions(
+                row.get("reinforceSkill") or [],
+                buffer_baseline.get("jobId") or "",
+                buffer_baseline.get("jobName") or "",
+            )
     try:
         oath_payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath") if oath_upgrades else {}
     except Exception:
@@ -981,6 +1030,166 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
             "build_oath_craft_recommendations": oath_craft_debug.get("steps") or [],
         },
     )
+
+
+def build_buffer_enchant_skill_context_payload(server_id: str, character_id: str, payload: dict) -> dict:
+    result = copy.deepcopy(payload)
+    baseline = load_character_buffer_baseline(server_id, character_id, include_skill_details=True)
+    if not baseline:
+        result["bufferSkillContexts"] = {}
+        return result
+
+    job_id = clean_text(baseline.get("jobId"))
+    job_name = clean_text(baseline.get("jobName"))
+    skill_detail_by_context = baseline.pop("_bufferSkillDetails", {})
+    equipment_payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
+    current_rows, _ = build_equipment_enchant_rows_and_upgrades(equipment_payload.get("equipment") or [])
+    base_contributions_by_slot = {
+        clean_text(row.get("slot")): normalize_buffer_skill_contributions(
+            row.get("reinforceSkill") or [], job_id, job_name,
+        )
+        for row in current_rows
+        if clean_text(row.get("slot"))
+    }
+
+    candidate_contributions_by_slot = {}
+    candidate_context_keys = set()
+    for card in result.get("cards") or []:
+        card_role = clean_text(card.get("role"))
+        for source in card.get("sources") or []:
+            if clean_text(source.get("role") or card_role) != "buffer":
+                continue
+            contributions = normalize_buffer_skill_contributions(
+                source.get("reinforceSkill") or [], job_id, job_name,
+            )
+            source["bufferSkillContributions"] = contributions
+            slot = clean_text(source.get("slot"))
+            if slot:
+                candidate_contributions_by_slot.setdefault(slot, []).append(contributions)
+            candidate_context_keys.update(
+                clean_text(contribution.get("contextKey"))
+                for contribution in contributions
+                if clean_text(contribution.get("contextKey"))
+            )
+
+    skill_info_by_context = {
+        clean_text(info.get("contextKey")): {**info, "skillName": skill_name}
+        for skill_name, info in (baseline.get("currentSelfStatSkills") or {}).items()
+        if clean_text(info.get("contextKey"))
+    }
+    all_candidate_slots = set(candidate_contributions_by_slot)
+    candidate_context_keys.update(
+        clean_text(contribution.get("contextKey"))
+        for slot in all_candidate_slots
+        for contribution in base_contributions_by_slot.get(slot) or []
+        if clean_text(contribution.get("contextKey"))
+    )
+    contexts = {}
+    for context_key in candidate_context_keys:
+        skill_info = skill_info_by_context.get(context_key)
+        if not skill_info:
+            continue
+        current_level = int(skill_info.get("level") or 0)
+        skill_id = clean_text(skill_info.get("skillId"))
+        if current_level <= 0 or not skill_id:
+            continue
+
+        min_delta = 0
+        max_delta = 0
+        for slot in all_candidate_slots:
+            base_map = {
+                clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
+                for row in base_contributions_by_slot.get(slot) or []
+            }
+            base_value = base_map.get(context_key, 0)
+            possible_values = [base_value]
+            for contributions in candidate_contributions_by_slot.get(slot) or []:
+                contribution_map = {
+                    clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
+                    for row in contributions
+                }
+                possible_values.append(contribution_map.get(context_key, 0))
+            min_delta += min(possible_values) - base_value
+            max_delta += max(possible_values) - base_value
+
+        minimum_level = current_level + min_delta
+        maximum_level = current_level + max_delta
+        skill_detail = skill_detail_by_context.get(context_key) or fetch_skill_detail_from_api(job_id, skill_id)
+        available_levels = {
+            int(row.get("level") or 0)
+            for row in ((skill_detail.get("levelInfo") or {}).get("rows") or [])
+            if isinstance(row, dict) and int(row.get("level") or 0) > 0
+        }
+        required_levels = set(range(minimum_level, maximum_level + 1))
+        if not required_levels or not required_levels.issubset(available_levels):
+            continue
+
+        affects_self_stat = bool(skill_info.get("affectsSelfStat"))
+        affects_aura_stat = bool(skill_info.get("affectsAuraStat"))
+        affects_aura_attack = bool(skill_info.get("affectsAuraAttack"))
+        if not any((affects_self_stat, affects_aura_stat, affects_aura_attack)):
+            continue
+        option_lines = str((skill_detail.get("levelInfo") or {}).get("optionDesc") or "").splitlines()
+
+        def has_value_label(predicate) -> bool:
+            return any(
+                predicate(clean_text(line)) and re.search(r"\{value\d+\}", line)
+                for line in option_lines
+            )
+
+        if affects_self_stat and not has_value_label(lambda line: clean_text(baseline.get("statName")) in line):
+            continue
+        if affects_aura_stat and not has_value_label(lambda line: "힘" in line and "지능" in line and "증가" in line):
+            continue
+        if affects_aura_attack and not has_value_label(lambda line: "파티원" in line and "공격력 증가" in line):
+            continue
+        current_stat = get_skill_level_stat_value(skill_detail, current_level, baseline.get("statName") or "")
+        current_party_stat = get_skill_level_labeled_value(
+            skill_detail,
+            current_level,
+            lambda line: "힘" in line and "지능" in line and "증가" in line,
+        ) if affects_aura_stat else 0
+        current_party_attack = get_skill_level_labeled_value(
+            skill_detail,
+            current_level,
+            lambda line: "파티원" in line and "공격력 증가" in line,
+        ) if affects_aura_attack else 0
+        net_changes_by_level = {}
+        for level in sorted(required_levels):
+            net_changes_by_level[str(level)] = {
+                "selfStatSkillDelta": (
+                    get_skill_level_stat_value(skill_detail, level, baseline.get("statName") or "") - current_stat
+                    if affects_self_stat else 0
+                ),
+                "auraStatDelta": (
+                    get_skill_level_labeled_value(
+                        skill_detail,
+                        level,
+                        lambda line: "힘" in line and "지능" in line and "증가" in line,
+                    ) - current_party_stat
+                    if affects_aura_stat else 0
+                ),
+                "auraAttackDelta": (
+                    get_skill_level_labeled_value(
+                        skill_detail,
+                        level,
+                        lambda line: "파티원" in line and "공격력 증가" in line,
+                    ) - current_party_attack
+                    if affects_aura_attack else 0
+                ),
+            }
+        contexts[context_key] = {
+            "jobId": job_id,
+            "skillId": skill_id,
+            "skillName": clean_text(skill_info.get("skillName")),
+            "currentLevel": current_level,
+            "minReachableLevel": minimum_level,
+            "maxReachableLevel": maximum_level,
+            "netChangesByLevel": net_changes_by_level,
+        }
+
+    result["bufferSkillContexts"] = contexts
+    return result
 
 
 def load_character_creature(server_id: str, character_id: str) -> dict:
@@ -3946,6 +4155,7 @@ def get_buffer_switching_stat_delta(
     stat_name: str,
     buff_skill_name: str,
     awakening_skill_name: str,
+    include_skill_details: bool = False,
 ) -> dict:
     current_equipment = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment") or []
     current_avatar = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar").get("avatar") or []
@@ -3999,6 +4209,7 @@ def get_buffer_switching_stat_delta(
     )
 
     style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
+    job_id = clean_text(style_payload.get("jobId"))
     style_rows = flatten_skill_rows(style_payload)
     style_by_name = {clean_text(row.get("name")): row for row in style_rows if clean_text(row.get("name"))}
     current_bonuses = get_setup_skill_bonuses(current_rows, detail_by_id, style_rows, job_name)
@@ -4037,8 +4248,14 @@ def get_buffer_switching_stat_delta(
             skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
         current_level = base_level + current_bonuses.get(name, 0)
         current_self_stat_skills[name] = {
+            "contextKey": f"{job_id}:{skill_id}",
+            "jobId": job_id,
+            "skillId": skill_id,
             "level": current_level,
             "requiredLevel": int(style_row.get("requiredLevel") or 0),
+            "affectsSelfStat": name in relevant_skills,
+            "affectsAuraStat": name in score_skills.get("auraStat", set()),
+            "affectsAuraAttack": name in score_skills.get("auraAttack", set()),
             "previousStat": get_skill_level_stat_value(skill_detail, current_level - 1, stat_name),
             "currentStat": get_skill_level_stat_value(skill_detail, current_level, stat_name),
             "nextStat": get_skill_level_stat_value(skill_detail, current_level + 1, stat_name),
@@ -4099,7 +4316,8 @@ def get_buffer_switching_stat_delta(
         )
         for name in score_skills.get("auraAttack", set())
     )
-    return {
+    result = {
+        "jobId": job_id,
         "switchingStatDelta": direct_delta + skill_delta,
         "switchingDirectStatDelta": direct_delta,
         "switchingSkillStatDelta": skill_delta,
@@ -4111,6 +4329,13 @@ def get_buffer_switching_stat_delta(
         "auraStat": aura_stat,
         "auraAttack": aura_attack,
     }
+    if include_skill_details:
+        result["_bufferSkillDetails"] = {
+            f"{job_id}:{clean_text((style_by_name.get(name) or {}).get('skillId'))}": skill_detail
+            for name, skill_detail in skill_detail_by_name.items()
+            if clean_text((style_by_name.get(name) or {}).get("skillId"))
+        }
+    return result
 
 
 def get_avatar_platinum_damage_percent(slot_label: str) -> float:
