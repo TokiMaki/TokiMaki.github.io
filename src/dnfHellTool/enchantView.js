@@ -422,8 +422,8 @@ function getMaterialGold(materials = []) {
 function getRecommendationGold(row, includeMaterialCosts = false) {
   const baseGold = Number.isFinite(row?.expectedGold) ? row.expectedGold : Number(row?.auction?.minUnitPrice || 0);
   if (!Number.isFinite(baseGold) || baseGold <= 0) return 0;
-  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row?.sourceType)) return baseGold;
-  const materialGold = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)
+  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)) return baseGold;
+  const materialGold = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
     ? getMaterialGold(row.expectedMaterials)
     : getMaterialGold(row.materials);
   return baseGold + materialGold;
@@ -867,8 +867,8 @@ function formatOathTuneEffect(row) {
   return `${pointText} / ${tuneText}`;
 }
 
-function formatOathTranscendEffect(row, isBuffer = false) {
-  const optionText = formatBlackFangEffect(row, isBuffer);
+function formatOathTranscendEffect(row, isBuffer = false, setPointOnly = false) {
+  const optionText = setPointOnly ? '' : formatBlackFangEffect(row, isBuffer);
   const hasSetPoint = Number.isFinite(row.currentSetPoint) && Number.isFinite(row.targetSetPoint) && row.currentSetPoint !== row.targetSetPoint;
   if (!hasSetPoint) return optionText;
   const formatStagePoint = (stageName, setPoint, requiredPoint) => {
@@ -934,11 +934,11 @@ function formatEquipmentTuneEffectHtml(row, escapeHtml) {
   return `${pointHtml} / ${escape(tuneText)}`;
 }
 
-function formatOathTranscendEffectHtml(row, isBuffer, escapeHtml) {
+function formatOathTranscendEffectHtml(row, isBuffer, escapeHtml, setPointOnly = false) {
   const hasSetPoint = Number.isFinite(row.currentSetPoint) && Number.isFinite(row.targetSetPoint) && row.currentSetPoint !== row.targetSetPoint;
   if (!hasSetPoint || (!row.currentOathStageName && !row.targetOathStageName)) return '';
   const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
-  const optionText = formatBlackFangEffect(row, isBuffer);
+  const optionText = setPointOnly ? '' : formatBlackFangEffect(row, isBuffer);
   const formatStagePoint = (stageName, setPoint, requiredPoint) => {
     return formatOathStageNameHtml(`${stageName || '서약'} ${formatEffectNumber(setPoint)}`, escape);
   };
@@ -3423,6 +3423,170 @@ function collapseOathDecisionRecommendationVariants(rows = [], selectedIndexByGr
   });
 }
 
+function getOathAcquisitionVariantRows(row = {}) {
+  return (Array.isArray(row.oathDecisionVariants) && row.oathDecisionVariants.length
+    ? row.oathDecisionVariants
+    : [row])
+    .filter(Boolean)
+    .slice()
+    .sort((a, b) => Number(a.variantCount || 1) - Number(b.variantCount || 1));
+}
+
+function getOathAcquisitionVariantForCount(row = {}, count = 0) {
+  const requestedCount = Number(count || 0);
+  if (!Number.isInteger(requestedCount) || requestedCount <= 0) return null;
+  return getOathAcquisitionVariantRows(row)
+    .find((variant) => Number(variant.variantCount || 1) === requestedCount) || null;
+}
+
+function getOathAcquisitionCombinedPairKey(row = {}) {
+  if (!OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return '';
+  const targetRarity = String(row.targetRarity || row.itemRarity || '').trim();
+  return targetRarity ? `oathDecision:${targetRarity}` : '';
+}
+
+function getOathAcquisitionVariantFromRecommendations(recommendations = [], count = 0) {
+  const requestedCount = Number(count || 0);
+  if (!Number.isInteger(requestedCount) || requestedCount <= 0) return null;
+  return recommendations
+    .flatMap(getOathAcquisitionVariantRows)
+    .find((variant) => Number(variant.variantCount || 1) === requestedCount) || null;
+}
+
+function getActiveOathAcquisitionMethodCounts(simulator = {}, rows = []) {
+  const variantGroupKeys = new Set(rows.map((row) => row?.variantGroupKey).filter(Boolean));
+  return Object.values(simulator?.activeSelectionByGroup || {}).reduce((counts, selection) => {
+    if (
+      selection?.applyType !== 'acquireOathDecision'
+      || !variantGroupKeys.has(selection.acquisitionVariantGroupKey)
+    ) return counts;
+    const method = selection.acquisitionMethod === 'craft' ? 'craft' : 'transcend';
+    counts[method] += 1;
+    return counts;
+  }, { transcend: 0, craft: 0 });
+}
+
+function combineOathAcquisitionRecommendationRows(
+  rows = [],
+  simulator = {},
+  previewCountsByPair = {},
+  includeMaterialCosts = false,
+) {
+  const rowsByPair = new Map();
+  rows.forEach((row, index) => {
+    const pairKey = getOathAcquisitionCombinedPairKey(row);
+    if (!pairKey) return;
+    const pair = rowsByPair.get(pairKey) || { index, transcend: [], craft: [] };
+    pair[row.sourceType === 'oathCraft' ? 'craft' : 'transcend'].push(row);
+    rowsByPair.set(pairKey, pair);
+  });
+  const emittedPairs = new Set();
+  return rows.flatMap((row) => {
+    const pairKey = getOathAcquisitionCombinedPairKey(row);
+    const pair = rowsByPair.get(pairKey);
+    if (!pairKey || !pair?.transcend.length || !pair?.craft.length) return [row];
+    if (emittedPairs.has(pairKey)) return [];
+    emittedPairs.add(pairKey);
+    const pickRepresentative = (candidates) => (
+      candidates.find((candidate) => isAppliedOathAcquisitionRecommendation(candidate, simulator))
+      || candidates.find((candidate) => Array.isArray(candidate.oathDecisionVariants))
+      || candidates[0]
+    );
+    const transcendRecommendations = pair.transcend.slice();
+    const craftRecommendations = pair.craft.slice();
+    const transcendRecommendation = pickRepresentative(transcendRecommendations);
+    const craftRecommendation = pickRepresentative(craftRecommendations);
+    const activeCounts = getActiveOathAcquisitionMethodCounts(
+      simulator,
+      [...transcendRecommendations, ...craftRecommendations],
+    );
+    const maxDecisionCount = Math.max(
+      activeCounts.transcend + activeCounts.craft,
+      ...transcendRecommendations.flatMap(getOathAcquisitionVariantRows)
+        .map((variant) => Number(variant.variantCount || 1)),
+      ...craftRecommendations.flatMap(getOathAcquisitionVariantRows)
+        .map((variant) => Number(variant.variantCount || 1)),
+    );
+    if (maxDecisionCount <= 0) return [row];
+    const hasActiveCounts = activeCounts.transcend + activeCounts.craft > 0;
+    const previewCounts = previewCountsByPair?.[pairKey] || {};
+    const defaultMethod = row.sourceType === 'oathCraft' ? 'craft' : 'transcend';
+    let transcendCount = hasActiveCounts
+      ? activeCounts.transcend
+      : Number.isInteger(Number(previewCounts.transcend))
+        ? Number(previewCounts.transcend)
+        : defaultMethod === 'transcend' ? Math.min(1, maxDecisionCount) : 0;
+    let craftCount = hasActiveCounts
+      ? activeCounts.craft
+      : Number.isInteger(Number(previewCounts.craft))
+        ? Number(previewCounts.craft)
+        : defaultMethod === 'craft' ? Math.min(1, maxDecisionCount) : 0;
+    transcendCount = Math.max(0, Math.min(maxDecisionCount, transcendCount));
+    craftCount = Math.max(0, Math.min(maxDecisionCount - transcendCount, craftCount));
+    const totalCount = transcendCount + craftCount;
+    const transcendVariant = getOathAcquisitionVariantFromRecommendations(
+      transcendRecommendations,
+      transcendCount,
+    );
+    const craftVariant = getOathAcquisitionVariantFromRecommendations(
+      craftRecommendations,
+      craftCount,
+    );
+    const effectVariant = getOathAcquisitionVariantFromRecommendations(
+      transcendRecommendations,
+      totalCount,
+    ) || getOathAcquisitionVariantFromRecommendations(craftRecommendations, totalCount)
+      || transcendRecommendation;
+    const priceRows = [transcendVariant, craftVariant].filter(Boolean);
+    const goldWithoutMaterials = priceRows.reduce(
+      (sum, priceRow) => sum + getRecommendationGold(priceRow, false),
+      0,
+    );
+    const goldWithMaterials = priceRows.reduce(
+      (sum, priceRow) => sum + getRecommendationGold(priceRow, true),
+      0,
+    );
+    const expectedMaterials = mergeUpgradeMaterials(
+      transcendVariant?.expectedMaterials || [],
+      craftVariant?.expectedMaterials || [],
+    );
+    const materials = mergeUpgradeMaterials(
+      transcendVariant?.materials || [],
+      craftVariant?.materials || [],
+    );
+    const combinedRow = {
+      ...cloneSimulatorValue(effectVariant),
+      sourceType: 'oathAcquisitionCombined',
+      kind: 'oathAcquisitionCombined',
+      slot: '서약 결정',
+      tier: '초월/정가',
+      itemName: `${effectVariant.targetRarity || effectVariant.itemRarity || ''} 서약 결정 획득 ${totalCount}개`.trim(),
+      expectedGold: goldWithoutMaterials,
+      auction: { ...(effectVariant.auction || {}), minUnitPrice: goldWithoutMaterials },
+      expectedMaterials,
+      materials,
+      costPerPointOnePercent: getCostPerPointOnePercent({
+        ...effectVariant,
+        expectedGold: includeMaterialCosts ? goldWithMaterials : goldWithoutMaterials,
+        expectedMaterials: [],
+      }),
+      oathAcquisitionPairKey: pairKey,
+      transcendRecommendation,
+      craftRecommendation,
+      transcendRecommendations,
+      craftRecommendations,
+      transcendVariant,
+      craftVariant,
+      transcendCount,
+      craftCount,
+      maxDecisionCount,
+      variantCount: totalCount,
+      variantTotal: maxDecisionCount,
+    };
+    return [combinedRow];
+  });
+}
+
 function attachOathAcquisitionBaseCalculationData(oathUpgrades = {}, recommendations = []) {
   const nextOath = cloneSimulatorValue(oathUpgrades || {});
   const crystalBySlot = new Map(
@@ -5598,6 +5762,10 @@ export function installEnchantView(ctx) {
   state.equipmentTuneStepIndex = 0;
   state.tuneStepIndexBySource = {};
   state.oathDecisionVariantIndexByGroup = {};
+  state.oathAcquisitionCombinedCountsByPair = {};
+  state.lastRecommendationDisplayOrder = [];
+  state.frozenRecommendationDisplayKey = '';
+  state.frozenRecommendationDisplayIndex = -1;
   state.equipmentTunePopoverOpen = false;
   state.equipmentTunePopoverSource = '';
   state.dealerSimulator = null;
@@ -6760,9 +6928,75 @@ export function installEnchantView(ctx) {
     };
   }
 
+  function reapplyOathTuneSelectionToCurrentState(previousSelection = null) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || previousSelection?.actionType !== 'oathTunePlan') return false;
+    const beforeTuneSnapshot = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
+    rebuildDealerSimulatorCalculationState();
+    const baseRow = getOathTuneRows(
+      beforeTuneSnapshot,
+      simulator.oathTuneDb,
+      state.upgradeMaterialPrices,
+      getActiveEquipmentUpgrades(),
+      state.currentBufferBaseline,
+    )[0];
+    const variants = baseRow?.tuneSteps || [];
+    if (!baseRow || !variants.length) return false;
+    const selectedVariantIndex = Math.max(
+      0,
+      Math.min(variants.length - 1, Number(previousSelection.selectedVariantIndex || 0)),
+    );
+    const row = applyEquipmentTuneDisplayStep(
+      baseRow,
+      selectedVariantIndex,
+      els.enchantMaterialCostToggle?.checked === true,
+      getActiveDamageBaseline(),
+      state.currentBufferBaseline,
+    );
+    const pointPerTune = Number(simulator.oathTuneDb?.pointPerTune || 10);
+    const maxTuneLevel = Number(simulator.oathTuneDb?.maxTuneLevel || 3);
+    const plannedOath = applyOathTunePlan(
+      beforeTuneSnapshot,
+      row.tunePlan,
+      pointPerTune,
+      maxTuneLevel,
+    );
+    if (!plannedOath || Number(plannedOath.setPoint || 0) !== Number(row.targetSetPoint || 0)) {
+      return false;
+    }
+    syncOathTuneStageDisplay(plannedOath, simulator.oathTuneDb);
+    const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+    simulator.simulatedOathUpgrades = plannedOath;
+    simulator.activeSelectionByGroup.oathTune = {
+      ...cloneSimulatorValue(previousSelection),
+      candidateSignature: getOathTuneCandidateSignature(row),
+      appliedGold: getRecommendationGold(row, includeMaterialCosts),
+      includeMaterialCost: includeMaterialCosts,
+      goldWithoutMaterials: getRecommendationGold(row, false),
+      goldWithMaterials: getRecommendationGold(row, true),
+      selectedVariantIndex,
+      beforeTuneSnapshot,
+      pointPerTune,
+      maxTuneLevel,
+      variants: cloneSimulatorValue(variants),
+      appliedVariantSnapshot: cloneSimulatorValue(row),
+    };
+    state.tuneStepIndexBySource = {
+      ...(state.tuneStepIndexBySource || {}),
+      oathTune: selectedVariantIndex,
+    };
+    return true;
+  }
+
   function applySimulatedOathAcquisition(row, target) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'acquireOathDecision') return false;
+    const rollbackOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
+    const rollbackSelections = cloneSimulatorValue(simulator.activeSelectionByGroup || {});
+    const restoreMutation = () => {
+      simulator.simulatedOathUpgrades = rollbackOath;
+      simulator.activeSelectionByGroup = rollbackSelections;
+    };
     const descriptors = target.selectionDescriptors || [];
     const existingPlanSelections = Object.entries(simulator.activeSelectionByGroup || {})
       .filter(([, selection]) => selection?.acquisitionVariantGroupKey === row.variantGroupKey);
@@ -6801,6 +7035,17 @@ export function installEnchantView(ctx) {
       target.changedSlots = [];
       return true;
     }
+    const activeOathTune = simulator.activeSelectionByGroup?.oathTune;
+    if (activeOathTune?.actionType === 'oathTunePlan') {
+      simulator.simulatedOathUpgrades = cloneSimulatorValue(
+        activeOathTune.beforeTuneSnapshot || simulator.baseOathUpgrades || {},
+      );
+      delete simulator.activeSelectionByGroup.oathTune;
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        oathTune: Number(activeOathTune.selectedVariantIndex || 0),
+      };
+    }
     if (selectionsToRestore.size) {
       const currentCrystals = simulator.simulatedOathUpgrades?.crystals || [];
       selectionsToRestore.forEach((selection, groupKey) => {
@@ -6818,24 +7063,6 @@ export function installEnchantView(ctx) {
         }
         delete simulator.activeSelectionByGroup[groupKey];
       });
-    }
-    const activeOathTune = simulator.activeSelectionByGroup?.oathTune;
-    if (activeOathTune?.actionType === 'oathTunePlan') {
-      if (!simulator.suspendedOathTune) {
-        simulator.suspendedOathTune = {
-          selection: cloneSimulatorValue(activeOathTune),
-          oathUpgrades: cloneSimulatorValue(simulator.simulatedOathUpgrades || {}),
-        };
-      }
-      simulator.simulatedOathUpgrades = cloneSimulatorValue(
-        activeOathTune.beforeTuneSnapshot || simulator.baseOathUpgrades || {},
-      );
-      target.removedOathTuneSelection = cloneSimulatorValue(activeOathTune);
-      delete simulator.activeSelectionByGroup.oathTune;
-      state.tuneStepIndexBySource = {
-        ...(state.tuneStepIndexBySource || {}),
-        oathTune: 0,
-      };
     }
     const nextOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
     const crystals = Array.isArray(nextOath.crystals) ? nextOath.crystals : [];
@@ -6858,10 +7085,21 @@ export function installEnchantView(ctx) {
       );
       changedSlots.push(`oath:${Number(entry.slotIndex)}`);
     });
-    if (!changedSlots.length) return false;
+    if (!changedSlots.length) {
+      restoreMutation();
+      return false;
+    }
     syncOathTuneStageDisplay(nextOath, simulator.oathTuneDb);
     simulator.simulatedOathUpgrades = nextOath;
-    target.changedSlots = changedSlots;
+    if (activeOathTune && !reapplyOathTuneSelectionToCurrentState(activeOathTune)) {
+      restoreMutation();
+      return false;
+    }
+    target.changedSlots = getChangedOathTuneSlots(
+      rollbackOath,
+      simulator.simulatedOathUpgrades,
+    );
+    if (!target.changedSlots.length) target.changedSlots = changedSlots;
     rebuildDealerSimulatorCalculationState();
     return true;
   }
@@ -6887,8 +7125,10 @@ export function installEnchantView(ctx) {
   }
 
   function closeDealerSimulatorSelection() {
-    if (!state.dealerSimulator?.selectedRecommendationId) return;
-    state.dealerSimulator.selectedRecommendationId = '';
+    if (state.dealerSimulator) state.dealerSimulator.selectedRecommendationId = '';
+    state.equipmentTunePopoverOpen = false;
+    state.equipmentTunePopoverSource = '';
+    releaseRecommendationOrderAfterEditing();
     renderEnchantTable();
   }
 
@@ -7405,7 +7645,15 @@ export function installEnchantView(ctx) {
       .map((descriptor) => simulator.activeSelectionByGroup?.[descriptor.exclusiveGroupKey])
       .filter(Boolean);
     if (!selections.length) return;
+    const rollbackSnapshot = getDealerSimulatorSnapshot();
     const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
+    let activeOathTune = cloneSimulatorValue(simulator.activeSelectionByGroup?.oathTune || null);
+    if (activeOathTune?.actionType === 'oathTunePlan') {
+      simulator.simulatedOathUpgrades = cloneSimulatorValue(
+        activeOathTune.beforeTuneSnapshot || simulator.baseOathUpgrades || {},
+      );
+      delete simulator.activeSelectionByGroup.oathTune;
+    }
     descriptors.forEach((descriptor) => {
       const previousCrystal = (simulator.baseOathUpgrades?.crystals || [])
         .find((crystal) => Number(crystal?.index) === Number(descriptor.entry.slotIndex));
@@ -7426,26 +7674,20 @@ export function installEnchantView(ctx) {
     normalizeActiveOathAcquisitionSlots(simulator);
     const hasActiveOathAcquisition = Object.keys(simulator.activeSelectionByGroup || {})
       .some((groupKey) => groupKey.startsWith('oathAcquire:'));
-    const acquisitionBodyChanged = getChangedOathTuneSlots(
-      previousOath,
-      simulator.simulatedOathUpgrades,
-    ).some((slot) => {
-      const slotIndex = Number(String(slot).split(':').pop());
-      const previousCrystal = (previousOath.crystals || [])
-        .find((crystal) => Number(crystal?.index) === slotIndex);
-      const currentCrystal = (simulator.simulatedOathUpgrades?.crystals || [])
-        .find((crystal) => Number(crystal?.index) === slotIndex);
-      return String(previousCrystal?.itemId || '') !== String(currentCrystal?.itemId || '');
-    });
-    if (acquisitionBodyChanged) delete simulator.activeSelectionByGroup.oathTune;
-    if (!hasActiveOathAcquisition && simulator.suspendedOathTune) {
+    if (!activeOathTune && !hasActiveOathAcquisition && simulator.suspendedOathTune) {
       simulator.simulatedOathUpgrades = cloneSimulatorValue(
-        simulator.suspendedOathTune.oathUpgrades || simulator.simulatedOathUpgrades,
+        simulator.suspendedOathTune.selection?.beforeTuneSnapshot
+          || simulator.suspendedOathTune.oathUpgrades
+          || simulator.simulatedOathUpgrades,
       );
-      simulator.activeSelectionByGroup.oathTune = cloneSimulatorValue(
-        simulator.suspendedOathTune.selection,
-      );
+      activeOathTune = cloneSimulatorValue(simulator.suspendedOathTune.selection);
       simulator.suspendedOathTune = null;
+    }
+    if (activeOathTune && !reapplyOathTuneSelectionToCurrentState(activeOathTune)) {
+      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
     }
     syncOathTuneStageDisplay(simulator.simulatedOathUpgrades, simulator.oathTuneDb);
     const restoredOathTune = simulator.activeSelectionByGroup.oathTune;
@@ -7515,9 +7757,9 @@ export function installEnchantView(ctx) {
       };
       state.tuneStepIndexBySource = {
         ...(state.tuneStepIndexBySource || {}),
-        equipmentTune: 0,
+        equipmentTune: Number(selection.selectedVariantIndex || 0),
       };
-      state.equipmentTuneStepIndex = 0;
+      state.equipmentTuneStepIndex = Number(selection.selectedVariantIndex || 0);
       state.enchantLoadoutTab = selection.targetTab || 'equipment';
       getChangedEquipmentTuneSlots(
         previousEquipment,
@@ -7589,6 +7831,10 @@ export function installEnchantView(ctx) {
       oathTune: 0,
     };
     state.oathDecisionVariantIndexByGroup = {};
+    state.oathAcquisitionCombinedCountsByPair = {};
+    state.lastRecommendationDisplayOrder = [];
+    state.frozenRecommendationDisplayKey = '';
+    state.frozenRecommendationDisplayIndex = -1;
     state.equipmentTuneStepIndex = 0;
     state.enchantLoadoutTab = 'equipment';
     renderEnchantCharacterPortrait();
@@ -9018,6 +9264,10 @@ export function installEnchantView(ctx) {
     state.equipmentTuneStepIndex = 0;
     state.tuneStepIndexBySource = {};
     state.oathDecisionVariantIndexByGroup = {};
+    state.oathAcquisitionCombinedCountsByPair = {};
+    state.lastRecommendationDisplayOrder = [];
+    state.frozenRecommendationDisplayKey = '';
+    state.frozenRecommendationDisplayIndex = -1;
     state.equipmentTunePopoverOpen = false;
     state.equipmentTunePopoverSource = '';
   }
@@ -9403,6 +9653,36 @@ export function installEnchantView(ctx) {
     return !(related && host.contains(related));
   }
 
+  function getRecommendationDisplayOrderKey(row = {}) {
+    if (row.sourceType === 'oathAcquisitionCombined') {
+      return `oathCombined:${row.oathAcquisitionPairKey}`;
+    }
+    if (TUNE_SOURCE_TYPES.has(row.sourceType)) return `tune:${row.sourceType}`;
+    if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && row.variantGroupKey) {
+      return `oathDecision:${row.variantGroupKey}`;
+    }
+    return getDealerSimulatorRecommendationId(row);
+  }
+
+  function freezeRecommendationOrderWhileEditing(sourceType = '') {
+    if (state.frozenRecommendationDisplayKey) return;
+    const candidateKeys = [
+      `tune:${sourceType}`,
+      `oathCombined:${sourceType}`,
+      `oathDecision:${sourceType}`,
+    ];
+    const displayOrder = state.lastRecommendationDisplayOrder || [];
+    const key = candidateKeys.find((candidate) => displayOrder.includes(candidate)) || '';
+    if (!key) return;
+    state.frozenRecommendationDisplayKey = key;
+    state.frozenRecommendationDisplayIndex = displayOrder.indexOf(key);
+  }
+
+  function releaseRecommendationOrderAfterEditing() {
+    state.frozenRecommendationDisplayKey = '';
+    state.frozenRecommendationDisplayIndex = -1;
+  }
+
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
     renderDealerSimulatorActions();
@@ -9446,7 +9726,24 @@ export function installEnchantView(ctx) {
         simulatorRecommendationContext.options,
         includeMaterialCosts,
       );
+      recommendations = combineOathAcquisitionRecommendationRows(
+        recommendations,
+        simulator,
+        state.oathAcquisitionCombinedCountsByPair,
+        includeMaterialCosts,
+      );
     }
+    recommendations = recommendations.map((row) => (
+      TUNE_SOURCE_TYPES.has(row.sourceType)
+        ? applyEquipmentTuneDisplayStep(
+          row,
+          getTuneStepIndexBySource(state, row.sourceType),
+          includeMaterialCosts,
+          activeDamageBaseline,
+          state.currentBufferBaseline,
+        )
+        : row
+    ));
     if (simulator && !simulator.baseEligibleEnchantCandidateSignatures.length) {
       simulator.baseEligibleEnchantCandidateSignatures = recommendations
         .filter((row) => row.sourceType === 'enchant')
@@ -9492,10 +9789,28 @@ export function installEnchantView(ctx) {
       ));
     }
     const decoratedRecommendations = recommendations.map((row) => {
-      const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
-      const candidateSignature = getSimulatorCandidateSignature(row);
+      const isCombinedOathAcquisition = row.sourceType === 'oathAcquisitionCombined';
+      const exclusiveGroupKey = isCombinedOathAcquisition
+        ? `oathAcquisitionCombined:${row.oathAcquisitionPairKey}`
+        : getSimulatorExclusiveGroupKey(row);
+      const candidateSignature = isCombinedOathAcquisition
+        ? `${exclusiveGroupKey}:${Number(row.transcendCount || 0)}:${Number(row.craftCount || 0)}`
+        : getSimulatorCandidateSignature(row);
       const oathAcquisitionDescriptors = getOathAcquisitionSelectionDescriptors(row);
-      const isApplied = oathAcquisitionDescriptors.length
+      const activeCombinedCounts = isCombinedOathAcquisition
+        ? getActiveOathAcquisitionMethodCounts(
+          simulator,
+          [
+            ...(row.transcendRecommendations || [row.transcendRecommendation]),
+            ...(row.craftRecommendations || [row.craftRecommendation]),
+          ].filter(Boolean),
+        )
+        : null;
+      const isApplied = isCombinedOathAcquisition
+        ? activeCombinedCounts.transcend + activeCombinedCounts.craft > 0
+          && activeCombinedCounts.transcend === Number(row.transcendCount || 0)
+          && activeCombinedCounts.craft === Number(row.craftCount || 0)
+        : oathAcquisitionDescriptors.length
         ? isAppliedOathAcquisitionRecommendation(row, simulator)
         : Boolean(
           exclusiveGroupKey &&
@@ -9509,9 +9824,28 @@ export function installEnchantView(ctx) {
         candidateSignature,
       };
     });
-    const displayRecommendations = state.currentBufferBaseline?.isBuffer
+    let displayRecommendations = state.currentBufferBaseline?.isBuffer
       ? decoratedRecommendations
       : decoratedRecommendations.sort(compareDealerRecommendationOrder);
+    if (state.equipmentTunePopoverOpen && state.frozenRecommendationDisplayKey) {
+      const frozenRowIndex = displayRecommendations.findIndex(
+        (row) => getRecommendationDisplayOrderKey(row) === state.frozenRecommendationDisplayKey,
+      );
+      if (frozenRowIndex >= 0) {
+        const [frozenRow] = displayRecommendations.splice(frozenRowIndex, 1);
+        const targetIndex = Math.max(
+          0,
+          Math.min(
+            displayRecommendations.length,
+            Number(state.frozenRecommendationDisplayIndex || 0),
+          ),
+        );
+        displayRecommendations.splice(targetIndex, 0, frozenRow);
+      }
+    }
+    state.lastRecommendationDisplayOrder = displayRecommendations.map(
+      getRecommendationDisplayOrderKey,
+    );
     state.dealerSimulatorRecommendations = new Map();
     renderEfficiencyLegend(recommendations);
     if (!displayRecommendations.length) {
@@ -9521,26 +9855,40 @@ export function installEnchantView(ctx) {
 
     els.enchantRecommendList.innerHTML = displayRecommendations.map((row, index) => {
       const isApplied = row.isApplied === true;
+      const isCombinedOathAcquisition = row.sourceType === 'oathAcquisitionCombined';
       const hasOathDecisionVariants = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         && Array.isArray(row.oathDecisionVariants)
         && row.oathDecisionVariants.length > 1;
-      const hasVariantActions = TUNE_SOURCE_TYPES.has(row.sourceType) || hasOathDecisionVariants;
-      const variantPopoverSource = hasOathDecisionVariants ? row.variantGroupKey : row.sourceType;
+      const hasVariantActions = TUNE_SOURCE_TYPES.has(row.sourceType)
+        || hasOathDecisionVariants
+        || isCombinedOathAcquisition;
+      const variantPopoverSource = isCombinedOathAcquisition
+        ? row.oathAcquisitionPairKey
+        : hasOathDecisionVariants ? row.variantGroupKey : row.sourceType;
       const tuneStepIndex = TUNE_SOURCE_TYPES.has(row.sourceType)
         ? getTuneStepIndexBySource(state, row.sourceType)
         : state.equipmentTuneStepIndex;
       if (!isApplied || TUNE_SOURCE_TYPES.has(row.sourceType)) {
         row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, activeDamageBaseline, state.currentBufferBaseline);
       }
-      const simulatorTarget = isApplied ? null : resolveDealerSimulatorTarget(row);
+      const simulatorTarget = isCombinedOathAcquisition
+        ? Number(row.transcendCount || 0) + Number(row.craftCount || 0) > 0 && !isApplied
+          ? { applyType: 'proxyOathAcquisitionCombined' }
+          : null
+        : isApplied ? null : resolveDealerSimulatorTarget(row);
       const oathAcquisitionRecommendationId = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         ? getDealerSimulatorRecommendationId(row)
         : '';
-      const simulatorRecommendationId = simulatorTarget
+      const combinedRecommendationId = isCombinedOathAcquisition
+        ? `oath-combined:${row.oathAcquisitionPairKey}:${Number(row.transcendCount || 0)}:${Number(row.craftCount || 0)}`
+        : '';
+      const simulatorRecommendationId = combinedRecommendationId || (simulatorTarget
         ? getDealerSimulatorRecommendationId(row)
-        : oathAcquisitionRecommendationId;
+        : oathAcquisitionRecommendationId);
       const appliedSelectionId = isApplied
-        ? oathAcquisitionRecommendationId
+        ? isCombinedOathAcquisition
+          ? `applied-oath-combined:${row.oathAcquisitionPairKey}`
+          : oathAcquisitionRecommendationId
           ? `applied-oath:${oathAcquisitionRecommendationId}`
           : `applied:${row.exclusiveGroupKey}`
         : '';
@@ -9572,6 +9920,16 @@ export function installEnchantView(ctx) {
           simulatorHasUpgradeWarning: hasUpgradeWarning,
         });
       }
+      if (isCombinedOathAcquisition) {
+        [
+          ...(row.transcendRecommendations || [row.transcendRecommendation]),
+          ...(row.craftRecommendations || [row.craftRecommendation]),
+        ].filter(Boolean).forEach((recommendation) => {
+          getOathAcquisitionVariantRows(recommendation).forEach((variant) => {
+            state.dealerSimulatorRecommendations.set(getDealerSimulatorRecommendationId(variant), variant);
+          });
+        });
+      }
       const isTitleBeadOnly = row.sourceType === 'title' && row.purchaseRoute === 'titleBeadOnly';
       const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const displayEffects = row.sourceType === 'avatar'
@@ -9585,8 +9943,10 @@ export function installEnchantView(ctx) {
           ? formatEquipmentTuneEffect(row)
         : row.sourceType === 'oathTune'
           ? formatOathTuneEffect(row)
-        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
-          ? formatOathTranscendEffect(row, isBufferMetric)
+        : row.sourceType === 'oathTranscend'
+          || row.sourceType === 'oathCraft'
+          || row.sourceType === 'oathAcquisitionCombined'
+          ? formatOathTranscendEffect(row, isBufferMetric, row.sourceType === 'oathAcquisitionCombined')
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
@@ -9611,8 +9971,10 @@ export function installEnchantView(ctx) {
         ? formatEquipmentTuneEffectHtml(row, escapeHtml)
         : row.sourceType === 'oathTune'
           ? formatOathTuneEffectHtml(row, escapeHtml)
-        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
-          ? formatOathTranscendEffectHtml(row, isBufferMetric, escapeHtml)
+        : row.sourceType === 'oathTranscend'
+          || row.sourceType === 'oathCraft'
+          || row.sourceType === 'oathAcquisitionCombined'
+          ? formatOathTranscendEffectHtml(row, isBufferMetric, escapeHtml, row.sourceType === 'oathAcquisitionCombined')
         : '';
       const titleElementLabel = row.sourceType === 'title' && row.titleEnchantElement
         ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement
@@ -9634,6 +9996,8 @@ export function installEnchantView(ctx) {
           ? '초월'
         : row.sourceType === 'oathCraft'
           ? '정가'
+        : row.sourceType === 'oathAcquisitionCombined'
+          ? '초월/정가'
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
@@ -9647,8 +10011,10 @@ export function installEnchantView(ctx) {
           ? row.itemName
         : row.sourceType === 'creature'
           ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0) || (row.tier === '플래티넘'))
-          : row.sourceType === 'creatureArtifact'
+        : row.sourceType === 'creatureArtifact'
             ? row.candidateName || row.itemName
+          : row.sourceType === 'oathAcquisitionCombined'
+            ? `${row.targetRarity || row.itemRarity || ''} 서약 결정 ${Number(row.variantCount || 0)}개`.trim()
           : row.sourceType === 'aura'
             ? row.priceItem?.itemName || row.candidateName || row.itemName
             : row.sourceType === 'avatar'
@@ -9657,6 +10023,8 @@ export function installEnchantView(ctx) {
       const displayTitle = TUNE_SOURCE_TYPES.has(row.sourceType)
         ? row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+          ? '서약 결정'
+        : row.sourceType === 'oathAcquisitionCombined'
           ? '서약 결정'
         : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
@@ -9676,16 +10044,48 @@ export function installEnchantView(ctx) {
       const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
-        : includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)
+        : includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
         ? '재료 포함'
-        : ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType) ? '예상 골드' : '최저가';
+        : ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
       const materialPartsMarkup = materialParts.length
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
           .map((part) => `<span class="enchant-popover-material-part" title="${escapeHtml(part.label)}">${part.iconUrl ? `<img src="${escapeHtml(part.iconUrl)}" alt="${escapeHtml(part.label)}" loading="lazy" />` : ''}<span>${escapeHtml(part.amount)}</span></span>`)
           .join('')}`
         : '';
-      const tuneStepControls = TUNE_SOURCE_TYPES.has(row.sourceType) && Array.isArray(row.tuneSteps) && row.tuneSteps.length > 1
+      const formatCombinedAcquisitionMaterials = (label, variant) => {
+        if (!variant) return '';
+        const parts = getBlackFangMaterialParts(variant.materials || []);
+        if (!parts.length) return '';
+        return `<span class="enchant-oath-combined-material-group">
+          <strong>${escapeHtml(label)}</strong>
+          <span class="enchant-popover-material-list">${parts
+            .map((part) => `<span class="enchant-popover-material-part" title="${escapeHtml(part.label)}">${part.iconUrl ? `<img src="${escapeHtml(part.iconUrl)}" alt="${escapeHtml(part.label)}" loading="lazy" />` : ''}<span>${escapeHtml(part.amount)}</span></span>`)
+            .join('')}</span>
+        </span>`;
+      };
+      const combinedAcquisitionMaterialsMarkup = isCombinedOathAcquisition
+        ? `<span class="enchant-popover-material-label">필요 재료</span>${[
+          formatCombinedAcquisitionMaterials('초월', row.transcendVariant),
+          formatCombinedAcquisitionMaterials('정가', row.craftVariant),
+        ].filter(Boolean).join('')}`
+        : '';
+      const combinedAcquisitionControls = isCombinedOathAcquisition
+        ? `<span class="enchant-oath-combined-controls">
+          ${[
+            ['transcend', '초월', Number(row.transcendCount || 0)],
+            ['craft', '정가', Number(row.craftCount || 0)],
+          ].map(([method, label, count]) => `<span class="enchant-oath-combined-control">
+            <strong>${label}</strong>
+            <span class="enchant-oath-combined-control-row">
+              <span class="enchant-tune-step-button${count <= 0 ? ' is-disabled' : ''}" role="button" tabindex="0" data-oath-combined-step="-1" data-oath-combined-method="${method}" data-oath-combined-pair="${escapeHtml(row.oathAcquisitionPairKey)}" aria-label="${label} 개수 줄이기">-</span>
+              <span class="enchant-tune-step-label">${count} / ${Number(row.maxDecisionCount || 0)}</span>
+              <span class="enchant-tune-step-button${count >= Number(row.maxDecisionCount || 0) ? ' is-disabled' : ''}" role="button" tabindex="0" data-oath-combined-step="1" data-oath-combined-method="${method}" data-oath-combined-pair="${escapeHtml(row.oathAcquisitionPairKey)}" aria-label="${label} 개수 늘리기">+</span>
+            </span>
+          </span>`).join('')}
+        </span>`
+        : '';
+      const tuneStepControls = combinedAcquisitionControls || (TUNE_SOURCE_TYPES.has(row.sourceType) && Array.isArray(row.tuneSteps) && row.tuneSteps.length > 1
         ? `<span class="enchant-tune-step-controls">
             <span class="enchant-tune-step-button${row.selectedTuneStepIndex <= 0 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="-1" data-tune-source="${escapeHtml(row.sourceType)}" aria-label="이전 조율 단계">-</span>
             <span class="enchant-tune-step-label">${Number(row.selectedTuneStepIndex || 0) + 1} / ${row.tuneSteps.length}</span>
@@ -9697,11 +10097,13 @@ export function installEnchantView(ctx) {
             <span class="enchant-tune-step-label">${Number(row.variantCount || 1)} / ${row.oathDecisionVariants.length}</span>
             <span class="enchant-tune-step-button${row.selectedVariantIndex >= row.oathDecisionVariants.length - 1 ? ' is-disabled' : ''}" role="button" tabindex="0" data-recommendation-variant-step="1" data-variant-group="${escapeHtml(row.variantGroupKey)}" data-variant-max="${row.oathDecisionVariants.length - 1}" aria-label="다음 적용 개수">+</span>
           </span>`
-        : '';
+        : '');
       const popoverName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? [displayName, tierLabel].filter(Boolean).join(' ')
         : displayName;
-      const itemExplainText = showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '';
+      const itemExplainText = row.sourceType === 'oathAcquisitionCombined'
+        ? ''
+        : showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '';
       const itemExplainHtml = String(itemExplainText || '').includes('\n')
         ? String(itemExplainText || '').split('\n').map((part) => escapeHtml(part)).join('<br>')
         : '';
@@ -9719,7 +10121,8 @@ export function installEnchantView(ctx) {
         { text: legacyAcquisitionLabel, className: 'enchant-popover-material' },
         { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : `${priceLabel} ${rowGoldText}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
-        { text: !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
+        { html: combinedAcquisitionMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
+        { text: !isCombinedOathAcquisition && !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
         { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} +${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
         { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
         { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
@@ -9733,10 +10136,20 @@ export function installEnchantView(ctx) {
           ${tooltipRows.map((item) => `<span class="${escapeHtml(item.className)}">${item.html || escapeHtml(item.text)}</span>`).join('')}
         </span>
       `;
+      const combinedCardAttributes = isCombinedOathAcquisition
+        ? ` data-oath-acquisition-combined-key="${escapeHtml(row.oathAcquisitionPairKey)}"`
+        : '';
+      const appliedCardAttributes = isCombinedOathAcquisition
+        ? combinedCardAttributes
+        : isApplied && oathAcquisitionRecommendationId
+          ? ` data-applied-oath-acquisition-id="${escapeHtml(oathAcquisitionRecommendationId)}"`
+          : isApplied
+            ? ` data-applied-simulator-group="${escapeHtml(row.exclusiveGroupKey)}"`
+            : '';
       return `
         <span class="enchant-recommend-step${hasVariantActions ? ` enchant-recommend-step-tune${state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === variantPopoverSource ? ' is-tune-popover-open' : ''}` : ''}"${hasVariantActions ? ` data-tune-source="${escapeHtml(variantPopoverSource)}"` : ''}>
           ${connector}
-          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}${isApplied ? ' is-applied' : ''}"${bandStyle}${simulatorRecommendationId && !isApplied ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}${isApplied && oathAcquisitionRecommendationId ? ` data-applied-oath-acquisition-id="${escapeHtml(oathAcquisitionRecommendationId)}"` : isApplied ? ` data-applied-simulator-group="${escapeHtml(row.exclusiveGroupKey)}"` : ''}${isApplied ? ` aria-label="${escapeHtml(`${displayTitle} 적용됨`)}"` : ''}>
+          <button type="button" class="enchant-recommend-item enchant-efficiency-${band}${hasUpgradeWarning ? ' enchant-has-upgrade-warning' : ''}${simulatorSelected ? ' is-touch-selected' : ''}${simulatorTarget ? ' is-simulator-supported' : ''}${isApplied ? ' is-applied' : ''}"${bandStyle}${simulatorRecommendationId && !isApplied ? ` data-simulator-recommendation-id="${escapeHtml(simulatorRecommendationId)}"` : ''}${appliedCardAttributes}${isApplied ? ` aria-label="${escapeHtml(`${displayTitle} 적용됨`)}"` : ''}>
             ${isApplied ? '<span class="enchant-simulator-applied-badge">✓ 적용</span>' : ''}
             <span class="enchant-recommend-icon">${row.iconUrl ? `<img src="${escapeHtml(row.iconUrl)}" alt="" loading="lazy" />` : ''}</span>
             <span class="enchant-recommend-main">
@@ -10465,9 +10878,13 @@ export function installEnchantView(ctx) {
     const activeSelections = Object.values(simulator.activeSelectionByGroup || {})
       .filter((selection) => selection?.acquisitionVariantGroupKey === groupKey);
     if (!activeSelections.length) return false;
-    const renderedRow = [...state.dealerSimulatorRecommendations.values()]
-      .find((row) => row?.variantGroupKey === groupKey && Array.isArray(row.oathDecisionVariants));
-    const variants = (renderedRow?.oathDecisionVariants || [])
+    const renderedRows = [...state.dealerSimulatorRecommendations.values()]
+      .filter((row) => row?.variantGroupKey === groupKey);
+    const variants = renderedRows
+      .flatMap((row) => Array.isArray(row.oathDecisionVariants) ? row.oathDecisionVariants : [row])
+      .filter((row, index, rows) => rows.findIndex(
+        (candidate) => Number(candidate.variantCount || 1) === Number(row.variantCount || 1),
+      ) === index)
       .slice()
       .sort((a, b) => Number(a.variantCount || 1) - Number(b.variantCount || 1));
     const selectedVariantIndex = Math.max(
@@ -10522,6 +10939,7 @@ export function installEnchantView(ctx) {
   function changeEquipmentTuneStep(delta, sourceType = 'equipmentTune') {
     const value = Number(delta || 0);
     if (!Number.isFinite(value) || value === 0) return;
+    freezeRecommendationOrderWhileEditing(sourceType);
     const maxIndex = Math.max(
       0,
       ...getTuneRowsBySource(sourceType)
@@ -10571,6 +10989,7 @@ export function installEnchantView(ctx) {
     const value = Number(delta || 0);
     const maximum = Math.max(0, Number(maxIndex || 0));
     if (!groupKey || !Number.isFinite(value) || value === 0) return;
+    freezeRecommendationOrderWhileEditing(groupKey);
     const currentIndex = Number(state.oathDecisionVariantIndexByGroup?.[groupKey] || 0);
     const nextIndex = Math.max(0, Math.min(maximum, currentIndex + value));
     const activeCount = Number(
@@ -10600,6 +11019,170 @@ export function installEnchantView(ctx) {
     scheduleOpenTunePopoverShift();
   }
 
+  function getRenderedCombinedOathAcquisition(pairKey) {
+    return [...state.dealerSimulatorRecommendations.values()].find((row) => (
+      row?.sourceType === 'oathAcquisitionCombined'
+      && row.oathAcquisitionPairKey === pairKey
+    )) || null;
+  }
+
+  function getCombinedOathAcquisitionCounts(row) {
+    return getActiveOathAcquisitionMethodCounts(
+      state.dealerSimulator || {},
+      [
+        ...(row?.transcendRecommendations || [row?.transcendRecommendation]),
+        ...(row?.craftRecommendations || [row?.craftRecommendation]),
+      ].filter(Boolean),
+    );
+  }
+
+  function setOathAcquisitionMethodCount(pairKey, method, requestedCount) {
+    let combinedRow = getRenderedCombinedOathAcquisition(pairKey);
+    if (!combinedRow) return false;
+    const recommendations = method === 'craft'
+      ? combinedRow.craftRecommendations || [combinedRow.craftRecommendation]
+      : combinedRow.transcendRecommendations || [combinedRow.transcendRecommendation];
+    const recommendation = recommendations.find(Boolean);
+    const groupKey = recommendation?.variantGroupKey;
+    const desiredCount = Number(requestedCount || 0);
+    if (!groupKey || !Number.isInteger(desiredCount) || desiredCount < 0) return false;
+    const currentCount = Number(getCombinedOathAcquisitionCounts(combinedRow)[method] || 0);
+    if (currentCount === desiredCount) return true;
+    if (desiredCount === 0) {
+      const activeVariant = getOathAcquisitionVariantFromRecommendations(recommendations, currentCount);
+      if (!activeVariant) return false;
+      removeActiveOathAcquisitionRecommendation(getDealerSimulatorRecommendationId(activeVariant));
+    } else if (currentCount > 0) {
+      if (!replaceAppliedOathAcquisitionVariant(groupKey, desiredCount - 1)) return false;
+    } else {
+      const targetVariant = getOathAcquisitionVariantFromRecommendations(recommendations, desiredCount);
+      if (!targetVariant) return false;
+      applyDealerSimulatorRecommendation(getDealerSimulatorRecommendationId(targetVariant));
+    }
+    combinedRow = getRenderedCombinedOathAcquisition(pairKey);
+    return Boolean(
+      combinedRow
+      && Number(getCombinedOathAcquisitionCounts(combinedRow)[method] || 0) === desiredCount
+    );
+  }
+
+  function applyOathAcquisitionCombinedCounts(pairKey, transcendCount, craftCount) {
+    const simulator = state.dealerSimulator;
+    const row = getRenderedCombinedOathAcquisition(pairKey);
+    if (!simulator || !row || simulator.applyingRecommendationId) return false;
+    const nextTranscendCount = Number(transcendCount || 0);
+    const nextCraftCount = Number(craftCount || 0);
+    const maxDecisionCount = Number(row.maxDecisionCount || 0);
+    if (
+      !Number.isInteger(nextTranscendCount)
+      || !Number.isInteger(nextCraftCount)
+      || nextTranscendCount < 0
+      || nextCraftCount < 0
+      || nextTranscendCount + nextCraftCount > maxDecisionCount
+    ) return false;
+    const rollbackSnapshot = getDealerSimulatorSnapshot();
+    const previousPreview = cloneSimulatorValue(
+      state.oathAcquisitionCombinedCountsByPair?.[pairKey] || null,
+    );
+    const previousSelectionId = simulator.selectedRecommendationId;
+    state.oathAcquisitionCombinedCountsByPair = {
+      ...(state.oathAcquisitionCombinedCountsByPair || {}),
+      [pairKey]: { transcend: nextTranscendCount, craft: nextCraftCount },
+    };
+    try {
+      const currentCounts = getCombinedOathAcquisitionCounts(row);
+      const reductions = [
+        ['transcend', nextTranscendCount, currentCounts.transcend],
+        ['craft', nextCraftCount, currentCounts.craft],
+      ].filter(([, desired, current]) => desired < current);
+      const increases = [
+        ['transcend', nextTranscendCount, currentCounts.transcend],
+        ['craft', nextCraftCount, currentCounts.craft],
+      ].filter(([, desired, current]) => desired > current);
+      for (const [method, desired] of [...reductions, ...increases]) {
+        if (!setOathAcquisitionMethodCount(pairKey, method, desired)) throw new Error('oath acquisition count update failed');
+      }
+      const finalRow = getRenderedCombinedOathAcquisition(pairKey);
+      const finalCounts = getCombinedOathAcquisitionCounts(finalRow);
+      if (
+        finalCounts.transcend !== nextTranscendCount
+        || finalCounts.craft !== nextCraftCount
+      ) throw new Error('oath acquisition count mismatch');
+      simulator.selectedRecommendationId = nextTranscendCount + nextCraftCount > 0
+        ? `applied-oath-combined:${pairKey}`
+        : '';
+      renderEnchantTable();
+      scheduleOpenTunePopoverShift();
+      return true;
+    } catch {
+      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      if (previousPreview) {
+        state.oathAcquisitionCombinedCountsByPair[pairKey] = previousPreview;
+      } else {
+        delete state.oathAcquisitionCombinedCountsByPair[pairKey];
+      }
+      simulator.selectedRecommendationId = previousSelectionId;
+      rebuildDealerSimulatorCalculationState();
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return false;
+    }
+  }
+
+  function removeAppliedOathAcquisitionCombined(pairKey) {
+    const row = getRenderedCombinedOathAcquisition(pairKey);
+    if (!row) return false;
+    const preservedCounts = {
+      transcend: Number(row.transcendCount || 0),
+      craft: Number(row.craftCount || 0),
+    };
+    if (!applyOathAcquisitionCombinedCounts(pairKey, 0, 0)) return false;
+    state.oathAcquisitionCombinedCountsByPair = {
+      ...(state.oathAcquisitionCombinedCountsByPair || {}),
+      [pairKey]: preservedCounts,
+    };
+    renderEnchantTable();
+    return true;
+  }
+
+  function changeOathAcquisitionCombinedCount(delta, pairKey, method) {
+    const value = Number(delta || 0);
+    const row = getRenderedCombinedOathAcquisition(pairKey);
+    if (!row || !['transcend', 'craft'].includes(method) || !Number.isFinite(value) || value === 0) return;
+    freezeRecommendationOrderWhileEditing(pairKey);
+    const nextCounts = {
+      transcend: Number(row.transcendCount || 0),
+      craft: Number(row.craftCount || 0),
+    };
+    nextCounts[method] = Math.max(0, nextCounts[method] + value);
+    const maxDecisionCount = Number(row.maxDecisionCount || 0);
+    if (nextCounts.transcend + nextCounts.craft > maxDecisionCount) {
+      const oppositeMethod = method === 'transcend' ? 'craft' : 'transcend';
+      nextCounts[oppositeMethod] = Math.max(
+        0,
+        nextCounts[oppositeMethod] - (nextCounts.transcend + nextCounts.craft - maxDecisionCount),
+      );
+    }
+    if (nextCounts.transcend + nextCounts.craft === 0) {
+      const oppositeMethod = method === 'transcend' ? 'craft' : 'transcend';
+      nextCounts[oppositeMethod] = 1;
+    }
+    if (nextCounts.transcend + nextCounts.craft > maxDecisionCount) return;
+    state.equipmentTunePopoverOpen = true;
+    state.equipmentTunePopoverSource = pairKey;
+    const activeCounts = getCombinedOathAcquisitionCounts(row);
+    if (activeCounts.transcend + activeCounts.craft > 0) {
+      applyOathAcquisitionCombinedCounts(pairKey, nextCounts.transcend, nextCounts.craft);
+      return;
+    }
+    state.oathAcquisitionCombinedCountsByPair = {
+      ...(state.oathAcquisitionCombinedCountsByPair || {}),
+      [pairKey]: nextCounts,
+    };
+    renderEnchantTable();
+    scheduleOpenTunePopoverShift();
+  }
+
   els.enchantRecommendList?.addEventListener('mouseover', (event) => {
     const step = event.target.closest('.enchant-recommend-step-tune');
     if (!step) {
@@ -10607,6 +11190,7 @@ export function installEnchantView(ctx) {
       return;
     }
     const sourceType = step.dataset.tuneSource || 'equipmentTune';
+    freezeRecommendationOrderWhileEditing(sourceType);
     if (state.equipmentTunePopoverOpen && state.equipmentTunePopoverSource === sourceType) {
       scheduleRecommendPopoverShift(step);
       return;
@@ -10628,39 +11212,96 @@ export function installEnchantView(ctx) {
     if (!state.equipmentTunePopoverOpen) return;
     state.equipmentTunePopoverOpen = false;
     state.equipmentTunePopoverSource = '';
+    if (state.dealerSimulator) state.dealerSimulator.selectedRecommendationId = '';
+    releaseRecommendationOrderAfterEditing();
     renderEnchantTable();
   });
 
   els.enchantRecommendList?.addEventListener('focusin', (event) => {
+    const step = event.target.closest('.enchant-recommend-step-tune');
+    if (step) {
+      const sourceType = step.dataset.tuneSource || 'equipmentTune';
+      freezeRecommendationOrderWhileEditing(sourceType);
+      state.equipmentTunePopoverOpen = true;
+      state.equipmentTunePopoverSource = sourceType;
+    }
     scheduleRecommendPopoverShift(event.target);
   });
 
   els.enchantRecommendList?.addEventListener('focusout', (event) => {
     if (isLeavingRecommendPopoverHost(event)) {
       resetRecommendPopoverShift(event.target);
+      const step = event.target.closest('.enchant-recommend-step-tune');
+      if (step) {
+        const sourceType = step.dataset.tuneSource || 'equipmentTune';
+        window.requestAnimationFrame(() => {
+          if (state.equipmentTunePopoverSource !== sourceType) return;
+          const editingStep = [...(els.enchantRecommendList?.querySelectorAll('.enchant-recommend-step-tune') || [])]
+            .find((candidate) => (
+              candidate.dataset.tuneSource === sourceType
+              && (
+                candidate.matches(':hover')
+                || candidate.contains(document.activeElement)
+                || candidate.querySelector('.enchant-recommend-item.is-touch-selected')
+              )
+            ));
+          if (editingStep) return;
+          state.equipmentTunePopoverOpen = false;
+          state.equipmentTunePopoverSource = '';
+          if (state.dealerSimulator) state.dealerSimulator.selectedRecommendationId = '';
+          releaseRecommendationOrderAfterEditing();
+          renderEnchantTable();
+        });
+      }
     }
   });
 
   els.enchantRecommendList?.addEventListener('pointerup', (event) => {
     if (!['touch', 'pen'].includes(event.pointerType)) return;
-    const target = event.target.closest('[data-simulator-recommendation-id], [data-applied-simulator-group], [data-applied-oath-acquisition-id]');
+    const target = event.target.closest('[data-simulator-recommendation-id], [data-applied-simulator-group], [data-applied-oath-acquisition-id], [data-oath-acquisition-combined-key]');
     if (
       !target ||
       event.target.closest('[data-equipment-tune-step]') ||
       event.target.closest('[data-recommendation-variant-step]') ||
+      event.target.closest('[data-oath-combined-step]') ||
       event.target.closest('.enchant-recommend-popover')
     ) return;
     event.preventDefault();
     event.stopPropagation();
     state.dealerSimulatorSuppressClickUntil = Date.now() + 700;
+    const tuneStep = target.closest('.enchant-recommend-step-tune');
+    if (tuneStep) {
+      const sourceType = tuneStep.dataset.tuneSource || 'equipmentTune';
+      freezeRecommendationOrderWhileEditing(sourceType);
+      state.equipmentTunePopoverOpen = true;
+      state.equipmentTunePopoverSource = sourceType;
+    }
     const appliedGroupKey = String(target.dataset.appliedSimulatorGroup || '');
     const appliedOathAcquisitionId = String(target.dataset.appliedOathAcquisitionId || '');
+    const combinedPairKey = String(target.dataset.oathAcquisitionCombinedKey || '');
     const recommendationId = String(target.dataset.simulatorRecommendationId || '');
-    const selectionId = appliedOathAcquisitionId
+    const combinedRow = combinedPairKey ? getRenderedCombinedOathAcquisition(combinedPairKey) : null;
+    const combinedCounts = combinedRow ? getCombinedOathAcquisitionCounts(combinedRow) : null;
+    const combinedIsApplied = Number(combinedCounts?.transcend || 0) + Number(combinedCounts?.craft || 0) > 0;
+    const selectionId = combinedPairKey
+      ? combinedIsApplied ? `applied-oath-combined:${combinedPairKey}` : recommendationId
+      : appliedOathAcquisitionId
       ? `applied-oath:${appliedOathAcquisitionId}`
       : appliedGroupKey ? `applied:${appliedGroupKey}` : recommendationId;
     if (!selectionId || !state.dealerSimulator) return;
     if (state.dealerSimulator.selectedRecommendationId === selectionId) {
+      if (combinedPairKey && combinedRow) {
+        if (combinedIsApplied) {
+          removeAppliedOathAcquisitionCombined(combinedPairKey);
+        } else {
+          applyOathAcquisitionCombinedCounts(
+            combinedPairKey,
+            Number(combinedRow.transcendCount || 0),
+            Number(combinedRow.craftCount || 0),
+          );
+        }
+        return;
+      }
       if (appliedOathAcquisitionId) {
         removeActiveOathAcquisitionRecommendation(appliedOathAcquisitionId);
         return;
@@ -10699,8 +11340,20 @@ export function installEnchantView(ctx) {
       );
       return;
     }
+    const combinedStepTarget = event.target.closest('[data-oath-combined-step]');
+    if (combinedStepTarget) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (combinedStepTarget.classList.contains('is-disabled')) return;
+      changeOathAcquisitionCombinedCount(
+        Number(combinedStepTarget.dataset.oathCombinedStep || 0),
+        String(combinedStepTarget.dataset.oathCombinedPair || ''),
+        String(combinedStepTarget.dataset.oathCombinedMethod || ''),
+      );
+      return;
+    }
     if (event.target.closest('.enchant-recommend-popover')) return;
-    const simulatorTarget = event.target.closest('[data-simulator-recommendation-id], [data-applied-simulator-group], [data-applied-oath-acquisition-id]');
+    const simulatorTarget = event.target.closest('[data-simulator-recommendation-id], [data-applied-simulator-group], [data-applied-oath-acquisition-id], [data-oath-acquisition-combined-key]');
     if (!simulatorTarget) return;
     event.preventDefault();
     event.stopPropagation();
@@ -10709,6 +11362,23 @@ export function installEnchantView(ctx) {
     if (!precisePointer && event.detail > 0) return;
     const appliedGroupKey = String(simulatorTarget.dataset.appliedSimulatorGroup || '');
     const appliedOathAcquisitionId = String(simulatorTarget.dataset.appliedOathAcquisitionId || '');
+    const combinedPairKey = String(simulatorTarget.dataset.oathAcquisitionCombinedKey || '');
+    if (combinedPairKey) {
+      const row = getRenderedCombinedOathAcquisition(combinedPairKey);
+      if (!row) return;
+      const activeCounts = getCombinedOathAcquisitionCounts(row);
+      const isApplied = activeCounts.transcend + activeCounts.craft > 0;
+      if (isApplied) {
+        removeAppliedOathAcquisitionCombined(combinedPairKey);
+      } else {
+        applyOathAcquisitionCombinedCounts(
+          combinedPairKey,
+          Number(row.transcendCount || 0),
+          Number(row.craftCount || 0),
+        );
+      }
+      return;
+    }
     if (appliedOathAcquisitionId) {
       removeActiveOathAcquisitionRecommendation(appliedOathAcquisitionId);
       return;
@@ -10724,12 +11394,22 @@ export function installEnchantView(ctx) {
     if (!['Enter', ' '].includes(event.key)) return;
     const target = event.target.closest('[data-equipment-tune-step]');
     const variantTarget = event.target.closest('[data-recommendation-variant-step]');
-    if (!target && !variantTarget) return;
+    const combinedStepTarget = event.target.closest('[data-oath-combined-step]');
+    if (!target && !variantTarget && !combinedStepTarget) return;
     event.preventDefault();
     event.stopPropagation();
     if (target) {
       if (target.classList.contains('is-disabled')) return;
       changeEquipmentTuneStep(Number(target.dataset.equipmentTuneStep || 0), target.dataset.tuneSource || 'equipmentTune');
+      return;
+    }
+    if (combinedStepTarget) {
+      if (combinedStepTarget.classList.contains('is-disabled')) return;
+      changeOathAcquisitionCombinedCount(
+        Number(combinedStepTarget.dataset.oathCombinedStep || 0),
+        String(combinedStepTarget.dataset.oathCombinedPair || ''),
+        String(combinedStepTarget.dataset.oathCombinedMethod || ''),
+      );
       return;
     }
     if (variantTarget.classList.contains('is-disabled')) return;
@@ -10760,7 +11440,10 @@ export function installEnchantView(ctx) {
   });
 
   document.addEventListener('pointerdown', (event) => {
-    if (!state.dealerSimulator?.selectedRecommendationId) return;
+    if (
+      !state.dealerSimulator?.selectedRecommendationId
+      && !state.equipmentTunePopoverOpen
+    ) return;
     if (event.target.closest?.('.enchant-recommend-item')) return;
     closeDealerSimulatorSelection();
   });

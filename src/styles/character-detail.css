@@ -1270,6 +1270,39 @@
       gap: 3px;
       margin-top: 2px;
     }
+    .enchant-oath-combined-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      width: 100%;
+    }
+    .enchant-oath-combined-control {
+      display: grid;
+      justify-items: center;
+      gap: 4px;
+      min-width: 0;
+      color: var(--text);
+      font-size: 11px;
+    }
+    .enchant-oath-combined-control-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .enchant-oath-combined-materials {
+      display: grid;
+      gap: 5px;
+    }
+    .enchant-oath-combined-material-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .enchant-oath-combined-material-group strong {
+      color: var(--muted);
+      font-size: 10px;
+    }
     .enchant-tune-step-controls {
       display: inline-flex;
       align-items: center;
