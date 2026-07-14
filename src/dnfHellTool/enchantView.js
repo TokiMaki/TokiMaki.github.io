@@ -8682,7 +8682,7 @@ export function installEnchantView(ctx) {
           </div>
           <span class="enchant-portrait-score-delta">${escapeHtml(scoreDeltaText)}</span>
           <span class="enchant-portrait-damage-increase">딜 상승률 <strong>${escapeHtml(damageIncreaseText)}</strong></span>
-          <span class="enchant-simulator-summary" title="${escapeHtml(totalGoldFullText)}" aria-label="누적 골드 ${escapeHtml(totalGoldFullText)}">누적 골드 <strong>${escapeHtml(formatKoreanGoldUnits(totalGold))}</strong></span>
+          <span class="enchant-simulator-summary" tabindex="0" data-full-gold="${escapeHtml(totalGoldFullText)}" aria-label="누적 골드 ${escapeHtml(totalGoldFullText)}">누적 골드 <strong>${escapeHtml(formatKoreanGoldUnits(totalGold))}</strong></span>
           <span class="enchant-simulator-efficiency${efficiencyBand === 'rainbow' ? ' is-rainbow' : ''}"${efficiencyColor ? ` style="--simulator-efficiency-color: ${escapeHtml(efficiencyColor)}"` : ''}>0.1%당 <strong>${escapeHtml(efficiencyText)}</strong></span>
         </div>
         <div class="enchant-portrait-info-original">
