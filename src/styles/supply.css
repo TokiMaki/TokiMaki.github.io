@@ -1284,6 +1284,16 @@
     .enchant-oath-slot.is-empty {
       opacity: 0.56;
     }
+    .enchant-oath-acquisition-badge.is-transcend {
+      color: #72d7e8;
+      border-color: rgb(114 215 232 / 0.78);
+      background: rgb(10 43 50 / 0.9);
+    }
+    .enchant-oath-acquisition-badge.is-craft {
+      color: #e7a85f;
+      border-color: rgb(231 168 95 / 0.78);
+      background: rgb(54 32 12 / 0.9);
+    }
     .enchant-avatar-board {
       display: grid;
       grid-template-columns: minmax(0, 1fr) max-content;
