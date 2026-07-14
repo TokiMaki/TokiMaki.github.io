@@ -1320,6 +1320,23 @@ function calculateBufferScore(baseline = {}, changes = {}) {
   return (25000 + totalStat) / 25000 * (3300 + totalAttack) / 3300 * 333 * 1.165;
 }
 
+function compareBufferRecommendationOrder(a = {}, b = {}) {
+  const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
+  if (priorityDiff) return priorityDiff;
+  const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
+  if (materialDiff) return materialDiff;
+  if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) return compareMaterialEnchantOrder(a, b);
+  const aEfficiency = Number(a.buffCostPerHundredPoints || 0);
+  const bEfficiency = Number(b.buffCostPerHundredPoints || 0);
+  const normalizedA = Number.isFinite(aEfficiency) && aEfficiency > 0
+    ? aEfficiency
+    : Number.POSITIVE_INFINITY;
+  const normalizedB = Number.isFinite(bEfficiency) && bEfficiency > 0
+    ? bEfficiency
+    : Number.POSITIVE_INFINITY;
+  return normalizedA - normalizedB;
+}
+
 function getBufferRecommendationRows(
   rows,
   currentEnchants,
@@ -1473,6 +1490,8 @@ function getBufferRecommendationRows(
       ].join(':')
       : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
       ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
+      : OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
+        ? `${row.sourceType}:${row.variantGroupKey}:${Number(row.variantCount || 1)}`
       : row.sourceType === 'blackFang'
         ? `${row.sourceType}:${row.slot}:${getEffectSignature(scoringTargetEffects)}`
       : row.sourceType === 'creature'
@@ -1518,14 +1537,7 @@ function getBufferRecommendationRows(
       bestUpgradeBySlot.set(row.slot, row);
     }
   });
-  return [...nonUpgradeRows, ...bestUpgradeBySlot.values()].sort((a, b) => {
-    const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
-    if (priorityDiff) return priorityDiff;
-    const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
-    if (materialDiff) return materialDiff;
-    if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) return compareMaterialEnchantOrder(a, b);
-    return a.buffCostPerHundredPoints - b.buffCostPerHundredPoints;
-  });
+  return [...nonUpgradeRows, ...bestUpgradeBySlot.values()].sort(compareBufferRecommendationOrder);
 }
 
 function getCreatureRows(groups) {
@@ -3471,6 +3483,7 @@ function combineOathAcquisitionRecommendationRows(
   simulator = {},
   previewCountsByPair = {},
   includeMaterialCosts = false,
+  previewOnly = false,
 ) {
   const rowsByPair = new Map();
   rows.forEach((row, index) => {
@@ -3558,6 +3571,8 @@ function combineOathAcquisitionRecommendationRows(
       ...cloneSimulatorValue(effectVariant),
       sourceType: 'oathAcquisitionCombined',
       kind: 'oathAcquisitionCombined',
+      previewOnly,
+      characterRole: previewOnly ? 'buffer' : 'dealer',
       slot: '서약 결정',
       tier: '초월/정가',
       itemName: `${effectVariant.targetRarity || effectVariant.itemRarity || ''} 서약 결정 획득 ${totalCount}개`.trim(),
@@ -3583,6 +3598,28 @@ function combineOathAcquisitionRecommendationRows(
       variantCount: totalCount,
       variantTotal: maxDecisionCount,
     };
+    if (combinedRow.metricType === 'buffer') {
+      const incrementalBuffScore = totalCount > 0
+        ? Number(effectVariant.incrementalBuffScore || 0)
+        : 0;
+      const currentBufferScore = Number(effectVariant.currentBufferScore || 0);
+      combinedRow.currentBufferScore = currentBufferScore;
+      combinedRow.candidateBufferScore = totalCount > 0
+        ? Number(effectVariant.candidateBufferScore || currentBufferScore)
+        : currentBufferScore;
+      combinedRow.incrementalBuffScore = incrementalBuffScore;
+      combinedRow.incrementalBuffPercent = totalCount > 0
+        ? Number(effectVariant.incrementalBuffPercent || 0)
+        : 0;
+      combinedRow.incrementalDamagePercent = combinedRow.incrementalBuffPercent;
+      combinedRow.buffCostPerHundredPoints = incrementalBuffScore > 0
+        ? getRecommendationGold(combinedRow, includeMaterialCosts) * 100 / incrementalBuffScore
+        : 0;
+      if (totalCount === 0) {
+        combinedRow.targetSetPoint = combinedRow.currentSetPoint;
+        combinedRow.targetOathStageName = combinedRow.currentOathStageName;
+      }
+    }
     return [combinedRow];
   });
 }
@@ -5770,6 +5807,7 @@ export function installEnchantView(ctx) {
   state.equipmentTunePopoverSource = '';
   state.dealerSimulator = null;
   state.dealerSimulatorRecommendations = new Map();
+  state.renderedOathAcquisitionCombinedRows = new Map();
   state.dealerSimulatorSuppressClickUntil = 0;
 
   function isDealerSimulatorActive() {
@@ -6176,6 +6214,7 @@ export function installEnchantView(ctx) {
   function resetDealerSimulator() {
     state.dealerSimulator = null;
     state.dealerSimulatorRecommendations = new Map();
+    state.renderedOathAcquisitionCombinedRows = new Map();
     state.dealerSimulatorSuppressClickUntil = 0;
     renderDealerSimulatorActions();
   }
@@ -6242,6 +6281,7 @@ export function installEnchantView(ctx) {
       sweepSequence: 0,
     };
     state.dealerSimulatorRecommendations = new Map();
+    state.renderedOathAcquisitionCombinedRows = new Map();
   }
 
   function syncDealerSimulatorAuraState() {
@@ -9726,13 +9766,14 @@ export function installEnchantView(ctx) {
         simulatorRecommendationContext.options,
         includeMaterialCosts,
       );
-      recommendations = combineOathAcquisitionRecommendationRows(
-        recommendations,
-        simulator,
-        state.oathAcquisitionCombinedCountsByPair,
-        includeMaterialCosts,
-      );
     }
+    recommendations = combineOathAcquisitionRecommendationRows(
+      recommendations,
+      simulator || {},
+      state.oathAcquisitionCombinedCountsByPair,
+      includeMaterialCosts,
+      state.currentBufferBaseline?.isBuffer === true,
+    );
     recommendations = recommendations.map((row) => (
       TUNE_SOURCE_TYPES.has(row.sourceType)
         ? applyEquipmentTuneDisplayStep(
@@ -9825,7 +9866,7 @@ export function installEnchantView(ctx) {
       };
     });
     let displayRecommendations = state.currentBufferBaseline?.isBuffer
-      ? decoratedRecommendations
+      ? decoratedRecommendations.sort(compareBufferRecommendationOrder)
       : decoratedRecommendations.sort(compareDealerRecommendationOrder);
     if (state.equipmentTunePopoverOpen && state.frozenRecommendationDisplayKey) {
       const frozenRowIndex = displayRecommendations.findIndex(
@@ -9847,6 +9888,7 @@ export function installEnchantView(ctx) {
       getRecommendationDisplayOrderKey,
     );
     state.dealerSimulatorRecommendations = new Map();
+    state.renderedOathAcquisitionCombinedRows = new Map();
     renderEfficiencyLegend(recommendations);
     if (!displayRecommendations.length) {
       els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">현재 세팅보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
@@ -9856,6 +9898,10 @@ export function installEnchantView(ctx) {
     els.enchantRecommendList.innerHTML = displayRecommendations.map((row, index) => {
       const isApplied = row.isApplied === true;
       const isCombinedOathAcquisition = row.sourceType === 'oathAcquisitionCombined';
+      const isCombinedPreviewOnly = isCombinedOathAcquisition && row.previewOnly === true;
+      if (isCombinedOathAcquisition) {
+        state.renderedOathAcquisitionCombinedRows.set(row.oathAcquisitionPairKey, row);
+      }
       const hasOathDecisionVariants = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         && Array.isArray(row.oathDecisionVariants)
         && row.oathDecisionVariants.length > 1;
@@ -9872,14 +9918,16 @@ export function installEnchantView(ctx) {
         row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, activeDamageBaseline, state.currentBufferBaseline);
       }
       const simulatorTarget = isCombinedOathAcquisition
-        ? Number(row.transcendCount || 0) + Number(row.craftCount || 0) > 0 && !isApplied
+        ? !isCombinedPreviewOnly
+          && Number(row.transcendCount || 0) + Number(row.craftCount || 0) > 0
+          && !isApplied
           ? { applyType: 'proxyOathAcquisitionCombined' }
           : null
         : isApplied ? null : resolveDealerSimulatorTarget(row);
       const oathAcquisitionRecommendationId = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         ? getDealerSimulatorRecommendationId(row)
         : '';
-      const combinedRecommendationId = isCombinedOathAcquisition
+      const combinedRecommendationId = isCombinedOathAcquisition && !isCombinedPreviewOnly
         ? `oath-combined:${row.oathAcquisitionPairKey}:${Number(row.transcendCount || 0)}:${Number(row.craftCount || 0)}`
         : '';
       const simulatorRecommendationId = combinedRecommendationId || (simulatorTarget
@@ -10136,7 +10184,7 @@ export function installEnchantView(ctx) {
           ${tooltipRows.map((item) => `<span class="${escapeHtml(item.className)}">${item.html || escapeHtml(item.text)}</span>`).join('')}
         </span>
       `;
-      const combinedCardAttributes = isCombinedOathAcquisition
+      const combinedCardAttributes = isCombinedOathAcquisition && !isCombinedPreviewOnly
         ? ` data-oath-acquisition-combined-key="${escapeHtml(row.oathAcquisitionPairKey)}"`
         : '';
       const appliedCardAttributes = isCombinedOathAcquisition
@@ -11020,10 +11068,12 @@ export function installEnchantView(ctx) {
   }
 
   function getRenderedCombinedOathAcquisition(pairKey) {
-    return [...state.dealerSimulatorRecommendations.values()].find((row) => (
+    return state.renderedOathAcquisitionCombinedRows?.get(pairKey)
+      || [...state.dealerSimulatorRecommendations.values()].find((row) => (
       row?.sourceType === 'oathAcquisitionCombined'
       && row.oathAcquisitionPairKey === pairKey
-    )) || null;
+      ))
+      || null;
   }
 
   function getCombinedOathAcquisitionCounts(row) {
@@ -11170,6 +11220,15 @@ export function installEnchantView(ctx) {
     if (nextCounts.transcend + nextCounts.craft > maxDecisionCount) return;
     state.equipmentTunePopoverOpen = true;
     state.equipmentTunePopoverSource = pairKey;
+    if (row.previewOnly === true) {
+      state.oathAcquisitionCombinedCountsByPair = {
+        ...(state.oathAcquisitionCombinedCountsByPair || {}),
+        [pairKey]: nextCounts,
+      };
+      renderEnchantTable();
+      scheduleOpenTunePopoverShift();
+      return;
+    }
     const activeCounts = getCombinedOathAcquisitionCounts(row);
     if (activeCounts.transcend + activeCounts.craft > 0) {
       applyOathAcquisitionCombinedCounts(pairKey, nextCounts.transcend, nextCounts.craft);
