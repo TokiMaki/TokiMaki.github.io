@@ -1665,7 +1665,6 @@
     .enchant-simulator-actions {
       display: inline-flex;
       flex: 0 0 auto;
-      gap: 2px;
     }
     .enchant-simulator-actions[hidden] {
       display: none;
@@ -1683,15 +1682,11 @@
       font-size: 10px;
       cursor: pointer;
     }
-    .enchant-simulator-actions button:not(:disabled):hover,
-    .enchant-simulator-actions button:not(:disabled):focus-visible {
+    .enchant-simulator-actions button:hover,
+    .enchant-simulator-actions button:focus-visible {
       border-color: rgb(191 151 75 / 0.95);
       background: #2b2112;
       color: #fff0bd;
-    }
-    .enchant-simulator-actions button:disabled {
-      opacity: 0.38;
-      cursor: default;
     }
     .enchant-portrait-buffer-score strong:not([data-tooltip]) {
       cursor: default;

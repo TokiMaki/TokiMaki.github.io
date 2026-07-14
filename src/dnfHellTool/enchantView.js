@@ -7134,8 +7134,6 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     const hasChanges = Object.keys(simulator?.activeSelectionByGroup || {}).length > 0;
     els.enchantSimulatorActions.hidden = !hasChanges;
-    const resetButton = els.enchantSimulatorActions.querySelector('[data-dealer-simulator-action="reset"]');
-    if (resetButton) resetButton.disabled = !hasChanges;
   }
 
   function renderDealerSimulatorMeta(originalCharacterMeta = '') {
