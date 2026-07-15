@@ -1236,11 +1236,15 @@ function resolveBufferNetChanges(
   skillContexts = {},
   artifactChangesByType = {},
   upgradeChangesBySlot = {},
+  equipmentTuneChangesBySource = {},
+  oathTuneChangesBySource = {},
 ) {
   const changes = [
     ...Object.values(changesBySlot || {}),
     ...Object.values(artifactChangesByType || {}),
     ...Object.values(upgradeChangesBySlot || {}),
+    ...Object.values(equipmentTuneChangesBySource || {}),
+    ...Object.values(oathTuneChangesBySource || {}),
   ];
   const total = changes.reduce((result, slotChanges) => {
     BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
@@ -1406,6 +1410,22 @@ function getBufferUpgradeBaseRelativeChanges(row = {}, simulator = {}) {
   if ([...changedKeys].some((key) => key !== 'allStat')) return null;
   const statDelta = Number(targetEffects.allStat || 0) - Number(baseEffects.allStat || 0);
   return Number.isFinite(statDelta) ? { statDelta } : null;
+}
+
+function getBufferEquipmentTuneBaseRelativeChanges(row = {}) {
+  if (row.sourceType !== 'equipmentTune') return null;
+  const buffPowerDelta = Number(row.effects?.buffPower);
+  return Number.isFinite(buffPowerDelta) && buffPowerDelta > 0
+    ? { buffPowerDelta }
+    : null;
+}
+
+function getBufferOathTuneBaseRelativeChanges(row = {}) {
+  if (row.sourceType !== 'oathTune') return null;
+  const buffPowerDelta = Number(row.effects?.buffPower);
+  return Number.isFinite(buffPowerDelta) && buffPowerDelta > 0
+    ? { buffPowerDelta }
+    : null;
 }
 
 function getBufferUpgradeExclusiveGroupKey(row = {}) {
@@ -1694,6 +1714,10 @@ function getBufferRecommendationRows(
       ? getBufferCreatureArtifactBaseRelativeChanges(row, current)
       : row.sourceType === 'upgrade'
         ? getBufferUpgradeBaseRelativeChanges(row, simulator)
+        : row.sourceType === 'equipmentTune'
+          ? getBufferEquipmentTuneBaseRelativeChanges(row)
+        : row.sourceType === 'oathTune'
+          ? getBufferOathTuneBaseRelativeChanges(row)
         : getBufferEnchantBaseRelativeChanges(row, current, baseline);
     let bufferSimulatorSupported = simulator?.role === 'buffer' && Boolean(bufferBaseRelativeChanges);
     let baseCandidateScore = calculateBufferScore(baseline, baseCandidateChanges);
@@ -1710,6 +1734,12 @@ function getBufferRecommendationRows(
             row.sourceType === 'upgrade'
               ? { [row.slot]: bufferBaseRelativeChanges }
               : {},
+            row.sourceType === 'equipmentTune'
+              ? { equipmentTune: bufferBaseRelativeChanges }
+              : {},
+            row.sourceType === 'oathTune'
+              ? { oathTune: bufferBaseRelativeChanges }
+              : {},
           ),
         );
       } catch {
@@ -1724,11 +1754,23 @@ function getBufferRecommendationRows(
       const referenceChangesBySlot = { ...(simulator.enchantChangesBySlot || {}) };
       const referenceArtifactChangesByType = { ...(simulator.artifactChangesByType || {}) };
       const referenceUpgradeChangesBySlot = { ...(simulator.upgradeChangesBySlot || {}) };
+      const referenceEquipmentTuneChangesBySource = {
+        ...(simulator.equipmentTuneChangesBySource || {}),
+      };
+      const referenceOathTuneChangesBySource = {
+        ...(simulator.oathTuneChangesBySource || {}),
+      };
       if (row.sourceType === 'enchant') delete referenceChangesBySlot[row.slot];
       if (row.sourceType === 'creatureArtifact') {
         delete referenceArtifactChangesByType[getCreatureArtifactType(row)];
       }
       if (row.sourceType === 'upgrade') delete referenceUpgradeChangesBySlot[row.slot];
+      if (row.sourceType === 'equipmentTune') {
+        delete referenceEquipmentTuneChangesBySource.equipmentTune;
+      }
+      if (row.sourceType === 'oathTune') {
+        delete referenceOathTuneChangesBySource.oathTune;
+      }
       const candidateChangesBySlot = row.sourceType === 'enchant'
         ? { ...referenceChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
         : referenceChangesBySlot;
@@ -1741,6 +1783,12 @@ function getBufferRecommendationRows(
       const candidateUpgradeChangesBySlot = row.sourceType === 'upgrade'
         ? { ...referenceUpgradeChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
         : referenceUpgradeChangesBySlot;
+      const candidateEquipmentTuneChangesBySource = row.sourceType === 'equipmentTune'
+        ? { ...referenceEquipmentTuneChangesBySource, equipmentTune: bufferBaseRelativeChanges }
+        : referenceEquipmentTuneChangesBySource;
+      const candidateOathTuneChangesBySource = row.sourceType === 'oathTune'
+        ? { ...referenceOathTuneChangesBySource, oathTune: bufferBaseRelativeChanges }
+        : referenceOathTuneChangesBySource;
       try {
         comparisonScore = calculateBufferScore(
           baseline,
@@ -1749,6 +1797,8 @@ function getBufferRecommendationRows(
             simulator.bufferSkillContexts,
             referenceArtifactChangesByType,
             referenceUpgradeChangesBySlot,
+            referenceEquipmentTuneChangesBySource,
+            referenceOathTuneChangesBySource,
           ),
         );
         candidateScore = calculateBufferScore(
@@ -1758,6 +1808,8 @@ function getBufferRecommendationRows(
             simulator.bufferSkillContexts,
             candidateArtifactChangesByType,
             candidateUpgradeChangesBySlot,
+            candidateEquipmentTuneChangesBySource,
+            candidateOathTuneChangesBySource,
           ),
         );
       } catch {
@@ -4732,10 +4784,14 @@ function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
   const mergedRows = rows.map((row) => {
     const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row)
       || getBufferCreatureArtifactExclusiveGroupKey(row)
-      || getBufferUpgradeExclusiveGroupKey(row);
+      || getBufferUpgradeExclusiveGroupKey(row)
+      || getEquipmentTuneExclusiveGroupKey(row)
+      || getOathTuneExclusiveGroupKey(row);
     const candidateSignature = getBufferEnchantCandidateSignature(row)
       || getBufferCreatureArtifactCandidateSignature(row)
-      || getBufferUpgradeCandidateSignature(row);
+      || getBufferUpgradeCandidateSignature(row)
+      || getEquipmentTuneCandidateSignature(row)
+      || getOathTuneCandidateSignature(row);
     const selection = exclusiveGroupKey
       ? simulator.activeSelectionByGroup?.[exclusiveGroupKey]
       : null;
@@ -5905,7 +5961,14 @@ function getSelectedEquipmentTuneStep(row = {}, stepIndex = 0) {
   return steps[index] || steps[0] || null;
 }
 
-function applyEquipmentTuneDisplayStep(row = {}, stepIndex = 0, includeMaterialCosts = false, baseline = {}, bufferBaseline = null) {
+function applyEquipmentTuneDisplayStep(
+  row = {},
+  stepIndex = 0,
+  includeMaterialCosts = false,
+  baseline = {},
+  bufferBaseline = null,
+  bufferSimulator = null,
+) {
   if (!TUNE_SOURCE_TYPES.has(row.sourceType)) return row;
   const step = getSelectedEquipmentTuneStep(row, stepIndex);
   if (!step) return row;
@@ -5933,10 +5996,50 @@ function applyEquipmentTuneDisplayStep(row = {}, stepIndex = 0, includeMaterialC
     tuneCount: step.tuneCount,
   };
   if (displayRow.metricType === 'buffer' && bufferBaseline?.isBuffer) {
-    const currentScore = calculateBufferScore(bufferBaseline);
-    const candidateScore = calculateBufferScore(bufferBaseline, {
-      buffPowerDelta: Number(displayRow.effects?.buffPower || 0),
-    });
+    const isOathTune = displayRow.sourceType === 'oathTune';
+    displayRow.bufferBaseRelativeChanges = isOathTune
+      ? getBufferOathTuneBaseRelativeChanges(displayRow)
+      : getBufferEquipmentTuneBaseRelativeChanges(displayRow);
+    const referenceEquipmentTuneChanges = {
+      ...(bufferSimulator?.equipmentTuneChangesBySource || {}),
+    };
+    const referenceOathTuneChanges = {
+      ...(bufferSimulator?.oathTuneChangesBySource || {}),
+    };
+    if (isOathTune) delete referenceOathTuneChanges.oathTune;
+    else delete referenceEquipmentTuneChanges.equipmentTune;
+    const currentChanges = bufferSimulator?.role === 'buffer'
+      ? resolveBufferNetChanges(
+        bufferSimulator.enchantChangesBySlot,
+        bufferSimulator.bufferSkillContexts,
+        bufferSimulator.artifactChangesByType,
+        bufferSimulator.upgradeChangesBySlot,
+        referenceEquipmentTuneChanges,
+        referenceOathTuneChanges,
+      )
+      : {};
+    const candidateChanges = bufferSimulator?.role === 'buffer'
+      ? resolveBufferNetChanges(
+        bufferSimulator.enchantChangesBySlot,
+        bufferSimulator.bufferSkillContexts,
+        bufferSimulator.artifactChangesByType,
+        bufferSimulator.upgradeChangesBySlot,
+        isOathTune
+          ? referenceEquipmentTuneChanges
+          : {
+            ...referenceEquipmentTuneChanges,
+            equipmentTune: displayRow.bufferBaseRelativeChanges,
+          },
+        isOathTune
+          ? {
+            ...referenceOathTuneChanges,
+            oathTune: displayRow.bufferBaseRelativeChanges,
+          }
+          : referenceOathTuneChanges,
+      )
+      : displayRow.bufferBaseRelativeChanges;
+    const currentScore = calculateBufferScore(bufferBaseline, currentChanges);
+    const candidateScore = calculateBufferScore(bufferBaseline, candidateChanges);
     const incrementalBuffScore = candidateScore - currentScore;
     const incrementalBuffPercent = currentScore > 0 ? (candidateScore / currentScore - 1) * 100 : 0;
     displayRow.currentBufferScore = currentScore;
@@ -6180,7 +6283,7 @@ export function installEnchantView(ctx) {
   }
 
   function getActiveOathUpgrades() {
-    return isDealerSimulatorActive()
+    return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedOathUpgrades
       : state.currentOathUpgrades;
   }
@@ -6582,6 +6685,7 @@ export function installEnchantView(ctx) {
       const baseBufferScore = calculateBufferScore(baseBaseline);
       const baseCreatureArtifacts = getCanonicalCurrentCreatureArtifacts();
       const baseEquipmentUpgrades = cloneSimulatorValue(state.currentEquipmentUpgrades || []);
+      const baseOathUpgrades = cloneSimulatorValue(state.currentOathUpgrades || {});
       state.dealerSimulator = {
         role: 'buffer',
         baseBaseline,
@@ -6596,6 +6700,11 @@ export function installEnchantView(ctx) {
         baseEquipmentUpgrades,
         simulatedEquipmentUpgrades: cloneSimulatorValue(baseEquipmentUpgrades),
         upgradeChangesBySlot: {},
+        equipmentTuneChangesBySource: {},
+        baseOathUpgrades,
+        simulatedOathUpgrades: cloneSimulatorValue(baseOathUpgrades),
+        oathTuneChangesBySource: {},
+        oathTuneDb: cloneSimulatorValue(state.oathTuneStageDb || {}),
         upgradeDb: cloneSimulatorValue(state.upgradeExpectedDb || {}),
         bufferSkillContexts: cloneSimulatorValue(state.currentBufferSkillContexts || {}),
         totalGold: 0,
@@ -6957,6 +7066,32 @@ export function installEnchantView(ctx) {
 
   function resolveBufferSimulatorTarget(row = {}) {
     if (!isBufferSimulatorActive() || !row?.bufferSimulatorSupported) return null;
+    if (row.sourceType === 'equipmentTune') {
+      if (
+        !Array.isArray(row.tunePlan?.slotChanges)
+        || !row.tunePlan.slotChanges.length
+        || !row.bufferBaseRelativeChanges
+      ) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: '장비 조율',
+        applyType: 'applyEquipmentTunePlan',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+      };
+    }
+    if (row.sourceType === 'oathTune') {
+      if (
+        !Array.isArray(row.tunePlan?.slotChanges)
+        || !row.tunePlan.slotChanges.length
+        || !row.bufferBaseRelativeChanges
+      ) return null;
+      return {
+        targetTab: 'oath',
+        targetSlot: '서약 조율',
+        applyType: 'applyOathTunePlan',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+      };
+    }
     if (row.sourceType === 'upgrade') {
       const targetSlot = String(row.slot || '').trim();
       const progressionType = getEquipmentProgressionType(row);
@@ -7014,6 +7149,8 @@ export function installEnchantView(ctx) {
         simulator.bufferSkillContexts,
         simulator.artifactChangesByType,
         simulator.upgradeChangesBySlot,
+        simulator.equipmentTuneChangesBySource,
+        simulator.oathTuneChangesBySource,
       ),
     );
   }
@@ -7097,6 +7234,8 @@ export function installEnchantView(ctx) {
     return {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
       simulatedEquipmentUpgrades: cloneSimulatorValue(simulator.simulatedEquipmentUpgrades),
+      equipmentTuneChangesBySource: cloneSimulatorValue(simulator.equipmentTuneChangesBySource || {}),
+      oathTuneChangesBySource: cloneSimulatorValue(simulator.oathTuneChangesBySource || {}),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       simulatedAvatar: cloneSimulatorValue(simulator.simulatedAvatar),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
@@ -7118,6 +7257,14 @@ export function installEnchantView(ctx) {
     simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
       snapshot.simulatedEquipmentUpgrades || simulator.baseEquipmentUpgrades || [],
     );
+    if (simulator.role === 'buffer') {
+      simulator.equipmentTuneChangesBySource = cloneSimulatorValue(
+        snapshot.equipmentTuneChangesBySource || {},
+      );
+      simulator.oathTuneChangesBySource = cloneSimulatorValue(
+        snapshot.oathTuneChangesBySource || {},
+      );
+    }
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
     simulator.simulatedAvatar = cloneSimulatorValue(snapshot.simulatedAvatar || simulator.baseAvatar || {});
     simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
@@ -7149,7 +7296,8 @@ export function installEnchantView(ctx) {
     state.equipmentTuneStepIndex = equipmentTuneStepIndex;
     simulator.lastChangedTarget = snapshot.lastChangedTarget ? { ...snapshot.lastChangedTarget } : null;
     simulator.selectedRecommendationId = '';
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+    else rebuildDealerSimulatorCalculationState();
   }
 
   function replaceSimulatedEnchant(row, target) {
@@ -7458,7 +7606,14 @@ export function installEnchantView(ctx) {
     target.changedSlots = getChangedEquipmentTuneSlots(beforeTuneSnapshot, nextEquipment);
     target.beforeTuneSnapshot = beforeTuneSnapshot;
     simulator.simulatedEquipmentUpgrades = nextEquipment;
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      simulator.equipmentTuneChangesBySource.equipmentTune = cloneSimulatorValue(
+        target.baseRelativeChanges || row.bufferBaseRelativeChanges,
+      );
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -7476,7 +7631,14 @@ export function installEnchantView(ctx) {
     target.pointPerTune = pointPerTune;
     target.maxTuneLevel = maxTuneLevel;
     simulator.simulatedOathUpgrades = nextOath;
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      simulator.oathTuneChangesBySource.oathTune = cloneSimulatorValue(
+        target.baseRelativeChanges || row.bufferBaseRelativeChanges,
+      );
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -7901,10 +8063,14 @@ export function installEnchantView(ctx) {
     if (!row || !target) return;
     const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row)
       || getBufferCreatureArtifactExclusiveGroupKey(row)
-      || getBufferUpgradeExclusiveGroupKey(row);
+      || getBufferUpgradeExclusiveGroupKey(row)
+      || getEquipmentTuneExclusiveGroupKey(row)
+      || getOathTuneExclusiveGroupKey(row);
     const candidateSignature = getBufferEnchantCandidateSignature(row)
       || getBufferCreatureArtifactCandidateSignature(row)
-      || getBufferUpgradeCandidateSignature(row);
+      || getBufferUpgradeCandidateSignature(row)
+      || getEquipmentTuneCandidateSignature(row)
+      || getOathTuneCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
     if (simulator.activeSelectionByGroup?.[exclusiveGroupKey]?.candidateSignature === candidateSignature) return;
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
@@ -7919,6 +8085,9 @@ export function installEnchantView(ctx) {
       artifactChangesByType: cloneSimulatorValue(simulator.artifactChangesByType),
       simulatedEquipmentUpgrades: cloneSimulatorValue(simulator.simulatedEquipmentUpgrades),
       upgradeChangesBySlot: cloneSimulatorValue(simulator.upgradeChangesBySlot),
+      equipmentTuneChangesBySource: cloneSimulatorValue(simulator.equipmentTuneChangesBySource),
+      simulatedOathUpgrades: cloneSimulatorValue(simulator.simulatedOathUpgrades),
+      oathTuneChangesBySource: cloneSimulatorValue(simulator.oathTuneChangesBySource),
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup),
       currentBufferScore: simulator.currentBufferScore,
       totalGold: simulator.totalGold,
@@ -7932,6 +8101,10 @@ export function installEnchantView(ctx) {
         ? replaceSimulatedBufferCreatureArtifact(row, target)
         : target.applyType === 'replaceBufferEquipmentProgression'
           ? replaceSimulatedBufferEquipmentProgression(row, target)
+          : target.applyType === 'applyEquipmentTunePlan'
+            ? applySimulatedEquipmentTunePlan(row, target)
+          : target.applyType === 'applyOathTunePlan'
+            ? applySimulatedOathTunePlan(row, target)
           : replaceSimulatedBufferEnchant(row, target);
       if (!applied) return;
       if (target.applyType === 'replaceBufferEquipmentProgression') {
@@ -7958,13 +8131,29 @@ export function installEnchantView(ctx) {
           applyType: target.applyType,
           baseRelativeChanges: cloneSimulatorValue(target.baseRelativeChanges),
           appliedRecommendationSnapshot: cloneSimulatorValue(row),
+          ...(['applyEquipmentTunePlan', 'applyOathTunePlan'].includes(target.applyType) ? {
+            actionType: target.applyType === 'applyOathTunePlan'
+              ? 'oathTunePlan'
+              : 'equipmentTunePlan',
+            selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
+            beforeTuneSnapshot: cloneSimulatorValue(
+              target.beforeTuneSnapshot || (target.applyType === 'applyOathTunePlan' ? {} : []),
+            ),
+            pointPerTune: target.pointPerTune,
+            maxTuneLevel: target.maxTuneLevel,
+            variants: cloneSimulatorValue(row.tuneSteps || []),
+            appliedVariantSnapshot: cloneSimulatorValue(row),
+          } : {}),
         };
       }
       simulator.totalGold = getDealerSimulatorTotalGold(simulator, includeMaterialCosts);
       simulator.selectedRecommendationId = '';
       simulator.lastChangedTarget = target;
-      triggerDealerSimulatorSweep(target.targetSlot);
-      state.enchantLoadoutTab = 'equipment';
+      const changedSlots = Array.isArray(target.changedSlots)
+        ? target.changedSlots
+        : [target.targetSlot];
+      changedSlots.forEach(triggerDealerSimulatorSweep);
+      state.enchantLoadoutTab = target.targetTab;
       renderEnchantCharacterPortrait();
       renderEnchantTable();
     } catch {
@@ -7974,6 +8163,9 @@ export function installEnchantView(ctx) {
       simulator.artifactChangesByType = snapshot.artifactChangesByType;
       simulator.simulatedEquipmentUpgrades = snapshot.simulatedEquipmentUpgrades;
       simulator.upgradeChangesBySlot = snapshot.upgradeChangesBySlot;
+      simulator.equipmentTuneChangesBySource = snapshot.equipmentTuneChangesBySource;
+      simulator.simulatedOathUpgrades = snapshot.simulatedOathUpgrades;
+      simulator.oathTuneChangesBySource = snapshot.oathTuneChangesBySource;
       simulator.activeSelectionByGroup = snapshot.activeSelectionByGroup;
       simulator.currentBufferScore = snapshot.currentBufferScore;
       simulator.totalGold = snapshot.totalGold;
@@ -8385,6 +8577,61 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (simulator?.role !== 'buffer' || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
     const selection = simulator.activeSelectionByGroup?.[exclusiveGroupKey];
+    if (selection?.actionType === 'oathTunePlan') {
+      const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
+      simulator.simulatedOathUpgrades = cloneSimulatorValue(
+        selection.beforeTuneSnapshot || simulator.baseOathUpgrades || {},
+      );
+      delete simulator.oathTuneChangesBySource.oathTune;
+      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+      rebuildBufferSimulatorCalculationState();
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = {
+        targetTab: selection.targetTab,
+        targetSlot: selection.targetSlot,
+        applyType: selection.applyType,
+      };
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        oathTune: Number(selection.selectedVariantIndex || 0),
+      };
+      state.enchantLoadoutTab = selection.targetTab || 'oath';
+      getChangedOathTuneSlots(previousOath, simulator.simulatedOathUpgrades)
+        .forEach(triggerDealerSimulatorSweep);
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
+    }
+    if (selection?.actionType === 'equipmentTunePlan') {
+      const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+      simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
+        selection.beforeTuneSnapshot || simulator.baseEquipmentUpgrades || [],
+      );
+      delete simulator.equipmentTuneChangesBySource.equipmentTune;
+      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+      rebuildBufferSimulatorCalculationState();
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = {
+        targetTab: selection.targetTab,
+        targetSlot: selection.targetSlot,
+        applyType: selection.applyType,
+      };
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        equipmentTune: Number(selection.selectedVariantIndex || 0),
+      };
+      state.equipmentTuneStepIndex = Number(selection.selectedVariantIndex || 0);
+      state.enchantLoadoutTab = selection.targetTab || 'equipment';
+      getChangedEquipmentTuneSlots(
+        previousEquipment,
+        simulator.simulatedEquipmentUpgrades,
+      ).forEach(triggerDealerSimulatorSweep);
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
+    }
     if (!selection || ![
       'replaceBufferEnchant',
       'replaceBufferCreatureArtifact',
@@ -8573,12 +8820,23 @@ export function installEnchantView(ctx) {
       simulator.artifactChangesByType = {};
       simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
       simulator.upgradeChangesBySlot = {};
+      simulator.equipmentTuneChangesBySource = {};
+      simulator.simulatedOathUpgrades = cloneSimulatorValue(simulator.baseOathUpgrades);
+      simulator.oathTuneChangesBySource = {};
       simulator.currentBufferScore = simulator.baseBufferScore;
       simulator.totalGold = 0;
       simulator.activeSelectionByGroup = {};
       simulator.selectedRecommendationId = '';
       simulator.lastChangedTarget = null;
       simulator.activeSweepSlots.clear();
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        equipmentTune: 0,
+        oathTune: 0,
+      };
+      state.equipmentTuneStepIndex = 0;
+      state.equipmentTunePopoverOpen = false;
+      state.equipmentTunePopoverSource = '';
       state.lastRecommendationDisplayOrder = [];
       state.enchantLoadoutTab = 'equipment';
       renderEnchantCharacterPortrait();
@@ -10566,6 +10824,7 @@ export function installEnchantView(ctx) {
           includeMaterialCosts,
           activeDamageBaseline,
           state.currentBufferBaseline,
+          simulator?.role === 'buffer' ? simulator : null,
         )
         : row
     ));
@@ -10609,6 +10868,7 @@ export function installEnchantView(ctx) {
             includeMaterialCosts,
             activeDamageBaseline,
             state.currentBufferBaseline,
+            null,
           )
           : row
       ));
@@ -10709,7 +10969,14 @@ export function installEnchantView(ctx) {
         ? getTuneStepIndexBySource(state, row.sourceType)
         : state.equipmentTuneStepIndex;
       if (!isApplied || TUNE_SOURCE_TYPES.has(row.sourceType)) {
-        row = applyEquipmentTuneDisplayStep(row, tuneStepIndex, includeMaterialCosts, activeDamageBaseline, state.currentBufferBaseline);
+        row = applyEquipmentTuneDisplayStep(
+          row,
+          tuneStepIndex,
+          includeMaterialCosts,
+          activeDamageBaseline,
+          state.currentBufferBaseline,
+          simulator?.role === 'buffer' ? simulator : null,
+        );
       }
       const simulatorTarget = isCombinedOathAcquisition
         ? dealerSimulator && !isCombinedPreviewOnly
@@ -11600,11 +11867,12 @@ export function installEnchantView(ctx) {
     const row = getTuneRowsBySource('equipmentTune')[0];
     if (!row) return null;
     return applyEquipmentTuneDisplayStep(
-      row,
+      state.currentBufferBaseline?.isBuffer ? { ...row, metricType: 'buffer' } : row,
       stepIndex,
       els.enchantMaterialCostToggle?.checked === true,
       getActiveDamageBaseline(),
       state.currentBufferBaseline,
+      state.dealerSimulator?.role === 'buffer' ? state.dealerSimulator : null,
     );
   }
 
@@ -11612,11 +11880,12 @@ export function installEnchantView(ctx) {
     const row = getTuneRowsBySource('oathTune')[0];
     if (!row) return null;
     return applyEquipmentTuneDisplayStep(
-      row,
+      state.currentBufferBaseline?.isBuffer ? { ...row, metricType: 'buffer' } : row,
       stepIndex,
       els.enchantMaterialCostToggle?.checked === true,
       getActiveDamageBaseline(),
       state.currentBufferBaseline,
+      state.dealerSimulator?.role === 'buffer' ? state.dealerSimulator : null,
     );
   }
 
@@ -11654,17 +11923,26 @@ export function installEnchantView(ctx) {
       selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
       variants: cloneSimulatorValue(row.tuneSteps || []),
       appliedVariantSnapshot: cloneSimulatorValue(row),
+      baseRelativeChanges: simulator.role === 'buffer'
+        ? cloneSimulatorValue(row.bufferBaseRelativeChanges)
+        : selection.baseRelativeChanges,
     };
     try {
       simulator.simulatedEquipmentUpgrades = nextEquipment;
       simulator.activeSelectionByGroup.equipmentTune = updatedSelection;
+      if (simulator.role === 'buffer') {
+        simulator.equipmentTuneChangesBySource.equipmentTune = cloneSimulatorValue(
+          row.bufferBaseRelativeChanges,
+        );
+      }
       simulator.totalGold = getDealerSimulatorTotalGold(simulator);
       simulator.lastChangedTarget = {
         targetTab: 'equipment',
         targetSlot: '장비 조율',
         applyType: 'applyEquipmentTunePlan',
       };
-      rebuildDealerSimulatorCalculationState();
+      if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+      else rebuildDealerSimulatorCalculationState();
       getChangedEquipmentTuneSlots(previousEquipment, nextEquipment).forEach(triggerDealerSimulatorSweep);
       state.enchantLoadoutTab = 'equipment';
       renderEnchantCharacterPortrait();
@@ -11701,17 +11979,26 @@ export function installEnchantView(ctx) {
       selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
       variants: cloneSimulatorValue(row.tuneSteps || []),
       appliedVariantSnapshot: cloneSimulatorValue(row),
+      baseRelativeChanges: simulator.role === 'buffer'
+        ? cloneSimulatorValue(row.bufferBaseRelativeChanges)
+        : selection.baseRelativeChanges,
     };
     try {
       simulator.simulatedOathUpgrades = plannedOath;
       simulator.activeSelectionByGroup.oathTune = updatedSelection;
+      if (simulator.role === 'buffer') {
+        simulator.oathTuneChangesBySource.oathTune = cloneSimulatorValue(
+          row.bufferBaseRelativeChanges,
+        );
+      }
       simulator.totalGold = getDealerSimulatorTotalGold(simulator);
       simulator.lastChangedTarget = {
         targetTab: 'oath',
         targetSlot: '서약 조율',
         applyType: 'applyOathTunePlan',
       };
-      rebuildDealerSimulatorCalculationState();
+      if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+      else rebuildDealerSimulatorCalculationState();
       getChangedOathTuneSlots(previousOath, plannedOath).forEach(triggerDealerSimulatorSweep);
       state.enchantLoadoutTab = 'oath';
       renderEnchantCharacterPortrait();
