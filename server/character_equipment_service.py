@@ -1190,6 +1190,25 @@ def build_buffer_enchant_skill_context_payload(
         (load_character_title(server_id, character_id).get("title") or {}),
         title_candidates,
     )
+    switching_title_candidates = load_buffer_switching_title_recommendations(
+        server_id,
+        character_id,
+        baseline,
+    )
+    if switching_title_candidates:
+        _, switching_rows, _ = get_buffer_switching_rows(server_id, character_id)
+        base_switching_title = get_title_row(switching_rows)
+        base_switching_title_id = clean_text(base_switching_title.get("itemId"))
+        base_switching_title_detail = next((
+            detail
+            for detail in fetch_item_details([base_switching_title_id])
+            if clean_text(detail.get("itemId")) == base_switching_title_id
+        ), {}) if base_switching_title_id else {}
+        add_recommendation_group(
+            "bufferSwitchingTitle",
+            {**base_switching_title, **base_switching_title_detail},
+            switching_title_candidates,
+        )
 
     skill_info_by_context = {
         clean_text(info.get("contextKey")): {**info, "skillName": skill_name}
