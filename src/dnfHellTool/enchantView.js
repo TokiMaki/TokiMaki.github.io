@@ -1282,6 +1282,8 @@ function resolveBufferNetChanges(
   blackFangChangesBySlot = {},
   creatureChangesBySource = {},
   auraChangesBySource = {},
+  titleChangesBySource = {},
+  switchingCreatureChangesBySource = {},
 ) {
   const changes = [
     ...Object.values(changesBySlot || {}),
@@ -1293,6 +1295,8 @@ function resolveBufferNetChanges(
     ...Object.values(blackFangChangesBySlot || {}),
     ...Object.values(creatureChangesBySource || {}),
     ...Object.values(auraChangesBySource || {}),
+    ...Object.values(titleChangesBySource || {}),
+    ...Object.values(switchingCreatureChangesBySource || {}),
   ];
   const total = changes.reduce((result, slotChanges) => {
     BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
@@ -1530,6 +1534,65 @@ function getBufferAuraCandidateSignature(row = {}) {
     getStableObjectSignature(row.itemReinforceSkill || row.reinforceSkills || []),
     getStableObjectSignature(row.itemBuff || {}),
   ].join(':');
+}
+
+function buildSimulatedTitleTarget(row = {}) {
+  return {
+    ...cloneSimulatorValue(row),
+    itemName: row.titleItemName || row.candidateName || row.itemName || '',
+    iconUrl: row.titleIconUrl || row.iconUrl || '',
+    effects: cloneSimulatorValue(row.titlePackageEffects || row.effects || {}),
+    enchantEffects: cloneSimulatorValue(
+      row.targetTitleEnchantEffects || row.enchantEffects || {},
+    ),
+  };
+}
+
+function getBufferTitleBaseRelativeChanges(row = {}, baseTitle = {}, baseline = {}) {
+  if (row.sourceType !== 'title') return null;
+  return getBufferEquippedItemBaseRelativeChanges(
+    buildSimulatedTitleTarget(row),
+    baseTitle,
+    baseline,
+    'title',
+  );
+}
+
+function getBufferTitleExclusiveGroupKey(row = {}) {
+  return row.bufferSimulatorSupported && row.sourceType === 'title'
+    ? 'bufferTitle'
+    : '';
+}
+
+function getBufferTitleCandidateSignature(row = {}) {
+  const groupKey = getBufferTitleExclusiveGroupKey(row);
+  if (!groupKey) return '';
+  const dealerSignature = getTitleCandidateSignature(row);
+  return dealerSignature ? dealerSignature.replace(/^title:/, `${groupKey}:`) : '';
+}
+
+function getBufferSwitchingCreatureBaseRelativeChanges(row = {}) {
+  if (row.sourceType !== 'switchingCreature') return null;
+  const changes = {
+    switchingStatDelta: Number(row.switchingStatDelta || 0),
+    switchingBuffAmplificationDelta: Number(row.switchingBuffAmplificationDelta || 0),
+    buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
+    auraStatDelta: Number(row.auraStatDelta || 0),
+    auraAttackDelta: Number(row.auraAttackDelta || 0),
+  };
+  return Object.values(changes).every(Number.isFinite) ? changes : null;
+}
+
+function getBufferSwitchingCreatureExclusiveGroupKey(row = {}) {
+  return row.bufferSimulatorSupported && row.sourceType === 'switchingCreature'
+    ? getBuffSimulatorExclusiveGroupKey(row)
+    : '';
+}
+
+function getBufferSwitchingCreatureCandidateSignature(row = {}) {
+  return getBufferSwitchingCreatureExclusiveGroupKey(row)
+    ? getBuffSimulatorCandidateSignature(row)
+    : '';
 }
 
 function getBufferCreatureArtifactExclusiveGroupKey(row = {}) {
@@ -1897,6 +1960,10 @@ function getBufferRecommendationRows(
         ? getBufferCreatureBaseRelativeChanges(row, currentCreature || {}, baseline)
       : row.sourceType === 'aura'
         ? getBufferAuraBaseRelativeChanges(row, currentAura || {}, baseline)
+      : row.sourceType === 'title'
+        ? getBufferTitleBaseRelativeChanges(row, simulator?.baseTitle || currentTitle || {}, baseline)
+      : row.sourceType === 'switchingCreature'
+        ? getBufferSwitchingCreatureBaseRelativeChanges(row)
       : row.sourceType === 'blackFang'
         ? getBufferBlackFangBaseRelativeChanges(row)
       : row.sourceType === 'upgrade'
@@ -1941,6 +2008,12 @@ function getBufferRecommendationRows(
             row.sourceType === 'aura'
               ? { aura: bufferBaseRelativeChanges }
               : {},
+            row.sourceType === 'title'
+              ? { title: bufferBaseRelativeChanges }
+              : {},
+            row.sourceType === 'switchingCreature'
+              ? { switchingCreature: bufferBaseRelativeChanges }
+              : {},
           ),
         );
       } catch {
@@ -1973,6 +2046,12 @@ function getBufferRecommendationRows(
       const referenceAuraChangesBySource = {
         ...(simulator.auraChangesBySource || {}),
       };
+      const referenceTitleChangesBySource = {
+        ...(simulator.titleChangesBySource || {}),
+      };
+      const referenceSwitchingCreatureChangesBySource = {
+        ...(simulator.switchingCreatureChangesBySource || {}),
+      };
       if (row.sourceType === 'enchant') delete referenceChangesBySlot[row.slot];
       if (row.sourceType === 'creatureArtifact') {
         delete referenceArtifactChangesByType[getCreatureArtifactType(row)];
@@ -1994,6 +2073,10 @@ function getBufferRecommendationRows(
       if (row.sourceType === 'blackFang') delete referenceBlackFangChangesBySlot[row.slot];
       if (row.sourceType === 'creature') delete referenceCreatureChangesBySource.creature;
       if (row.sourceType === 'aura') delete referenceAuraChangesBySource.aura;
+      if (row.sourceType === 'title') delete referenceTitleChangesBySource.title;
+      if (row.sourceType === 'switchingCreature') {
+        delete referenceSwitchingCreatureChangesBySource.switchingCreature;
+      }
       const candidateChangesBySlot = row.sourceType === 'enchant'
         ? { ...referenceChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
         : referenceChangesBySlot;
@@ -2024,6 +2107,12 @@ function getBufferRecommendationRows(
       const candidateAuraChangesBySource = row.sourceType === 'aura'
         ? { aura: bufferBaseRelativeChanges }
         : referenceAuraChangesBySource;
+      const candidateTitleChangesBySource = row.sourceType === 'title'
+        ? { title: bufferBaseRelativeChanges }
+        : referenceTitleChangesBySource;
+      const candidateSwitchingCreatureChangesBySource = row.sourceType === 'switchingCreature'
+        ? { switchingCreature: bufferBaseRelativeChanges }
+        : referenceSwitchingCreatureChangesBySource;
       try {
         comparisonScore = calculateBufferScore(
           baseline,
@@ -2038,6 +2127,8 @@ function getBufferRecommendationRows(
             referenceBlackFangChangesBySlot,
             referenceCreatureChangesBySource,
             referenceAuraChangesBySource,
+            referenceTitleChangesBySource,
+            referenceSwitchingCreatureChangesBySource,
           ),
         );
         candidateScore = calculateBufferScore(
@@ -2053,6 +2144,8 @@ function getBufferRecommendationRows(
             candidateBlackFangChangesBySlot,
             candidateCreatureChangesBySource,
             candidateAuraChangesBySource,
+            candidateTitleChangesBySource,
+            candidateSwitchingCreatureChangesBySource,
           ),
         );
       } catch {
@@ -5089,6 +5182,8 @@ function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
       || getBufferBlackFangExclusiveGroupKey(row)
       || getBufferCreatureExclusiveGroupKey(row)
       || getBufferAuraExclusiveGroupKey(row)
+      || getBufferTitleExclusiveGroupKey(row)
+      || getBufferSwitchingCreatureExclusiveGroupKey(row)
       || getEquipmentTuneExclusiveGroupKey(row)
       || getOathTuneExclusiveGroupKey(row);
     const candidateSignature = getBufferEnchantCandidateSignature(row)
@@ -5097,6 +5192,8 @@ function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
       || getBufferBlackFangCandidateSignature(row)
       || getBufferCreatureCandidateSignature(row)
       || getBufferAuraCandidateSignature(row)
+      || getBufferTitleCandidateSignature(row)
+      || getBufferSwitchingCreatureCandidateSignature(row)
       || getEquipmentTuneCandidateSignature(row)
       || getOathTuneCandidateSignature(row);
     const selection = exclusiveGroupKey
@@ -5129,6 +5226,21 @@ function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
       bufferBaseRelativeChanges: cloneSimulatorValue(selection.baseRelativeChanges),
     });
   });
+  const titleSelection = simulator.activeSelectionByGroup?.bufferTitle;
+  if (
+    titleSelection?.applyType === 'replaceTitle'
+    && titleSelection.appliedRecommendationSnapshot
+    && titleSelection.candidateSignature
+    && !mergedRows.some(
+      (row) => getBufferTitleCandidateSignature(row) === titleSelection.candidateSignature,
+    )
+  ) {
+    mergedRows.push({
+      ...cloneSimulatorValue(titleSelection.appliedRecommendationSnapshot),
+      bufferSimulatorSupported: true,
+      bufferBaseRelativeChanges: cloneSimulatorValue(titleSelection.baseRelativeChanges),
+    });
+  }
   return mergedRows;
 }
 
@@ -5272,6 +5384,8 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getBufferBlackFangExclusiveGroupKey(row)
     || getBufferCreatureExclusiveGroupKey(row)
     || getBufferAuraExclusiveGroupKey(row)
+    || getBufferTitleExclusiveGroupKey(row)
+    || getBufferSwitchingCreatureExclusiveGroupKey(row)
     || getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
     || getCreatureExclusiveGroupKey(row)
@@ -5293,6 +5407,8 @@ function getSimulatorCandidateSignature(row = {}) {
     || getBufferBlackFangCandidateSignature(row)
     || getBufferCreatureCandidateSignature(row)
     || getBufferAuraCandidateSignature(row)
+    || getBufferTitleCandidateSignature(row)
+    || getBufferSwitchingCreatureCandidateSignature(row)
     || getEnchantCandidateSignature(row)
     || getAuraCandidateSignature(row)
     || getCreatureCandidateSignature(row)
@@ -6333,6 +6449,8 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.blackFangChangesBySlot,
         bufferSimulator.creatureChangesBySource,
         bufferSimulator.auraChangesBySource,
+        bufferSimulator.titleChangesBySource,
+        bufferSimulator.switchingCreatureChangesBySource,
       )
       : {};
     const candidateChanges = bufferSimulator?.role === 'buffer'
@@ -6357,6 +6475,8 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.blackFangChangesBySlot,
         bufferSimulator.creatureChangesBySource,
         bufferSimulator.auraChangesBySource,
+        bufferSimulator.titleChangesBySource,
+        bufferSimulator.switchingCreatureChangesBySource,
       )
       : displayRow.bufferBaseRelativeChanges;
     const currentScore = calculateBufferScore(bufferBaseline, currentChanges);
@@ -6684,7 +6804,7 @@ export function installEnchantView(ctx) {
   }
 
   function getActiveTitle() {
-    return isDealerSimulatorActive()
+    return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedTitle
       : state.currentTitle;
   }
@@ -7011,6 +7131,8 @@ export function installEnchantView(ctx) {
       const baseAura = getCanonicalCurrentAura();
       const baseCreature = getCanonicalCurrentCreatureBody();
       const baseCreatureArtifacts = getCanonicalCurrentCreatureArtifacts();
+      const baseTitle = cloneSimulatorValue(state.currentTitle || {});
+      const baseBuffLoadout = cloneSimulatorValue(state.currentBuffLoadout || {});
       const baseEquipmentUpgrades = attachBlackFangBaseBodyData(
         state.currentEquipmentUpgrades || [],
         state.currentBlackFangRecommendations || [],
@@ -7039,6 +7161,12 @@ export function installEnchantView(ctx) {
         baseCreatureArtifacts,
         simulatedCreatureArtifacts: cloneSimulatorValue(baseCreatureArtifacts),
         artifactChangesByType: {},
+        baseTitle,
+        simulatedTitle: cloneSimulatorValue(baseTitle),
+        titleChangesBySource: {},
+        baseBuffLoadout,
+        simulatedBuffLoadout: cloneSimulatorValue(baseBuffLoadout),
+        switchingCreatureChangesBySource: {},
         baseEquipmentUpgrades,
         simulatedEquipmentUpgrades: cloneSimulatorValue(baseEquipmentUpgrades),
         upgradeChangesBySlot: {},
@@ -7186,13 +7314,15 @@ export function installEnchantView(ctx) {
 
   function syncDealerSimulatorTitleState() {
     const simulator = state.dealerSimulator;
-    if (simulator?.role !== 'dealer') return;
+    if (!['dealer', 'buffer'].includes(simulator?.role)) return;
     const canonicalTitle = cloneSimulatorValue(state.currentTitle || {});
     simulator.baseTitle = canonicalTitle;
-    if (!simulator.activeSelectionByGroup?.title) {
+    const titleGroupKey = simulator.role === 'buffer' ? 'bufferTitle' : 'title';
+    if (!simulator.activeSelectionByGroup?.[titleGroupKey]) {
       simulator.simulatedTitle = cloneSimulatorValue(canonicalTitle);
     }
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+    else rebuildDealerSimulatorCalculationState();
   }
 
   function rebuildDealerSimulatorCalculationState() {
@@ -7342,6 +7472,16 @@ export function installEnchantView(ctx) {
         applyType: 'replaceTitle',
       };
     }
+    if (row.sourceType === 'switchingCreature') {
+      if (!row.itemId || !row.bufferBaseRelativeChanges) return null;
+      return {
+        targetTab: 'buff',
+        targetSlot: 'buffCreature',
+        buffSlotId: 'CREATURE',
+        applyType: 'replaceBuffCreature',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+      };
+    }
     if (row.sourceType === 'avatar' && row.kind === 'brilliantEmblem') {
       const targetSlotId = String(row.targetSlotId || '').trim();
       const socketChanges = Array.isArray(row.socketChanges) ? row.socketChanges : [];
@@ -7451,6 +7591,15 @@ export function installEnchantView(ctx) {
         baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
       };
     }
+    if (row.sourceType === 'title') {
+      if (!row.itemId || !row.bufferBaseRelativeChanges) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: '칭호',
+        applyType: 'replaceTitle',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+      };
+    }
     if (row.sourceType === 'oathTune') {
       if (
         !Array.isArray(row.tunePlan?.slotChanges)
@@ -7543,6 +7692,8 @@ export function installEnchantView(ctx) {
         simulator.blackFangChangesBySlot,
         simulator.creatureChangesBySource,
         simulator.auraChangesBySource,
+        simulator.titleChangesBySource,
+        simulator.switchingCreatureChangesBySource,
       ),
     );
   }
@@ -7634,6 +7785,7 @@ export function installEnchantView(ctx) {
       blackFangChangesBySlot: cloneSimulatorValue(simulator.blackFangChangesBySlot || {}),
       creatureChangesBySource: cloneSimulatorValue(simulator.creatureChangesBySource || {}),
       auraChangesBySource: cloneSimulatorValue(simulator.auraChangesBySource || {}),
+      titleChangesBySource: cloneSimulatorValue(simulator.titleChangesBySource || {}),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       simulatedAvatar: cloneSimulatorValue(simulator.simulatedAvatar),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
@@ -7673,6 +7825,9 @@ export function installEnchantView(ctx) {
       );
       simulator.auraChangesBySource = cloneSimulatorValue(
         snapshot.auraChangesBySource || {},
+      );
+      simulator.titleChangesBySource = cloneSimulatorValue(
+        snapshot.titleChangesBySource || {},
       );
     }
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
@@ -7807,14 +7962,13 @@ export function installEnchantView(ctx) {
   function replaceSimulatedTitle(row, target) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'replaceTitle') return false;
-    simulator.simulatedTitle = {
-      ...cloneSimulatorValue(row),
-      itemName: row.titleItemName || row.candidateName || row.itemName || '',
-      iconUrl: row.titleIconUrl || row.iconUrl || '',
-      effects: cloneSimulatorValue(row.titlePackageEffects || row.effects || {}),
-      enchantEffects: cloneSimulatorValue(row.targetTitleEnchantEffects || row.enchantEffects || {}),
-    };
-    rebuildDealerSimulatorCalculationState();
+    simulator.simulatedTitle = buildSimulatedTitleTarget(row);
+    if (simulator.role === 'buffer') {
+      simulator.titleChangesBySource.title = cloneSimulatorValue(target.baseRelativeChanges);
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -7852,7 +8006,8 @@ export function installEnchantView(ctx) {
     if (index >= 0) rows.splice(index, 1, nextRow);
     else rows.push(nextRow);
     simulator.simulatedBuffLoadout[collectionName] = rows;
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+    else rebuildDealerSimulatorCalculationState();
     return true;
   }
 
@@ -7912,6 +8067,21 @@ export function installEnchantView(ctx) {
         },
       },
     );
+  }
+
+  function replaceSimulatedBufferSwitchingCreature(row, target) {
+    const simulator = state.dealerSimulator;
+    if (
+      simulator?.role !== 'buffer'
+      || target?.applyType !== 'replaceBuffCreature'
+      || !target.baseRelativeChanges
+    ) return false;
+    if (!replaceSimulatedBuffCreature(row, target)) return false;
+    simulator.switchingCreatureChangesBySource.switchingCreature = cloneSimulatorValue(
+      target.baseRelativeChanges,
+    );
+    rebuildBufferSimulatorCalculationState();
+    return true;
   }
 
   function replaceSimulatedBuffAvatar(row, target, platinumOnly = false) {
@@ -8533,6 +8703,8 @@ export function installEnchantView(ctx) {
       || getBufferBlackFangExclusiveGroupKey(row)
       || getBufferCreatureExclusiveGroupKey(row)
       || getBufferAuraExclusiveGroupKey(row)
+      || getBufferTitleExclusiveGroupKey(row)
+      || getBufferSwitchingCreatureExclusiveGroupKey(row)
       || getEquipmentTuneExclusiveGroupKey(row)
       || getOathTuneExclusiveGroupKey(row);
     const candidateSignature = getBufferEnchantCandidateSignature(row)
@@ -8541,6 +8713,8 @@ export function installEnchantView(ctx) {
       || getBufferBlackFangCandidateSignature(row)
       || getBufferCreatureCandidateSignature(row)
       || getBufferAuraCandidateSignature(row)
+      || getBufferTitleCandidateSignature(row)
+      || getBufferSwitchingCreatureCandidateSignature(row)
       || getEquipmentTuneCandidateSignature(row)
       || getOathTuneCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
@@ -8565,6 +8739,12 @@ export function installEnchantView(ctx) {
       creatureChangesBySource: cloneSimulatorValue(simulator.creatureChangesBySource),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       auraChangesBySource: cloneSimulatorValue(simulator.auraChangesBySource),
+      simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
+      titleChangesBySource: cloneSimulatorValue(simulator.titleChangesBySource),
+      simulatedBuffLoadout: cloneSimulatorValue(simulator.simulatedBuffLoadout),
+      switchingCreatureChangesBySource: cloneSimulatorValue(
+        simulator.switchingCreatureChangesBySource,
+      ),
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup),
       currentBufferScore: simulator.currentBufferScore,
       totalGold: simulator.totalGold,
@@ -8588,6 +8768,10 @@ export function installEnchantView(ctx) {
             ? replaceSimulatedCreature(row, target)
           : target.applyType === 'replaceAura'
             ? replaceSimulatedAura(row, target)
+          : target.applyType === 'replaceTitle'
+            ? replaceSimulatedTitle(row, target)
+          : target.applyType === 'replaceBuffCreature'
+            ? replaceSimulatedBufferSwitchingCreature(row, target)
           : replaceSimulatedBufferEnchant(row, target);
       if (!applied) return;
       if (target.applyType === 'replaceBufferEquipmentProgression') {
@@ -8654,6 +8838,10 @@ export function installEnchantView(ctx) {
       simulator.creatureChangesBySource = snapshot.creatureChangesBySource;
       simulator.simulatedAura = snapshot.simulatedAura;
       simulator.auraChangesBySource = snapshot.auraChangesBySource;
+      simulator.simulatedTitle = snapshot.simulatedTitle;
+      simulator.titleChangesBySource = snapshot.titleChangesBySource;
+      simulator.simulatedBuffLoadout = snapshot.simulatedBuffLoadout;
+      simulator.switchingCreatureChangesBySource = snapshot.switchingCreatureChangesBySource;
       simulator.activeSelectionByGroup = snapshot.activeSelectionByGroup;
       simulator.currentBufferScore = snapshot.currentBufferScore;
       simulator.totalGold = snapshot.totalGold;
@@ -8861,7 +9049,12 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator) return false;
     simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle || {});
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      delete simulator.titleChangesBySource.title;
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -8918,6 +9111,9 @@ export function installEnchantView(ctx) {
       simulator.simulatedBuffLoadout.creature = cloneSimulatorValue(
         simulator.baseBuffLoadout?.creature || [],
       );
+      if (simulator.role === 'buffer') {
+        delete simulator.switchingCreatureChangesBySource.switchingCreature;
+      }
     } else if (applyType === 'replaceBuffTitle' || applyType === 'replaceBuffEquipment') {
       const targetSlotId = applyType === 'replaceBuffTitle'
         ? 'TITLE'
@@ -8998,7 +9194,8 @@ export function installEnchantView(ctx) {
     } else {
       return false;
     }
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+    else rebuildDealerSimulatorCalculationState();
     return true;
   }
 
@@ -9190,7 +9387,24 @@ export function installEnchantView(ctx) {
       'replaceBlackFangBody',
       'replaceCreature',
       'replaceAura',
+      'replaceTitle',
     ].includes(selection.applyType)) return;
+    if (selection.applyType === 'replaceTitle') {
+      if (!restoreSimulatedTitleToBase()) return;
+      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = {
+        targetTab: 'equipment',
+        targetSlot: '칭호',
+        applyType: selection.applyType,
+      };
+      state.enchantLoadoutTab = 'equipment';
+      triggerDealerSimulatorSweep('칭호');
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
+    }
     if (selection.applyType === 'replaceAura') {
       if (!restoreSimulatedAuraToBase()) return;
       delete simulator.activeSelectionByGroup[exclusiveGroupKey];
@@ -9425,6 +9639,10 @@ export function installEnchantView(ctx) {
       simulator.creatureChangesBySource = {};
       simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
       simulator.auraChangesBySource = {};
+      simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
+      simulator.titleChangesBySource = {};
+      simulator.simulatedBuffLoadout = cloneSimulatorValue(simulator.baseBuffLoadout);
+      simulator.switchingCreatureChangesBySource = {};
       simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
       simulator.upgradeChangesBySlot = {};
       simulator.equipmentTuneChangesBySource = {};

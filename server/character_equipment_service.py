@@ -1061,20 +1061,46 @@ def build_buffer_enchant_skill_context_payload(
     candidate_context_keys = set()
 
     def get_recommendation_contributions(row: dict) -> list:
+        contributions_by_context = {}
+
+        def merge_contributions(contributions: list):
+            for contribution in contributions or []:
+                context_key = clean_text(contribution.get("contextKey"))
+                if not context_key:
+                    continue
+                merged = contributions_by_context.setdefault(context_key, {
+                    **contribution,
+                    "levelContribution": 0,
+                })
+                merged["levelContribution"] += int(contribution.get("levelContribution") or 0)
+
         existing = row.get("bufferSkillContributions")
         if isinstance(existing, list):
-            return [
-                contribution
-                for contribution in existing
-                if clean_text(contribution.get("contextKey"))
-            ]
-        for field_name in ("reinforceSkill", "itemReinforceSkill"):
-            contributions = normalize_buffer_skill_contributions(
-                row.get(field_name) or [], job_id, job_name,
+            merge_contributions(existing)
+        else:
+            for field_name in ("reinforceSkill", "itemReinforceSkill"):
+                merge_contributions(normalize_buffer_skill_contributions(
+                    row.get(field_name) or [], job_id, job_name,
+                ))
+
+        for skill_name, skill_info in (baseline.get("currentSelfStatSkills") or {}).items():
+            context_key = clean_text(skill_info.get("contextKey"))
+            level_contribution = get_item_level_range_skill_bonus(
+                row,
+                job_name,
+                int(skill_info.get("requiredLevel") or 0),
             )
-            if contributions:
-                return contributions
-        return []
+            if not context_key or not level_contribution:
+                continue
+            merge_contributions([{
+                "contextKey": context_key,
+                "jobId": clean_text(skill_info.get("jobId")) or job_id,
+                "skillId": clean_text(skill_info.get("skillId")),
+                "skillName": skill_name,
+                "levelContribution": level_contribution,
+            }])
+
+        return list(contributions_by_context.values())
 
     def add_recommendation_group(group_key: str, base_row: dict, candidate_rows: list):
         group_key = clean_text(group_key)
