@@ -1231,6 +1231,46 @@ function getBufferSkillContributionMap(contributions = []) {
   return result;
 }
 
+function getBufferBaselineSkillContexts(baseline = {}) {
+  return Object.entries(baseline.currentSelfStatSkills || {}).reduce((contexts, [skillName, info]) => {
+    const contextKey = String(info?.contextKey || '').trim();
+    const currentLevel = Number(info?.level);
+    if (!contextKey || !Number.isInteger(currentLevel) || currentLevel <= 0) return contexts;
+    const currentChanges = {
+      selfStatSkillDelta: 0,
+      auraStatDelta: 0,
+      auraAttackDelta: 0,
+    };
+    const previousChanges = {
+      selfStatSkillDelta: Number(info.previousStat || 0) - Number(info.currentStat || 0),
+      auraStatDelta: Number(info.previousPartyStat || 0) - Number(info.currentPartyStat || 0),
+      auraAttackDelta: Number(info.previousPartyAttack || 0) - Number(info.currentPartyAttack || 0),
+    };
+    const nextChanges = {
+      selfStatSkillDelta: Number(info.nextStat || 0) - Number(info.currentStat || 0),
+      auraStatDelta: Number(info.nextPartyStat || 0) - Number(info.currentPartyStat || 0),
+      auraAttackDelta: Number(info.nextPartyAttack || 0) - Number(info.currentPartyAttack || 0),
+    };
+    if (![...Object.values(previousChanges), ...Object.values(nextChanges)].every(Number.isFinite)) {
+      return contexts;
+    }
+    contexts[contextKey] = {
+      jobId: info.jobId || '',
+      skillId: info.skillId || '',
+      skillName,
+      currentLevel,
+      minReachableLevel: Math.max(1, currentLevel - 1),
+      maxReachableLevel: currentLevel + 1,
+      netChangesByLevel: {
+        ...(currentLevel > 1 ? { [String(currentLevel - 1)]: previousChanges } : {}),
+        [String(currentLevel)]: currentChanges,
+        [String(currentLevel + 1)]: nextChanges,
+      },
+    };
+    return contexts;
+  }, {});
+}
+
 function resolveBufferNetChanges(
   changesBySlot = {},
   skillContexts = {},
@@ -1241,6 +1281,7 @@ function resolveBufferNetChanges(
   oathAcquisitionChangesBySource = {},
   blackFangChangesBySlot = {},
   creatureChangesBySource = {},
+  auraChangesBySource = {},
 ) {
   const changes = [
     ...Object.values(changesBySlot || {}),
@@ -1251,6 +1292,7 @@ function resolveBufferNetChanges(
     ...Object.values(oathAcquisitionChangesBySource || {}),
     ...Object.values(blackFangChangesBySlot || {}),
     ...Object.values(creatureChangesBySource || {}),
+    ...Object.values(auraChangesBySource || {}),
   ];
   const total = changes.reduce((result, slotChanges) => {
     BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
@@ -1400,7 +1442,7 @@ function getBufferBlackFangCandidateSignature(row = {}) {
   return [groupKey, row.targetItemId, getEffectSignature(row.targetEffects || {})].join(':');
 }
 
-function getBufferCreatureSkillContributions(item = {}, baseline = {}) {
+function getBufferItemSkillContributions(item = {}, baseline = {}) {
   return Object.entries(baseline.currentSelfStatSkills || {}).flatMap(([skillName, info]) => {
     const contextKey = String(info?.contextKey || '').trim();
     if (!contextKey) return [];
@@ -1414,10 +1456,10 @@ function getBufferCreatureSkillContributions(item = {}, baseline = {}) {
   });
 }
 
-function getBufferCreatureBaseRelativeChanges(row = {}, baseCreature = {}, baseline = {}) {
-  if (row.sourceType !== 'creature') return null;
+function getBufferEquippedItemBaseRelativeChanges(row = {}, baseItem = {}, baseline = {}, sourceType = '') {
+  if (row.sourceType !== sourceType) return null;
   const targetEffects = getRoleRelevantEffects(row.effects || {}, true);
-  const baseEffects = getRoleRelevantEffects(baseCreature.effects || {}, true);
+  const baseEffects = getRoleRelevantEffects(baseItem.effects || {}, true);
   const changedKeys = new Set([
     ...Object.keys(targetEffects),
     ...Object.keys(baseEffects),
@@ -1428,9 +1470,9 @@ function getBufferCreatureBaseRelativeChanges(row = {}, baseCreature = {}, basel
   const buffAmplificationDelta = Number(targetEffects.buffAmplification || 0)
     - Number(baseEffects.buffAmplification || 0);
   const buffSkillLevelDelta = getItemSkillLevelBonus(row, baseline, baseline.buffSkillName, 30)
-    - getItemSkillLevelBonus(baseCreature, baseline, baseline.buffSkillName, 30);
+    - getItemSkillLevelBonus(baseItem, baseline, baseline.buffSkillName, 30);
   const awakeningSkillLevelDelta = getItemSkillLevelBonus(row, baseline, baseline.awakeningSkillName, 50)
-    - getItemSkillLevelBonus(baseCreature, baseline, baseline.awakeningSkillName, 50);
+    - getItemSkillLevelBonus(baseItem, baseline, baseline.awakeningSkillName, 50);
   if (![statDelta, buffPowerDelta, buffAmplificationDelta, buffSkillLevelDelta, awakeningSkillLevelDelta]
     .every(Number.isFinite)) return null;
   return {
@@ -1440,9 +1482,13 @@ function getBufferCreatureBaseRelativeChanges(row = {}, baseCreature = {}, basel
     switchingBuffAmplificationDelta: buffAmplificationDelta,
     buffSkillLevelDelta,
     awakeningSkillLevelDelta,
-    baseSkillContributions: getBufferCreatureSkillContributions(baseCreature, baseline),
-    targetSkillContributions: getBufferCreatureSkillContributions(row, baseline),
+    baseSkillContributions: getBufferItemSkillContributions(baseItem, baseline),
+    targetSkillContributions: getBufferItemSkillContributions(row, baseline),
   };
+}
+
+function getBufferCreatureBaseRelativeChanges(row = {}, baseCreature = {}, baseline = {}) {
+  return getBufferEquippedItemBaseRelativeChanges(row, baseCreature, baseline, 'creature');
 }
 
 function getBufferCreatureExclusiveGroupKey(row = {}) {
@@ -1459,6 +1505,29 @@ function getBufferCreatureCandidateSignature(row = {}) {
     row.itemId,
     getEffectSignature(row.effects || {}),
     getStableObjectSignature(row.itemReinforceSkill || []),
+    getStableObjectSignature(row.itemBuff || {}),
+  ].join(':');
+}
+
+function getBufferAuraBaseRelativeChanges(row = {}, baseAura = {}, baseline = {}) {
+  return getBufferEquippedItemBaseRelativeChanges(row, baseAura, baseline, 'aura');
+}
+
+function getBufferAuraExclusiveGroupKey(row = {}) {
+  return row.bufferSimulatorSupported && row.sourceType === 'aura'
+    ? 'bufferAura'
+    : '';
+}
+
+function getBufferAuraCandidateSignature(row = {}) {
+  const groupKey = getBufferAuraExclusiveGroupKey(row);
+  if (!groupKey || !row.itemId) return '';
+  return [
+    groupKey,
+    row.itemId,
+    row.tier || '',
+    getEffectSignature(row.effects || {}),
+    getStableObjectSignature(row.itemReinforceSkill || row.reinforceSkills || []),
     getStableObjectSignature(row.itemBuff || {}),
   ].join(':');
 }
@@ -1826,6 +1895,8 @@ function getBufferRecommendationRows(
       ? getBufferCreatureArtifactBaseRelativeChanges(row, current)
       : row.sourceType === 'creature'
         ? getBufferCreatureBaseRelativeChanges(row, currentCreature || {}, baseline)
+      : row.sourceType === 'aura'
+        ? getBufferAuraBaseRelativeChanges(row, currentAura || {}, baseline)
       : row.sourceType === 'blackFang'
         ? getBufferBlackFangBaseRelativeChanges(row)
       : row.sourceType === 'upgrade'
@@ -1867,6 +1938,9 @@ function getBufferRecommendationRows(
             row.sourceType === 'creature'
               ? { creature: bufferBaseRelativeChanges }
               : {},
+            row.sourceType === 'aura'
+              ? { aura: bufferBaseRelativeChanges }
+              : {},
           ),
         );
       } catch {
@@ -1896,6 +1970,9 @@ function getBufferRecommendationRows(
       const referenceCreatureChangesBySource = {
         ...(simulator.creatureChangesBySource || {}),
       };
+      const referenceAuraChangesBySource = {
+        ...(simulator.auraChangesBySource || {}),
+      };
       if (row.sourceType === 'enchant') delete referenceChangesBySlot[row.slot];
       if (row.sourceType === 'creatureArtifact') {
         delete referenceArtifactChangesByType[getCreatureArtifactType(row)];
@@ -1916,6 +1993,7 @@ function getBufferRecommendationRows(
       }
       if (row.sourceType === 'blackFang') delete referenceBlackFangChangesBySlot[row.slot];
       if (row.sourceType === 'creature') delete referenceCreatureChangesBySource.creature;
+      if (row.sourceType === 'aura') delete referenceAuraChangesBySource.aura;
       const candidateChangesBySlot = row.sourceType === 'enchant'
         ? { ...referenceChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
         : referenceChangesBySlot;
@@ -1943,6 +2021,9 @@ function getBufferRecommendationRows(
       const candidateCreatureChangesBySource = row.sourceType === 'creature'
         ? { creature: bufferBaseRelativeChanges }
         : referenceCreatureChangesBySource;
+      const candidateAuraChangesBySource = row.sourceType === 'aura'
+        ? { aura: bufferBaseRelativeChanges }
+        : referenceAuraChangesBySource;
       try {
         comparisonScore = calculateBufferScore(
           baseline,
@@ -1956,6 +2037,7 @@ function getBufferRecommendationRows(
             referenceOathAcquisitionChangesBySource,
             referenceBlackFangChangesBySlot,
             referenceCreatureChangesBySource,
+            referenceAuraChangesBySource,
           ),
         );
         candidateScore = calculateBufferScore(
@@ -1970,6 +2052,7 @@ function getBufferRecommendationRows(
             candidateOathAcquisitionChangesBySource,
             candidateBlackFangChangesBySlot,
             candidateCreatureChangesBySource,
+            candidateAuraChangesBySource,
           ),
         );
       } catch {
@@ -5005,6 +5088,7 @@ function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
       || getBufferUpgradeExclusiveGroupKey(row)
       || getBufferBlackFangExclusiveGroupKey(row)
       || getBufferCreatureExclusiveGroupKey(row)
+      || getBufferAuraExclusiveGroupKey(row)
       || getEquipmentTuneExclusiveGroupKey(row)
       || getOathTuneExclusiveGroupKey(row);
     const candidateSignature = getBufferEnchantCandidateSignature(row)
@@ -5012,6 +5096,7 @@ function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
       || getBufferUpgradeCandidateSignature(row)
       || getBufferBlackFangCandidateSignature(row)
       || getBufferCreatureCandidateSignature(row)
+      || getBufferAuraCandidateSignature(row)
       || getEquipmentTuneCandidateSignature(row)
       || getOathTuneCandidateSignature(row);
     const selection = exclusiveGroupKey
@@ -5186,6 +5271,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getBufferUpgradeExclusiveGroupKey(row)
     || getBufferBlackFangExclusiveGroupKey(row)
     || getBufferCreatureExclusiveGroupKey(row)
+    || getBufferAuraExclusiveGroupKey(row)
     || getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
     || getCreatureExclusiveGroupKey(row)
@@ -5206,6 +5292,7 @@ function getSimulatorCandidateSignature(row = {}) {
     || getBufferUpgradeCandidateSignature(row)
     || getBufferBlackFangCandidateSignature(row)
     || getBufferCreatureCandidateSignature(row)
+    || getBufferAuraCandidateSignature(row)
     || getEnchantCandidateSignature(row)
     || getAuraCandidateSignature(row)
     || getCreatureCandidateSignature(row)
@@ -6245,6 +6332,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.oathAcquisitionChangesBySource,
         bufferSimulator.blackFangChangesBySlot,
         bufferSimulator.creatureChangesBySource,
+        bufferSimulator.auraChangesBySource,
       )
       : {};
     const candidateChanges = bufferSimulator?.role === 'buffer'
@@ -6268,6 +6356,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.oathAcquisitionChangesBySource,
         bufferSimulator.blackFangChangesBySlot,
         bufferSimulator.creatureChangesBySource,
+        bufferSimulator.auraChangesBySource,
       )
       : displayRow.bufferBaseRelativeChanges;
     const currentScore = calculateBufferScore(bufferBaseline, currentChanges);
@@ -6560,7 +6649,7 @@ export function installEnchantView(ctx) {
   }
 
   function getActiveAura() {
-    return isDealerSimulatorActive()
+    return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedAura
       : getCanonicalCurrentAura();
   }
@@ -6910,11 +6999,16 @@ export function installEnchantView(ctx) {
   function initializeDealerSimulator() {
     if (state.currentBufferBaseline?.isBuffer) {
       const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
+      const bufferSkillContexts = {
+        ...getBufferBaselineSkillContexts(state.currentBufferBaseline),
+        ...cloneSimulatorValue(state.currentBufferSkillContexts || {}),
+      };
       const baseBaseline = {
         ...cloneSimulatorValue(state.currentBufferBaseline || {}),
-        bufferSkillContexts: cloneSimulatorValue(state.currentBufferSkillContexts || {}),
+        bufferSkillContexts,
       };
       const baseBufferScore = calculateBufferScore(baseBaseline);
+      const baseAura = getCanonicalCurrentAura();
       const baseCreature = getCanonicalCurrentCreatureBody();
       const baseCreatureArtifacts = getCanonicalCurrentCreatureArtifacts();
       const baseEquipmentUpgrades = attachBlackFangBaseBodyData(
@@ -6936,6 +7030,9 @@ export function installEnchantView(ctx) {
         baseEnchants,
         simulatedEnchants: cloneSimulatorValue(baseEnchants),
         enchantChangesBySlot: {},
+        baseAura,
+        simulatedAura: cloneSimulatorValue(baseAura),
+        auraChangesBySource: {},
         baseCreature,
         simulatedCreature: cloneSimulatorValue(baseCreature),
         creatureChangesBySource: {},
@@ -6953,7 +7050,7 @@ export function installEnchantView(ctx) {
         blackFangChangesBySlot: {},
         oathTuneDb: cloneSimulatorValue(state.oathTuneStageDb || {}),
         upgradeDb: cloneSimulatorValue(state.upgradeExpectedDb || {}),
-        bufferSkillContexts: cloneSimulatorValue(state.currentBufferSkillContexts || {}),
+        bufferSkillContexts: cloneSimulatorValue(bufferSkillContexts),
         totalGold: 0,
         activeSelectionByGroup: {},
         selectedRecommendationId: '',
@@ -7033,13 +7130,15 @@ export function installEnchantView(ctx) {
 
   function syncDealerSimulatorAuraState() {
     const simulator = state.dealerSimulator;
-    if (simulator?.role !== 'dealer') return;
+    if (!['dealer', 'buffer'].includes(simulator?.role)) return;
     const canonicalAura = getCanonicalCurrentAura();
     simulator.baseAura = canonicalAura;
-    simulator.simulatedAura = simulator.activeSelectionByGroup?.aura
+    const auraGroupKey = simulator.role === 'buffer' ? 'bufferAura' : 'aura';
+    simulator.simulatedAura = simulator.activeSelectionByGroup?.[auraGroupKey]
       ? mergeAuraBodyWithEmblems(simulator.simulatedAura || {}, canonicalAura)
       : cloneSimulatorValue(canonicalAura);
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+    else rebuildDealerSimulatorCalculationState();
   }
 
   function syncDealerSimulatorAvatarState() {
@@ -7343,6 +7442,15 @@ export function installEnchantView(ctx) {
         baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
       };
     }
+    if (row.sourceType === 'aura') {
+      if (!row.itemId || !row.bufferBaseRelativeChanges) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: '오라',
+        applyType: 'replaceAura',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+      };
+    }
     if (row.sourceType === 'oathTune') {
       if (
         !Array.isArray(row.tunePlan?.slotChanges)
@@ -7434,6 +7542,7 @@ export function installEnchantView(ctx) {
         simulator.oathAcquisitionChangesBySource,
         simulator.blackFangChangesBySlot,
         simulator.creatureChangesBySource,
+        simulator.auraChangesBySource,
       ),
     );
   }
@@ -7524,6 +7633,7 @@ export function installEnchantView(ctx) {
       ),
       blackFangChangesBySlot: cloneSimulatorValue(simulator.blackFangChangesBySlot || {}),
       creatureChangesBySource: cloneSimulatorValue(simulator.creatureChangesBySource || {}),
+      auraChangesBySource: cloneSimulatorValue(simulator.auraChangesBySource || {}),
       simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
       simulatedAvatar: cloneSimulatorValue(simulator.simulatedAvatar),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
@@ -7560,6 +7670,9 @@ export function installEnchantView(ctx) {
       );
       simulator.creatureChangesBySource = cloneSimulatorValue(
         snapshot.creatureChangesBySource || {},
+      );
+      simulator.auraChangesBySource = cloneSimulatorValue(
+        snapshot.auraChangesBySource || {},
       );
     }
     simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
@@ -7633,7 +7746,12 @@ export function installEnchantView(ctx) {
         ? [{ name: row.reinforceSkillName, value: Number(row.reinforceSkillLevel) }]
         : [],
     }, currentAura);
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      simulator.auraChangesBySource.aura = cloneSimulatorValue(target.baseRelativeChanges);
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -8414,6 +8532,7 @@ export function installEnchantView(ctx) {
       || getBufferUpgradeExclusiveGroupKey(row)
       || getBufferBlackFangExclusiveGroupKey(row)
       || getBufferCreatureExclusiveGroupKey(row)
+      || getBufferAuraExclusiveGroupKey(row)
       || getEquipmentTuneExclusiveGroupKey(row)
       || getOathTuneExclusiveGroupKey(row);
     const candidateSignature = getBufferEnchantCandidateSignature(row)
@@ -8421,6 +8540,7 @@ export function installEnchantView(ctx) {
       || getBufferUpgradeCandidateSignature(row)
       || getBufferBlackFangCandidateSignature(row)
       || getBufferCreatureCandidateSignature(row)
+      || getBufferAuraCandidateSignature(row)
       || getEquipmentTuneCandidateSignature(row)
       || getOathTuneCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
@@ -8443,6 +8563,8 @@ export function installEnchantView(ctx) {
       blackFangChangesBySlot: cloneSimulatorValue(simulator.blackFangChangesBySlot),
       simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
       creatureChangesBySource: cloneSimulatorValue(simulator.creatureChangesBySource),
+      simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
+      auraChangesBySource: cloneSimulatorValue(simulator.auraChangesBySource),
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup),
       currentBufferScore: simulator.currentBufferScore,
       totalGold: simulator.totalGold,
@@ -8464,6 +8586,8 @@ export function installEnchantView(ctx) {
             ? replaceSimulatedBlackFangBody(row, target)
           : target.applyType === 'replaceCreature'
             ? replaceSimulatedCreature(row, target)
+          : target.applyType === 'replaceAura'
+            ? replaceSimulatedAura(row, target)
           : replaceSimulatedBufferEnchant(row, target);
       if (!applied) return;
       if (target.applyType === 'replaceBufferEquipmentProgression') {
@@ -8528,6 +8652,8 @@ export function installEnchantView(ctx) {
       simulator.blackFangChangesBySlot = snapshot.blackFangChangesBySlot;
       simulator.simulatedCreature = snapshot.simulatedCreature;
       simulator.creatureChangesBySource = snapshot.creatureChangesBySource;
+      simulator.simulatedAura = snapshot.simulatedAura;
+      simulator.auraChangesBySource = snapshot.auraChangesBySource;
       simulator.activeSelectionByGroup = snapshot.activeSelectionByGroup;
       simulator.currentBufferScore = snapshot.currentBufferScore;
       simulator.totalGold = snapshot.totalGold;
@@ -8688,7 +8814,12 @@ export function installEnchantView(ctx) {
       simulator.baseAura || {},
       simulator.simulatedAura || {},
     );
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      delete simulator.auraChangesBySource.aura;
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -9058,7 +9189,24 @@ export function installEnchantView(ctx) {
       'replaceBufferEquipmentProgression',
       'replaceBlackFangBody',
       'replaceCreature',
+      'replaceAura',
     ].includes(selection.applyType)) return;
+    if (selection.applyType === 'replaceAura') {
+      if (!restoreSimulatedAuraToBase()) return;
+      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = {
+        targetTab: 'equipment',
+        targetSlot: '오라',
+        applyType: selection.applyType,
+      };
+      state.enchantLoadoutTab = 'equipment';
+      triggerDealerSimulatorSweep('오라');
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
+    }
     if (selection.applyType === 'replaceCreature') {
       if (!restoreSimulatedCreatureToBase()) return;
       delete simulator.activeSelectionByGroup[exclusiveGroupKey];
@@ -9275,6 +9423,8 @@ export function installEnchantView(ctx) {
       simulator.artifactChangesByType = {};
       simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
       simulator.creatureChangesBySource = {};
+      simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
+      simulator.auraChangesBySource = {};
       simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
       simulator.upgradeChangesBySlot = {};
       simulator.equipmentTuneChangesBySource = {};
