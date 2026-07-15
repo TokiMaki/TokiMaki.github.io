@@ -7382,6 +7382,7 @@ export function installEnchantView(ctx) {
       return {
         targetTab: 'equipment',
         targetSlot: `creatureArtifact:${artifactType}`,
+        changedSlots: [`creatureArtifact:${artifactType}`, '크리쳐'],
         artifactType,
         applyType: 'replaceBufferCreatureArtifact',
         baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
@@ -9133,6 +9134,7 @@ export function installEnchantView(ctx) {
       };
       state.enchantLoadoutTab = 'equipment';
       triggerDealerSimulatorSweep(selection.targetSlot);
+      triggerDealerSimulatorSweep('크리쳐');
       renderEnchantCharacterPortrait();
       renderEnchantTable();
       return;
