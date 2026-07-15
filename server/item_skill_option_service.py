@@ -2,7 +2,8 @@ import time
 from threading import Lock
 
 from .avatar_skill_optimizer import flatten_skill_rows, get_skill_attack_ratio, normalize_skill_key
-from .neople_client import clean_text, fetch_character_detail_from_api, fetch_character_skill_style_from_api, fetch_job_skills_from_api, fetch_skill_detail_from_api
+from .neople_client import clean_text, fetch_character_detail_from_api, fetch_character_skill_style_from_api, fetch_job_skills_from_api
+from .repositories.skill_repository import get_skill_detail
 
 _CHARACTER_SKILL_CONTEXT_TTL_SECONDS = 60
 _CHARACTER_SKILL_CONTEXT_LOCK = Lock()
@@ -96,7 +97,7 @@ def get_item_reinforce_skill_effect(detail: dict, skill_context: dict) -> dict:
         if not skill_id or current_level <= 0:
             continue
         if skill_id not in skill_detail_by_id:
-            skill_detail_by_id[skill_id] = fetch_skill_detail_from_api(job_id, skill_id)
+            skill_detail_by_id[skill_id] = get_skill_detail(job_id, skill_id)
         ratio = get_skill_attack_ratio(skill_detail_by_id[skill_id], current_level, added_level)
         if not ratio.get("calculable"):
             continue

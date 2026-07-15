@@ -471,9 +471,9 @@ def get_character_avatar_skill_infos(
         }
         if skill_id and current_level:
             if skill_id not in skill_detail_by_id:
-                from .neople_client import fetch_skill_detail_from_api
+                from .repositories.skill_repository import get_skill_detail
 
-                skill_detail_by_id[skill_id] = fetch_skill_detail_from_api(job_id, skill_id)
+                skill_detail_by_id[skill_id] = get_skill_detail(job_id, skill_id)
             skill_detail = skill_detail_by_id[skill_id]
             skill_infos[key] = {
                 "skillName": skill_name,

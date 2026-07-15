@@ -56,7 +56,6 @@ from .candidates.switching_fragment import (
 from .neople_client import (
     clean_item_display_name,
     clean_text,
-    fetch_skill_detail_from_api,
     get_item_explain,
     get_item_icon_url,
 )
@@ -70,6 +69,7 @@ from .repositories.character_repository import (
 from .repositories.item_repository import fetch_item_details, search_items_by_name
 from .repositories.material_price_repository import load_upgrade_material_prices
 from .repositories.resolved_price_repository import get_cached_resolved_price
+from .repositories.skill_repository import get_skill_detail
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
@@ -1114,7 +1114,7 @@ def build_buffer_enchant_skill_context_payload(server_id: str, character_id: str
 
         minimum_level = current_level + min_delta
         maximum_level = current_level + max_delta
-        skill_detail = skill_detail_by_context.get(context_key) or fetch_skill_detail_from_api(job_id, skill_id)
+        skill_detail = skill_detail_by_context.get(context_key) or get_skill_detail(job_id, skill_id)
         available_levels = {
             int(row.get("level") or 0)
             for row in ((skill_detail.get("levelInfo") or {}).get("rows") or [])
@@ -2565,7 +2565,7 @@ def get_buffer_switching_metrics(
         base_level = int(style_row.get("level") or 0)
         if not skill_id or base_level <= 0:
             continue
-        skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
+        skill_detail = get_skill_detail(clean_text(style_payload.get("jobId")), skill_id)
         current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
         switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
         skill_delta += switching_value - current_value
@@ -4228,7 +4228,7 @@ def get_buffer_switching_stat_delta(
         base_level = int(style_row.get("level") or 0)
         if not skill_id or base_level <= 0:
             continue
-        skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
+        skill_detail = get_skill_detail(clean_text(style_payload.get("jobId")), skill_id)
         skill_detail_by_name[name] = skill_detail
         current_value = get_skill_level_stat_value(skill_detail, base_level + current_bonuses.get(name, 0), stat_name)
         switching_value = get_skill_level_stat_value(skill_detail, base_level + switching_bonuses.get(name, 0), stat_name)
@@ -4245,7 +4245,7 @@ def get_buffer_switching_stat_delta(
             continue
         skill_detail = skill_detail_by_name.get(name)
         if not skill_detail:
-            skill_detail = fetch_skill_detail_from_api(clean_text(style_payload.get("jobId")), skill_id)
+            skill_detail = get_skill_detail(clean_text(style_payload.get("jobId")), skill_id)
         current_level = base_level + current_bonuses.get(name, 0)
         current_self_stat_skills[name] = {
             "contextKey": f"{job_id}:{skill_id}",
