@@ -1032,7 +1032,12 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
     )
 
 
-def build_buffer_enchant_skill_context_payload(server_id: str, character_id: str, payload: dict) -> dict:
+def build_buffer_enchant_skill_context_payload(
+    server_id: str,
+    character_id: str,
+    payload: dict,
+    recommendation_payloads: dict | None = None,
+) -> dict:
     result = copy.deepcopy(payload)
     baseline = load_character_buffer_baseline(server_id, character_id, include_skill_details=True)
     if not baseline:
@@ -1052,8 +1057,49 @@ def build_buffer_enchant_skill_context_payload(server_id: str, character_id: str
         if clean_text(row.get("slot"))
     }
 
-    candidate_contributions_by_slot = {}
+    recommendation_groups = {}
     candidate_context_keys = set()
+
+    def get_recommendation_contributions(row: dict) -> list:
+        existing = row.get("bufferSkillContributions")
+        if isinstance(existing, list):
+            return [
+                contribution
+                for contribution in existing
+                if clean_text(contribution.get("contextKey"))
+            ]
+        for field_name in ("reinforceSkill", "itemReinforceSkill"):
+            contributions = normalize_buffer_skill_contributions(
+                row.get(field_name) or [], job_id, job_name,
+            )
+            if contributions:
+                return contributions
+        return []
+
+    def add_recommendation_group(group_key: str, base_row: dict, candidate_rows: list):
+        group_key = clean_text(group_key)
+        if not group_key:
+            return
+        base_contributions = get_recommendation_contributions(base_row or {})
+        candidate_contributions = [
+            contributions
+            for row in candidate_rows or []
+            if (contributions := get_recommendation_contributions(row))
+        ]
+        if not base_contributions and not candidate_contributions:
+            return
+        recommendation_groups[group_key] = {
+            "baseContributions": base_contributions,
+            "candidateContributions": candidate_contributions,
+        }
+        candidate_context_keys.update(
+            clean_text(contribution.get("contextKey"))
+            for contributions in [base_contributions, *candidate_contributions]
+            for contribution in contributions
+            if clean_text(contribution.get("contextKey"))
+        )
+
+    enchant_candidates_by_slot = {}
     for card in result.get("cards") or []:
         card_role = clean_text(card.get("role"))
         for source in card.get("sources") or []:
@@ -1065,25 +1111,65 @@ def build_buffer_enchant_skill_context_payload(server_id: str, character_id: str
             source["bufferSkillContributions"] = contributions
             slot = clean_text(source.get("slot"))
             if slot:
-                candidate_contributions_by_slot.setdefault(slot, []).append(contributions)
-            candidate_context_keys.update(
-                clean_text(contribution.get("contextKey"))
-                for contribution in contributions
-                if clean_text(contribution.get("contextKey"))
-            )
+                enchant_candidates_by_slot.setdefault(slot, []).append(source)
+
+    for slot, candidate_rows in enchant_candidates_by_slot.items():
+        base_row = next((row for row in current_rows if clean_text(row.get("slot")) == slot), {})
+        if base_row:
+            base_row = {
+                **base_row,
+                "bufferSkillContributions": base_contributions_by_slot.get(slot) or [],
+            }
+        add_recommendation_group(f"bufferEnchant:{slot}", base_row, candidate_rows)
+
+    if recommendation_payloads is None:
+        from .enchant_service import (
+            load_aura_upgrades_with_prices,
+            load_creature_upgrades_with_prices,
+            load_title_upgrades_with_prices,
+        )
+        recommendation_payloads = {
+            "creature": load_creature_upgrades_with_prices(),
+            "aura": load_aura_upgrades_with_prices(),
+            "title": load_title_upgrades_with_prices(),
+        }
+    recommendation_payloads = recommendation_payloads or {}
+    creature_candidates = [
+        candidate
+        for group in (recommendation_payloads.get("creature") or {}).get("groups") or []
+        for candidate in group.get("candidates") or []
+    ]
+    aura_candidates = [
+        candidate
+        for group in (recommendation_payloads.get("aura") or {}).get("groups") or []
+        for candidate in group.get("candidates") or []
+    ]
+    title_candidates = [
+        candidate
+        for group in (recommendation_payloads.get("title") or {}).get("groups") or []
+        for candidate in group.get("candidates") or []
+    ]
+    add_recommendation_group(
+        "bufferCreature",
+        (load_character_creature(server_id, character_id).get("creature") or {}),
+        creature_candidates,
+    )
+    add_recommendation_group(
+        "bufferAura",
+        (load_character_aura(server_id, character_id).get("aura") or {}),
+        aura_candidates,
+    )
+    add_recommendation_group(
+        "bufferTitle",
+        (load_character_title(server_id, character_id).get("title") or {}),
+        title_candidates,
+    )
 
     skill_info_by_context = {
         clean_text(info.get("contextKey")): {**info, "skillName": skill_name}
         for skill_name, info in (baseline.get("currentSelfStatSkills") or {}).items()
         if clean_text(info.get("contextKey"))
     }
-    all_candidate_slots = set(candidate_contributions_by_slot)
-    candidate_context_keys.update(
-        clean_text(contribution.get("contextKey"))
-        for slot in all_candidate_slots
-        for contribution in base_contributions_by_slot.get(slot) or []
-        if clean_text(contribution.get("contextKey"))
-    )
     contexts = {}
     for context_key in candidate_context_keys:
         skill_info = skill_info_by_context.get(context_key)
@@ -1096,14 +1182,14 @@ def build_buffer_enchant_skill_context_payload(server_id: str, character_id: str
 
         min_delta = 0
         max_delta = 0
-        for slot in all_candidate_slots:
+        for group in recommendation_groups.values():
             base_map = {
                 clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
-                for row in base_contributions_by_slot.get(slot) or []
+                for row in group.get("baseContributions") or []
             }
             base_value = base_map.get(context_key, 0)
             possible_values = [base_value]
-            for contributions in candidate_contributions_by_slot.get(slot) or []:
+            for contributions in group.get("candidateContributions") or []:
                 contribution_map = {
                     clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
                     for row in contributions
