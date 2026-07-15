@@ -16,6 +16,8 @@ def build_switching_platinum_recommendation_row(
     candidate_switching_multiplier: float,
     price_source,
     price_warning_text,
+    buffer_stat_gain=None,
+    buffer_buff_skill_level_delta: int = 0,
 ) -> dict:
     target_slot_id = "JACKET" if "상의" in str(slot or "") else "PANTS"
     return {
@@ -27,7 +29,11 @@ def build_switching_platinum_recommendation_row(
         "itemRarity": item_rarity,
         "iconUrl": icon_url,
         "itemExplain": item_explain,
-        "effects": {"skillDamageMultiplier": skill_damage_multiplier},
+        "effects": (
+            {"bufferStat": buffer_stat_gain}
+            if buffer_stat_gain is not None
+            else {"skillDamageMultiplier": skill_damage_multiplier}
+        ),
         "skillDamageMultiplier": skill_damage_multiplier,
         "rawSkillDamageMultiplier": raw_skill_damage_multiplier,
         "damageApplicationNote": damage_application_note,
@@ -52,5 +58,14 @@ def build_switching_platinum_recommendation_row(
         "candidateSwitchingMultiplier": candidate_switching_multiplier,
         "priceSource": price_source,
         "priceWarningText": price_warning_text,
+        **({
+            "bufferStatScope": "switching",
+            "bufferBuffSkillLevelDelta": buffer_buff_skill_level_delta,
+            "bufferAwakeningSkillLevelDelta": 0,
+            "bufferSimulatorChanges": {
+                "switchingStatDelta": float(buffer_stat_gain or 0),
+                "buffSkillLevelDelta": int(buffer_buff_skill_level_delta or 0),
+            },
+        } if buffer_stat_gain is not None else {}),
         "recommendationPriority": 0,
     }

@@ -3838,9 +3838,23 @@ def calculate_buffer_switching_avatar_candidate_delta(
     buff_skill_name: str,
     raw_switching_avatar_rows: list | None = None,
 ) -> dict:
-    current_rows, switching_rows, _ = get_buffer_switching_rows(server_id, character_id)
-    raw_switching_row = get_avatar_slot(raw_switching_avatar_rows or [], slot_id)
-    has_raw_switching_slot = bool(clean_text(raw_switching_row.get("slotId")) or clean_text(raw_switching_row.get("itemId")))
+    current_rows, display_switching_rows, _ = get_buffer_switching_rows(server_id, character_id)
+    actual_buff_avatar_by_slot = {
+        clean_text(row.get("slotId")): row
+        for row in raw_switching_avatar_rows or []
+        if clean_text(row.get("slotId"))
+    }
+    actual_switching_row = actual_buff_avatar_by_slot.get(clean_text(slot_id)) or {}
+    switching_rows = [
+        row
+        for row in display_switching_rows
+        if not (
+            clean_text(row.get("slotId")) == clean_text(slot_id)
+            and "아바타" in clean_text(row.get("slotName"))
+        )
+    ]
+    if actual_switching_row:
+        switching_rows.append(actual_switching_row)
     item_ids = [
         clean_text(row.get("itemId"))
         for row in [*current_rows, *switching_rows, candidate_avatar_row]
@@ -3872,9 +3886,8 @@ def calculate_buffer_switching_avatar_candidate_delta(
         stat_name,
         buff_skill_name,
     )
-    current_slot_row = get_mixed_avatar_slot(switching_rows, slot_id)
     current_contribution = get_switching_avatar_skill_level_contribution(
-        [current_slot_row] if current_slot_row else [],
+        [actual_switching_row] if actual_switching_row else [],
         [buff_skill_name],
     )
     candidate_contribution = get_switching_avatar_skill_level_contribution(
@@ -3885,13 +3898,6 @@ def calculate_buffer_switching_avatar_candidate_delta(
         float(candidate_metrics.get("switchingStatDelta") or 0)
         - float(current_metrics.get("switchingStatDelta") or 0)
     )
-    if not has_raw_switching_slot:
-        stat_delta = (
-            get_avatar_buffer_stat_emblem_total(candidate_avatar_row or {}, stat_name)
-            - get_avatar_buffer_stat_emblem_total(current_slot_row or {}, stat_name)
-            + float(candidate_metrics.get("switchingSkillStatDelta") or 0)
-            - float(current_metrics.get("switchingSkillStatDelta") or 0)
-        )
     return {
         "statDelta": stat_delta,
         "buffSkillLevelDelta": candidate_contribution - current_contribution,
@@ -3899,7 +3905,8 @@ def calculate_buffer_switching_avatar_candidate_delta(
         "candidateBuffSkillLevelContribution": candidate_contribution,
         "currentMetrics": current_metrics,
         "candidateMetrics": candidate_metrics,
-        "usedCurrentAvatarFallback": not has_raw_switching_slot,
+        "usedCurrentAvatarFallback": False,
+        "actualBuffAvatarPresent": bool(actual_switching_row),
     }
 
 
@@ -4114,8 +4121,11 @@ def build_buffer_switching_avatar_recommendation_row(
     target_skill: str,
     stat_name: str,
     price_mode: str,
+    target_avatar_row: dict | None = None,
     debug: dict | None = None,
 ) -> dict:
+    target_slot_id = "JACKET" if "상의" in clean_text(slot) else "PANTS"
+    target_avatar_row = target_avatar_row or selected_avatar
     return {
         "kind": "switchingAvatar",
         "slot": slot,
@@ -4133,6 +4143,26 @@ def build_buffer_switching_avatar_recommendation_row(
         "bufferStatScope": "switching",
         "bufferBuffSkillLevelDelta": buffer_buff_skill_level_delta,
         "bufferAwakeningSkillLevelDelta": 0,
+        "targetBuffSlot": target_slot_id,
+        "targetBuffChanges": {
+            "avatar": {
+                "slotId": target_slot_id,
+                "slotName": "상의" if target_slot_id == "JACKET" else "하의",
+                "itemId": clean_text(target_avatar_row.get("itemId") or selected_avatar.get("itemId")),
+                "itemName": clean_item_display_name(target_avatar_row.get("itemName") or selected_avatar.get("itemName")),
+                "itemRarity": clean_text(target_avatar_row.get("itemRarity") or selected_avatar.get("itemRarity") or "레어"),
+                "iconUrl": target_avatar_row.get("iconUrl") or selected_avatar.get("iconUrl") or get_item_icon_url(selected_avatar.get("itemId")),
+                "optionAbility": clean_text(target_avatar_row.get("optionAbility")) if target_slot_id == "JACKET" else "",
+                "buffContribution": {
+                    "topOptionSkillLevel": 1 if target_slot_id == "JACKET" else 0,
+                    "platinumSkillLevel": 1,
+                },
+            },
+        },
+        "bufferSimulatorChanges": {
+            "switchingStatDelta": float(buffer_stat_gain or 0),
+            "buffSkillLevelDelta": int(buffer_buff_skill_level_delta or 0),
+        },
         "priceMode": price_mode,
         "recommendationPriority": 0,
         "debug": debug or {},
@@ -5264,8 +5294,90 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     target_platinum_skill,
                     primary_stat_name,
                     clean_text(price_option.get("priceMode")),
+                    completed_avatar_row,
                     debug,
                 ))
+        for slot_id, slot_label in [
+            ("JACKET", "벞강 상의"),
+            ("PANTS", "벞강 하의"),
+        ]:
+            current_avatar = get_avatar_slot(switching_rows, slot_id)
+            if clean_text(current_avatar.get("itemRarity")) != "레어":
+                continue
+            current_platinum_skills = [
+                clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+                for emblem in get_platinum_emblems(current_avatar)
+                if clean_text(extract_platinum_skill_name(emblem.get("itemName")))
+            ]
+            if any(skill_name_matches(skill_name, buffer_buff_skill_name) for skill_name in current_platinum_skills):
+                continue
+            if buffer_buff_skill_name not in switching_avatar_platinum_item_by_skill:
+                switching_avatar_platinum_item_by_skill[buffer_buff_skill_name] = _measure_step(
+                    steps,
+                    f"choose_avatar_platinum_price_item:buffer_switching_platinum:{buffer_buff_skill_name}",
+                    lambda skill_name=buffer_buff_skill_name: choose_avatar_platinum_price_item(
+                        skill_name,
+                        allow_selection_box=True,
+                    ),
+                )
+            item = switching_avatar_platinum_item_by_skill.get(buffer_buff_skill_name) or {}
+            item_id = clean_text(item.get("itemId"))
+            if not item_id:
+                continue
+            candidate_avatar = {
+                **current_avatar,
+                "emblems": [
+                    emblem
+                    for emblem in get_avatar_auction_emblems(current_avatar)
+                    if "플래티넘" not in clean_text(emblem.get("itemName"))
+                    and "플래티넘" not in clean_text(emblem.get("slotColor"))
+                ],
+            }
+            if isinstance(candidate_avatar.get("avatar"), dict):
+                candidate_avatar["avatar"] = {**candidate_avatar["avatar"], "emblems": []}
+            candidate_avatar["emblems"].append({
+                "itemId": item_id,
+                "itemName": item.get("itemName") or f"플래티넘 엠블렘[{buffer_buff_skill_name}]",
+                "itemRarity": item.get("itemRarity"),
+                "slotColor": "플래티넘",
+            })
+            switching_platinum_delta = calculate_buffer_switching_avatar_candidate_delta(
+                server_id,
+                character_id,
+                slot_id,
+                candidate_avatar,
+                buffer_baseline,
+                primary_stat_name,
+                buffer_buff_skill_name,
+                switching_rows,
+            )
+            buffer_stat_gain = float(switching_platinum_delta.get("statDelta") or 0)
+            buffer_buff_skill_level_delta = int(
+                switching_platinum_delta.get("buffSkillLevelDelta") or 0
+            )
+            if buffer_stat_gain <= 0 and buffer_buff_skill_level_delta <= 0:
+                continue
+            recommendations.append(build_switching_platinum_recommendation_row(
+                slot_label,
+                item_id,
+                item.get("itemName") or f"플래티넘 엠블렘[{buffer_buff_skill_name}]",
+                item.get("itemRarity"),
+                item.get("iconUrl") or get_item_icon_url(item_id),
+                f"{slot_label} [{buffer_buff_skill_name}] 교체",
+                0,
+                0,
+                "",
+                item.get("auction") or {},
+                buffer_buff_skill_name,
+                [buffer_buff_skill_name],
+                current_platinum_skills[0] if current_platinum_skills else "",
+                0,
+                0,
+                item.get("priceSource"),
+                item.get("priceWarningText"),
+                buffer_stat_gain=buffer_stat_gain,
+                buffer_buff_skill_level_delta=buffer_buff_skill_level_delta,
+            ))
     buffer_platinum_deltas = {}
     buffer_skill_levels = {}
     if buffer_stat_name and platinum_skill and missing_or_wrong_slots:
