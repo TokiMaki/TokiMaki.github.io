@@ -1231,8 +1231,11 @@ function getBufferSkillContributionMap(contributions = []) {
   return result;
 }
 
-function resolveBufferNetChanges(changesBySlot = {}, skillContexts = {}) {
-  const changes = Object.values(changesBySlot || {});
+function resolveBufferNetChanges(changesBySlot = {}, skillContexts = {}, artifactChangesByType = {}) {
+  const changes = [
+    ...Object.values(changesBySlot || {}),
+    ...Object.values(artifactChangesByType || {}),
+  ];
   const total = changes.reduce((result, slotChanges) => {
     BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
       const value = slotChanges?.[key] == null ? 0 : Number(slotChanges[key]);
@@ -1319,6 +1322,40 @@ function getBufferEnchantCandidateSignature(row = {}) {
     getEffectSignature(row.effects || {}),
     getStableObjectSignature(row.reinforceSkill || []),
   ].join(':');
+}
+
+function getBufferCreatureArtifactBaseRelativeChanges(row, baseArtifact) {
+  if (row?.sourceType !== 'creatureArtifact' || !getCreatureArtifactType(row)) return null;
+  const targetEffects = getRoleRelevantEffects(row.effects || {}, true);
+  const baseEffects = getRoleRelevantEffects(baseArtifact?.effects || {}, true);
+  const changedKeys = new Set([
+    ...Object.keys(targetEffects),
+    ...Object.keys(baseEffects),
+  ].filter((key) => Number(targetEffects[key] || 0) !== Number(baseEffects[key] || 0)));
+  if ([...changedKeys].some((key) => !['allStat', 'buffPower', 'buffAmplification'].includes(key))) return null;
+  const statDelta = Number(targetEffects.allStat || 0) - Number(baseEffects.allStat || 0);
+  const buffPowerDelta = Number(targetEffects.buffPower || 0) - Number(baseEffects.buffPower || 0);
+  const buffAmplificationDelta = Number(targetEffects.buffAmplification || 0)
+    - Number(baseEffects.buffAmplification || 0);
+  if (![statDelta, buffPowerDelta, buffAmplificationDelta].every(Number.isFinite)) return null;
+  return {
+    statDelta,
+    buffPowerDelta,
+    currentBuffAmplificationDelta: buffAmplificationDelta,
+    switchingBuffAmplificationDelta: buffAmplificationDelta,
+  };
+}
+
+function getBufferCreatureArtifactExclusiveGroupKey(row = {}) {
+  const artifactType = getCreatureArtifactType(row);
+  return row.bufferSimulatorSupported && row.sourceType === 'creatureArtifact' && artifactType
+    ? `bufferCreatureArtifact:${artifactType}`
+    : '';
+}
+
+function getBufferCreatureArtifactCandidateSignature(row = {}) {
+  const groupKey = getBufferCreatureArtifactExclusiveGroupKey(row);
+  return groupKey && row.itemId ? `${groupKey}:${row.itemId}` : '';
 }
 
 function getItemSkillLevelBonus(item, baseline, skillName, requiredLevel) {
@@ -1467,9 +1504,6 @@ function getBufferRecommendationRows(
   const currentBySlot = new Map((currentEnchants || []).map((enchant) => [enchant.slot, enchant]));
   const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
   const baseScore = calculateBufferScore(baseline);
-  const currentScore = simulator?.role === 'buffer'
-    ? Number(simulator.currentBufferScore || baseScore)
-    : baseScore;
   const bySlotTier = new Map();
   (rows || []).forEach((row) => {
     if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
@@ -1591,7 +1625,9 @@ function getBufferRecommendationRows(
       awakeningSkillLevelDelta: Number(avatarSkillLevelChanges.awakeningSkillLevelDelta || 0)
         + Number(itemSkillChanges.awakeningSkillLevelDelta || 0),
     };
-    const bufferBaseRelativeChanges = getBufferEnchantBaseRelativeChanges(row, current, baseline);
+    const bufferBaseRelativeChanges = row.sourceType === 'creatureArtifact'
+      ? getBufferCreatureArtifactBaseRelativeChanges(row, current)
+      : getBufferEnchantBaseRelativeChanges(row, current, baseline);
     let bufferSimulatorSupported = simulator?.role === 'buffer' && Boolean(bufferBaseRelativeChanges);
     let baseCandidateScore = calculateBufferScore(baseline, baseCandidateChanges);
     if (bufferSimulatorSupported) {
@@ -1599,8 +1635,11 @@ function getBufferRecommendationRows(
         baseCandidateScore = calculateBufferScore(
           baseline,
           resolveBufferNetChanges(
-            { [row.slot]: bufferBaseRelativeChanges },
+            row.sourceType === 'enchant' ? { [row.slot]: bufferBaseRelativeChanges } : {},
             simulator.bufferSkillContexts,
+            row.sourceType === 'creatureArtifact'
+              ? { [getCreatureArtifactType(row)]: bufferBaseRelativeChanges }
+              : {},
           ),
         );
       } catch {
@@ -1612,16 +1651,38 @@ function getBufferRecommendationRows(
     let candidateScore = baseCandidateScore;
     let comparisonScore = baseScore;
     if (bufferSimulatorSupported) {
-      const candidateChangesBySlot = {
-        ...(simulator.enchantChangesBySlot || {}),
-        [row.slot]: bufferBaseRelativeChanges,
-      };
+      const referenceChangesBySlot = { ...(simulator.enchantChangesBySlot || {}) };
+      const referenceArtifactChangesByType = { ...(simulator.artifactChangesByType || {}) };
+      if (row.sourceType === 'enchant') delete referenceChangesBySlot[row.slot];
+      if (row.sourceType === 'creatureArtifact') {
+        delete referenceArtifactChangesByType[getCreatureArtifactType(row)];
+      }
+      const candidateChangesBySlot = row.sourceType === 'enchant'
+        ? { ...referenceChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
+        : referenceChangesBySlot;
+      const candidateArtifactChangesByType = row.sourceType === 'creatureArtifact'
+        ? {
+          ...referenceArtifactChangesByType,
+          [getCreatureArtifactType(row)]: bufferBaseRelativeChanges,
+        }
+        : referenceArtifactChangesByType;
       try {
+        comparisonScore = calculateBufferScore(
+          baseline,
+          resolveBufferNetChanges(
+            referenceChangesBySlot,
+            simulator.bufferSkillContexts,
+            referenceArtifactChangesByType,
+          ),
+        );
         candidateScore = calculateBufferScore(
           baseline,
-          resolveBufferNetChanges(candidateChangesBySlot, simulator.bufferSkillContexts),
+          resolveBufferNetChanges(
+            candidateChangesBySlot,
+            simulator.bufferSkillContexts,
+            candidateArtifactChangesByType,
+          ),
         );
-        comparisonScore = currentScore;
       } catch {
         bufferSimulatorSupported = false;
         candidateScore = baseCandidateScore;
@@ -4589,11 +4650,13 @@ function mergeAppliedOathAcquisitionSnapshots(rows = [], simulator = {}) {
   return mergedRows;
 }
 
-function mergeAppliedBufferEnchantSnapshots(rows = [], simulator = {}) {
+function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
   if (simulator?.role !== 'buffer') return rows;
   return rows.map((row) => {
-    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row);
-    const candidateSignature = getBufferEnchantCandidateSignature(row);
+    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row)
+      || getBufferCreatureArtifactExclusiveGroupKey(row);
+    const candidateSignature = getBufferEnchantCandidateSignature(row)
+      || getBufferCreatureArtifactCandidateSignature(row);
     const selection = exclusiveGroupKey
       ? simulator.activeSelectionByGroup?.[exclusiveGroupKey]
       : null;
@@ -4745,6 +4808,7 @@ function getBuffSimulatorCandidateSignature(row = {}) {
 
 function getSimulatorExclusiveGroupKey(row = {}) {
   return getBufferEnchantExclusiveGroupKey(row)
+    || getBufferCreatureArtifactExclusiveGroupKey(row)
     || getEnchantExclusiveGroupKey(row)
     || getAuraExclusiveGroupKey(row)
     || getCreatureExclusiveGroupKey(row)
@@ -4761,6 +4825,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
 
 function getSimulatorCandidateSignature(row = {}) {
   return getBufferEnchantCandidateSignature(row)
+    || getBufferCreatureArtifactCandidateSignature(row)
     || getEnchantCandidateSignature(row)
     || getAuraCandidateSignature(row)
     || getCreatureCandidateSignature(row)
@@ -6078,7 +6143,7 @@ export function installEnchantView(ctx) {
   }
 
   function getActiveCreatureArtifacts() {
-    return isDealerSimulatorActive()
+    return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedCreatureArtifacts
       : getCanonicalCurrentCreatureArtifacts();
   }
@@ -6417,6 +6482,7 @@ export function installEnchantView(ctx) {
         bufferSkillContexts: cloneSimulatorValue(state.currentBufferSkillContexts || {}),
       };
       const baseBufferScore = calculateBufferScore(baseBaseline);
+      const baseCreatureArtifacts = getCanonicalCurrentCreatureArtifacts();
       state.dealerSimulator = {
         role: 'buffer',
         baseBaseline,
@@ -6425,6 +6491,9 @@ export function installEnchantView(ctx) {
         baseEnchants,
         simulatedEnchants: cloneSimulatorValue(baseEnchants),
         enchantChangesBySlot: {},
+        baseCreatureArtifacts,
+        simulatedCreatureArtifacts: cloneSimulatorValue(baseCreatureArtifacts),
+        artifactChangesByType: {},
         bufferSkillContexts: cloneSimulatorValue(state.currentBufferSkillContexts || {}),
         totalGold: 0,
         activeSelectionByGroup: {},
@@ -6785,6 +6854,17 @@ export function installEnchantView(ctx) {
 
   function resolveBufferSimulatorTarget(row = {}) {
     if (!isBufferSimulatorActive() || !row?.bufferSimulatorSupported) return null;
+    if (row.sourceType === 'creatureArtifact') {
+      const artifactType = getCreatureArtifactType(row);
+      if (!artifactType || !row.itemId || !row.bufferBaseRelativeChanges) return null;
+      return {
+        targetTab: 'equipment',
+        targetSlot: `creatureArtifact:${artifactType}`,
+        artifactType,
+        applyType: 'replaceBufferCreatureArtifact',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+      };
+    }
     const targetSlot = String(row.slot || '').trim();
     if (!targetSlot || !SLOT_ORDER.includes(targetSlot) || !row.bufferBaseRelativeChanges) return null;
     return {
@@ -6806,7 +6886,11 @@ export function installEnchantView(ctx) {
     if (simulator?.role !== 'buffer') return;
     simulator.currentBufferScore = calculateBufferScore(
       simulator.baseBaseline,
-      resolveBufferNetChanges(simulator.enchantChangesBySlot, simulator.bufferSkillContexts),
+      resolveBufferNetChanges(
+        simulator.enchantChangesBySlot,
+        simulator.bufferSkillContexts,
+        simulator.artifactChangesByType,
+      ),
     );
   }
 
@@ -6828,6 +6912,34 @@ export function installEnchantView(ctx) {
     if (currentIndex >= 0) simulator.simulatedEnchants.splice(currentIndex, 1, nextEnchant);
     else simulator.simulatedEnchants.push(nextEnchant);
     simulator.enchantChangesBySlot[targetSlot] = cloneSimulatorValue(target.baseRelativeChanges);
+    rebuildBufferSimulatorCalculationState();
+    return true;
+  }
+
+  function replaceSimulatedBufferCreatureArtifact(row, target) {
+    const simulator = state.dealerSimulator;
+    const artifactType = getCreatureArtifactType(target || row);
+    if (
+      simulator?.role !== 'buffer'
+      || target?.applyType !== 'replaceBufferCreatureArtifact'
+      || !artifactType
+      || !row.itemId
+    ) return false;
+    const artifacts = simulator.simulatedCreatureArtifacts || [];
+    const currentIndex = artifacts.findIndex(
+      (artifact) => getCreatureArtifactType(artifact) === artifactType,
+    );
+    const nextArtifact = {
+      ...cloneSimulatorValue(row),
+      slotColor: artifactType,
+      itemName: row.candidateName || row.itemName || '',
+      iconUrl: row.iconUrl || '',
+      effects: cloneSimulatorValue(row.effects || {}),
+    };
+    if (currentIndex >= 0) artifacts.splice(currentIndex, 1, nextArtifact);
+    else artifacts.push(nextArtifact);
+    simulator.simulatedCreatureArtifacts = artifacts;
+    simulator.artifactChangesByType[artifactType] = cloneSimulatorValue(target.baseRelativeChanges);
     rebuildBufferSimulatorCalculationState();
     return true;
   }
@@ -7634,8 +7746,10 @@ export function installEnchantView(ctx) {
     const row = state.dealerSimulatorRecommendations.get(recommendationId);
     const target = resolveBufferSimulatorTarget(row);
     if (!row || !target) return;
-    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row);
-    const candidateSignature = getBufferEnchantCandidateSignature(row);
+    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row)
+      || getBufferCreatureArtifactExclusiveGroupKey(row);
+    const candidateSignature = getBufferEnchantCandidateSignature(row)
+      || getBufferCreatureArtifactCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
     if (simulator.activeSelectionByGroup?.[exclusiveGroupKey]?.candidateSignature === candidateSignature) return;
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
@@ -7646,13 +7760,18 @@ export function installEnchantView(ctx) {
     const snapshot = {
       simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
       enchantChangesBySlot: cloneSimulatorValue(simulator.enchantChangesBySlot),
+      simulatedCreatureArtifacts: cloneSimulatorValue(simulator.simulatedCreatureArtifacts),
+      artifactChangesByType: cloneSimulatorValue(simulator.artifactChangesByType),
       activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup),
       currentBufferScore: simulator.currentBufferScore,
       totalGold: simulator.totalGold,
     };
     simulator.applyingRecommendationId = recommendationId;
     try {
-      if (!replaceSimulatedBufferEnchant(row, target)) return;
+      const applied = target.applyType === 'replaceBufferCreatureArtifact'
+        ? replaceSimulatedBufferCreatureArtifact(row, target)
+        : replaceSimulatedBufferEnchant(row, target);
+      if (!applied) return;
       simulator.activeSelectionByGroup[exclusiveGroupKey] = {
         candidateSignature,
         appliedGold,
@@ -7661,6 +7780,7 @@ export function installEnchantView(ctx) {
         goldWithMaterials,
         targetTab: target.targetTab,
         targetSlot: target.targetSlot,
+        artifactType: target.artifactType || '',
         applyType: target.applyType,
         baseRelativeChanges: cloneSimulatorValue(target.baseRelativeChanges),
         appliedRecommendationSnapshot: cloneSimulatorValue(row),
@@ -7675,6 +7795,8 @@ export function installEnchantView(ctx) {
     } catch {
       simulator.simulatedEnchants = snapshot.simulatedEnchants;
       simulator.enchantChangesBySlot = snapshot.enchantChangesBySlot;
+      simulator.simulatedCreatureArtifacts = snapshot.simulatedCreatureArtifacts;
+      simulator.artifactChangesByType = snapshot.artifactChangesByType;
       simulator.activeSelectionByGroup = snapshot.activeSelectionByGroup;
       simulator.currentBufferScore = snapshot.currentBufferScore;
       simulator.totalGold = snapshot.totalGold;
@@ -8086,7 +8208,25 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (simulator?.role !== 'buffer' || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
     const selection = simulator.activeSelectionByGroup?.[exclusiveGroupKey];
-    if (!selection || selection.applyType !== 'replaceBufferEnchant') return;
+    if (!selection || !['replaceBufferEnchant', 'replaceBufferCreatureArtifact'].includes(selection.applyType)) return;
+    if (selection.applyType === 'replaceBufferCreatureArtifact') {
+      if (!restoreSimulatedCreatureArtifactToBase(selection.artifactType)) return;
+      delete simulator.artifactChangesByType[selection.artifactType];
+      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+      rebuildBufferSimulatorCalculationState();
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = {
+        targetTab: 'equipment',
+        targetSlot: selection.targetSlot,
+        applyType: selection.applyType,
+      };
+      state.enchantLoadoutTab = 'equipment';
+      triggerDealerSimulatorSweep(selection.targetSlot);
+      renderEnchantCharacterPortrait();
+      renderEnchantTable();
+      return;
+    }
     const targetSlot = selection.targetSlot;
     const baseEnchant = simulator.baseEnchants.find((enchant) => enchant?.slot === targetSlot);
     const currentIndex = simulator.simulatedEnchants.findIndex((enchant) => enchant?.slot === targetSlot);
@@ -10182,7 +10322,7 @@ export function installEnchantView(ctx) {
         getActiveCreature(),
       );
     if (simulator?.role === 'buffer') {
-      recommendations = mergeAppliedBufferEnchantSnapshots(recommendations, simulator);
+      recommendations = mergeAppliedBufferSimulatorSnapshots(recommendations, simulator);
     }
     recommendations = collapseOathDecisionRecommendationVariants(
       recommendations,

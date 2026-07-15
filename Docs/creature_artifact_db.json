@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-21",
+  "updatedAt": "2026-07-15",
   "source": {
     "type": "manual_seed_from_neople_item_search",
     "note": "크리쳐 아티팩트는 캐릭터의 현재 artifact slotColor와 비교한다. 딜 영향이 확실한 유니크 아티팩트만 포함한다."
@@ -11,6 +11,11 @@
       "slotColor": "RED",
       "slot": "크리쳐 레드",
       "candidates": [
+        {
+          "itemId": "76c6b3c272a8e9803eb21ef9e4e62d7e",
+          "itemName": "거룩한 저주의 서",
+          "variant": "유니크"
+        },
         {
           "itemId": "d177153624615be06174659f9ecc2a71",
           "itemName": "타오르는 황혼의 공명",
@@ -43,6 +48,11 @@
       "slotColor": "BLUE",
       "slot": "크리쳐 블루",
       "candidates": [
+        {
+          "itemId": "91523c3281a970f357811a0f8c9fb2c2",
+          "itemName": "태양을 삼킨 달",
+          "variant": "유니크"
+        },
         {
           "itemId": "a8e7dc7196e8872f89e710468f28e016",
           "itemName": "타오르는 영원의 달빛",
