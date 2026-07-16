@@ -13006,6 +13006,10 @@ export function installEnchantView(ctx) {
   function redistributeActiveOathAcquisitionMethods(row, transcendCount, craftCount) {
     const simulator = state.dealerSimulator;
     if (!simulator || !row) return false;
+    const previousTunedOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
+    const activeOathTune = cloneSimulatorValue(
+      simulator.activeSelectionByGroup?.oathTune || null,
+    );
     const targetRarity = String(
       row.transcendRecommendation?.targetRarity
       || row.craftRecommendation?.targetRarity
@@ -13059,6 +13063,14 @@ export function installEnchantView(ctx) {
     const craftVariant = resolveVariant('craft', Number(craftCount || 0));
     if ((transcendCount > 0 && !transcendVariant) || (craftCount > 0 && !craftVariant)) return false;
 
+    if (activeOathTune?.actionType === 'oathTunePlan') {
+      simulator.simulatedOathUpgrades = cloneSimulatorValue(
+        activeOathTune.beforeTuneSnapshot || simulator.simulatedOathUpgrades || {},
+      );
+      delete simulator.activeSelectionByGroup.oathTune;
+      if (simulator.role === 'buffer') delete simulator.oathTuneChangesBySource.oathTune;
+    }
+
     const currentTranscend = activeEntries.filter(([, selection]) => selection.acquisitionMethod === 'transcend');
     const currentCraft = activeEntries.filter(([, selection]) => selection.acquisitionMethod === 'craft');
     const nextTranscend = currentTranscend.slice(0, transcendCount);
@@ -13101,9 +13113,17 @@ export function installEnchantView(ctx) {
     };
     if (nextTranscend.length) updateSelections(nextTranscend, 'transcend', transcendVariant);
     if (nextCraft.length) updateSelections(nextCraft, 'craft', craftVariant);
+    if (
+      activeOathTune?.actionType === 'oathTunePlan'
+      && !reapplyOathTuneSelectionToCurrentState(activeOathTune)
+    ) return false;
     simulator.totalGold = getDealerSimulatorTotalGold(simulator, includeMaterialCosts);
     syncOathAcquisitionVariantIndexes(true);
     changedMethodSlots.forEach(triggerDealerSimulatorSweep);
+    if (activeOathTune?.actionType === 'oathTunePlan') {
+      getChangedOathTuneSlots(previousTunedOath, simulator.simulatedOathUpgrades)
+        .forEach(triggerDealerSimulatorSweep);
+    }
     return true;
   }
 
@@ -13232,12 +13252,12 @@ export function installEnchantView(ctx) {
       if (
         nextTotalCount > 0
         && (currentTotalCount === nextTotalCount || activeTargetCount === nextTotalCount)
-        && redistributeActiveOathAcquisitionMethods(
+      ) {
+        if (!redistributeActiveOathAcquisitionMethods(
           row,
           nextTranscendCount,
           nextCraftCount,
-        )
-      ) {
+        )) throw new Error('oath acquisition method redistribution failed');
         simulator.selectedRecommendationId = `applied-oath-combined:${pairKey}`;
         renderEnchantCharacterPortrait();
         renderEnchantTable();
