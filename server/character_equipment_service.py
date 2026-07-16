@@ -285,7 +285,36 @@ def build_buff_loadout_avatar_payload(row: dict, buff_contribution: dict | None 
         for emblem in get_platinum_emblems(row)
         if clean_text(emblem.get("itemId")) or clean_item_display_name(emblem.get("itemName"))
     ][:2]
+    payload["buffAvatarSource"] = clean_text(row.get("buffAvatarSource"))
     return payload
+
+
+def resolve_effective_buff_avatar_rows(actual_buff_avatar_rows: list, current_avatar_rows: list) -> list:
+    actual_by_slot = {
+        clean_text(row.get("slotId")): row
+        for row in actual_buff_avatar_rows or []
+        if clean_text(row.get("slotId"))
+    }
+    resolved = []
+    used_slots = set()
+    for current_row in current_avatar_rows or []:
+        slot_id = clean_text(current_row.get("slotId"))
+        if not slot_id:
+            continue
+        used_slots.add(slot_id)
+        actual_row = actual_by_slot.get(slot_id)
+        resolved.append({
+            **(actual_row or current_row),
+            "buffAvatarSource": "actual" if actual_row else "wornFallback",
+        })
+    resolved.extend({
+        **row,
+        "buffAvatarSource": "actual",
+    } for row in actual_buff_avatar_rows or [] if (
+        clean_text(row.get("slotId"))
+        and clean_text(row.get("slotId")) not in used_slots
+    ))
+    return resolved
 
 
 def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
@@ -306,6 +335,12 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
         character_id,
         "buff_creature",
         "skill/buff/equip/creature",
+    )
+    current_avatar_payload = get_character_cached_payload(
+        server_id,
+        character_id,
+        "avatar",
+        "equip/avatar",
     )
     equipment_buff = ((equipment_payload.get("skill") or {}).get("buff") or {})
     avatar_buff = ((avatar_payload.get("skill") or {}).get("buff") or {})
@@ -353,7 +388,11 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
         target_skill_names,
     ) if required_level > 0 else []
     equipment_rows = [row for row in equipment_buff.get("equipment") or [] if isinstance(row, dict)]
-    avatar_rows = [row for row in avatar_buff.get("avatar") or [] if isinstance(row, dict)]
+    actual_avatar_rows = [row for row in avatar_buff.get("avatar") or [] if isinstance(row, dict)]
+    avatar_rows = resolve_effective_buff_avatar_rows(
+        actual_avatar_rows,
+        [row for row in current_avatar_payload.get("avatar") or [] if isinstance(row, dict)],
+    )
     creature_rows = creature_buff.get("creature") or []
     if isinstance(creature_rows, dict):
         creature_rows = [creature_rows]
@@ -2264,24 +2303,7 @@ def get_switching_avatar_skill_level_contribution(avatar_rows: list, target_skil
 
 
 def merge_switching_avatar_rows_with_current(switching_rows: list, current_avatar_rows: list) -> list:
-    switching_by_slot = {
-        clean_text(row.get("slotId")): row
-        for row in switching_rows or []
-        if clean_text(row.get("slotId"))
-    }
-    used_slots = set()
-    merged = []
-    for row in current_avatar_rows or []:
-        slot_id = clean_text(row.get("slotId"))
-        if not slot_id:
-            continue
-        used_slots.add(slot_id)
-        merged.append(switching_by_slot.get(slot_id) or row)
-    merged.extend(
-        row for row in switching_rows or []
-        if clean_text(row.get("slotId")) and clean_text(row.get("slotId")) not in used_slots
-    )
-    return merged
+    return resolve_effective_buff_avatar_rows(switching_rows, current_avatar_rows)
 
 
 def get_current_dealer_switching_level_total(
@@ -2635,19 +2657,15 @@ def get_buffer_switching_rows(server_id: str, character_id: str) -> tuple[list, 
         for row in switching_equipment
         if clean_text(row.get("slotId"))
     }
-    switching_avatar_by_slot = {
-        clean_text(row.get("slotId")): row
-        for row in switching_avatar
-        if clean_text(row.get("slotId"))
-    }
+    effective_switching_avatar = resolve_effective_buff_avatar_rows(
+        switching_avatar,
+        current_avatar,
+    )
     current_rows = [*current_equipment, *current_avatar, current_creature]
     switching_rows = [
         switching_equipment_by_slot.get(clean_text(row.get("slotId")), row)
         for row in current_equipment
-    ] + [
-        switching_avatar_by_slot.get(clean_text(row.get("slotId")), row)
-        for row in current_avatar
-    ]
+    ] + effective_switching_avatar
     switching_rows.append(switching_creature if isinstance(switching_creature, dict) and switching_creature else current_creature)
     return current_rows, switching_rows, buff_equipment_payload
 
@@ -3822,6 +3840,7 @@ def build_completed_buffer_switching_avatar_row(
     slot_label: str,
     target_skill_name: str,
     stat_name: str,
+    platinum_item: dict,
     stat_emblem_item: dict,
     missing_platinum_count: int,
     missing_stat_count: int,
@@ -3839,12 +3858,7 @@ def build_completed_buffer_switching_avatar_row(
     if isinstance(completed.get("avatar"), dict):
         completed["avatar"] = {**completed["avatar"], "emblems": []}
     source_emblems = list(get_avatar_auction_emblems(row or {}))
-    emblems = [
-        emblem
-        for emblem in source_emblems
-        if "플래티넘" in clean_text(emblem.get("slotColor"))
-        or "플래티넘" in clean_text(emblem.get("itemName"))
-    ]
+    emblems = list(get_platinum_emblems(row or {})) if missing_platinum_count <= 0 else []
     emblems.extend([
         emblem
         for emblem in source_emblems
@@ -3855,7 +3869,10 @@ def build_completed_buffer_switching_avatar_row(
     ][:2])
     if missing_platinum_count > 0 and target_skill_name:
         emblems.append({
-            "itemName": f"플래티넘 엠블렘[{target_skill_name}]",
+            "itemId": clean_text(platinum_item.get("itemId")),
+            "itemName": clean_item_display_name(platinum_item.get("itemName"))
+                or f"플래티넘 엠블렘[{target_skill_name}]",
+            "itemRarity": clean_text(platinum_item.get("itemRarity")),
             "slotColor": "플래티넘",
         })
     stat_item_name = clean_item_display_name(stat_emblem_item.get("itemName")) or get_avatar_emblem_item_name(stat_name, "green")
@@ -3885,16 +3902,12 @@ def calculate_buffer_switching_avatar_candidate_delta(
         if clean_text(row.get("slotId"))
     }
     actual_switching_row = actual_buff_avatar_by_slot.get(clean_text(slot_id)) or {}
-    switching_rows = [
-        row
-        for row in display_switching_rows
-        if not (
-            clean_text(row.get("slotId")) == clean_text(slot_id)
-            and "아바타" in clean_text(row.get("slotName"))
-        )
-    ]
-    if actual_switching_row:
-        switching_rows.append(actual_switching_row)
+    effective_switching_row = next((
+        row for row in display_switching_rows
+        if clean_text(row.get("slotId")) == clean_text(slot_id)
+        and "아바타" in clean_text(row.get("slotName"))
+    ), {})
+    switching_rows = list(display_switching_rows)
     item_ids = [
         clean_text(row.get("itemId"))
         for row in [*current_rows, *switching_rows, candidate_avatar_row]
@@ -3927,7 +3940,7 @@ def calculate_buffer_switching_avatar_candidate_delta(
         buff_skill_name,
     )
     current_contribution = get_switching_avatar_skill_level_contribution(
-        [actual_switching_row] if actual_switching_row else [],
+        [effective_switching_row] if effective_switching_row else [],
         [buff_skill_name],
     )
     candidate_contribution = get_switching_avatar_skill_level_contribution(
@@ -3945,7 +3958,7 @@ def calculate_buffer_switching_avatar_candidate_delta(
         "candidateBuffSkillLevelContribution": candidate_contribution,
         "currentMetrics": current_metrics,
         "candidateMetrics": candidate_metrics,
-        "usedCurrentAvatarFallback": False,
+        "usedCurrentAvatarFallback": clean_text(effective_switching_row.get("buffAvatarSource")) == "wornFallback",
         "actualBuffAvatarPresent": bool(actual_switching_row),
     }
 
@@ -4166,6 +4179,12 @@ def build_buffer_switching_avatar_recommendation_row(
 ) -> dict:
     target_slot_id = "JACKET" if "상의" in clean_text(slot) else "PANTS"
     target_avatar_row = target_avatar_row or selected_avatar
+    target_platinum_emblems = get_platinum_emblems(target_avatar_row)
+    target_platinum_skill_level = sum(
+        1
+        for emblem in target_platinum_emblems
+        if skill_name_matches(extract_platinum_skill_name(emblem.get("itemName")), target_skill)
+    )
     return {
         "kind": "switchingAvatar",
         "slot": slot,
@@ -4195,13 +4214,21 @@ def build_buffer_switching_avatar_recommendation_row(
                 "optionAbility": clean_text(target_avatar_row.get("optionAbility")) if target_slot_id == "JACKET" else "",
                 "buffContribution": {
                     "topOptionSkillLevel": 1 if target_slot_id == "JACKET" else 0,
-                    "platinumSkillLevel": 1,
+                    "platinumSkillLevel": target_platinum_skill_level,
                 },
                 "emblems": [
                     build_normalized_avatar_emblem(emblem, stat_name)
                     for emblem in get_avatar_auction_emblems(target_avatar_row)
                     if "플래티넘" not in clean_text(emblem.get("slotColor"))
                     and "플래티넘" not in clean_text(emblem.get("itemName"))
+                ][:2],
+                "platinumEmblems": [
+                    {
+                        "itemId": clean_text(emblem.get("itemId")),
+                        "itemName": clean_item_display_name(emblem.get("itemName")),
+                        "slotColor": clean_text(emblem.get("slotColor")),
+                    }
+                    for emblem in target_platinum_emblems
                 ][:2],
             },
         },
@@ -4381,19 +4408,15 @@ def get_buffer_switching_stat_delta(
         for row in switching_equipment
         if clean_text(row.get("slotId"))
     }
-    switching_avatar_by_slot = {
-        clean_text(row.get("slotId")): row
-        for row in switching_avatar
-        if clean_text(row.get("slotId"))
-    }
+    effective_switching_avatar = resolve_effective_buff_avatar_rows(
+        switching_avatar,
+        current_avatar,
+    )
     current_rows = [*current_equipment, *current_avatar, current_creature]
     switching_rows = [
         switching_equipment_by_slot.get(clean_text(row.get("slotId")), row)
         for row in current_equipment
-    ] + [
-        switching_avatar_by_slot.get(clean_text(row.get("slotId")), row)
-        for row in current_avatar
-    ]
+    ] + effective_switching_avatar
     switching_rows.append(switching_creature if isinstance(switching_creature, dict) and switching_creature else current_creature)
 
     item_ids = [
@@ -5284,6 +5307,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     slot_label,
                     target_platinum_skill,
                     primary_stat_name,
+                    switching_avatar_platinum_item_by_skill.get(target_platinum_skill) or {},
                     stat_emblem_item,
                     missing_platinum_count,
                     missing_stat_count,

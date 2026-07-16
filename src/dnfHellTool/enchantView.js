@@ -1290,6 +1290,21 @@ function resolveBufferNetChanges(
   switchingPlatinumChangesBySlot = {},
   avatarEmblemChangesBySocket = {},
 ) {
+  const resolvedSwitchingPlatinumChangesBySlot = Object.fromEntries(
+    Object.entries(switchingPlatinumChangesBySlot || {}).map(([slotId, slotChanges]) => {
+      const packageChanges = switchingAvatarChangesBySlot?.[slotId];
+      if (!packageChanges) return [slotId, slotChanges];
+      const targetPlatinumSkillLevel = Number(slotChanges?.targetPlatinumSkillLevel);
+      const packagePlatinumSkillLevel = Number(packageChanges?.targetPlatinumSkillLevel);
+      if (!Number.isFinite(targetPlatinumSkillLevel) || !Number.isFinite(packagePlatinumSkillLevel)) {
+        throw new TypeError(`Invalid switching platinum contribution: ${slotId}`);
+      }
+      return [slotId, {
+        ...slotChanges,
+        buffSkillLevelDelta: targetPlatinumSkillLevel - packagePlatinumSkillLevel,
+      }];
+    }),
+  );
   const changes = [
     ...Object.values(changesBySlot || {}),
     ...Object.values(artifactChangesByType || {}),
@@ -1304,7 +1319,7 @@ function resolveBufferNetChanges(
     ...Object.values(switchingCreatureChangesBySource || {}),
     ...Object.values(switchingTitleChangesBySource || {}),
     ...Object.values(switchingAvatarChangesBySlot || {}),
-    ...Object.values(switchingPlatinumChangesBySlot || {}),
+    ...Object.values(resolvedSwitchingPlatinumChangesBySlot),
     ...Object.values(avatarEmblemChangesBySocket || {}),
   ];
   const total = changes.reduce((result, slotChanges) => {
@@ -1862,6 +1877,9 @@ function getBufferSwitchingAvatarBaseRelativeChanges(row = {}) {
   const changes = {
     switchingStatDelta: Number(source.switchingStatDelta || 0),
     buffSkillLevelDelta: Number(source.buffSkillLevelDelta || 0),
+    targetPlatinumSkillLevel: Number(
+      row.targetBuffChanges?.avatar?.buffContribution?.platinumSkillLevel || 0,
+    ),
   };
   return Object.values(changes).every(Number.isFinite) ? changes : null;
 }
@@ -1886,6 +1904,9 @@ function getBufferSwitchingPlatinumBaseRelativeChanges(row = {}) {
   const changes = {
     switchingStatDelta: Number(source.switchingStatDelta || 0),
     buffSkillLevelDelta: Number(source.buffSkillLevelDelta || 0),
+    targetPlatinumSkillLevel: Number(
+      row.targetBuffChanges?.platinumEmblem?.skillLevel || 0,
+    ),
   };
   return Object.values(changes).every(Number.isFinite) ? changes : null;
 }
@@ -8116,7 +8137,10 @@ export function installEnchantView(ctx) {
       const targetSlotId = String(row.targetSlotId || '').trim();
       if (row.bufferStatScope === 'switching') {
         const hasBaseHost = getBuffLoadoutRowsForMetric(simulator.baseBuffLoadout?.avatar)
-          .some((item) => String(item?.slotId || '').trim() === targetSlotId);
+          .some((item) => (
+            String(item?.slotId || '').trim() === targetSlotId
+            && item?.buffAvatarSource === 'actual'
+          ));
         const hasPackageHost = Boolean(
           simulator.activeSelectionByGroup?.[`buffAvatarPackage:${targetSlotId}`],
         );
@@ -8209,8 +8233,17 @@ export function installEnchantView(ctx) {
     }
     if (row.sourceType === 'avatar' && row.kind === 'switchingPlatinumEmblem') {
       const targetSlotId = getBuffSimulatorTargetSlotId(row);
+      const hasBaseHost = getBuffLoadoutRowsForMetric(simulator.baseBuffLoadout?.avatar)
+        .some((item) => (
+          String(item?.slotId || '').trim() === targetSlotId
+          && item?.buffAvatarSource === 'actual'
+        ));
+      const hasPackageHost = Boolean(
+        simulator.activeSelectionByGroup?.[`buffAvatarPackage:${targetSlotId}`],
+      );
       if (
         !targetSlotId
+        || (!hasBaseHost && !hasPackageHost)
         || !row.itemId
         || !row.targetBuffChanges?.platinumEmblem
         || !row.bufferBaseRelativeChanges
@@ -8771,7 +8804,36 @@ export function installEnchantView(ctx) {
       {},
       row.targetBuffChanges?.avatar?.emblems,
     );
+    applyActiveSwitchingPlatinumToLoadout(targetSlotId);
     rebuildBufferSimulatorCalculationState();
+    return true;
+  }
+
+  function applyActiveSwitchingPlatinumToLoadout(targetSlotId) {
+    const simulator = state.dealerSimulator;
+    const target = simulator?.activeSelectionByGroup
+      ?.[`buffAvatarPlatinum:${targetSlotId}`]
+      ?.appliedRecommendationSnapshot
+      ?.targetBuffChanges
+      ?.platinumEmblem;
+    if (!target) return true;
+    const rows = getBuffLoadoutRowsForMetric(simulator.simulatedBuffLoadout?.avatar);
+    const index = rows.findIndex((item) => String(item?.slotId || '').trim() === targetSlotId);
+    if (index < 0) return false;
+    rows[index] = {
+      ...rows[index],
+      buffContribution: {
+        ...(rows[index].buffContribution || {}),
+        platinumSkillLevel: Number(target.skillLevel || 0),
+      },
+      platinumEmblems: [{
+        itemId: target.itemId || '',
+        itemName: target.itemName || '',
+        slotColor: '플래티넘',
+      }],
+      simulatedPlatinumEmblem: cloneSimulatorValue(target),
+    };
+    simulator.simulatedBuffLoadout.avatar = rows;
     return true;
   }
 
@@ -8877,6 +8939,7 @@ export function installEnchantView(ctx) {
     const currentContribution = cloneSimulatorValue(current.buffContribution || {});
     const targetAvatar = row.targetBuffChanges?.avatar || {};
     const targetPlatinum = row.targetBuffChanges?.platinumEmblem || {};
+    const packagePlatinum = targetAvatar.platinumEmblems?.[0] || null;
     const nextContribution = platinumOnly
       ? { ...currentContribution, platinumSkillLevel: Number(targetPlatinum.skillLevel || 0) }
       : { ...currentContribution, ...cloneSimulatorValue(targetAvatar.buffContribution || {}) };
@@ -8884,6 +8947,11 @@ export function installEnchantView(ctx) {
       ? {
         ...cloneSimulatorValue(current),
         buffContribution: nextContribution,
+        platinumEmblems: [{
+          itemId: targetPlatinum.itemId || row.itemId,
+          itemName: targetPlatinum.itemName || row.itemName,
+          slotColor: '플래티넘',
+        }],
         simulatedPlatinumEmblem: {
           itemId: targetPlatinum.itemId || row.itemId,
           itemName: targetPlatinum.itemName || row.itemName,
@@ -8902,12 +8970,12 @@ export function installEnchantView(ctx) {
         iconUrl: targetAvatar.iconUrl || row.iconUrl,
         optionAbility: targetAvatar.optionAbility || '',
         emblems: cloneSimulatorValue(targetAvatar.emblems || current.emblems || []),
+        platinumEmblems: cloneSimulatorValue(
+          targetAvatar.platinumEmblems || current.platinumEmblems || [],
+        ),
+        buffAvatarSource: 'simulatedPackage',
         buffContribution: nextContribution,
-        simulatedPlatinumEmblem: {
-          itemId: row.itemId,
-          itemName: `플래티넘 엠블렘[${row.targetSkill || ''}]`,
-          targetSkill: row.targetSkill,
-        },
+        simulatedPlatinumEmblem: cloneSimulatorValue(packagePlatinum),
       };
     return replaceBuffLoadoutRow(
       'avatar',
@@ -9996,6 +10064,7 @@ export function installEnchantView(ctx) {
       ).replace(/^buffAvatar:/, '').trim();
       const baseRow = getBuffLoadoutRowsForMetric(simulator.baseBuffLoadout?.avatar)
         .find((item) => String(item?.slotId || '').trim() === targetSlotId);
+      const hasPhysicalBaseHost = baseRow?.buffAvatarSource === 'actual';
       const simulatedRows = getBuffLoadoutRowsForMetric(simulator.simulatedBuffLoadout?.avatar);
       const index = simulatedRows.findIndex(
         (item) => String(item?.slotId || '').trim() === targetSlotId,
@@ -10003,10 +10072,17 @@ export function installEnchantView(ctx) {
       if (applyType === 'replaceBuffAvatarPackage') {
         const emblemGroupKey = `buffAvatarEmblem:${targetSlotId}`;
         const emblemSelection = simulator.activeSelectionByGroup?.[emblemGroupKey];
-        if (!baseRow && emblemSelection) {
+        if (!hasPhysicalBaseHost && emblemSelection) {
           const emblemRemoveResult = removeSimulatorAction(emblemSelection);
           if (!emblemRemoveResult) return false;
           delete simulator.activeSelectionByGroup[emblemGroupKey];
+        }
+        const platinumGroupKey = `buffAvatarPlatinum:${targetSlotId}`;
+        const dependentPlatinumSelection = simulator.activeSelectionByGroup?.[platinumGroupKey];
+        if (!hasPhysicalBaseHost && dependentPlatinumSelection) {
+          const platinumRemoveResult = removeSimulatorAction(dependentPlatinumSelection);
+          if (!platinumRemoveResult) return false;
+          delete simulator.activeSelectionByGroup[platinumGroupKey];
         }
         if (index >= 0 && baseRow) simulatedRows.splice(index, 1, cloneSimulatorValue(baseRow));
         else if (index >= 0) simulatedRows.splice(index, 1);
@@ -10034,6 +10110,7 @@ export function installEnchantView(ctx) {
         const current = simulatedRows[index];
         const packageSelection = simulator.activeSelectionByGroup?.[`buffAvatarPackage:${targetSlotId}`];
         const packageTarget = packageSelection?.appliedRecommendationSnapshot?.targetBuffChanges?.avatar;
+        const packagePlatinum = packageTarget?.platinumEmblems?.[0] || null;
         const restoredPlatinumLevel = packageTarget
           ? Number(packageTarget?.buffContribution?.platinumSkillLevel || 0)
           : Number(baseRow?.buffContribution?.platinumSkillLevel || 0);
@@ -10043,8 +10120,11 @@ export function installEnchantView(ctx) {
             ...(current.buffContribution || {}),
             platinumSkillLevel: restoredPlatinumLevel,
           },
+          platinumEmblems: cloneSimulatorValue(
+            packageTarget ? packageTarget.platinumEmblems || [] : baseRow?.platinumEmblems || [],
+          ),
           simulatedPlatinumEmblem: cloneSimulatorValue(
-            packageTarget ? current.simulatedPlatinumEmblem : baseRow.simulatedPlatinumEmblem || null,
+            packageTarget ? packagePlatinum : baseRow?.simulatedPlatinumEmblem || null,
           ),
         });
       }
