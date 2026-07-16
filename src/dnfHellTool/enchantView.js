@@ -125,11 +125,11 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '장비', items: ['조율'] },
-  { title: '서약', items: ['조율', '초월', '정가'] },
+  { title: '서약', items: ['조율', '초월/정가'] },
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set(['서약:초월', '서약:정가']);
+const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set(['서약:초월/정가']);
 const EFFECT_ORDER = ['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
 const BUFFER_IRRELEVANT_EFFECT_KEYS = new Set(['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'critical']);
 const DAMAGE_IRRELEVANT_EFFECT_KEYS = new Set(['buffPower', 'buffAmplification', 'bufferStat']);
@@ -287,6 +287,7 @@ const EQUIPMENT_TUNE_MEMORY_POINT = 70;
 const EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE = 2;
 const EQUIPMENT_TUNE_MEMORY_BUFF_POWER = 400;
 const EQUIPMENT_TUNE_MAX_LEVEL = 3;
+const DEALER_SWITCHING_MAX_LEVEL_BONUS = 7;
 const MIN_RECOMMENDED_AMPLIFICATION_LEVEL = 10;
 const EQUIPMENT_TUNE_COST_BY_RARITY = {
   레전더리: { gold: 600000, materialKey: 'legendarySoul', materialAmount: 20, order: 0 },
@@ -1102,8 +1103,8 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'blackFang') return ['흑아:흑아'];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
-  if (row.sourceType === 'oathTranscend') return ['서약:초월'];
-  if (row.sourceType === 'oathCraft') return ['서약:정가'];
+  if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return ['서약:초월/정가'];
+  if (row.sourceType === 'oathAcquisitionCombined') return ['서약:초월/정가'];
   if (row.tier === '안전증폭' || row.tier === '증폭 전환') {
     return ['강화/증폭:증폭'];
   }
@@ -11043,9 +11044,17 @@ export function installEnchantView(ctx) {
     const skillId = String(skillInfo.skillId || '').trim();
     const className = String(state.enchantTargetCharacter?.jobName || baseline.jobName || '').trim();
     const skillLevel = simulator?.baseBuffLoadout
-      ? getBuffEnhancementState(loadout, simulator.baseBuffLoadout).effectiveLevel
+      ? Math.max(
+        0,
+        Number(simulator.baseBuffLoadout?.skillInfo?.level || baseline.buffSkillLevel || 0)
+          + getBuffLoadoutLevelContribution(loadout)
+          - getBuffLoadoutLevelContribution(simulator.baseBuffLoadout),
+      )
       : Number(skillInfo.level || baseline.buffSkillLevel || 0);
-    const maxSkillLevel = Number(skillInfo.maxLevel || 0);
+    const isDealer = simulator?.role
+      ? simulator.role !== 'buffer'
+      : baseline.isBuffer !== true;
+    const switchingLevelBonus = getBuffLoadoutLevelContribution(loadout);
     return {
       equipmentBySlotName,
       avatarBySlotId,
@@ -11054,8 +11063,7 @@ export function installEnchantView(ctx) {
         skillId,
         name: String(skillInfo.name || baseline.buffSkillName || '').trim(),
         level: skillLevel,
-        maxLevel: maxSkillLevel,
-        isMax: maxSkillLevel > 0 && skillLevel >= maxSkillLevel,
+        isMax: isDealer && switchingLevelBonus >= DEALER_SWITCHING_MAX_LEVEL_BONUS,
         iconUrl: String(skillInfo.iconUrl || '').trim() || getSwitchingSkillIconUrl(skillId, className),
       },
     };
@@ -11916,6 +11924,10 @@ export function installEnchantView(ctx) {
       }
     }
     if (storedChecked) {
+      const legacyOathKeys = ['서약:초월', '서약:정가'];
+      const hadLegacyOathSelection = legacyOathKeys.some((key) => storedChecked.has(key));
+      legacyOathKeys.forEach((key) => storedChecked.delete(key));
+      if (hadLegacyOathSelection) storedChecked.add('서약:초월/정가');
       let knownKeys = null;
       if (ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY) {
         try {
@@ -11927,6 +11939,7 @@ export function installEnchantView(ctx) {
       }
       const hadKnownKeys = Boolean(knownKeys);
       knownKeys = knownKeys || new Set(ENCHANT_INCLUDE_ORDER);
+      legacyOathKeys.forEach((key) => knownKeys.delete(key));
       let addedNewKey = false;
       ENCHANT_INCLUDE_ORDER.forEach((key) => {
         if (!knownKeys.has(key)) {
@@ -11937,7 +11950,7 @@ export function installEnchantView(ctx) {
           addedNewKey = true;
         }
       });
-      if (addedNewKey && ENCHANT_INCLUDE_FILTER_STORAGE_KEY) {
+      if ((addedNewKey || hadLegacyOathSelection) && ENCHANT_INCLUDE_FILTER_STORAGE_KEY) {
         try {
           localStorage.setItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY, JSON.stringify([...storedChecked]));
         } catch {

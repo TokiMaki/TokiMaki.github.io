@@ -3838,7 +3838,21 @@ def build_completed_buffer_switching_avatar_row(
     }
     if isinstance(completed.get("avatar"), dict):
         completed["avatar"] = {**completed["avatar"], "emblems": []}
-    emblems = list(get_avatar_auction_emblems(row or {}))
+    source_emblems = list(get_avatar_auction_emblems(row or {}))
+    emblems = [
+        emblem
+        for emblem in source_emblems
+        if "플래티넘" in clean_text(emblem.get("slotColor"))
+        or "플래티넘" in clean_text(emblem.get("itemName"))
+    ]
+    emblems.extend([
+        emblem
+        for emblem in source_emblems
+        if "플래티넘" not in clean_text(emblem.get("slotColor"))
+        and "플래티넘" not in clean_text(emblem.get("itemName"))
+        and get_emblem_primary_stat_value(clean_text(emblem.get("itemName")), stat_name)
+        >= AVATAR_BRILLIANT_GREEN_STAT
+    ][:2])
     if missing_platinum_count > 0 and target_skill_name:
         emblems.append({
             "itemName": f"플래티넘 엠블렘[{target_skill_name}]",
