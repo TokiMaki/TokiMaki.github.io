@@ -1287,6 +1287,7 @@ function resolveBufferNetChanges(
   switchingTitleChangesBySource = {},
   switchingAvatarChangesBySlot = {},
   switchingPlatinumChangesBySlot = {},
+  avatarEmblemChangesBySocket = {},
 ) {
   const changes = [
     ...Object.values(changesBySlot || {}),
@@ -1303,6 +1304,7 @@ function resolveBufferNetChanges(
     ...Object.values(switchingTitleChangesBySource || {}),
     ...Object.values(switchingAvatarChangesBySlot || {}),
     ...Object.values(switchingPlatinumChangesBySlot || {}),
+    ...Object.values(avatarEmblemChangesBySocket || {}),
   ];
   const total = changes.reduce((result, slotChanges) => {
     BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
@@ -1340,6 +1342,41 @@ function resolveBufferNetChanges(
     });
   });
   return total;
+}
+
+function getBufferAvatarEmblemChangesBySocket(row = {}, baseline = {}) {
+  if (
+    row.sourceType !== 'avatar'
+    || row.kind !== 'brilliantEmblem'
+    || !['common', 'current'].includes(row.bufferStatScope)
+  ) return null;
+  const targetSlotId = String(row.targetSlotId || '').trim();
+  const socketChanges = Array.isArray(row.socketChanges) ? row.socketChanges : [];
+  if (!targetSlotId || !socketChanges.length) return null;
+  const changeKey = row.bufferStatScope === 'current' ? 'currentStatDelta' : 'statDelta';
+  const changesBySocket = {};
+  for (const change of socketChanges) {
+    const socketIndex = Number(change?.socketIndex);
+    if (!Number.isInteger(socketIndex) || socketIndex < 0 || socketIndex >= 2 || !change?.targetEmblem) {
+      return null;
+    }
+    const currentValue = getSelectedStatEffect(change.currentEmblem?.effects || {}, baseline);
+    const targetValue = getSelectedStatEffect(change.targetEmblem.effects || {}, baseline);
+    if (!Number.isFinite(currentValue) || !Number.isFinite(targetValue)) return null;
+    changesBySocket[`${targetSlotId}:${socketIndex}`] = {
+      [changeKey]: targetValue - currentValue,
+    };
+  }
+  return changesBySocket;
+}
+
+function mergeBufferChangeMap(changesByKey = {}) {
+  return Object.values(changesByKey || {}).reduce((result, changes) => {
+    BUFFER_SIMULATOR_CHANGE_KEYS.forEach((key) => {
+      result[key] += Number(changes?.[key] || 0);
+    });
+    return result;
+  }, Object.fromEntries(BUFFER_SIMULATOR_CHANGE_KEYS.map((key) => [key, 0])));
 }
 
 function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
@@ -2032,6 +2069,10 @@ function getBufferRecommendationRows(
     const oathAcquisitionEvaluation = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
       ? getBufferOathAcquisitionEvaluation(row, simulator)
       : null;
+    const bufferAvatarEmblemChangesBySocket = row.sourceType === 'avatar'
+      && row.kind === 'brilliantEmblem'
+      ? getBufferAvatarEmblemChangesBySocket(row, baseline)
+      : null;
     const bufferBaseRelativeChanges = row.sourceType === 'creatureArtifact'
       ? getBufferCreatureArtifactBaseRelativeChanges(row, current)
       : row.sourceType === 'creature'
@@ -2048,6 +2089,8 @@ function getBufferRecommendationRows(
         ? getBufferSwitchingPlatinumBaseRelativeChanges(row)
       : row.sourceType === 'avatar' && row.kind === 'switchingAvatar'
         ? getBufferSwitchingAvatarBaseRelativeChanges(row)
+      : row.sourceType === 'avatar' && row.kind === 'brilliantEmblem'
+        ? bufferAvatarEmblemChangesBySocket && mergeBufferChangeMap(bufferAvatarEmblemChangesBySocket)
       : row.sourceType === 'blackFang'
         ? getBufferBlackFangBaseRelativeChanges(row)
       : row.sourceType === 'upgrade'
@@ -2107,6 +2150,9 @@ function getBufferRecommendationRows(
             row.sourceType === 'avatar' && row.kind === 'switchingPlatinumEmblem'
               ? { [getBuffSimulatorTargetSlotId(row)]: bufferBaseRelativeChanges }
               : {},
+            row.sourceType === 'avatar' && row.kind === 'brilliantEmblem'
+              ? bufferAvatarEmblemChangesBySocket
+              : {},
           ),
         );
       } catch {
@@ -2154,6 +2200,9 @@ function getBufferRecommendationRows(
       const referenceSwitchingPlatinumChangesBySlot = {
         ...(simulator.switchingPlatinumChangesBySlot || {}),
       };
+      const referenceAvatarEmblemChangesBySocket = {
+        ...(simulator.avatarEmblemChangesBySocket || {}),
+      };
       if (row.sourceType === 'enchant') delete referenceChangesBySlot[row.slot];
       if (row.sourceType === 'creatureArtifact') {
         delete referenceArtifactChangesByType[getCreatureArtifactType(row)];
@@ -2187,6 +2236,12 @@ function getBufferRecommendationRows(
       }
       if (row.sourceType === 'avatar' && row.kind === 'switchingPlatinumEmblem') {
         delete referenceSwitchingPlatinumChangesBySlot[getBuffSimulatorTargetSlotId(row)];
+      }
+      if (row.sourceType === 'avatar' && row.kind === 'brilliantEmblem') {
+        const socketPrefix = `${String(row.targetSlotId || '').trim()}:`;
+        Object.keys(referenceAvatarEmblemChangesBySocket).forEach((socketKey) => {
+          if (socketKey.startsWith(socketPrefix)) delete referenceAvatarEmblemChangesBySocket[socketKey];
+        });
       }
       const candidateChangesBySlot = row.sourceType === 'enchant'
         ? { ...referenceChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
@@ -2241,6 +2296,13 @@ function getBufferRecommendationRows(
           [getBuffSimulatorTargetSlotId(row)]: bufferBaseRelativeChanges,
         }
         : referenceSwitchingPlatinumChangesBySlot;
+      const candidateAvatarEmblemChangesBySocket = row.sourceType === 'avatar'
+        && row.kind === 'brilliantEmblem'
+        ? {
+          ...referenceAvatarEmblemChangesBySocket,
+          ...bufferAvatarEmblemChangesBySocket,
+        }
+        : referenceAvatarEmblemChangesBySocket;
       try {
         comparisonScore = calculateBufferScore(
           baseline,
@@ -2260,6 +2322,7 @@ function getBufferRecommendationRows(
             referenceSwitchingTitleChangesBySource,
             referenceSwitchingAvatarChangesBySlot,
             referenceSwitchingPlatinumChangesBySlot,
+            referenceAvatarEmblemChangesBySocket,
           ),
         );
         candidateScore = calculateBufferScore(
@@ -2280,6 +2343,7 @@ function getBufferRecommendationRows(
             candidateSwitchingTitleChangesBySource,
             candidateSwitchingAvatarChangesBySlot,
             candidateSwitchingPlatinumChangesBySlot,
+            candidateAvatarEmblemChangesBySocket,
           ),
         );
       } catch {
@@ -2339,6 +2403,7 @@ function getBufferRecommendationRows(
         incrementalDamagePercent: incrementalBuffPercent,
         bufferSimulatorSupported,
         bufferBaseRelativeChanges,
+        bufferAvatarEmblemChangesBySocket,
       });
     }
   });
@@ -6538,6 +6603,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.switchingTitleChangesBySource,
         bufferSimulator.switchingAvatarChangesBySlot,
         bufferSimulator.switchingPlatinumChangesBySlot,
+        bufferSimulator.avatarEmblemChangesBySocket,
       )
       : {};
     const candidateChanges = bufferSimulator?.role === 'buffer'
@@ -6567,6 +6633,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.switchingTitleChangesBySource,
         bufferSimulator.switchingAvatarChangesBySlot,
         bufferSimulator.switchingPlatinumChangesBySlot,
+        bufferSimulator.avatarEmblemChangesBySocket,
       )
       : displayRow.bufferBaseRelativeChanges;
     const currentScore = calculateBufferScore(bufferBaseline, currentChanges);
@@ -6871,7 +6938,7 @@ export function installEnchantView(ctx) {
   }
 
   function getActiveAvatar() {
-    return isDealerSimulatorActive()
+    return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedAvatar
       : getCanonicalCurrentAvatar();
   }
@@ -7237,6 +7304,7 @@ export function installEnchantView(ctx) {
       };
       const baseBufferScore = calculateBufferScore(baseBaseline);
       const baseAura = getCanonicalCurrentAura();
+      const baseAvatar = getCanonicalCurrentAvatar();
       const baseCreature = getCanonicalCurrentCreatureBody();
       const baseCreatureArtifacts = getCanonicalCurrentCreatureArtifacts();
       const baseTitle = cloneSimulatorValue(state.currentTitle || {});
@@ -7263,6 +7331,9 @@ export function installEnchantView(ctx) {
         baseAura,
         simulatedAura: cloneSimulatorValue(baseAura),
         auraChangesBySource: {},
+        baseAvatar,
+        simulatedAvatar: cloneSimulatorValue(baseAvatar),
+        avatarEmblemChangesBySocket: {},
         baseCreature,
         simulatedCreature: cloneSimulatorValue(baseCreature),
         creatureChangesBySource: {},
@@ -7701,6 +7772,23 @@ export function installEnchantView(ctx) {
         baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
       };
     }
+    if (row.sourceType === 'avatar' && row.kind === 'brilliantEmblem') {
+      const targetSlotId = String(row.targetSlotId || '').trim();
+      if (
+        !targetSlotId
+        || !row.bufferBaseRelativeChanges
+        || !row.bufferAvatarEmblemChangesBySocket
+      ) return null;
+      return {
+        targetTab: 'avatar',
+        targetSlot: `avatar:${targetSlotId}`,
+        targetSlotId,
+        applyType: 'replaceAvatarEmblems',
+        baseRelativeChangesBySocket: cloneSimulatorValue(
+          row.bufferAvatarEmblemChangesBySocket,
+        ),
+      };
+    }
     if (row.sourceType === 'switchingCreature') {
       if (!row.itemId || !row.bufferBaseRelativeChanges) return null;
       return {
@@ -7850,6 +7938,7 @@ export function installEnchantView(ctx) {
         simulator.switchingTitleChangesBySource,
         simulator.switchingAvatarChangesBySlot,
         simulator.switchingPlatinumChangesBySlot,
+        simulator.avatarEmblemChangesBySocket,
       ),
     );
   }
@@ -7953,6 +8042,7 @@ export function installEnchantView(ctx) {
     'switchingTitleChangesBySource',
     'switchingAvatarChangesBySlot',
     'switchingPlatinumChangesBySlot',
+    'avatarEmblemChangesBySocket',
   ];
   const SIMULATOR_SNAPSHOT_STATE_KEYS = [
     ...Object.keys(SIMULATOR_LOADOUT_BASE_KEY_BY_STATE),
@@ -8130,7 +8220,21 @@ export function installEnchantView(ctx) {
       };
     }
     slot.emblems = regularSockets;
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      const socketPrefix = `${target.targetSlotId}:`;
+      Object.keys(simulator.avatarEmblemChangesBySocket || {}).forEach((socketKey) => {
+        if (socketKey.startsWith(socketPrefix)) {
+          delete simulator.avatarEmblemChangesBySocket[socketKey];
+        }
+      });
+      Object.assign(
+        simulator.avatarEmblemChangesBySocket,
+        cloneSimulatorValue(target.baseRelativeChangesBySocket || {}),
+      );
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -9252,7 +9356,17 @@ export function installEnchantView(ctx) {
       .find((slot) => slot?.slotId === targetSlotId);
     if (!baseSlot || !simulatedSlot) return false;
     simulatedSlot.emblems = cloneSimulatorValue(baseSlot.emblems || [null, null]);
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      const socketPrefix = `${targetSlotId}:`;
+      Object.keys(simulator.avatarEmblemChangesBySocket || {}).forEach((socketKey) => {
+        if (socketKey.startsWith(socketPrefix)) {
+          delete simulator.avatarEmblemChangesBySocket[socketKey];
+        }
+      });
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
