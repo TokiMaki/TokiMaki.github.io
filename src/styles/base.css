@@ -107,6 +107,10 @@
       display: grid;
       gap: 14px;
     }
+    .wrap:has(> .landing-page:not([hidden])) {
+      max-width: none;
+      padding: 0;
+    }
     .landing-page[hidden],
     .tool-shell[hidden] {
       display: none !important;
@@ -117,32 +121,19 @@
     }
     .landing-page {
       position: relative;
-      min-height: calc(100vh - 36px);
+      min-height: 100vh;
       display: grid;
       place-items: center;
       overflow: hidden;
       isolation: isolate;
-      border: 1px solid rgb(76 62 42 / 0.72);
-      border-radius: 6px;
       background:
         linear-gradient(color-mix(in srgb, var(--accent-2) 3%, transparent) 1px, transparent 1px),
         linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 3%, transparent) 1px, transparent 1px),
-        radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 34%),
-        linear-gradient(145deg, #07080b, #020305 72%);
-      background-size: 42px 42px, 42px 42px, auto, auto;
-      box-shadow:
-        0 8px 18px rgb(0 0 0 / 0.3),
-        inset 0 1px 0 rgb(255 232 170 / 0.04),
-        inset 0 -1px 0 rgb(0 0 0 / 0.42);
+        radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 34%);
+      background-size: 42px 42px, 42px 42px, auto;
     }
     .landing-page::before {
-      content: '';
-      position: absolute;
-      inset: 20px;
-      z-index: -1;
-      border: 1px solid rgb(76 62 42 / 0.32);
-      border-radius: 4px;
-      clip-path: polygon(0 0, 26% 0, 28% 1px, 72% 1px, 74% 0, 100% 0, 100% 100%, 74% 100%, 72% calc(100% - 1px), 28% calc(100% - 1px), 26% 100%, 0 100%);
+      content: none;
     }
     .landing-orbit {
       position: absolute;
@@ -525,13 +516,6 @@
     @media (max-width: 700px) {
       .wrap {
         padding: 10px;
-      }
-      .landing-page {
-        min-height: calc(100vh - 20px);
-        border-radius: 6px;
-      }
-      .landing-page::before {
-        inset: 10px;
       }
       .landing-card {
         width: calc(100% - 24px);
