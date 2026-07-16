@@ -629,14 +629,6 @@ function formatEffectSummary(prefix, effects = {}) {
   return `${prefix}: ${text || '없음'}`;
 }
 
-function formatUpgradeState(equipment = {}) {
-  const level = Number(equipment.reinforce || 0);
-  if (equipment.isAmplified) {
-    return `증폭: ${level > 0 ? `${level}증폭` : '없음'}`;
-  }
-  return `강화: ${level > 0 ? `${level}강화` : '없음'}`;
-}
-
 function formatTuneState(equipment = {}) {
   const level = Number(equipment.tuneLevel || 0);
   const setPoint = Number(equipment.tuneSetPoint || 0);
@@ -10479,7 +10471,6 @@ export function installEnchantView(ctx) {
           state.currentBufferBaseline?.jobName || '',
         );
         const enchantDetailText = [
-          enchant.simulatedEnchantItemName ? `마법부여: ${enchant.simulatedEnchantItemName}` : '',
           formatEffects(enchant.effects || {}),
           reinforceSkillText,
         ].filter(Boolean).join(' / ') || '없음';
@@ -10495,10 +10486,6 @@ export function installEnchantView(ctx) {
         const isSimulatedProgression = (
           Number(equipment.reinforce || 0) !== Number(baseProgression.reinforce || 0)
           || Boolean(equipment.isAmplified) !== Boolean(baseProgression.isAmplified)
-        );
-        const isSimulatedEquipmentBody = Boolean(
-          baseEquipmentBySlot.get(slot)?.itemId &&
-          equipment.itemId !== baseEquipmentBySlot.get(slot)?.itemId,
         );
         const tuneBadge = getEquipmentTuneBadge(equipment);
         if (tuneBadge) {
@@ -10519,19 +10506,8 @@ export function installEnchantView(ctx) {
           tuneBadge,
           isSimulatedTune,
           hoverLines: [
-            isSimulatedEquipmentBody ? {
-              text: `장비 옵션: ${formatEffects(equipment.bodyEffects || {}) || '없음'}`,
-              className: 'enchant-portrait-detail-line-effect',
-            } : null,
             { text: enchantDetailText, className: 'enchant-portrait-detail-line-effect' },
-            isSimulatedProgression ? {
-              text: `${formatUpgradeState(baseProgression)} → ${formatUpgradeState(equipment)}`,
-              className: 'enchant-portrait-detail-line-effect',
-            } : getUpgradeDetailLine(equipment),
-            isSimulatedTune ? {
-              text: `조율 ${baseTuneLevel}회 → ${simulatedTuneLevel}회`,
-              className: 'enchant-portrait-detail-line-effect',
-            } : null,
+            getUpgradeDetailLine(equipment),
           ].filter(Boolean),
         };
       }
