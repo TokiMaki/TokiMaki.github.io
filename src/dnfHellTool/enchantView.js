@@ -9246,7 +9246,12 @@ export function installEnchantView(ctx) {
     } else if (currentIndex >= 0) {
       simulator.simulatedEnchants.splice(currentIndex, 1);
     }
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      delete simulator.enchantChangesBySlot[targetSlot];
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -9265,7 +9270,12 @@ export function installEnchantView(ctx) {
     current.isAmplified = Boolean(baseEquipment.isAmplified);
     current.amplificationName = baseEquipment.amplificationName || '';
     simulator.simulatedEquipmentUpgrades.splice(equipmentIndex, 1, current);
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      delete simulator.upgradeChangesBySlot[targetSlot];
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -9315,7 +9325,12 @@ export function installEnchantView(ctx) {
     } else if (currentIndex >= 0) {
       simulator.simulatedCreatureArtifacts.splice(currentIndex, 1);
     }
-    rebuildDealerSimulatorCalculationState();
+    if (simulator.role === 'buffer') {
+      delete simulator.artifactChangesByType[normalizedType];
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
     return true;
   }
 
@@ -9480,6 +9495,59 @@ export function installEnchantView(ctx) {
     if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
     else rebuildDealerSimulatorCalculationState();
     return true;
+  }
+
+  function restoreActiveSimulatorSelectionToBase(selection = {}) {
+    const applyType = selection.applyType;
+    if (applyType === 'replaceAura') return restoreSimulatedAuraToBase();
+    if (applyType === 'replaceCreature') return restoreSimulatedCreatureToBase();
+    if (['replaceCreatureArtifact', 'replaceBufferCreatureArtifact'].includes(applyType)) {
+      return restoreSimulatedCreatureArtifactToBase(selection.artifactType);
+    }
+    if (applyType === 'replaceTitle') return restoreSimulatedTitleToBase();
+    if (applyType === 'replaceBlackFangBody') {
+      return restoreSimulatedEquipmentBodyToBase(selection.targetSlot);
+    }
+    if (['replaceEquipmentProgression', 'replaceBufferEquipmentProgression'].includes(applyType)) {
+      return restoreSimulatedEquipmentProgressionToBase(selection.targetSlot);
+    }
+    if (applyType === 'replaceAvatarEmblems') {
+      return restoreSimulatedAvatarEmblemsToBase(
+        String(selection.targetSlot || '').replace(/^avatar:/, ''),
+      );
+    }
+    if ([
+      'replaceBuffCreature',
+      'replaceBuffTitle',
+      'replaceBuffEquipment',
+      'replaceBuffAvatarPackage',
+      'replaceBuffAvatarPlatinum',
+    ].includes(applyType)) {
+      return restoreSimulatedBuffSelectionToBase(selection);
+    }
+    if (['replaceEnchant', 'replaceBufferEnchant'].includes(applyType)) {
+      return restoreSimulatedEnchantSlotToBase(selection.targetSlot);
+    }
+    return false;
+  }
+
+  function finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection) {
+    const simulator = state.dealerSimulator;
+    delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+    simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+    simulator.selectedRecommendationId = '';
+    simulator.lastChangedTarget = {
+      targetTab: selection.targetTab,
+      targetSlot: selection.targetSlot,
+      applyType: selection.applyType,
+    };
+    state.enchantLoadoutTab = selection.targetTab || 'equipment';
+    triggerDealerSimulatorSweep(selection.targetSlot);
+    if (['replaceCreatureArtifact', 'replaceBufferCreatureArtifact'].includes(selection.applyType)) {
+      triggerDealerSimulatorSweep('크리쳐');
+    }
+    renderEnchantCharacterPortrait();
+    renderEnchantTable();
   }
 
   function removeActiveOathAcquisitionRecommendation(recommendationId) {
@@ -9663,170 +9731,8 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       return;
     }
-    if (!selection || !(
-      [
-        'replaceBufferEnchant',
-        'replaceBufferCreatureArtifact',
-        'replaceBufferEquipmentProgression',
-        'replaceBlackFangBody',
-        'replaceCreature',
-        'replaceAura',
-        'replaceTitle',
-      ].includes(selection.applyType)
-      || selection.applyType?.startsWith('replaceBuff')
-    )) return;
-    if (selection.applyType?.startsWith('replaceBuff')) {
-      if (!restoreSimulatedBuffSelectionToBase(selection)) return;
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: selection.targetTab,
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.enchantLoadoutTab = selection.targetTab || 'buff';
-      triggerDealerSimulatorSweep(selection.targetSlot);
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (selection.applyType === 'replaceTitle') {
-      if (!restoreSimulatedTitleToBase()) return;
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: 'equipment',
-        targetSlot: '칭호',
-        applyType: selection.applyType,
-      };
-      state.enchantLoadoutTab = 'equipment';
-      triggerDealerSimulatorSweep('칭호');
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (selection.applyType === 'replaceAura') {
-      if (!restoreSimulatedAuraToBase()) return;
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: 'equipment',
-        targetSlot: '오라',
-        applyType: selection.applyType,
-      };
-      state.enchantLoadoutTab = 'equipment';
-      triggerDealerSimulatorSweep('오라');
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (selection.applyType === 'replaceCreature') {
-      if (!restoreSimulatedCreatureToBase()) return;
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: 'equipment',
-        targetSlot: '크리쳐',
-        applyType: selection.applyType,
-      };
-      state.enchantLoadoutTab = 'equipment';
-      triggerDealerSimulatorSweep('크리쳐');
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (selection.applyType === 'replaceBlackFangBody') {
-      if (!restoreSimulatedEquipmentBodyToBase(selection.targetSlot)) return;
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: 'equipment',
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.enchantLoadoutTab = 'equipment';
-      triggerDealerSimulatorSweep(selection.targetSlot);
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (selection.applyType === 'replaceBufferEquipmentProgression') {
-      const baseEquipment = simulator.baseEquipmentUpgrades.find(
-        (equipment) => equipment?.slot === selection.targetSlot,
-      );
-      const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
-        (equipment) => equipment?.slot === selection.targetSlot,
-      );
-      if (!baseEquipment || equipmentIndex < 0) return;
-      const restored = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades[equipmentIndex]);
-      restored.reinforce = Number(baseEquipment.reinforce || 0);
-      restored.isAmplified = Boolean(baseEquipment.isAmplified);
-      restored.amplificationName = baseEquipment.amplificationName || '';
-      simulator.simulatedEquipmentUpgrades.splice(equipmentIndex, 1, restored);
-      delete simulator.upgradeChangesBySlot[selection.targetSlot];
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      rebuildBufferSimulatorCalculationState();
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: 'equipment',
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.enchantLoadoutTab = 'equipment';
-      triggerDealerSimulatorSweep(selection.targetSlot);
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (selection.applyType === 'replaceBufferCreatureArtifact') {
-      if (!restoreSimulatedCreatureArtifactToBase(selection.artifactType)) return;
-      delete simulator.artifactChangesByType[selection.artifactType];
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      rebuildBufferSimulatorCalculationState();
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: 'equipment',
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.enchantLoadoutTab = 'equipment';
-      triggerDealerSimulatorSweep(selection.targetSlot);
-      triggerDealerSimulatorSweep('크리쳐');
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    const targetSlot = selection.targetSlot;
-    const baseEnchant = simulator.baseEnchants.find((enchant) => enchant?.slot === targetSlot);
-    const currentIndex = simulator.simulatedEnchants.findIndex((enchant) => enchant?.slot === targetSlot);
-    if (baseEnchant) {
-      const restored = cloneSimulatorValue(baseEnchant);
-      if (currentIndex >= 0) simulator.simulatedEnchants.splice(currentIndex, 1, restored);
-      else simulator.simulatedEnchants.push(restored);
-    } else if (currentIndex >= 0) {
-      simulator.simulatedEnchants.splice(currentIndex, 1);
-    }
-    delete simulator.enchantChangesBySlot[targetSlot];
-    delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-    rebuildBufferSimulatorCalculationState();
-    simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-    simulator.selectedRecommendationId = '';
-    simulator.lastChangedTarget = {
-      targetTab: 'equipment',
-      targetSlot,
-      applyType: selection.applyType,
-    };
-    state.enchantLoadoutTab = 'equipment';
-    triggerDealerSimulatorSweep(targetSlot);
-    renderEnchantCharacterPortrait();
-    renderEnchantTable();
+    if (!selection || !restoreActiveSimulatorSelectionToBase(selection)) return;
+    finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection);
   }
 
   function removeActiveSimulatorSelection(exclusiveGroupKey) {
@@ -9892,41 +9798,8 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       return;
     }
-    const restored = selection.applyType === 'replaceAura'
-      ? restoreSimulatedAuraToBase()
-      : selection.applyType === 'replaceCreature'
-        ? restoreSimulatedCreatureToBase()
-        : selection.applyType === 'replaceCreatureArtifact'
-          ? restoreSimulatedCreatureArtifactToBase(selection.artifactType)
-        : selection.applyType === 'replaceTitle'
-          ? restoreSimulatedTitleToBase()
-          : selection.applyType === 'replaceBlackFangBody'
-            ? restoreSimulatedEquipmentBodyToBase(selection.targetSlot)
-          : selection.applyType === 'replaceEquipmentProgression'
-            ? restoreSimulatedEquipmentProgressionToBase(selection.targetSlot)
-          : selection.applyType === 'replaceAvatarEmblems'
-            ? restoreSimulatedAvatarEmblemsToBase(
-              String(selection.targetSlot || '').replace(/^avatar:/, ''),
-            )
-          : selection.applyType?.startsWith('replaceBuff')
-            ? restoreSimulatedBuffSelectionToBase(selection)
-          : restoreSimulatedEnchantSlotToBase(selection.targetSlot);
-    if (!restored) return;
-    delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-    simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-    simulator.selectedRecommendationId = '';
-    simulator.lastChangedTarget = {
-      targetTab: selection.targetTab,
-      targetSlot: selection.targetSlot,
-      applyType: selection.applyType,
-    };
-    state.enchantLoadoutTab = selection.targetTab || 'equipment';
-    triggerDealerSimulatorSweep(selection.targetSlot);
-    if (selection.applyType === 'replaceCreatureArtifact') {
-      triggerDealerSimulatorSweep('크리쳐');
-    }
-    renderEnchantCharacterPortrait();
-    renderEnchantTable();
+    if (!restoreActiveSimulatorSelectionToBase(selection)) return;
+    finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection);
   }
 
   function clearDealerSimulator() {
