@@ -205,6 +205,12 @@ export function bindToolEvents(ctx) {
     const ageMs = todayStart.getTime() - noticeDate.getTime();
     return ageMs >= 0 && ageMs < 2 * 24 * 60 * 60 * 1000;
   };
+  const getNoticeBodyText = (notice = {}) => {
+    const content = notice.content ?? notice.body ?? '';
+    return Array.isArray(content)
+      ? content.map((line) => String(line ?? '')).join('\n')
+      : String(content || '');
+  };
   const renderLandingNotices = (rows = []) => {
     if (!els.landingNoticeList) return;
     const notices = rows
@@ -246,7 +252,7 @@ export function bindToolEvents(ctx) {
 
       const body = document.createElement('p');
       body.className = 'landing-notice-item-body';
-      body.textContent = notice.body || '';
+      body.textContent = getNoticeBodyText(notice);
 
       item.append(summary, body);
       if (notice.link) {

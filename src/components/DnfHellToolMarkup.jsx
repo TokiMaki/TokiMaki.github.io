@@ -148,7 +148,8 @@ export default function DnfHellToolMarkup() {
                 <span>예상 변화를 바로 확인해보세양</span>
               </span>
               <span className={'enchant-simulator-actions'} id={'enchantSimulatorActions'} hidden>
-                <button type={'button'} data-dealer-simulator-action={'reset'}>초기화</button>
+                <strong>예상 변화 적용 중</strong>
+                <button type={'button'} data-dealer-simulator-action={'reset'}>시뮬레이터 초기화</button>
               </span>
               <div className={'enchant-efficiency-legend'} id={'enchantEfficiencyLegend'}></div>
             </div>
