@@ -3767,8 +3767,8 @@ function isOathTuneCandidate(crystal = {}, db = {}) {
 function sortOathTuneCandidatesBySlotOrder(candidates = []) {
   const orderBySlot = new Map(OATH_SLOT_ORDER.map((slot, index) => [slot, index]));
   return candidates.slice().sort((a, b) => (
-    Number(orderBySlot.get(Number(a.index)) ?? Number.MAX_SAFE_INTEGER)
-    - Number(orderBySlot.get(Number(b.index)) ?? Number.MAX_SAFE_INTEGER)
+    Number(a.simulatedTuneOrder ?? orderBySlot.get(Number(a.index)) ?? Number.MAX_SAFE_INTEGER)
+    - Number(b.simulatedTuneOrder ?? orderBySlot.get(Number(b.index)) ?? Number.MAX_SAFE_INTEGER)
   ));
 }
 
@@ -6894,11 +6894,29 @@ export function installEnchantView(ctx) {
       : state.currentOathUpgrades;
   }
 
+  function getDisplayOrderedOathTuneUpgrades(oathUpgrades) {
+    if (!oathUpgrades || !state.dealerSimulator) return oathUpgrades;
+    const arrangedCrystals = arrangeSimulatedOathAcquisitionSlots(
+      (oathUpgrades.crystals || []).slice().sort(
+        (a, b) => Number(a?.index || 0) - Number(b?.index || 0),
+      ),
+      state.dealerSimulator,
+    );
+    return {
+      ...oathUpgrades,
+      crystals: arrangedCrystals.map((crystal, index) => ({
+        ...crystal,
+        simulatedTuneOrder: index,
+      })),
+    };
+  }
+
   function getOathTuneRecommendationUpgrades() {
     const activeTune = state.dealerSimulator?.activeSelectionByGroup?.oathTune;
-    return activeTune?.actionType === 'oathTunePlan' && activeTune.beforeTuneSnapshot
+    const oathUpgrades = activeTune?.actionType === 'oathTunePlan' && activeTune.beforeTuneSnapshot
       ? activeTune.beforeTuneSnapshot
       : getActiveOathUpgrades();
+    return getDisplayOrderedOathTuneUpgrades(oathUpgrades);
   }
 
   function getCurrentAvatarAuraSlot() {
@@ -8500,7 +8518,7 @@ export function installEnchantView(ctx) {
       rebuildDealerSimulatorCalculationState();
     }
     const baseRow = getOathTuneRows(
-      beforeTuneSnapshot,
+      getDisplayOrderedOathTuneUpgrades(beforeTuneSnapshot),
       simulator.oathTuneDb,
       state.upgradeMaterialPrices,
       getActiveEquipmentUpgrades(),
