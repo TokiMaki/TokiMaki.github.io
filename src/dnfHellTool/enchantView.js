@@ -11555,6 +11555,20 @@ export function installEnchantView(ctx) {
     const totalGold = Number.isFinite(Number(simulator.totalGold))
       ? Math.round(Number(simulator.totalGold))
       : 0;
+    const costPerHundredPoints = scoreDelta > 0
+      ? totalGold * 100 / scoreDelta
+      : null;
+    const efficiencyBand = Number.isFinite(costPerHundredPoints)
+      ? getBufferEfficiencyBand(costPerHundredPoints)
+      : '';
+    const efficiencyColor = efficiencyBand === 'scale'
+      ? getBufferEfficiencyColor(costPerHundredPoints)
+      : '';
+    const efficiencyText = Number.isFinite(costPerHundredPoints)
+      ? costPerHundredPoints === 0
+        ? '0'
+        : formatCompactGold(costPerHundredPoints)
+      : '-';
     const totalGoldFullText = `${totalGold.toLocaleString('ko-KR')} 골드`;
     return `
       <div class="enchant-portrait-info-split">
@@ -11566,6 +11580,7 @@ export function installEnchantView(ctx) {
           <span class="enchant-portrait-score-delta">${escapeHtml(scoreDeltaText)}</span>
           <span class="enchant-portrait-damage-increase">버프점수 상승률 <strong>${escapeHtml(increaseText)}</strong></span>
           <span class="enchant-simulator-summary" tabindex="0" data-full-gold="${escapeHtml(totalGoldFullText)}" aria-label="누적 골드 ${escapeHtml(totalGoldFullText)}">누적 골드 <strong>${escapeHtml(formatKoreanGoldUnits(totalGold))}</strong></span>
+          <span class="enchant-simulator-efficiency${efficiencyBand === 'rainbow' ? ' is-rainbow' : ''}"${efficiencyColor ? ` style="--simulator-efficiency-color: ${escapeHtml(efficiencyColor)}"` : ''}>100점당 <strong>${escapeHtml(efficiencyText)}</strong></span>
         </div>
         <div class="enchant-portrait-info-original">
           <span class="enchant-portrait-info-label">현재 버프점수</span>
