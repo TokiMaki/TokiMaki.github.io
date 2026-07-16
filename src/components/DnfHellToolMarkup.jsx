@@ -143,6 +143,9 @@ export default function DnfHellToolMarkup() {
                 <span>스펙업 순서 추천</span>
                 <span className={'enchant-efficiency-help'} tabIndex={0} aria-label={'효율 색상 기준'}>?</span>
               </h2>
+              <span className={'enchant-simulator-hint'} id={'enchantSimulatorHint'} hidden>
+                추천 카드를 클릭해 예상 변화를 확인해보세양
+              </span>
               <span className={'enchant-simulator-actions'} id={'enchantSimulatorActions'} hidden>
                 <button type={'button'} data-dealer-simulator-action={'reset'}>초기화</button>
               </span>

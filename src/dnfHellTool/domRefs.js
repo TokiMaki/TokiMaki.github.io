@@ -100,6 +100,7 @@ export function createToolDomRefs() {
       refreshEnchantCardsButton: $id('refreshEnchantCardsButton'),
       enchantStatus: $id('enchantStatus'),
       enchantEfficiencyLegend: $id('enchantEfficiencyLegend'),
+      enchantSimulatorHint: $id('enchantSimulatorHint'),
       enchantSimulatorActions: $id('enchantSimulatorActions'),
       enchantRecommendList: $id('enchantRecommendList'),
       enchantTableBody: $id('enchantTableBody'),

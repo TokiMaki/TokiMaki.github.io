@@ -11394,10 +11394,14 @@ export function installEnchantView(ctx) {
   }
 
   function renderDealerSimulatorActions() {
-    if (!els.enchantSimulatorActions) return;
     const simulator = getActiveSimulator();
     const hasChanges = Object.keys(simulator?.activeSelectionByGroup || {}).length > 0;
-    els.enchantSimulatorActions.hidden = !hasChanges;
+    if (els.enchantSimulatorHint) {
+      els.enchantSimulatorHint.hidden = !simulator || hasChanges;
+    }
+    if (els.enchantSimulatorActions) {
+      els.enchantSimulatorActions.hidden = !hasChanges;
+    }
   }
 
   function renderBufferSimulatorMeta(originalCharacterMeta = '') {
