@@ -5311,123 +5311,48 @@ function mergeAppliedOathAcquisitionSnapshots(rows = [], simulator = {}) {
     ) || snapshot;
     const adaptedSnapshot = adaptOathAcquisitionRecommendation(countSnapshot, simulator) || countSnapshot;
     if (!isAppliedOathAcquisitionRecommendation(adaptedSnapshot, simulator)) return;
+    const snapshotGroupKey = getSimulatorExclusiveGroupKey(adaptedSnapshot);
+    const snapshotSignature = getSimulatorCandidateSignature(adaptedSnapshot);
     const alreadyRendered = mergedRows.some((row) => (
-      row.variantGroupKey === adaptedSnapshot.variantGroupKey &&
-      isAppliedOathAcquisitionRecommendation(row, simulator)
+      getSimulatorExclusiveGroupKey(row) === snapshotGroupKey
+      && getSimulatorCandidateSignature(row) === snapshotSignature
     ));
     if (!alreadyRendered) mergedRows.push(adaptedSnapshot);
   });
   return mergedRows;
 }
 
-function mergeAppliedBufferSimulatorSnapshots(rows = [], simulator = {}) {
-  if (simulator?.role !== 'buffer') return rows;
-  const mergedRows = rows.map((row) => {
-    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row)
-      || getBufferCreatureArtifactExclusiveGroupKey(row)
-      || getBufferUpgradeExclusiveGroupKey(row)
-      || getBufferBlackFangExclusiveGroupKey(row)
-      || getBufferCreatureExclusiveGroupKey(row)
-      || getBufferAuraExclusiveGroupKey(row)
-      || getBufferTitleExclusiveGroupKey(row)
-      || getBufferSwitchingCreatureExclusiveGroupKey(row)
-      || getBufferSwitchingTitleExclusiveGroupKey(row)
-      || getBufferSwitchingAvatarExclusiveGroupKey(row)
-      || getBufferSwitchingPlatinumExclusiveGroupKey(row)
-      || getEquipmentTuneExclusiveGroupKey(row)
-      || getOathTuneExclusiveGroupKey(row);
-    const candidateSignature = getBufferEnchantCandidateSignature(row)
-      || getBufferCreatureArtifactCandidateSignature(row)
-      || getBufferUpgradeCandidateSignature(row)
-      || getBufferBlackFangCandidateSignature(row)
-      || getBufferCreatureCandidateSignature(row)
-      || getBufferAuraCandidateSignature(row)
-      || getBufferTitleCandidateSignature(row)
-      || getBufferSwitchingCreatureCandidateSignature(row)
-      || getBufferSwitchingTitleCandidateSignature(row)
-      || getBufferSwitchingAvatarCandidateSignature(row)
-      || getBufferSwitchingPlatinumCandidateSignature(row)
-      || getEquipmentTuneCandidateSignature(row)
-      || getOathTuneCandidateSignature(row);
-    const selection = exclusiveGroupKey
-      ? simulator.activeSelectionByGroup?.[exclusiveGroupKey]
-      : null;
-    if (
-      !selection?.appliedRecommendationSnapshot
-      || selection.candidateSignature !== candidateSignature
-    ) return row;
-    return {
-      ...row,
-      ...cloneSimulatorValue(selection.appliedRecommendationSnapshot),
-      bufferSimulatorSupported: row.bufferSimulatorSupported,
-      bufferBaseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
-    };
-  });
-  Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
-    if (
-      selection?.applyType !== 'replaceBufferEquipmentProgression'
-      || !selection.appliedRecommendationSnapshot
-      || !selection.candidateSignature
-    ) return;
-    const alreadyRendered = mergedRows.some(
-      (row) => getBufferUpgradeCandidateSignature(row) === selection.candidateSignature,
-    );
-    if (alreadyRendered) return;
-    mergedRows.push({
-      ...cloneSimulatorValue(selection.appliedRecommendationSnapshot),
-      bufferSimulatorSupported: true,
-      bufferBaseRelativeChanges: cloneSimulatorValue(selection.baseRelativeChanges),
-    });
-  });
-  const titleSelection = simulator.activeSelectionByGroup?.bufferTitle;
-  if (
-    titleSelection?.applyType === 'replaceTitle'
-    && titleSelection.appliedRecommendationSnapshot
-    && titleSelection.candidateSignature
-    && !mergedRows.some(
-      (row) => getBufferTitleCandidateSignature(row) === titleSelection.candidateSignature,
-    )
-  ) {
-    mergedRows.push({
-      ...cloneSimulatorValue(titleSelection.appliedRecommendationSnapshot),
-      bufferSimulatorSupported: true,
-      bufferBaseRelativeChanges: cloneSimulatorValue(titleSelection.baseRelativeChanges),
-    });
-  }
-  return mergedRows;
+function getAppliedSelectionRecommendationSnapshot(selection = {}) {
+  return selection.appliedVariantSnapshot || selection.appliedRecommendationSnapshot || null;
 }
 
-function mergeAppliedEquipmentProgressionSnapshots(
-  rows = [],
-  simulator = {},
-  simulationOptions = null,
-  includeMaterialCosts = false,
-) {
-  const mergedRows = rows.slice();
-  Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
+function mergeAppliedSimulatorSnapshots(rows = [], simulator = {}) {
+  if (!simulator) return rows;
+  const snapshotsByIdentity = new Map();
+  Object.entries(simulator.activeSelectionByGroup || {}).forEach(([exclusiveGroupKey, selection]) => {
+    const snapshot = getAppliedSelectionRecommendationSnapshot(selection);
+    if (!snapshot || !selection?.candidateSignature) return;
+    const snapshotGroupKey = getSimulatorExclusiveGroupKey(snapshot);
+    const snapshotSignature = getSimulatorCandidateSignature(snapshot);
     if (
-      selection?.applyType !== 'replaceEquipmentProgression'
-      || !selection.appliedRecommendationSnapshot
-      || !selection.candidateSignature
+      snapshotGroupKey !== exclusiveGroupKey
+      || snapshotSignature !== selection.candidateSignature
     ) return;
-    const alreadyRendered = mergedRows.some(
-      (row) => getEquipmentProgressionCandidateSignature(row) === selection.candidateSignature,
+    snapshotsByIdentity.set(
+      `${exclusiveGroupKey}\u0000${selection.candidateSignature}`,
+      cloneSimulatorValue(snapshot),
     );
-    if (alreadyRendered) return;
-    const snapshot = cloneSimulatorValue(selection.appliedRecommendationSnapshot);
-    const evaluationBaseline = simulationOptions?.progressionReferenceBaselineBySlot?.get(snapshot.slot)
-      || simulator.simulatedDamageBaseline
-      || simulator.baseDamageBaseline;
-    const incrementalDamagePercent = estimateDamagePercent(snapshot.effects || {}, evaluationBaseline);
-    mergedRows.push({
-      ...snapshot,
-      incrementalDamagePercent,
-      estimatedDamagePercent: incrementalDamagePercent,
-      costPerPointOnePercent: getCostPerPointOnePercent(
-        { ...snapshot, incrementalDamagePercent },
-        includeMaterialCosts,
-      ),
-    });
+  });
+  const mergedRows = rows.map((row) => {
+    const identity = `${getSimulatorExclusiveGroupKey(row)}\u0000${getSimulatorCandidateSignature(row)}`;
+    const snapshot = snapshotsByIdentity.get(identity);
+    return snapshot ? { ...row, ...cloneSimulatorValue(snapshot) } : row;
+  });
+  const renderedIdentities = new Set(mergedRows.map((row) => (
+    `${getSimulatorExclusiveGroupKey(row)}\u0000${getSimulatorCandidateSignature(row)}`
+  )));
+  snapshotsByIdentity.forEach((snapshot, identity) => {
+    if (!renderedIdentities.has(identity)) mergedRows.push(snapshot);
   });
   return mergedRows;
 }
@@ -9087,32 +9012,8 @@ export function installEnchantView(ctx) {
     const row = state.dealerSimulatorRecommendations.get(recommendationId);
     const target = resolveBufferSimulatorTarget(row);
     if (!row || !target) return;
-    const exclusiveGroupKey = getBufferEnchantExclusiveGroupKey(row)
-      || getBufferCreatureArtifactExclusiveGroupKey(row)
-      || getBufferUpgradeExclusiveGroupKey(row)
-      || getBufferBlackFangExclusiveGroupKey(row)
-      || getBufferCreatureExclusiveGroupKey(row)
-      || getBufferAuraExclusiveGroupKey(row)
-      || getBufferTitleExclusiveGroupKey(row)
-      || getBufferSwitchingCreatureExclusiveGroupKey(row)
-      || getBufferSwitchingTitleExclusiveGroupKey(row)
-      || getBufferSwitchingAvatarExclusiveGroupKey(row)
-      || getBufferSwitchingPlatinumExclusiveGroupKey(row)
-      || getEquipmentTuneExclusiveGroupKey(row)
-      || getOathTuneExclusiveGroupKey(row);
-    const candidateSignature = getBufferEnchantCandidateSignature(row)
-      || getBufferCreatureArtifactCandidateSignature(row)
-      || getBufferUpgradeCandidateSignature(row)
-      || getBufferBlackFangCandidateSignature(row)
-      || getBufferCreatureCandidateSignature(row)
-      || getBufferAuraCandidateSignature(row)
-      || getBufferTitleCandidateSignature(row)
-      || getBufferSwitchingCreatureCandidateSignature(row)
-      || getBufferSwitchingTitleCandidateSignature(row)
-      || getBufferSwitchingAvatarCandidateSignature(row)
-      || getBufferSwitchingPlatinumCandidateSignature(row)
-      || getEquipmentTuneCandidateSignature(row)
-      || getOathTuneCandidateSignature(row);
+    const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
+    const candidateSignature = getSimulatorCandidateSignature(row);
     if (!exclusiveGroupKey || !candidateSignature) return;
     if (simulator.activeSelectionByGroup?.[exclusiveGroupKey]?.candidateSignature === candidateSignature) return;
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
@@ -11664,23 +11565,13 @@ export function installEnchantView(ctx) {
         simulatorRecommendationContext.options,
         getActiveCreature(),
       );
-    if (simulator?.role === 'buffer') {
-      recommendations = mergeAppliedBufferSimulatorSnapshots(recommendations, simulator);
-    }
+    if (simulator) recommendations = mergeAppliedSimulatorSnapshots(recommendations, simulator);
     recommendations = collapseOathDecisionRecommendationVariants(
       recommendations,
       state.oathDecisionVariantIndexByGroup,
     );
     if (simulator) {
       recommendations = mergeAppliedOathAcquisitionSnapshots(recommendations, simulator);
-    }
-    if (dealerSimulator) {
-      recommendations = mergeAppliedEquipmentProgressionSnapshots(
-        recommendations,
-        dealerSimulator,
-        simulatorRecommendationContext.options,
-        includeMaterialCosts,
-      );
     }
     recommendations = combineOathAcquisitionRecommendationRows(
       recommendations,
@@ -12789,6 +12680,7 @@ export function installEnchantView(ctx) {
     });
     const updatedSelection = {
       ...selection,
+      candidateSignature: getSimulatorCandidateSignature(row),
       appliedGold: getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true),
       includeMaterialCost: els.enchantMaterialCostToggle?.checked === true,
       goldWithoutMaterials: getRecommendationGold(row, false),
@@ -12845,6 +12737,7 @@ export function installEnchantView(ctx) {
     const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
     const updatedSelection = {
       ...selection,
+      candidateSignature: getSimulatorCandidateSignature(row),
       appliedGold: getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true),
       includeMaterialCost: els.enchantMaterialCostToggle?.checked === true,
       goldWithoutMaterials: getRecommendationGold(row, false),
