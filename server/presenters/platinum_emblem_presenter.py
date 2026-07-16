@@ -18,6 +18,8 @@ def build_platinum_emblem_recommendation_row(
     price_source,
     price_warning_text,
     buffer_stat_scope: str,
+    target_slot_id: str,
+    target_platinum_emblem: dict,
 ) -> dict:
     return {
         "kind": "platinumEmblem",
@@ -42,5 +44,16 @@ def build_platinum_emblem_recommendation_row(
         "priceSource": price_source,
         "priceWarningText": price_warning_text,
         "bufferStatScope": buffer_stat_scope,
+        "targetSlotId": target_slot_id,
+        "targetPlatinumEmblem": {
+            "itemId": target_platinum_emblem.get("itemId") or item_id,
+            "itemName": target_platinum_emblem.get("itemName") or f"플래티넘 엠블렘[{target_skill}]",
+            "itemRarity": target_platinum_emblem.get("itemRarity") or item_rarity,
+            "iconUrl": target_platinum_emblem.get("iconUrl") or icon_url,
+            "targetSkill": target_skill,
+            "recognizedLevelContribution": target_platinum_emblem.get(
+                "recognizedLevelContribution"
+            ) or 1,
+        },
         "recommendationPriority": 0,
     }

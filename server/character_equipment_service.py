@@ -544,6 +544,7 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
         "stat": status.get(selected_stat_name, 0),
         "statName": selected_stat_name,
         "baseStat": parse_percent_or_number(base_stats.get(selected_stat_name)),
+        "jobName": clean_text(payload.get("jobName")),
         "jobGrowName": job_grow_name,
         "attack": attack_value,
         "attackSource": attack_source,
@@ -5505,6 +5506,8 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 item.get("priceSource"),
                 item.get("priceWarningText"),
                 buffer_stat_scope,
+                slot_id,
+                item.get("directItem") or item,
             ))
     if buffer_stat_name:
         current_buffer_configs, switching_buffer_configs = get_buffer_avatar_emblem_configs(switching_rows)

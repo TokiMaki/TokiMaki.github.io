@@ -1457,6 +1457,121 @@ function getBufferAvatarEmblemNetChanges(
   return { ...avatarChangesBySocket, ...switchingChanges };
 }
 
+function getBufferAvatarPlatinumBaseRelativeChanges(row = {}, baseline = {}) {
+  if (row.sourceType !== 'avatar' || row.kind !== 'platinumEmblem') return null;
+  const selfStatSkills = baseline.currentSelfStatSkills || {};
+  const getContribution = (skillName) => {
+    const info = selfStatSkills?.[skillName];
+    return info?.contextKey ? [{
+      contextKey: info.contextKey,
+      jobId: info.jobId || '',
+      skillId: info.skillId || '',
+      skillName,
+      levelContribution: 1,
+    }] : [];
+  };
+  const baseSkillContributions = getContribution(row.currentPlatinumSkill || '');
+  const targetSkillContributions = getContribution(row.targetSkill || '');
+  const usesSelfStatContext = baseSkillContributions.length || targetSkillContributions.length;
+  const statDelta = usesSelfStatContext ? 0 : Number(row.effects?.bufferStat || 0);
+  const changes = {
+    ...(row.bufferStatScope === 'current'
+      ? { currentStatDelta: statDelta }
+      : { statDelta }),
+    buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
+    awakeningSkillLevelDelta: Number(row.bufferAwakeningSkillLevelDelta || 0),
+    baseSkillContributions,
+    targetSkillContributions,
+  };
+  return [statDelta, changes.buffSkillLevelDelta, changes.awakeningSkillLevelDelta].every(Number.isFinite)
+    ? changes
+    : null;
+}
+
+function getBufferAvatarNetChanges(simulator = {}) {
+  return {
+    ...getBufferAvatarEmblemNetChanges(simulator),
+    ...(simulator.avatarPlatinumChangesBySlot || {}),
+  };
+}
+
+function getAvatarPlatinumDamageMultiplier(changesBySlot = {}) {
+  return Object.values(changesBySlot || {}).reduce((multiplier, changes) => {
+    const value = Number(changes?.skillDamageMultiplier || 1);
+    return multiplier * (Number.isFinite(value) && value > 0 ? value : 1);
+  }, 1);
+}
+
+function resolveDealerAvatarSkillCoefficient(recognizedLevel) {
+  const level = Number(recognizedLevel);
+  return 1.20 + (Number.isFinite(level) && level > 0 ? level : 0) * 0.02;
+}
+
+function getDealerTitleRecognizedLevelContribution(title = {}, jobName = '') {
+  const namedLevels = (title.itemReinforceSkill || []).flatMap((job) => {
+    if (jobName && job?.jobName && !['공통', jobName].includes(job.jobName)) return [];
+    return (job?.skills || []).map((skill) => Number(skill?.value || 0));
+  });
+  const rangeLevels = (title.itemBuff?.reinforceSkill || []).flatMap((job) => {
+    if (jobName && job?.jobName && !['공통', jobName].includes(job.jobName)) return [];
+    return (job?.levelRange || []).map((range) => Number(range?.value || 0));
+  });
+  return Math.max(
+    0,
+    ...namedLevels.filter(Number.isFinite),
+    ...rangeLevels.filter(Number.isFinite),
+  );
+}
+
+function getDealerAvatarRecognizedLevel(
+  avatar = {},
+  title = {},
+  jobName = '',
+  useBasePlatinum = false,
+) {
+  const topOptionLevel = Number(avatar?.recognizedTopOptionLevelContribution || 0);
+  const platinumAvatar = useBasePlatinum ? avatar?.basePlatinumSlots : avatar?.slots;
+  const platinumLevel = (platinumAvatar || []).reduce((sum, slot) => (
+    sum + Number(slot?.recognizedPlatinumLevelContribution || 0)
+  ), 0);
+  return getDealerTitleRecognizedLevelContribution(title, jobName)
+    + (Number.isFinite(topOptionLevel) ? topOptionLevel : 0)
+    + platinumLevel;
+}
+
+function getDealerAvatarPlatinumEquipmentScoreMultiplier(simulator = {}) {
+  const simulatedAvatar = simulator.simulatedAvatar || {};
+  const jobName = simulator.baseDamageBaseline?.jobName || '';
+  const currentLevel = getDealerAvatarRecognizedLevel(
+    {
+      ...simulatedAvatar,
+      basePlatinumSlots: simulator.baseAvatar?.slots || [],
+    },
+    simulator.simulatedTitle || {},
+    jobName,
+    true,
+  );
+  const targetLevel = getDealerAvatarRecognizedLevel(
+    simulatedAvatar,
+    simulator.simulatedTitle || {},
+    jobName,
+  );
+  return resolveDealerAvatarSkillCoefficient(targetLevel)
+    / resolveDealerAvatarSkillCoefficient(currentLevel);
+}
+
+function getAvatarPlatinumRecommendationMultiplier(row = {}) {
+  const explicit = Number(
+    row.baseRelativeSkillDamageMultiplier
+    || row.skillDamageMultiplier
+    || row.effects?.skillDamageMultiplier
+    || 0,
+  );
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const finalDamage = Number(row.effects?.finalDamage || 0);
+  return finalDamage > 0 ? 1 + finalDamage / 100 : 1;
+}
+
 function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
   if (row?.sourceType !== 'enchant' || row?.role !== 'buffer') return null;
   const jobName = baseline?.jobName || '';
@@ -2176,6 +2291,8 @@ function getBufferRecommendationRows(
         ? getBufferSwitchingPlatinumBaseRelativeChanges(row)
       : row.sourceType === 'avatar' && row.kind === 'switchingAvatar'
         ? getBufferSwitchingAvatarBaseRelativeChanges(row)
+      : row.sourceType === 'avatar' && row.kind === 'platinumEmblem'
+        ? getBufferAvatarPlatinumBaseRelativeChanges(row, baseline)
       : row.sourceType === 'avatar' && row.kind === 'brilliantEmblem'
         ? (bufferAvatarEmblemChangesBySocket || bufferSwitchingAvatarEmblemChangesBySocket)
           ? mergeBufferChangeMap(
@@ -2243,7 +2360,9 @@ function getBufferRecommendationRows(
               : {},
             row.sourceType === 'avatar' && row.kind === 'brilliantEmblem'
               ? bufferAvatarEmblemChangesBySocket || bufferSwitchingAvatarEmblemChangesBySocket
-              : {},
+              : row.sourceType === 'avatar' && row.kind === 'platinumEmblem'
+                ? { [row.targetSlotId]: bufferBaseRelativeChanges }
+                : {},
           ),
         );
       } catch {
@@ -2297,6 +2416,9 @@ function getBufferRecommendationRows(
       const referenceSwitchingAvatarEmblemOverlaysBySocket = {
         ...(simulator.switchingAvatarEmblemOverlaysBySocket || {}),
       };
+      const referenceAvatarPlatinumChangesBySlot = {
+        ...(simulator.avatarPlatinumChangesBySlot || {}),
+      };
       if (row.sourceType === 'enchant') delete referenceChangesBySlot[row.slot];
       if (row.sourceType === 'creatureArtifact') {
         delete referenceArtifactChangesByType[getCreatureArtifactType(row)];
@@ -2339,6 +2461,9 @@ function getBufferRecommendationRows(
         Object.keys(targetMap).forEach((socketKey) => {
           if (socketKey.startsWith(socketPrefix)) delete targetMap[socketKey];
         });
+      }
+      if (row.sourceType === 'avatar' && row.kind === 'platinumEmblem') {
+        delete referenceAvatarPlatinumChangesBySlot[row.targetSlotId];
       }
       const candidateChangesBySlot = row.sourceType === 'enchant'
         ? { ...referenceChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
@@ -2412,6 +2537,13 @@ function getBufferRecommendationRows(
           ...bufferSwitchingAvatarEmblemOverlaysBySocket,
         }
         : referenceSwitchingAvatarEmblemOverlaysBySocket;
+      const candidateAvatarPlatinumChangesBySlot = row.sourceType === 'avatar'
+        && row.kind === 'platinumEmblem'
+        ? {
+          ...referenceAvatarPlatinumChangesBySlot,
+          [row.targetSlotId]: bufferBaseRelativeChanges,
+        }
+        : referenceAvatarPlatinumChangesBySlot;
       try {
         comparisonScore = calculateBufferScore(
           baseline,
@@ -2431,12 +2563,15 @@ function getBufferRecommendationRows(
             referenceSwitchingTitleChangesBySource,
             referenceSwitchingAvatarChangesBySlot,
             referenceSwitchingPlatinumChangesBySlot,
-            getBufferAvatarEmblemNetChanges(
-              simulator,
-              referenceAvatarEmblemChangesBySocket,
-              referenceSwitchingAvatarEmblemOverlaysBySocket,
-              referenceSwitchingAvatarChangesBySlot,
-            ),
+            {
+              ...getBufferAvatarEmblemNetChanges(
+                simulator,
+                referenceAvatarEmblemChangesBySocket,
+                referenceSwitchingAvatarEmblemOverlaysBySocket,
+                referenceSwitchingAvatarChangesBySlot,
+              ),
+              ...referenceAvatarPlatinumChangesBySlot,
+            },
           ),
         );
         candidateScore = calculateBufferScore(
@@ -2457,12 +2592,15 @@ function getBufferRecommendationRows(
             candidateSwitchingTitleChangesBySource,
             candidateSwitchingAvatarChangesBySlot,
             candidateSwitchingPlatinumChangesBySlot,
-            getBufferAvatarEmblemNetChanges(
-              simulator,
-              candidateAvatarEmblemChangesBySocket,
-              candidateSwitchingAvatarEmblemOverlaysBySocket,
-              candidateSwitchingAvatarChangesBySlot,
-            ),
+            {
+              ...getBufferAvatarEmblemNetChanges(
+                simulator,
+                candidateAvatarEmblemChangesBySocket,
+                candidateSwitchingAvatarEmblemOverlaysBySocket,
+                candidateSwitchingAvatarChangesBySlot,
+              ),
+              ...candidateAvatarPlatinumChangesBySlot,
+            },
           ),
         );
       } catch {
@@ -2582,6 +2720,7 @@ function getCreatureArtifactRows(groups) {
     fame: candidate.fame,
     iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
+    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 0),
     element: candidate.element || '',
     artifactAllElement: Number(candidate.artifactAllElement || 0),
     artifactSingleElement: Number(candidate.artifactSingleElement || 0),
@@ -2757,6 +2896,8 @@ function getAvatarRows(currentAvatar) {
     fame: 0,
     iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
     effects: candidate.effects || {},
+    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 0),
+    baseRelativeSkillDamageMultiplier: Number(candidate.skillDamageMultiplier || 0),
     itemExplain: candidate.itemExplain || '',
     auction: candidate.auction || {},
     expectedGold: candidate.expectedGold,
@@ -2764,6 +2905,7 @@ function getAvatarRows(currentAvatar) {
     needCount: candidate.needCount || 0,
     unitPrice: candidate.unitPrice,
     targetSlotId: candidate.targetSlotId || '',
+    targetPlatinumEmblem: candidate.targetPlatinumEmblem || null,
     targetBuffSlot: candidate.targetBuffSlot || '',
     targetBuffChanges: candidate.targetBuffChanges || null,
     socketChanges: Array.isArray(candidate.socketChanges) ? candidate.socketChanges : [],
@@ -2786,11 +2928,19 @@ function getAvatarRows(currentAvatar) {
 
 function normalizeAvatarSimulatorState(avatar = {}) {
   const normalized = cloneSimulatorValue(avatar || {});
+  const platinumSlots = new Set(normalized.platinumSlots || []);
+  normalized.recognizedTopOptionLevelContribution = normalized.jacket?.topOptionMatched ? 1 : 0;
   normalized.slots = (normalized.slots || []).map((slot) => {
     const regularSockets = Array.isArray(slot?.emblems) ? slot.emblems.slice(0, 2) : [];
     while (regularSockets.length < 2) regularSockets.push(null);
+    const slotLabel = slot?.slotId === 'JACKET'
+      ? AVATAR_PLATINUM_SLOT_LABEL_BY_KEY.top
+      : slot?.slotId === 'PANTS'
+        ? AVATAR_PLATINUM_SLOT_LABEL_BY_KEY.bottom
+        : '';
     return {
       ...slot,
+      recognizedPlatinumLevelContribution: slotLabel && platinumSlots.has(slotLabel) ? 1 : 0,
       emblems: regularSockets.map((emblem, socketIndex) => (
         emblem
           ? { ...emblem, socketKey: `regular:${socketIndex}`, socketIndex }
@@ -3402,6 +3552,9 @@ function getSimulatorCumulativeDamageMultiplier(simulator = {}, avatarEmblemMode
     );
   return nonTitleMultiplier
     * (1 + titleDamagePercent / 100)
+    * (avatarEmblemMode === 'equipmentScore'
+      ? getDealerAvatarPlatinumEquipmentScoreMultiplier(simulator)
+      : getAvatarPlatinumDamageMultiplier(simulator.avatarPlatinumChangesBySlot))
     * getBuffEnhancementMetricMultiplier(simulator, avatarEmblemMode);
 }
 
@@ -5605,6 +5758,23 @@ function getAvatarEmblemCandidateSignature(row = {}) {
   ].join(':');
 }
 
+function getAvatarPlatinumExclusiveGroupKey(row = {}) {
+  const targetSlotId = String(row.targetSlotId || '').trim();
+  return row.sourceType === 'avatar' && row.kind === 'platinumEmblem' && targetSlotId
+    ? `avatarPlatinum:${targetSlotId}`
+    : '';
+}
+
+function getAvatarPlatinumCandidateSignature(row = {}) {
+  const groupKey = getAvatarPlatinumExclusiveGroupKey(row);
+  if (!groupKey || !row.targetPlatinumEmblem?.itemId) return '';
+  return [
+    groupKey,
+    row.targetPlatinumEmblem.itemId,
+    row.targetPlatinumEmblem.targetSkill || row.targetSkill || '',
+  ].join(':');
+}
+
 function getBuffSimulatorTargetSlotId(row = {}) {
   if (row.sourceType === 'switchingTitle') return 'TITLE';
   if (row.sourceType === 'switchingCreature') return 'CREATURE';
@@ -5665,6 +5835,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getBlackFangExclusiveGroupKey(row)
     || getEquipmentProgressionExclusiveGroupKey(row)
     || getAvatarEmblemExclusiveGroupKey(row)
+    || getAvatarPlatinumExclusiveGroupKey(row)
     || getBuffSimulatorExclusiveGroupKey(row);
 }
 
@@ -5691,6 +5862,7 @@ function getSimulatorCandidateSignature(row = {}) {
     || getBlackFangCandidateSignature(row)
     || getEquipmentProgressionCandidateSignature(row)
     || getAvatarEmblemCandidateSignature(row)
+    || getAvatarPlatinumCandidateSignature(row)
     || getBuffSimulatorCandidateSignature(row);
 }
 
@@ -6725,7 +6897,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.switchingTitleChangesBySource,
         bufferSimulator.switchingAvatarChangesBySlot,
         bufferSimulator.switchingPlatinumChangesBySlot,
-        getBufferAvatarEmblemNetChanges(bufferSimulator),
+        getBufferAvatarNetChanges(bufferSimulator),
       )
       : {};
     const candidateChanges = bufferSimulator?.role === 'buffer'
@@ -6755,7 +6927,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.switchingTitleChangesBySource,
         bufferSimulator.switchingAvatarChangesBySlot,
         bufferSimulator.switchingPlatinumChangesBySlot,
-        getBufferAvatarEmblemNetChanges(bufferSimulator),
+        getBufferAvatarNetChanges(bufferSimulator),
       )
       : displayRow.bufferBaseRelativeChanges;
     const currentScore = calculateBufferScore(bufferBaseline, currentChanges);
@@ -7123,7 +7295,28 @@ export function installEnchantView(ctx) {
       (row.sourceType !== 'enchant' || !eligibleSignatures.size || eligibleSignatures.has(getEnchantCandidateSignature(row))) &&
       (row.sourceType !== 'aura' || !eligibleAuraSignatures.size || eligibleAuraSignatures.has(getAuraCandidateSignature(row))) &&
       (row.sourceType !== 'creature' || !eligibleCreatureSignatures.size || eligibleCreatureSignatures.has(getCreatureCandidateSignature(row)))
-    )).map((row) => adaptOathAcquisitionRecommendation(row, simulator)).filter(Boolean);
+    )).map((row) => adaptOathAcquisitionRecommendation(row, simulator)).filter(Boolean)
+      .map((row) => {
+        if (row.sourceType !== 'avatar' || row.kind !== 'platinumEmblem') return row;
+        const {
+          finalDamage: _finalDamage,
+          skillDamageMultiplier: _skillDamageMultiplier,
+          ...displayNeutralEffects
+        } = row.effects || {};
+        const currentMultiplier = Number(
+          simulator.avatarPlatinumChangesBySlot?.[row.targetSlotId]?.skillDamageMultiplier || 1,
+        );
+        const targetMultiplier = getAvatarPlatinumRecommendationMultiplier(row);
+        const relativeMultiplier = currentMultiplier > 0 ? targetMultiplier / currentMultiplier : 0;
+        return {
+          ...row,
+          skillDamageMultiplier: relativeMultiplier,
+          effects: {
+            ...displayNeutralEffects,
+            skillDamageMultiplier: relativeMultiplier,
+          },
+        };
+      });
     const referenceEnchantBySlot = new Map(simulator.baseEnchants
       .filter((enchant) => enchant?.slot)
       .map((enchant) => [enchant.slot, enchant]));
@@ -7456,6 +7649,7 @@ export function installEnchantView(ctx) {
         baseAvatar,
         simulatedAvatar: cloneSimulatorValue(baseAvatar),
         avatarEmblemChangesBySocket: {},
+        avatarPlatinumChangesBySlot: {},
         baseCreature,
         simulatedCreature: cloneSimulatorValue(baseCreature),
         creatureChangesBySource: {},
@@ -7529,6 +7723,7 @@ export function installEnchantView(ctx) {
       simulatedAura: cloneSimulatorValue(baseAura),
       baseAvatar,
       simulatedAvatar: cloneSimulatorValue(baseAvatar),
+      avatarPlatinumChangesBySlot: {},
       baseCreature,
       simulatedCreature: cloneSimulatorValue(baseCreature),
       baseCreatureArtifacts,
@@ -7800,6 +7995,26 @@ export function installEnchantView(ctx) {
         applyType: 'replaceAvatarEmblems',
       };
     }
+    if (row.sourceType === 'avatar' && row.kind === 'platinumEmblem') {
+      const targetSlotId = String(row.targetSlotId || '').trim();
+      const baseSlot = (state.dealerSimulator?.baseAvatar?.slots || [])
+        .find((slot) => slot?.slotId === targetSlotId);
+      if (
+        !targetSlotId
+        || !baseSlot
+        || !String(baseSlot.itemRarity || '').includes('레어')
+        || !row.targetPlatinumEmblem?.itemId
+      ) return null;
+      const dealerMultiplier = getAvatarPlatinumRecommendationMultiplier(row);
+      if (!(dealerMultiplier > 1)) return null;
+      return {
+        targetTab: 'avatar',
+        targetSlot: `avatar:${targetSlotId}`,
+        targetSlotId,
+        applyType: 'replaceAvatarPlatinumEmblem',
+        dealerMultiplier,
+      };
+    }
     if (row.sourceType === 'switchingFragment') {
       const targetSlot = getBuffSimulatorTargetSlotId(row);
       const targetEquipment = row.targetBuffChanges?.equipment;
@@ -7934,6 +8149,25 @@ export function installEnchantView(ctx) {
         baseRelativeChangesBySocket: cloneSimulatorValue(
           row.bufferAvatarEmblemChangesBySocket,
         ),
+      };
+    }
+    if (row.sourceType === 'avatar' && row.kind === 'platinumEmblem') {
+      const targetSlotId = String(row.targetSlotId || '').trim();
+      const baseSlot = (simulator.baseAvatar?.slots || [])
+        .find((slot) => slot?.slotId === targetSlotId);
+      if (
+        !targetSlotId
+        || !baseSlot
+        || !String(baseSlot.itemRarity || '').includes('레어')
+        || !row.targetPlatinumEmblem?.itemId
+        || !row.bufferBaseRelativeChanges
+      ) return null;
+      return {
+        targetTab: 'avatar',
+        targetSlot: `avatar:${targetSlotId}`,
+        targetSlotId,
+        applyType: 'replaceAvatarPlatinumEmblem',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
       };
     }
     if (row.sourceType === 'switchingCreature') {
@@ -8085,7 +8319,7 @@ export function installEnchantView(ctx) {
         simulator.switchingTitleChangesBySource,
         simulator.switchingAvatarChangesBySlot,
         simulator.switchingPlatinumChangesBySlot,
-        getBufferAvatarEmblemNetChanges(simulator),
+        getBufferAvatarNetChanges(simulator),
       ),
     );
   }
@@ -8190,6 +8424,7 @@ export function installEnchantView(ctx) {
     'switchingAvatarChangesBySlot',
     'switchingPlatinumChangesBySlot',
     'avatarEmblemChangesBySocket',
+    'avatarPlatinumChangesBySlot',
     'switchingAvatarEmblemOverlaysBySocket',
   ];
   const SIMULATOR_SNAPSHOT_STATE_KEYS = [
@@ -8381,6 +8616,35 @@ export function installEnchantView(ctx) {
       );
       rebuildBufferSimulatorCalculationState();
     } else {
+      rebuildDealerSimulatorCalculationState();
+    }
+    return true;
+  }
+
+  function replaceSimulatedAvatarPlatinumEmblem(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceAvatarPlatinumEmblem') return false;
+    const slot = (simulator.simulatedAvatar?.slots || [])
+      .find((avatarSlot) => avatarSlot?.slotId === target.targetSlotId);
+    if (!slot || !String(slot.itemRarity || '').includes('레어') || !row.targetPlatinumEmblem) {
+      return false;
+    }
+    slot.platinumEmblems = [{
+      ...cloneSimulatorValue(row.targetPlatinumEmblem),
+      slotColor: '플래티넘',
+    }];
+    slot.recognizedPlatinumLevelContribution = Number(
+      row.targetPlatinumEmblem.recognizedLevelContribution || 0,
+    );
+    if (simulator.role === 'buffer') {
+      simulator.avatarPlatinumChangesBySlot[target.targetSlotId] = cloneSimulatorValue(
+        target.baseRelativeChanges,
+      );
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      simulator.avatarPlatinumChangesBySlot[target.targetSlotId] = {
+        skillDamageMultiplier: Number(target.dealerMultiplier || 1),
+      };
       rebuildDealerSimulatorCalculationState();
     }
     return true;
@@ -9013,6 +9277,12 @@ export function installEnchantView(ctx) {
         String(selection.targetSlot || '').replace(/^avatar:/, ''),
       ),
     },
+    replaceAvatarPlatinumEmblem: {
+      apply: replaceSimulatedAvatarPlatinumEmblem,
+      remove: (selection) => restoreSimulatedAvatarPlatinumEmblemToBase(
+        String(selection.targetSlot || '').replace(/^avatar:/, ''),
+      ),
+    },
     replaceBuffAvatarEmblems: {
       apply: replaceSimulatedBufferSwitchingAvatarEmblems,
       remove: restoreSimulatedBufferSwitchingAvatarEmblemsToBase,
@@ -9603,6 +9873,24 @@ export function installEnchantView(ctx) {
     } else {
       rebuildDealerSimulatorCalculationState();
     }
+    return true;
+  }
+
+  function restoreSimulatedAvatarPlatinumEmblemToBase(targetSlotId) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !targetSlotId) return false;
+    const baseSlot = (simulator.baseAvatar?.slots || [])
+      .find((slot) => slot?.slotId === targetSlotId);
+    const simulatedSlot = (simulator.simulatedAvatar?.slots || [])
+      .find((slot) => slot?.slotId === targetSlotId);
+    if (!baseSlot || !simulatedSlot) return false;
+    simulatedSlot.platinumEmblems = cloneSimulatorValue(baseSlot.platinumEmblems || []);
+    simulatedSlot.recognizedPlatinumLevelContribution = Number(
+      baseSlot.recognizedPlatinumLevelContribution || 0,
+    );
+    delete simulator.avatarPlatinumChangesBySlot[targetSlotId];
+    if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
+    else rebuildDealerSimulatorCalculationState();
     return true;
   }
 
@@ -10645,6 +10933,9 @@ export function installEnchantView(ctx) {
     if (String(avatarSlot.itemRarity || '').trim() !== '레어') {
       return '';
     }
+    const hasPlatinumEmblem = getAvatarSlotPlatinumEmblems(avatarSlot)
+      .some((emblem) => isPlatinumAvatarEmblem(emblem) && hasAvatarEmblemIdentity(emblem));
+    if (hasPlatinumEmblem) return 'filled';
     const platinumSlots = state.currentAvatar?.avatar?.platinumSlots;
     return Array.isArray(platinumSlots) && platinumSlots.includes(slotLabel) ? 'filled' : 'empty';
   }
