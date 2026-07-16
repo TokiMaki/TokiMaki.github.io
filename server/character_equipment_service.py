@@ -1135,9 +1135,8 @@ def build_buffer_enchant_skill_context_payload(
             return
         base_contributions = get_recommendation_contributions(base_row or {})
         candidate_contributions = [
-            contributions
+            get_recommendation_contributions(row)
             for row in candidate_rows or []
-            if (contributions := get_recommendation_contributions(row))
         ]
         if not base_contributions and not candidate_contributions:
             return
