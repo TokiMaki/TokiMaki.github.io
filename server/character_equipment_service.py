@@ -262,6 +262,32 @@ def build_buff_loadout_item_payload(row: dict, buff_contribution: dict | None = 
     return payload
 
 
+def build_buff_loadout_avatar_payload(row: dict, buff_contribution: dict | None = None) -> dict:
+    payload = build_buff_loadout_item_payload(row, buff_contribution)
+    if not payload:
+        return {}
+    payload["emblems"] = [
+        {
+            "itemId": clean_text(emblem.get("itemId")),
+            "itemName": clean_item_display_name(emblem.get("itemName")),
+            "slotColor": clean_text(emblem.get("slotColor")),
+        }
+        for emblem in get_avatar_auction_emblems(row)
+        if "플래티넘" not in clean_text(emblem.get("slotColor"))
+        and "플래티넘" not in clean_text(emblem.get("itemName"))
+    ][:2]
+    payload["platinumEmblems"] = [
+        {
+            "itemId": clean_text(emblem.get("itemId")),
+            "itemName": clean_item_display_name(emblem.get("itemName")),
+            "slotColor": clean_text(emblem.get("slotColor")),
+        }
+        for emblem in get_platinum_emblems(row)
+        if clean_text(emblem.get("itemId")) or clean_item_display_name(emblem.get("itemName"))
+    ][:2]
+    return payload
+
+
 def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
     equipment_payload = get_character_cached_payload(
         server_id,
@@ -418,7 +444,7 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
         "avatar": [
             item
             for row in avatar_rows
-            if (item := build_buff_loadout_item_payload(row, build_avatar_contribution(row)))
+            if (item := build_buff_loadout_avatar_payload(row, build_avatar_contribution(row)))
         ],
         "creature": [
             item
@@ -4157,6 +4183,12 @@ def build_buffer_switching_avatar_recommendation_row(
                     "topOptionSkillLevel": 1 if target_slot_id == "JACKET" else 0,
                     "platinumSkillLevel": 1,
                 },
+                "emblems": [
+                    build_normalized_avatar_emblem(emblem, stat_name)
+                    for emblem in get_avatar_auction_emblems(target_avatar_row)
+                    if "플래티넘" not in clean_text(emblem.get("slotColor"))
+                    and "플래티넘" not in clean_text(emblem.get("itemName"))
+                ][:2],
             },
         },
         "bufferSimulatorChanges": {
