@@ -792,6 +792,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         except Exception:
             self.send_json({
                 "equipmentScore": None,
+                "buffScore": None,
                 "officialCharacterKey": None,
                 "officialProfileUrl": None,
                 "source": "df.nexon.com",

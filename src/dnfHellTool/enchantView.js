@@ -7173,6 +7173,9 @@ export function installEnchantView(ctx) {
   state.currentOfficialEquipmentScore = null;
   state.currentOfficialEquipmentScoreStatus = 'idle';
   state.currentOfficialEquipmentScoreCharacterKey = '';
+  state.currentOfficialBufferScore = null;
+  state.currentOfficialBufferScoreStatus = 'idle';
+  state.currentOfficialBufferScoreCharacterKey = '';
   state.currentEnchantCharacterKey = '';
   state.currentCreatureCharacterKey = '';
   state.currentTitleCharacterKey = '';
@@ -11507,8 +11510,15 @@ export function installEnchantView(ctx) {
 
   function renderBufferSimulatorMeta(originalCharacterMeta = '') {
     const simulator = state.dealerSimulator;
-    const baseScore = Number(simulator?.baseBufferScore || calculateBufferScore(state.currentBufferBaseline));
-    const currentScore = Number(simulator?.currentBufferScore || baseScore);
+    const internalBaseScore = Number(simulator?.baseBufferScore || calculateBufferScore(state.currentBufferBaseline));
+    const internalCurrentScore = Number(simulator?.currentBufferScore || internalBaseScore);
+    const officialBaseScore = Number(state.currentOfficialBufferScore);
+    const usesOfficialBaseScore = Number.isFinite(officialBaseScore) && officialBaseScore > 0;
+    const baseScore = usesOfficialBaseScore
+      ? officialBaseScore
+      : internalBaseScore;
+    const scoreDelta = internalCurrentScore - internalBaseScore;
+    const currentScore = baseScore + scoreDelta;
     const hasSimulationChanges = simulator?.role === 'buffer'
       && Object.keys(simulator.activeSelectionByGroup || {}).length > 0;
     const baseScoreText = Number.isFinite(baseScore) && baseScore > 0
@@ -11517,12 +11527,11 @@ export function installEnchantView(ctx) {
     if (!hasSimulationChanges) {
       return `
         <div class="enchant-portrait-buffer-score">
-          <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다." title="버프점수 ${escapeHtml(baseScoreText)}" aria-label="버프점수 ${escapeHtml(baseScoreText)}"><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(baseScoreText)}</strong>
+          <strong><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(baseScoreText)}</strong>
         </div>
         ${originalCharacterMeta}
       `;
     }
-    const scoreDelta = currentScore - baseScore;
     const increasePercent = baseScore > 0 ? (currentScore / baseScore - 1) * 100 : 0;
     const scoreDeltaText = Math.abs(scoreDelta) < 0.5
       ? '변동 없음'
@@ -11561,7 +11570,7 @@ export function installEnchantView(ctx) {
         <div class="enchant-portrait-info-original">
           <span class="enchant-portrait-info-label">현재 버프점수</span>
           <div class="enchant-portrait-buffer-score">
-            <strong tabindex="0" data-tooltip="계산 방식과 소수점 처리에 따라 실측 버프점수와 차이가 날 수 있습니다."><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(baseScoreText)}</strong>
+            <strong><img src="${escapeHtml(BUFFER_SCORE_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(baseScoreText)}</strong>
           </div>
           ${originalCharacterMeta}
         </div>
@@ -11949,6 +11958,9 @@ export function installEnchantView(ctx) {
     state.currentOfficialEquipmentScore = null;
     state.currentOfficialEquipmentScoreStatus = 'idle';
     state.currentOfficialEquipmentScoreCharacterKey = '';
+    state.currentOfficialBufferScore = null;
+    state.currentOfficialBufferScoreStatus = 'idle';
+    state.currentOfficialBufferScoreCharacterKey = '';
     state.currentCreature = null;
     state.currentTitle = null;
     state.currentAura = null;
@@ -13094,17 +13106,27 @@ export function installEnchantView(ctx) {
   async function loadCurrentOfficialEquipmentScore(requestId = state.enchantRequestId) {
     const character = getSelectedEnchantCharacter();
     const characterName = character?.name || character?.characterName || '';
-    if (!character?.serverId || !characterName || state.currentBufferBaseline?.isBuffer) {
+    if (!character?.serverId || !characterName) {
       state.currentOfficialEquipmentScore = null;
       state.currentOfficialEquipmentScoreStatus = 'idle';
       state.currentOfficialEquipmentScoreCharacterKey = '';
+      state.currentOfficialBufferScore = null;
+      state.currentOfficialBufferScoreStatus = 'idle';
+      state.currentOfficialBufferScoreCharacterKey = '';
       renderEnchantCharacterPortrait();
       return;
     }
+    const isBuffer = Boolean(state.currentBufferBaseline?.isBuffer);
     const characterKey = `${character.serverId}:${characterName}`;
-    state.currentOfficialEquipmentScore = null;
-    state.currentOfficialEquipmentScoreStatus = 'loading';
-    state.currentOfficialEquipmentScoreCharacterKey = characterKey;
+    if (isBuffer) {
+      state.currentOfficialBufferScore = null;
+      state.currentOfficialBufferScoreStatus = 'loading';
+      state.currentOfficialBufferScoreCharacterKey = characterKey;
+    } else {
+      state.currentOfficialEquipmentScore = null;
+      state.currentOfficialEquipmentScoreStatus = 'loading';
+      state.currentOfficialEquipmentScoreCharacterKey = characterKey;
+    }
     renderEnchantCharacterPortrait();
 
     try {
@@ -13113,18 +13135,35 @@ export function installEnchantView(ctx) {
         characterName,
       });
       const response = await fetch(`${API_BASE}/api/equipment-score?${query.toString()}`, { cache: 'no-store' });
-      const payload = await parseApiJsonResponse(response, '장비점수 조회에 실패했습니다.');
-      if (requestId !== state.enchantRequestId || state.currentOfficialEquipmentScoreCharacterKey !== characterKey) return;
-      const score = Number(payload.equipmentScore);
-      state.currentOfficialEquipmentScore = Number.isFinite(score) && score > 0 ? score : null;
-      state.currentOfficialEquipmentScoreStatus = state.currentOfficialEquipmentScore ? 'ready' : 'error';
-      if (state.dealerSimulator) {
+      const payload = await parseApiJsonResponse(response, '공식 점수 조회에 실패했습니다.');
+      const activeCharacterKey = isBuffer
+        ? state.currentOfficialBufferScoreCharacterKey
+        : state.currentOfficialEquipmentScoreCharacterKey;
+      if (requestId !== state.enchantRequestId || activeCharacterKey !== characterKey) return;
+      if (isBuffer) {
+        const score = Number(payload.buffScore);
+        state.currentOfficialBufferScore = Number.isFinite(score) && score > 0 ? score : null;
+        state.currentOfficialBufferScoreStatus = state.currentOfficialBufferScore ? 'ready' : 'error';
+      } else {
+        const score = Number(payload.equipmentScore);
+        state.currentOfficialEquipmentScore = Number.isFinite(score) && score > 0 ? score : null;
+        state.currentOfficialEquipmentScoreStatus = state.currentOfficialEquipmentScore ? 'ready' : 'error';
+      }
+      if (!isBuffer && state.dealerSimulator) {
         state.dealerSimulator.baseEquipmentScore = state.currentOfficialEquipmentScore;
       }
     } catch {
-      if (requestId !== state.enchantRequestId || state.currentOfficialEquipmentScoreCharacterKey !== characterKey) return;
-      state.currentOfficialEquipmentScore = null;
-      state.currentOfficialEquipmentScoreStatus = 'error';
+      const activeCharacterKey = isBuffer
+        ? state.currentOfficialBufferScoreCharacterKey
+        : state.currentOfficialEquipmentScoreCharacterKey;
+      if (requestId !== state.enchantRequestId || activeCharacterKey !== characterKey) return;
+      if (isBuffer) {
+        state.currentOfficialBufferScore = null;
+        state.currentOfficialBufferScoreStatus = 'error';
+      } else {
+        state.currentOfficialEquipmentScore = null;
+        state.currentOfficialEquipmentScoreStatus = 'error';
+      }
     }
     renderEnchantCharacterPortrait();
   }
@@ -13346,6 +13385,8 @@ export function installEnchantView(ctx) {
       resetCurrentEnchantCharacterState();
       if (isLikelyBufferCharacter(state.enchantTargetCharacter)) {
         state.currentBufferScoreStatus = 'loading';
+        state.currentOfficialBufferScoreStatus = 'loading';
+        state.currentOfficialBufferScoreCharacterKey = `${state.enchantTargetCharacter.serverId}:${state.enchantTargetCharacter.name}`;
       } else {
         state.currentOfficialEquipmentScoreStatus = 'loading';
         state.currentOfficialEquipmentScoreCharacterKey = `${state.enchantTargetCharacter.serverId}:${state.enchantTargetCharacter.name}`;

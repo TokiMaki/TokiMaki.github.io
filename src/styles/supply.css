@@ -1764,7 +1764,7 @@
       height: 18px;
       object-fit: contain;
     }
-    .enchant-portrait-buffer-score strong::after {
+    .enchant-portrait-buffer-score strong[data-tooltip]::after {
       content: attr(data-tooltip);
       position: absolute;
       left: 50%;
@@ -1791,8 +1791,8 @@
       pointer-events: none;
       transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
     }
-    .enchant-portrait-buffer-score strong:hover::after,
-    .enchant-portrait-buffer-score strong:focus-visible::after {
+    .enchant-portrait-buffer-score strong[data-tooltip]:hover::after,
+    .enchant-portrait-buffer-score strong[data-tooltip]:focus-visible::after {
       opacity: 1;
       visibility: visible;
       transform: translateX(-50%) translateY(0);

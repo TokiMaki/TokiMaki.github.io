@@ -97,6 +97,7 @@ def _get_cache_key(server_id: str, character_name: str) -> str:
 def _null_response(cached: bool = False, stale: bool = False) -> dict:
     return {
         "equipmentScore": None,
+        "buffScore": None,
         "officialCharacterKey": None,
         "officialProfileUrl": None,
         "source": OFFICIAL_EQUIPMENT_SCORE_SOURCE,
@@ -108,6 +109,7 @@ def _null_response(cached: bool = False, stale: bool = False) -> dict:
 def _to_response(payload: dict, cached: bool, stale: bool) -> dict:
     return {
         "equipmentScore": payload.get("equipmentScore") if isinstance(payload, dict) else None,
+        "buffScore": payload.get("buffScore") if isinstance(payload, dict) else None,
         "officialCharacterKey": payload.get("officialCharacterKey") if isinstance(payload, dict) else None,
         "officialProfileUrl": payload.get("officialProfileUrl") if isinstance(payload, dict) else None,
         "source": OFFICIAL_EQUIPMENT_SCORE_SOURCE,
@@ -149,7 +151,7 @@ def _save_cached_payload(
     payload: dict,
     now_ms: int,
 ):
-    if not isinstance(payload, dict) or not payload.get("equipmentScore"):
+    if not isinstance(payload, dict) or not (payload.get("equipmentScore") or payload.get("buffScore")):
         return
     payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     expires_at_ms = now_ms + OFFICIAL_EQUIPMENT_SCORE_CACHE_TTL_MS
@@ -256,13 +258,19 @@ def _select_exact_character_row(rows: list, server_id: str, server_name: str, ch
 def _build_payload(server_id: str, server_name: str, character_name: str, row: dict, now_ms: int) -> dict | None:
     official_key = clean_text(row.get("characterId"))
     equipment_point = clean_text(row.get("equipmentPoint"))
+    buff_point = clean_text(row.get("buffPoint"))
     obfuscate_key = row.get("obfuscateKey") if isinstance(row.get("obfuscateKey"), dict) else {}
-    score = decode_official_point(
+    equipment_score = decode_official_point(
         equipment_point,
         clean_text(obfuscate_key.get("key")),
         clean_text(obfuscate_key.get("salt")),
     )
-    if not official_key or score is None:
+    buff_score = decode_official_point(
+        buff_point,
+        clean_text(obfuscate_key.get("key")),
+        clean_text(obfuscate_key.get("salt")),
+    )
+    if not official_key or (equipment_score is None and buff_score is None):
         return None
     return {
         "serverId": clean_text(server_id).lower(),
@@ -270,7 +278,8 @@ def _build_payload(server_id: str, server_name: str, character_name: str, row: d
         "characterName": clean_text(row.get("characterName") or character_name),
         "officialCharacterKey": official_key,
         "officialProfileUrl": f"{OFFICIAL_CHARACTER_PROFILE_BASE_URL}/{clean_text(server_id).lower()}/{official_key}",
-        "equipmentScore": score,
+        "equipmentScore": equipment_score,
+        "buffScore": buff_score,
         "fetchedAt": now_ms,
     }
 
@@ -285,7 +294,7 @@ def load_official_equipment_score(server_id: str, character_name: str) -> dict:
     now_ms = int(time.time() * 1000)
     cache_key = _get_cache_key(server_id, character_name)
     cached_payload, is_stale = _load_cached_payload(cache_key, now_ms)
-    if cached_payload and not is_stale:
+    if cached_payload and not is_stale and "buffScore" in cached_payload:
         return _to_response(cached_payload, cached=True, stale=False)
 
     try:
