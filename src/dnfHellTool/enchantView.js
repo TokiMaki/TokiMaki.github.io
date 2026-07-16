@@ -5064,6 +5064,7 @@ function getOathAcquisitionReferenceState(simulator = {}, row = {}, requestedCou
       selection?.applyType === 'acquireOathDecision' &&
       selection?.acquisitionTargetGroupKey === targetGroupKey
     ));
+  const explicitlyReplacedGroupKeys = new Set(row.replacedAcquisitionGroupKeys || []);
   const restoreSelection = ([groupKey, selection]) => {
     const slotIndex = getOathAcquisitionSlotIndex(selection, groupKey);
     const previousCrystal = (simulator.baseOathUpgrades?.crystals || [])
@@ -5076,7 +5077,10 @@ function getOathAcquisitionReferenceState(simulator = {}, row = {}, requestedCou
     crystals.splice(currentIndex, 1, cloneSimulatorValue(previousCrystal));
   };
   targetSelections
-    .filter(([, selection]) => selection?.acquisitionVariantGroupKey === ownVariantGroupKey)
+    .filter(([groupKey, selection]) => (
+      selection?.acquisitionVariantGroupKey === ownVariantGroupKey
+      || explicitlyReplacedGroupKeys.has(groupKey)
+    ))
     .forEach(restoreSelection);
 
   const uniqueKeyword = String(simulator.oathTuneDb?.uniqueCrystalNameKeyword || '안개 결정').trim();
@@ -5090,13 +5094,21 @@ function getOathAcquisitionReferenceState(simulator = {}, row = {}, requestedCou
     Number(requestedCount || 0) - Math.max(0, targetLimit - getCurrentTargetCount()),
   );
   const replacedAcquisitionGroupKeys = targetSelections
-    .filter(([, selection]) => selection?.acquisitionVariantGroupKey !== ownVariantGroupKey)
+    .filter(([groupKey, selection]) => (
+      selection?.acquisitionVariantGroupKey !== ownVariantGroupKey
+      && !explicitlyReplacedGroupKeys.has(groupKey)
+    ))
     .sort((a, b) => (
       getOathAcquisitionSlotIndex(b[1], b[0])
       - getOathAcquisitionSlotIndex(a[1], a[0])
     ))
     .slice(0, replacementCount)
     .map(([groupKey]) => groupKey);
+  explicitlyReplacedGroupKeys.forEach((groupKey) => {
+    if (!replacedAcquisitionGroupKeys.includes(groupKey)) {
+      replacedAcquisitionGroupKeys.push(groupKey);
+    }
+  });
   replacedAcquisitionGroupKeys
     .map((groupKey) => [groupKey, simulator.activeSelectionByGroup?.[groupKey]])
     .filter(([, selection]) => selection)
@@ -7972,80 +7984,60 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function getDealerSimulatorSnapshot() {
+  const SIMULATOR_LOADOUT_BASE_KEY_BY_STATE = {
+    simulatedEnchants: 'baseEnchants',
+    simulatedEquipmentUpgrades: 'baseEquipmentUpgrades',
+    simulatedAura: 'baseAura',
+    simulatedAvatar: 'baseAvatar',
+    simulatedCreature: 'baseCreature',
+    simulatedCreatureArtifacts: 'baseCreatureArtifacts',
+    simulatedTitle: 'baseTitle',
+    simulatedBuffLoadout: 'baseBuffLoadout',
+    simulatedOathUpgrades: 'baseOathUpgrades',
+  };
+  const SIMULATOR_CHANGE_STATE_KEYS = [
+    'enchantChangesBySlot',
+    'artifactChangesByType',
+    'upgradeChangesBySlot',
+    'equipmentTuneChangesBySource',
+    'oathTuneChangesBySource',
+    'oathAcquisitionChangesBySource',
+    'blackFangChangesBySlot',
+    'creatureChangesBySource',
+    'auraChangesBySource',
+    'titleChangesBySource',
+    'switchingCreatureChangesBySource',
+    'switchingTitleChangesBySource',
+    'switchingAvatarChangesBySlot',
+    'switchingPlatinumChangesBySlot',
+  ];
+  const SIMULATOR_SNAPSHOT_STATE_KEYS = [
+    ...Object.keys(SIMULATOR_LOADOUT_BASE_KEY_BY_STATE),
+    ...SIMULATOR_CHANGE_STATE_KEYS,
+    'activeSelectionByGroup',
+    'suspendedOathTune',
+    'totalGold',
+    'currentBufferScore',
+    'lastChangedTarget',
+  ];
+
+  function createSimulatorSnapshot() {
     const simulator = state.dealerSimulator;
     if (!simulator) return null;
-    return {
-      simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
-      simulatedEquipmentUpgrades: cloneSimulatorValue(simulator.simulatedEquipmentUpgrades),
-      equipmentTuneChangesBySource: cloneSimulatorValue(simulator.equipmentTuneChangesBySource || {}),
-      oathTuneChangesBySource: cloneSimulatorValue(simulator.oathTuneChangesBySource || {}),
-      oathAcquisitionChangesBySource: cloneSimulatorValue(
-        simulator.oathAcquisitionChangesBySource || {},
-      ),
-      blackFangChangesBySlot: cloneSimulatorValue(simulator.blackFangChangesBySlot || {}),
-      creatureChangesBySource: cloneSimulatorValue(simulator.creatureChangesBySource || {}),
-      auraChangesBySource: cloneSimulatorValue(simulator.auraChangesBySource || {}),
-      titleChangesBySource: cloneSimulatorValue(simulator.titleChangesBySource || {}),
-      simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
-      simulatedAvatar: cloneSimulatorValue(simulator.simulatedAvatar),
-      simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
-      simulatedCreatureArtifacts: cloneSimulatorValue(simulator.simulatedCreatureArtifacts),
-      simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
-      simulatedBuffLoadout: cloneSimulatorValue(simulator.simulatedBuffLoadout),
-      simulatedOathUpgrades: cloneSimulatorValue(simulator.simulatedOathUpgrades),
-      totalGold: simulator.totalGold,
-      activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup || {}),
-      suspendedOathTune: cloneSimulatorValue(simulator.suspendedOathTune || null),
-      lastChangedTarget: simulator.lastChangedTarget ? { ...simulator.lastChangedTarget } : null,
-    };
+    return SIMULATOR_SNAPSHOT_STATE_KEYS.reduce((snapshot, key) => {
+      if (key in simulator) snapshot[key] = cloneSimulatorValue(simulator[key]);
+      return snapshot;
+    }, {});
   }
 
-  function restoreDealerSimulatorSnapshot(snapshot) {
+  function restoreSimulatorSnapshot(snapshot) {
     const simulator = state.dealerSimulator;
     if (!simulator || !snapshot) return;
-    simulator.simulatedEnchants = cloneSimulatorValue(snapshot.simulatedEnchants || []);
-    simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
-      snapshot.simulatedEquipmentUpgrades || simulator.baseEquipmentUpgrades || [],
-    );
-    if (simulator.role === 'buffer') {
-      simulator.equipmentTuneChangesBySource = cloneSimulatorValue(
-        snapshot.equipmentTuneChangesBySource || {},
-      );
-      simulator.oathTuneChangesBySource = cloneSimulatorValue(
-        snapshot.oathTuneChangesBySource || {},
-      );
-      simulator.oathAcquisitionChangesBySource = cloneSimulatorValue(
-        snapshot.oathAcquisitionChangesBySource || {},
-      );
-      simulator.blackFangChangesBySlot = cloneSimulatorValue(
-        snapshot.blackFangChangesBySlot || {},
-      );
-      simulator.creatureChangesBySource = cloneSimulatorValue(
-        snapshot.creatureChangesBySource || {},
-      );
-      simulator.auraChangesBySource = cloneSimulatorValue(
-        snapshot.auraChangesBySource || {},
-      );
-      simulator.titleChangesBySource = cloneSimulatorValue(
-        snapshot.titleChangesBySource || {},
-      );
-    }
-    simulator.simulatedAura = cloneSimulatorValue(snapshot.simulatedAura || simulator.baseAura || {});
-    simulator.simulatedAvatar = cloneSimulatorValue(snapshot.simulatedAvatar || simulator.baseAvatar || {});
-    simulator.simulatedCreature = cloneSimulatorValue(snapshot.simulatedCreature || simulator.baseCreature || {});
-    simulator.simulatedCreatureArtifacts = cloneSimulatorValue(
-      snapshot.simulatedCreatureArtifacts || simulator.baseCreatureArtifacts || [],
-    );
-    simulator.simulatedTitle = cloneSimulatorValue(snapshot.simulatedTitle || simulator.baseTitle || {});
-    simulator.simulatedBuffLoadout = cloneSimulatorValue(
-      snapshot.simulatedBuffLoadout || simulator.baseBuffLoadout || {},
-    );
-    simulator.simulatedOathUpgrades = cloneSimulatorValue(
-      snapshot.simulatedOathUpgrades || simulator.baseOathUpgrades || {},
-    );
-    simulator.activeSelectionByGroup = cloneSimulatorValue(snapshot.activeSelectionByGroup || {});
-    simulator.suspendedOathTune = cloneSimulatorValue(snapshot.suspendedOathTune || null);
+    SIMULATOR_SNAPSHOT_STATE_KEYS.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(snapshot, key)) {
+        simulator[key] = cloneSimulatorValue(snapshot[key]);
+      }
+    });
     simulator.totalGold = getDealerSimulatorTotalGold(simulator);
     syncOathAcquisitionVariantIndexes(true);
     const equipmentTuneStepIndex = Number(
@@ -8716,24 +8708,90 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function applySimulatorReplacement(row, target) {
-    if (target?.applyType === 'replaceEnchant') return replaceSimulatedEnchant(row, target);
-    if (target?.applyType === 'replaceAura') return replaceSimulatedAura(row, target);
-    if (target?.applyType === 'replaceCreature') return replaceSimulatedCreature(row, target);
-    if (target?.applyType === 'replaceCreatureArtifact') return replaceSimulatedCreatureArtifact(row, target);
-    if (target?.applyType === 'replaceTitle') return replaceSimulatedTitle(row, target);
-    if (target?.applyType === 'replaceAvatarEmblems') return replaceSimulatedAvatarEmblems(row, target);
-    if (target?.applyType === 'replaceBuffEquipment') return replaceSimulatedBuffEquipment(row, target);
-    if (target?.applyType === 'replaceBuffTitle') return replaceSimulatedBuffTitle(row, target);
-    if (target?.applyType === 'replaceBuffCreature') return replaceSimulatedBuffCreature(row, target);
-    if (target?.applyType === 'replaceBuffAvatarPackage') return replaceSimulatedBuffAvatar(row, target, false);
-    if (target?.applyType === 'replaceBuffAvatarPlatinum') return replaceSimulatedBuffAvatar(row, target, true);
-    if (target?.applyType === 'replaceBlackFangBody') return replaceSimulatedBlackFangBody(row, target);
-    if (target?.applyType === 'replaceEquipmentProgression') return replaceSimulatedEquipmentProgression(row, target);
-    if (target?.applyType === 'applyEquipmentTunePlan') return applySimulatedEquipmentTunePlan(row, target);
-    if (target?.applyType === 'applyOathTunePlan') return applySimulatedOathTunePlan(row, target);
-    if (target?.applyType === 'acquireOathDecision') return applySimulatedOathAcquisition(row, target);
-    return false;
+  const simulatorActionAdapters = {
+    replaceEnchant: {
+      apply: replaceSimulatedEnchant,
+      remove: (selection) => restoreSimulatedEnchantSlotToBase(selection.targetSlot),
+    },
+    replaceBufferEnchant: {
+      apply: replaceSimulatedBufferEnchant,
+      remove: (selection) => restoreSimulatedEnchantSlotToBase(selection.targetSlot),
+    },
+    replaceAura: { apply: replaceSimulatedAura, remove: restoreSimulatedAuraToBase },
+    replaceCreature: { apply: replaceSimulatedCreature, remove: restoreSimulatedCreatureToBase },
+    replaceCreatureArtifact: {
+      apply: replaceSimulatedCreatureArtifact,
+      remove: (selection) => restoreSimulatedCreatureArtifactToBase(selection.artifactType),
+    },
+    replaceBufferCreatureArtifact: {
+      apply: replaceSimulatedBufferCreatureArtifact,
+      remove: (selection) => restoreSimulatedCreatureArtifactToBase(selection.artifactType),
+    },
+    replaceTitle: { apply: replaceSimulatedTitle, remove: restoreSimulatedTitleToBase },
+    replaceAvatarEmblems: {
+      apply: replaceSimulatedAvatarEmblems,
+      remove: (selection) => restoreSimulatedAvatarEmblemsToBase(
+        String(selection.targetSlot || '').replace(/^avatar:/, ''),
+      ),
+    },
+    replaceBuffEquipment: {
+      apply: replaceSimulatedBuffEquipment,
+      remove: restoreSimulatedBuffSelectionToBase,
+    },
+    replaceBuffTitle: {
+      apply: (row, target) => state.dealerSimulator?.role === 'buffer'
+        ? replaceSimulatedBufferSwitchingTitle(row, target)
+        : replaceSimulatedBuffTitle(row, target),
+      remove: restoreSimulatedBuffSelectionToBase,
+    },
+    replaceBuffCreature: {
+      apply: (row, target) => state.dealerSimulator?.role === 'buffer'
+        ? replaceSimulatedBufferSwitchingCreature(row, target)
+        : replaceSimulatedBuffCreature(row, target),
+      remove: restoreSimulatedBuffSelectionToBase,
+    },
+    replaceBuffAvatarPackage: {
+      apply: (row, target) => state.dealerSimulator?.role === 'buffer'
+        ? replaceSimulatedBufferSwitchingAvatar(row, target)
+        : replaceSimulatedBuffAvatar(row, target, false),
+      remove: restoreSimulatedBuffSelectionToBase,
+    },
+    replaceBuffAvatarPlatinum: {
+      apply: (row, target) => state.dealerSimulator?.role === 'buffer'
+        ? replaceSimulatedBufferSwitchingPlatinum(row, target)
+        : replaceSimulatedBuffAvatar(row, target, true),
+      remove: restoreSimulatedBuffSelectionToBase,
+    },
+    replaceBlackFangBody: {
+      apply: replaceSimulatedBlackFangBody,
+      remove: (selection) => restoreSimulatedEquipmentBodyToBase(selection.targetSlot),
+    },
+    replaceEquipmentProgression: {
+      apply: replaceSimulatedEquipmentProgression,
+      remove: (selection) => restoreSimulatedEquipmentProgressionToBase(selection.targetSlot),
+    },
+    replaceBufferEquipmentProgression: {
+      apply: replaceSimulatedBufferEquipmentProgression,
+      remove: (selection) => restoreSimulatedEquipmentProgressionToBase(selection.targetSlot),
+    },
+    applyEquipmentTunePlan: {
+      apply: applySimulatedEquipmentTunePlan,
+      remove: removeSimulatedEquipmentTuneSelection,
+    },
+    applyOathTunePlan: {
+      apply: applySimulatedOathTunePlan,
+      remove: removeSimulatedOathTuneSelection,
+    },
+    acquireOathDecision: { apply: applySimulatedOathAcquisition },
+  };
+
+  function getSimulatorActionAdapter(applyType) {
+    return simulatorActionAdapters[applyType] || null;
+  }
+
+  function applySimulatorAction(row, target) {
+    const adapter = getSimulatorActionAdapter(target?.applyType);
+    return adapter?.apply ? adapter.apply(row, target) : false;
   }
 
   function closeDealerSimulatorSelection() {
@@ -8941,6 +8999,70 @@ export function installEnchantView(ctx) {
     }, DEALER_SIMULATOR_SWEEP_DURATION_MS);
   }
 
+  function createActiveSimulatorSelection({
+    row,
+    target,
+    candidateSignature,
+    previousSelection,
+    goldWithoutMaterials,
+    goldWithMaterials,
+    includeMaterialCosts,
+  }) {
+    if (['replaceEquipmentProgression', 'replaceBufferEquipmentProgression'].includes(target.applyType)) {
+      return buildAppliedEquipmentProgressionSelection(
+        row,
+        target,
+        previousSelection,
+        goldWithoutMaterials,
+        goldWithMaterials,
+        includeMaterialCosts,
+      );
+    }
+    return {
+      candidateSignature,
+      appliedGold: includeMaterialCosts ? goldWithMaterials : goldWithoutMaterials,
+      includeMaterialCost: includeMaterialCosts,
+      goldWithoutMaterials,
+      goldWithMaterials,
+      targetTab: target.targetTab,
+      targetSlot: target.targetSlot,
+      artifactType: target.artifactType || '',
+      buffSlotId: target.buffSlotId || '',
+      applyType: target.applyType,
+      baseRelativeChanges: cloneSimulatorValue(target.baseRelativeChanges),
+      appliedRecommendationSnapshot: cloneSimulatorValue(row),
+      ...(['applyEquipmentTunePlan', 'applyOathTunePlan'].includes(target.applyType) ? {
+        actionType: target.applyType === 'applyOathTunePlan'
+          ? 'oathTunePlan'
+          : 'equipmentTunePlan',
+        selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
+        beforeTuneSnapshot: cloneSimulatorValue(
+          target.beforeTuneSnapshot || (target.applyType === 'applyOathTunePlan' ? {} : []),
+        ),
+        pointPerTune: target.pointPerTune,
+        maxTuneLevel: target.maxTuneLevel,
+        variants: cloneSimulatorValue(row.tuneSteps || []),
+        appliedVariantSnapshot: cloneSimulatorValue(row),
+      } : {}),
+    };
+  }
+
+  function finishSimulatorActionApplication(target, includeMaterialCosts) {
+    const simulator = state.dealerSimulator;
+    simulator.totalGold = simulator.role === 'buffer'
+      ? getDealerSimulatorTotalGold(simulator, includeMaterialCosts)
+      : getDealerSimulatorTotalGold(simulator);
+    simulator.selectedRecommendationId = '';
+    simulator.lastChangedTarget = target;
+    const changedSlots = Array.isArray(target.changedSlots)
+      ? target.changedSlots
+      : [target.targetSlot];
+    changedSlots.forEach(triggerDealerSimulatorSweep);
+    state.enchantLoadoutTab = target.targetTab;
+    renderEnchantCharacterPortrait();
+    renderEnchantTable();
+  }
+
   function applyBufferSimulatorRecommendation(recommendationId) {
     const simulator = state.dealerSimulator;
     if (simulator?.role !== 'buffer' || simulator.applyingRecommendationId) return;
@@ -8980,145 +9102,31 @@ export function installEnchantView(ctx) {
     const goldWithMaterials = getRecommendationGold(row, true);
     const appliedGold = includeMaterialCosts ? goldWithMaterials : goldWithoutMaterials;
     if (!Number.isFinite(appliedGold) || appliedGold < 0) return;
-    const snapshot = {
-      simulatedEnchants: cloneSimulatorValue(simulator.simulatedEnchants),
-      enchantChangesBySlot: cloneSimulatorValue(simulator.enchantChangesBySlot),
-      simulatedCreatureArtifacts: cloneSimulatorValue(simulator.simulatedCreatureArtifacts),
-      artifactChangesByType: cloneSimulatorValue(simulator.artifactChangesByType),
-      simulatedEquipmentUpgrades: cloneSimulatorValue(simulator.simulatedEquipmentUpgrades),
-      upgradeChangesBySlot: cloneSimulatorValue(simulator.upgradeChangesBySlot),
-      equipmentTuneChangesBySource: cloneSimulatorValue(simulator.equipmentTuneChangesBySource),
-      simulatedOathUpgrades: cloneSimulatorValue(simulator.simulatedOathUpgrades),
-      oathTuneChangesBySource: cloneSimulatorValue(simulator.oathTuneChangesBySource),
-      blackFangChangesBySlot: cloneSimulatorValue(simulator.blackFangChangesBySlot),
-      simulatedCreature: cloneSimulatorValue(simulator.simulatedCreature),
-      creatureChangesBySource: cloneSimulatorValue(simulator.creatureChangesBySource),
-      simulatedAura: cloneSimulatorValue(simulator.simulatedAura),
-      auraChangesBySource: cloneSimulatorValue(simulator.auraChangesBySource),
-      simulatedTitle: cloneSimulatorValue(simulator.simulatedTitle),
-      titleChangesBySource: cloneSimulatorValue(simulator.titleChangesBySource),
-      simulatedBuffLoadout: cloneSimulatorValue(simulator.simulatedBuffLoadout),
-      switchingCreatureChangesBySource: cloneSimulatorValue(
-        simulator.switchingCreatureChangesBySource,
-      ),
-      switchingTitleChangesBySource: cloneSimulatorValue(
-        simulator.switchingTitleChangesBySource,
-      ),
-      switchingAvatarChangesBySlot: cloneSimulatorValue(
-        simulator.switchingAvatarChangesBySlot,
-      ),
-      switchingPlatinumChangesBySlot: cloneSimulatorValue(
-        simulator.switchingPlatinumChangesBySlot,
-      ),
-      activeSelectionByGroup: cloneSimulatorValue(simulator.activeSelectionByGroup),
-      currentBufferScore: simulator.currentBufferScore,
-      totalGold: simulator.totalGold,
-    };
+    const snapshot = createSimulatorSnapshot();
     const previousSelection = cloneSimulatorValue(
       simulator.activeSelectionByGroup?.[exclusiveGroupKey] || null,
     );
     simulator.applyingRecommendationId = recommendationId;
     try {
-      const applied = target.applyType === 'replaceBufferCreatureArtifact'
-        ? replaceSimulatedBufferCreatureArtifact(row, target)
-        : target.applyType === 'replaceBufferEquipmentProgression'
-          ? replaceSimulatedBufferEquipmentProgression(row, target)
-          : target.applyType === 'applyEquipmentTunePlan'
-            ? applySimulatedEquipmentTunePlan(row, target)
-          : target.applyType === 'applyOathTunePlan'
-            ? applySimulatedOathTunePlan(row, target)
-          : target.applyType === 'replaceBlackFangBody'
-            ? replaceSimulatedBlackFangBody(row, target)
-          : target.applyType === 'replaceCreature'
-            ? replaceSimulatedCreature(row, target)
-          : target.applyType === 'replaceAura'
-            ? replaceSimulatedAura(row, target)
-          : target.applyType === 'replaceTitle'
-            ? replaceSimulatedTitle(row, target)
-          : target.applyType === 'replaceBuffCreature'
-            ? replaceSimulatedBufferSwitchingCreature(row, target)
-          : target.applyType === 'replaceBuffTitle'
-            ? replaceSimulatedBufferSwitchingTitle(row, target)
-          : target.applyType === 'replaceBuffAvatarPackage'
-            ? replaceSimulatedBufferSwitchingAvatar(row, target)
-          : target.applyType === 'replaceBuffAvatarPlatinum'
-            ? replaceSimulatedBufferSwitchingPlatinum(row, target)
-          : replaceSimulatedBufferEnchant(row, target);
-      if (!applied) return;
-      if (target.applyType === 'replaceBufferEquipmentProgression') {
-        const selection = buildAppliedEquipmentProgressionSelection(
-          row,
-          target,
-          previousSelection,
-          goldWithoutMaterials,
-          goldWithMaterials,
-          includeMaterialCosts,
-        );
-        if (!selection) throw new Error('Buffer progression selection missing');
-        simulator.activeSelectionByGroup[exclusiveGroupKey] = selection;
-      } else {
-        simulator.activeSelectionByGroup[exclusiveGroupKey] = {
-          candidateSignature,
-          appliedGold,
-          includeMaterialCost: includeMaterialCosts,
-          goldWithoutMaterials,
-          goldWithMaterials,
-          targetTab: target.targetTab,
-          targetSlot: target.targetSlot,
-          artifactType: target.artifactType || '',
-          applyType: target.applyType,
-          baseRelativeChanges: cloneSimulatorValue(target.baseRelativeChanges),
-          appliedRecommendationSnapshot: cloneSimulatorValue(row),
-          ...(['applyEquipmentTunePlan', 'applyOathTunePlan'].includes(target.applyType) ? {
-            actionType: target.applyType === 'applyOathTunePlan'
-              ? 'oathTunePlan'
-              : 'equipmentTunePlan',
-            selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
-            beforeTuneSnapshot: cloneSimulatorValue(
-              target.beforeTuneSnapshot || (target.applyType === 'applyOathTunePlan' ? {} : []),
-            ),
-            pointPerTune: target.pointPerTune,
-            maxTuneLevel: target.maxTuneLevel,
-            variants: cloneSimulatorValue(row.tuneSteps || []),
-            appliedVariantSnapshot: cloneSimulatorValue(row),
-          } : {}),
-        };
+      const applied = applySimulatorAction(row, target);
+      if (!applied) {
+        restoreSimulatorSnapshot(snapshot);
+        return;
       }
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator, includeMaterialCosts);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = target;
-      const changedSlots = Array.isArray(target.changedSlots)
-        ? target.changedSlots
-        : [target.targetSlot];
-      changedSlots.forEach(triggerDealerSimulatorSweep);
-      state.enchantLoadoutTab = target.targetTab;
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
+      const selection = createActiveSimulatorSelection({
+        row,
+        target,
+        candidateSignature,
+        previousSelection,
+        goldWithoutMaterials,
+        goldWithMaterials,
+        includeMaterialCosts,
+      });
+      if (!selection?.candidateSignature) throw new Error('Buffer selection missing');
+      simulator.activeSelectionByGroup[exclusiveGroupKey] = selection;
+      finishSimulatorActionApplication(target, includeMaterialCosts);
     } catch {
-      simulator.simulatedEnchants = snapshot.simulatedEnchants;
-      simulator.enchantChangesBySlot = snapshot.enchantChangesBySlot;
-      simulator.simulatedCreatureArtifacts = snapshot.simulatedCreatureArtifacts;
-      simulator.artifactChangesByType = snapshot.artifactChangesByType;
-      simulator.simulatedEquipmentUpgrades = snapshot.simulatedEquipmentUpgrades;
-      simulator.upgradeChangesBySlot = snapshot.upgradeChangesBySlot;
-      simulator.equipmentTuneChangesBySource = snapshot.equipmentTuneChangesBySource;
-      simulator.simulatedOathUpgrades = snapshot.simulatedOathUpgrades;
-      simulator.oathTuneChangesBySource = snapshot.oathTuneChangesBySource;
-      simulator.blackFangChangesBySlot = snapshot.blackFangChangesBySlot;
-      simulator.simulatedCreature = snapshot.simulatedCreature;
-      simulator.creatureChangesBySource = snapshot.creatureChangesBySource;
-      simulator.simulatedAura = snapshot.simulatedAura;
-      simulator.auraChangesBySource = snapshot.auraChangesBySource;
-      simulator.simulatedTitle = snapshot.simulatedTitle;
-      simulator.titleChangesBySource = snapshot.titleChangesBySource;
-      simulator.simulatedBuffLoadout = snapshot.simulatedBuffLoadout;
-      simulator.switchingCreatureChangesBySource = snapshot.switchingCreatureChangesBySource;
-      simulator.switchingTitleChangesBySource = snapshot.switchingTitleChangesBySource;
-      simulator.switchingAvatarChangesBySlot = snapshot.switchingAvatarChangesBySlot;
-      simulator.switchingPlatinumChangesBySlot = snapshot.switchingPlatinumChangesBySlot;
-      simulator.activeSelectionByGroup = snapshot.activeSelectionByGroup;
-      simulator.currentBufferScore = snapshot.currentBufferScore;
-      simulator.totalGold = snapshot.totalGold;
+      restoreSimulatorSnapshot(snapshot);
       renderEnchantCharacterPortrait();
       renderEnchantTable();
       setEnchantCharacterStatus('시뮬레이션 적용에 실패했습니다.');
@@ -9160,10 +9168,13 @@ export function installEnchantView(ctx) {
     const goldWithMaterials = getRecommendationGold(row, true);
     const latestGold = includeMaterialCosts ? goldWithMaterials : goldWithoutMaterials;
     if (!Number.isFinite(latestGold) || latestGold < 0) return;
-    const snapshot = getDealerSimulatorSnapshot();
+    const snapshot = createSimulatorSnapshot();
     simulator.applyingRecommendationId = recommendationId;
     try {
-      if (!applySimulatorReplacement(row, target)) return;
+      if (!applySimulatorAction(row, target)) {
+        restoreSimulatorSnapshot(snapshot);
+        return;
+      }
       if (target.applyType === 'replaceBuffAvatarPackage') {
         delete simulator.activeSelectionByGroup[`buffAvatarPlatinum:${target.buffSlotId}`];
       }
@@ -9176,56 +9187,22 @@ export function installEnchantView(ctx) {
         );
         if (!appliedDescriptors.length) throw new Error('Oath acquisition selection missing');
         syncOathAcquisitionVariantIndexes();
-      } else if (target.applyType === 'replaceEquipmentProgression') {
-        const progressionSelection = buildAppliedEquipmentProgressionSelection(
+      } else {
+        const selection = createActiveSimulatorSelection({
           row,
           target,
+          candidateSignature,
           previousSelection,
           goldWithoutMaterials,
           goldWithMaterials,
           includeMaterialCosts,
-        );
-        if (!progressionSelection?.candidateSignature) {
-          restoreDealerSimulatorSnapshot(snapshot);
-          return;
-        }
-        simulator.activeSelectionByGroup[exclusiveGroupKey] = progressionSelection;
-      } else {
-        simulator.activeSelectionByGroup[exclusiveGroupKey] = {
-          candidateSignature,
-          appliedGold: latestGold,
-          includeMaterialCost: includeMaterialCosts,
-          goldWithoutMaterials,
-          goldWithMaterials,
-          targetTab: target.targetTab,
-          targetSlot: target.targetSlot,
-          artifactType: target.artifactType || '',
-          buffSlotId: target.buffSlotId || '',
-          applyType: target.applyType,
-          appliedRecommendationSnapshot: cloneSimulatorValue(row),
-          ...(['applyEquipmentTunePlan', 'applyOathTunePlan'].includes(target.applyType) ? {
-            actionType: target.applyType === 'applyOathTunePlan' ? 'oathTunePlan' : 'equipmentTunePlan',
-            selectedVariantIndex: Number(row.selectedTuneStepIndex || 0),
-            beforeTuneSnapshot: cloneSimulatorValue(target.beforeTuneSnapshot || (target.applyType === 'applyOathTunePlan' ? {} : [])),
-            pointPerTune: target.pointPerTune,
-            maxTuneLevel: target.maxTuneLevel,
-            variants: cloneSimulatorValue(row.tuneSteps || []),
-            appliedVariantSnapshot: cloneSimulatorValue(row),
-          } : {}),
-        };
+        });
+        if (!selection?.candidateSignature) throw new Error('Dealer selection missing');
+        simulator.activeSelectionByGroup[exclusiveGroupKey] = selection;
       }
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = target;
-      const changedSlots = Array.isArray(target.changedSlots)
-        ? target.changedSlots
-        : [target.targetSlot];
-      changedSlots.forEach(triggerDealerSimulatorSweep);
-      state.enchantLoadoutTab = target.targetTab;
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
+      finishSimulatorActionApplication(target, includeMaterialCosts);
     } catch {
-      restoreDealerSimulatorSnapshot(snapshot);
+      restoreSimulatorSnapshot(snapshot);
       renderEnchantCharacterPortrait();
       renderEnchantTable();
       setEnchantCharacterStatus('시뮬레이션 적용에 실패했습니다.');
@@ -9497,41 +9474,82 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function restoreActiveSimulatorSelectionToBase(selection = {}) {
-    const applyType = selection.applyType;
-    if (applyType === 'replaceAura') return restoreSimulatedAuraToBase();
-    if (applyType === 'replaceCreature') return restoreSimulatedCreatureToBase();
-    if (['replaceCreatureArtifact', 'replaceBufferCreatureArtifact'].includes(applyType)) {
-      return restoreSimulatedCreatureArtifactToBase(selection.artifactType);
+  function removeSimulatedOathTuneSelection(selection = {}) {
+    const simulator = state.dealerSimulator;
+    const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
+    simulator.simulatedOathUpgrades = cloneSimulatorValue(
+      selection.beforeTuneSnapshot || simulator.baseOathUpgrades || {},
+    );
+    if (simulator.role === 'buffer') {
+      delete simulator.oathTuneChangesBySource.oathTune;
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
     }
-    if (applyType === 'replaceTitle') return restoreSimulatedTitleToBase();
-    if (applyType === 'replaceBlackFangBody') {
-      return restoreSimulatedEquipmentBodyToBase(selection.targetSlot);
-    }
-    if (['replaceEquipmentProgression', 'replaceBufferEquipmentProgression'].includes(applyType)) {
-      return restoreSimulatedEquipmentProgressionToBase(selection.targetSlot);
-    }
-    if (applyType === 'replaceAvatarEmblems') {
-      return restoreSimulatedAvatarEmblemsToBase(
-        String(selection.targetSlot || '').replace(/^avatar:/, ''),
-      );
-    }
-    if ([
-      'replaceBuffCreature',
-      'replaceBuffTitle',
-      'replaceBuffEquipment',
-      'replaceBuffAvatarPackage',
-      'replaceBuffAvatarPlatinum',
-    ].includes(applyType)) {
-      return restoreSimulatedBuffSelectionToBase(selection);
-    }
-    if (['replaceEnchant', 'replaceBufferEnchant'].includes(applyType)) {
-      return restoreSimulatedEnchantSlotToBase(selection.targetSlot);
-    }
-    return false;
+    state.tuneStepIndexBySource = {
+      ...(state.tuneStepIndexBySource || {}),
+      oathTune: simulator.role === 'buffer' ? Number(selection.selectedVariantIndex || 0) : 0,
+    };
+    return {
+      changedSlots: getChangedOathTuneSlots(previousOath, simulator.simulatedOathUpgrades),
+    };
   }
 
-  function finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection) {
+  function removeSimulatedEquipmentTuneSelection(selection = {}) {
+    const simulator = state.dealerSimulator;
+    const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+    const currentEquipmentBySlot = new Map(
+      previousEquipment.map((equipment) => [equipment?.slot, equipment]),
+    );
+    simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
+      selection.beforeTuneSnapshot || simulator.baseEquipmentUpgrades || [],
+    ).map((equipment) => {
+      if (simulator.role !== 'buffer') return equipment;
+      const currentEquipment = currentEquipmentBySlot.get(equipment?.slot);
+      const blackFangSelection = simulator.activeSelectionByGroup?.[
+        `bufferBlackFang:${equipment?.slot}`
+      ];
+      if (!currentEquipment || blackFangSelection?.applyType !== 'replaceBlackFangBody') {
+        return equipment;
+      }
+      return replaceEquipmentBodyPreservingState(equipment, {
+        itemId: currentEquipment.itemId,
+        itemName: currentEquipment.itemName,
+        iconUrl: currentEquipment.iconUrl,
+        itemRarity: currentEquipment.itemRarity,
+        effects: currentEquipment.bodyEffects,
+        itemExplain: currentEquipment.bodyExplain,
+      });
+    });
+    if (simulator.role === 'buffer') {
+      delete simulator.equipmentTuneChangesBySource.equipmentTune;
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
+    const selectedVariantIndex = Number(selection.selectedVariantIndex || 0);
+    state.tuneStepIndexBySource = {
+      ...(state.tuneStepIndexBySource || {}),
+      equipmentTune: selectedVariantIndex,
+    };
+    state.equipmentTuneStepIndex = selectedVariantIndex;
+    return {
+      changedSlots: getChangedEquipmentTuneSlots(
+        previousEquipment,
+        simulator.simulatedEquipmentUpgrades,
+      ),
+    };
+  }
+
+  function removeSimulatorAction(selection = {}) {
+    const adapter = getSimulatorActionAdapter(selection.applyType);
+    if (!adapter?.remove) return null;
+    const result = adapter.remove(selection);
+    if (!result) return null;
+    return result === true ? {} : result;
+  }
+
+  function finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection, result = {}) {
     const simulator = state.dealerSimulator;
     delete simulator.activeSelectionByGroup[exclusiveGroupKey];
     simulator.totalGold = getDealerSimulatorTotalGold(simulator);
@@ -9542,7 +9560,10 @@ export function installEnchantView(ctx) {
       applyType: selection.applyType,
     };
     state.enchantLoadoutTab = selection.targetTab || 'equipment';
-    triggerDealerSimulatorSweep(selection.targetSlot);
+    const changedSlots = Array.isArray(result.changedSlots) && result.changedSlots.length
+      ? result.changedSlots
+      : [selection.targetSlot];
+    changedSlots.forEach(triggerDealerSimulatorSweep);
     if (['replaceCreatureArtifact', 'replaceBufferCreatureArtifact'].includes(selection.applyType)) {
       triggerDealerSimulatorSweep('크리쳐');
     }
@@ -9577,7 +9598,7 @@ export function installEnchantView(ctx) {
       .map((descriptor) => simulator.activeSelectionByGroup?.[descriptor.exclusiveGroupKey])
       .filter(Boolean);
     if (!selections.length) return;
-    const rollbackSnapshot = getDealerSimulatorSnapshot();
+    const rollbackSnapshot = createSimulatorSnapshot();
     const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
     let activeOathTune = cloneSimulatorValue(simulator.activeSelectionByGroup?.oathTune || null);
     if (activeOathTune?.actionType === 'oathTunePlan') {
@@ -9618,7 +9639,7 @@ export function installEnchantView(ctx) {
       simulator.suspendedOathTune = null;
     }
     if (activeOathTune && !reapplyOathTuneSelectionToCurrentState(activeOathTune)) {
-      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      restoreSimulatorSnapshot(rollbackSnapshot);
       renderEnchantCharacterPortrait();
       renderEnchantTable();
       return;
@@ -9631,7 +9652,7 @@ export function installEnchantView(ctx) {
     };
     if (simulator.role === 'buffer') {
       if (!syncBufferOathAcquisitionChanges()) {
-        restoreDealerSimulatorSnapshot(rollbackSnapshot);
+        restoreSimulatorSnapshot(rollbackSnapshot);
         return;
       }
       rebuildBufferSimulatorCalculationState();
@@ -9653,211 +9674,38 @@ export function installEnchantView(ctx) {
     renderEnchantTable();
   }
 
-  function removeActiveBufferSimulatorSelection(exclusiveGroupKey) {
-    const simulator = state.dealerSimulator;
-    if (simulator?.role !== 'buffer' || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
-    const selection = simulator.activeSelectionByGroup?.[exclusiveGroupKey];
-    if (selection?.actionType === 'oathTunePlan') {
-      const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
-      simulator.simulatedOathUpgrades = cloneSimulatorValue(
-        selection.beforeTuneSnapshot || simulator.baseOathUpgrades || {},
-      );
-      delete simulator.oathTuneChangesBySource.oathTune;
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      rebuildBufferSimulatorCalculationState();
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: selection.targetTab,
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.tuneStepIndexBySource = {
-        ...(state.tuneStepIndexBySource || {}),
-        oathTune: Number(selection.selectedVariantIndex || 0),
-      };
-      state.enchantLoadoutTab = selection.targetTab || 'oath';
-      getChangedOathTuneSlots(previousOath, simulator.simulatedOathUpgrades)
-        .forEach(triggerDealerSimulatorSweep);
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (selection?.actionType === 'equipmentTunePlan') {
-      const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
-      const currentEquipmentBySlot = new Map(
-        previousEquipment.map((equipment) => [equipment?.slot, equipment]),
-      );
-      simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
-        selection.beforeTuneSnapshot || simulator.baseEquipmentUpgrades || [],
-      ).map((equipment) => {
-        const currentEquipment = currentEquipmentBySlot.get(equipment?.slot);
-        const blackFangSelection = simulator.activeSelectionByGroup?.[
-          `bufferBlackFang:${equipment?.slot}`
-        ];
-        if (!currentEquipment || blackFangSelection?.applyType !== 'replaceBlackFangBody') {
-          return equipment;
-        }
-        return replaceEquipmentBodyPreservingState(equipment, {
-          itemId: currentEquipment.itemId,
-          itemName: currentEquipment.itemName,
-          iconUrl: currentEquipment.iconUrl,
-          itemRarity: currentEquipment.itemRarity,
-          effects: currentEquipment.bodyEffects,
-          itemExplain: currentEquipment.bodyExplain,
-        });
-      });
-      delete simulator.equipmentTuneChangesBySource.equipmentTune;
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      rebuildBufferSimulatorCalculationState();
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: selection.targetTab,
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.tuneStepIndexBySource = {
-        ...(state.tuneStepIndexBySource || {}),
-        equipmentTune: Number(selection.selectedVariantIndex || 0),
-      };
-      state.equipmentTuneStepIndex = Number(selection.selectedVariantIndex || 0);
-      state.enchantLoadoutTab = selection.targetTab || 'equipment';
-      getChangedEquipmentTuneSlots(
-        previousEquipment,
-        simulator.simulatedEquipmentUpgrades,
-      ).forEach(triggerDealerSimulatorSweep);
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (!selection || !restoreActiveSimulatorSelectionToBase(selection)) return;
-    finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection);
-  }
-
   function removeActiveSimulatorSelection(exclusiveGroupKey) {
-    if (isBufferSimulatorActive()) removeActiveBufferSimulatorSelection(exclusiveGroupKey);
-    else removeActiveDealerSimulatorSelection(exclusiveGroupKey);
-  }
-
-  function removeActiveDealerSimulatorSelection(exclusiveGroupKey) {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId || !exclusiveGroupKey) return;
     const selection = simulator.activeSelectionByGroup?.[exclusiveGroupKey];
     if (!selection) return;
-    if (selection.actionType === 'oathTunePlan') {
-      const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
-      simulator.simulatedOathUpgrades = cloneSimulatorValue(
-        selection.beforeTuneSnapshot || simulator.baseOathUpgrades || {},
-      );
-      rebuildDealerSimulatorCalculationState();
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: selection.targetTab,
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.tuneStepIndexBySource = {
-        ...(state.tuneStepIndexBySource || {}),
-        oathTune: 0,
-      };
-      state.enchantLoadoutTab = selection.targetTab || 'oath';
-      getChangedOathTuneSlots(previousOath, simulator.simulatedOathUpgrades)
-        .forEach(triggerDealerSimulatorSweep);
+    const snapshot = createSimulatorSnapshot();
+    try {
+      const result = removeSimulatorAction(selection);
+      if (!result) {
+        restoreSimulatorSnapshot(snapshot);
+        return;
+      }
+      finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection, result);
+    } catch {
+      restoreSimulatorSnapshot(snapshot);
       renderEnchantCharacterPortrait();
       renderEnchantTable();
-      return;
+      setEnchantCharacterStatus('시뮬레이션 적용 해제에 실패했습니다.');
     }
-    if (selection.actionType === 'equipmentTunePlan') {
-      const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
-      simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
-        selection.beforeTuneSnapshot || simulator.baseEquipmentUpgrades || [],
-      );
-      rebuildDealerSimulatorCalculationState();
-      delete simulator.activeSelectionByGroup[exclusiveGroupKey];
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = {
-        targetTab: selection.targetTab,
-        targetSlot: selection.targetSlot,
-        applyType: selection.applyType,
-      };
-      state.tuneStepIndexBySource = {
-        ...(state.tuneStepIndexBySource || {}),
-        equipmentTune: Number(selection.selectedVariantIndex || 0),
-      };
-      state.equipmentTuneStepIndex = Number(selection.selectedVariantIndex || 0);
-      state.enchantLoadoutTab = selection.targetTab || 'equipment';
-      getChangedEquipmentTuneSlots(
-        previousEquipment,
-        simulator.simulatedEquipmentUpgrades,
-      ).forEach(triggerDealerSimulatorSweep);
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    if (!restoreActiveSimulatorSelectionToBase(selection)) return;
-    finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection);
   }
 
   function clearDealerSimulator() {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId) return;
-    if (simulator.role === 'buffer') {
-      simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
-      simulator.enchantChangesBySlot = {};
-      simulator.simulatedCreatureArtifacts = cloneSimulatorValue(simulator.baseCreatureArtifacts);
-      simulator.artifactChangesByType = {};
-      simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
-      simulator.creatureChangesBySource = {};
-      simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
-      simulator.auraChangesBySource = {};
-      simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
-      simulator.titleChangesBySource = {};
-      simulator.simulatedBuffLoadout = cloneSimulatorValue(simulator.baseBuffLoadout);
-      simulator.switchingCreatureChangesBySource = {};
-      simulator.switchingTitleChangesBySource = {};
-      simulator.switchingAvatarChangesBySlot = {};
-      simulator.switchingPlatinumChangesBySlot = {};
-      simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
-      simulator.upgradeChangesBySlot = {};
-      simulator.equipmentTuneChangesBySource = {};
-      simulator.simulatedOathUpgrades = cloneSimulatorValue(simulator.baseOathUpgrades);
-      simulator.oathTuneChangesBySource = {};
-      simulator.oathAcquisitionChangesBySource = {};
-      simulator.blackFangChangesBySlot = {};
-      simulator.currentBufferScore = simulator.baseBufferScore;
-      simulator.totalGold = 0;
-      simulator.activeSelectionByGroup = {};
-      simulator.selectedRecommendationId = '';
-      simulator.lastChangedTarget = null;
-      simulator.activeSweepSlots.clear();
-      state.tuneStepIndexBySource = {
-        ...(state.tuneStepIndexBySource || {}),
-        equipmentTune: 0,
-        oathTune: 0,
-      };
-      state.equipmentTuneStepIndex = 0;
-      state.equipmentTunePopoverOpen = false;
-      state.equipmentTunePopoverSource = '';
-      state.lastRecommendationDisplayOrder = [];
-      state.enchantLoadoutTab = 'equipment';
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return;
-    }
-    simulator.simulatedEnchants = cloneSimulatorValue(simulator.baseEnchants);
-    simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(simulator.baseEquipmentUpgrades);
-    simulator.simulatedAura = cloneSimulatorValue(simulator.baseAura);
-    simulator.simulatedAvatar = cloneSimulatorValue(simulator.baseAvatar);
-    simulator.simulatedCreature = cloneSimulatorValue(simulator.baseCreature);
-    simulator.simulatedCreatureArtifacts = cloneSimulatorValue(simulator.baseCreatureArtifacts);
-    simulator.simulatedTitle = cloneSimulatorValue(simulator.baseTitle);
-    simulator.simulatedBuffLoadout = cloneSimulatorValue(simulator.baseBuffLoadout);
-    simulator.simulatedOathUpgrades = cloneSimulatorValue(simulator.baseOathUpgrades);
-    rebuildDealerSimulatorCalculationState();
+    Object.entries(SIMULATOR_LOADOUT_BASE_KEY_BY_STATE).forEach(([stateKey, baseKey]) => {
+      if (baseKey in simulator) simulator[stateKey] = cloneSimulatorValue(simulator[baseKey]);
+    });
+    SIMULATOR_CHANGE_STATE_KEYS.forEach((key) => {
+      if (key in simulator) simulator[key] = {};
+    });
+    if (simulator.role === 'buffer') simulator.currentBufferScore = simulator.baseBufferScore;
+    else rebuildDealerSimulatorCalculationState();
     simulator.totalGold = 0;
     simulator.activeSelectionByGroup = {};
     simulator.suspendedOathTune = null;
@@ -9875,6 +9723,8 @@ export function installEnchantView(ctx) {
     state.frozenRecommendationDisplayKey = '';
     state.frozenRecommendationDisplayIndex = -1;
     state.equipmentTuneStepIndex = 0;
+    state.equipmentTunePopoverOpen = false;
+    state.equipmentTunePopoverSource = '';
     state.enchantLoadoutTab = 'equipment';
     renderEnchantCharacterPortrait();
     renderEnchantTable();
@@ -12902,7 +12752,7 @@ export function installEnchantView(ctx) {
     if (!row || Number(row.selectedTuneStepIndex || 0) === Number(selection.selectedVariantIndex || 0)) return false;
     const plannedEquipment = applyEquipmentTunePlan(selection.beforeTuneSnapshot || [], row.tunePlan);
     if (!plannedEquipment) return false;
-    const rollbackSnapshot = getDealerSimulatorSnapshot();
+    const rollbackSnapshot = createSimulatorSnapshot();
     const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
     const currentEquipmentBySlot = new Map(
       previousEquipment.map((equipment) => [equipment?.slot, equipment]),
@@ -12954,7 +12804,7 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       return true;
     } catch {
-      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      restoreSimulatorSnapshot(rollbackSnapshot);
       return false;
     }
   }
@@ -12973,7 +12823,7 @@ export function installEnchantView(ctx) {
     );
     if (!plannedOath || Number(plannedOath.setPoint || 0) !== Number(row.targetSetPoint || 0)) return false;
     syncOathTuneStageDisplay(plannedOath, simulator.oathTuneDb);
-    const rollbackSnapshot = getDealerSimulatorSnapshot();
+    const rollbackSnapshot = createSimulatorSnapshot();
     const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
     const updatedSelection = {
       ...selection,
@@ -13010,7 +12860,7 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       return true;
     } catch {
-      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      restoreSimulatorSnapshot(rollbackSnapshot);
       return false;
     }
   }
@@ -13051,7 +12901,7 @@ export function installEnchantView(ctx) {
     const target = resolveDealerSimulatorTarget(row);
     if (!target) return false;
 
-    const rollbackSnapshot = getDealerSimulatorSnapshot();
+    const rollbackSnapshot = createSimulatorSnapshot();
     const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
     const acquisitionActionId = activeSelections[0]?.acquisitionActionId
       || getDealerSimulatorRecommendationId(row);
@@ -13059,7 +12909,7 @@ export function installEnchantView(ctx) {
     simulator.applyingRecommendationId = acquisitionActionId;
     try {
       if (!applySimulatedOathAcquisition(row, target)) {
-        restoreDealerSimulatorSnapshot(rollbackSnapshot);
+        restoreSimulatorSnapshot(rollbackSnapshot);
         return false;
       }
       const appliedDescriptors = setActiveOathAcquisitionSelections(
@@ -13080,7 +12930,7 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       return true;
     } catch {
-      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      restoreSimulatorSnapshot(rollbackSnapshot);
       return false;
     } finally {
       simulator.applyingRecommendationId = '';
@@ -13346,6 +13196,72 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function replaceCombinedOathAcquisitionTotalPlan(row, totalCount) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !row || totalCount <= 0) return false;
+    const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
+    const allRecommendations = [
+      ...(row.transcendRecommendations || [row.transcendRecommendation]),
+      ...(row.craftRecommendations || [row.craftRecommendation]),
+    ].filter(Boolean);
+    const seedVariant = getOathAcquisitionVariantFromRecommendations(
+      allRecommendations,
+      totalCount,
+    );
+    if (!seedVariant) return false;
+    const activePairGroupKeys = Object.entries(simulator.activeSelectionByGroup || {})
+      .filter(([, selection]) => (
+        selection?.applyType === 'acquireOathDecision'
+        && getOathAcquisitionCombinedPairKey({
+          sourceType: selection.acquisitionMethod === 'craft' ? 'oathCraft' : 'oathTranscend',
+          targetRarity: selection.targetDecision?.targetRarity
+            || selection.targetDecision?.itemRarity
+            || row.targetRarity
+            || row.itemRarity,
+        }) === row.oathAcquisitionPairKey
+      ))
+      .map(([groupKey]) => groupKey);
+    const variantWithCurrentPlanReplaced = {
+      ...seedVariant,
+      replacedAcquisitionGroupKeys: [
+        ...new Set([
+          ...(seedVariant.replacedAcquisitionGroupKeys || []),
+          ...activePairGroupKeys,
+        ]),
+      ],
+    };
+    const adaptedVariant = simulator.role === 'buffer'
+      ? adaptOathAcquisitionRecommendation(variantWithCurrentPlanReplaced, simulator)
+      : variantWithCurrentPlanReplaced;
+    if (!adaptedVariant) return false;
+    const targetRow = {
+      ...adaptedVariant,
+      replacedAcquisitionGroupKeys: [
+        ...new Set([
+          ...(adaptedVariant.replacedAcquisitionGroupKeys || []),
+          ...activePairGroupKeys,
+        ]),
+      ],
+    };
+    const target = resolveDealerSimulatorTarget(targetRow);
+    if (!target || !applySimulatedOathAcquisition(targetRow, target)) return false;
+    const actionId = getDealerSimulatorRecommendationId(targetRow);
+    const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+    const appliedDescriptors = setActiveOathAcquisitionSelections(
+      targetRow,
+      target,
+      actionId,
+      includeMaterialCosts,
+    );
+    if (!appliedDescriptors.length) return false;
+    simulator.lastChangedTarget = target;
+    getChangedOathTuneSlots(
+      previousOath,
+      simulator.simulatedOathUpgrades,
+    ).forEach(triggerDealerSimulatorSweep);
+    return true;
+  }
+
   function applyOathAcquisitionCombinedCounts(pairKey, transcendCount, craftCount) {
     const simulator = state.dealerSimulator;
     const row = getRenderedCombinedOathAcquisition(pairKey);
@@ -13360,7 +13276,7 @@ export function installEnchantView(ctx) {
       || nextCraftCount < 0
       || nextTranscendCount + nextCraftCount > maxDecisionCount
     ) return false;
-    const rollbackSnapshot = getDealerSimulatorSnapshot();
+    const rollbackSnapshot = createSimulatorSnapshot();
     const previousPreview = cloneSimulatorValue(
       state.oathAcquisitionCombinedCountsByPair?.[pairKey] || null,
     );
@@ -13373,6 +13289,23 @@ export function installEnchantView(ctx) {
       const currentCounts = getCombinedOathAcquisitionCounts(row);
       const currentTotalCount = currentCounts.transcend + currentCounts.craft;
       const nextTotalCount = nextTranscendCount + nextCraftCount;
+      if (nextTotalCount > 0 && currentTotalCount !== nextTotalCount) {
+        if (!replaceCombinedOathAcquisitionTotalPlan(row, nextTotalCount)) {
+          throw new Error('oath acquisition total plan replacement failed');
+        }
+        const finalRow = getRenderedCombinedOathAcquisition(pairKey) || row;
+        if (!redistributeActiveOathAcquisitionMethods(
+          finalRow,
+          nextTranscendCount,
+          nextCraftCount,
+        )) throw new Error('oath acquisition method redistribution failed');
+        simulator.selectedRecommendationId = `applied-oath-combined:${pairKey}`;
+        state.enchantLoadoutTab = 'oath';
+        renderEnchantCharacterPortrait();
+        renderEnchantTable();
+        scheduleOpenTunePopoverShift();
+        return true;
+      }
       const activeTargetCount = Object.values(simulator.activeSelectionByGroup || {}).filter(
         (selection) => (
           selection?.applyType === 'acquireOathDecision'
@@ -13424,7 +13357,7 @@ export function installEnchantView(ctx) {
       scheduleOpenTunePopoverShift();
       return true;
     } catch {
-      restoreDealerSimulatorSnapshot(rollbackSnapshot);
+      restoreSimulatorSnapshot(rollbackSnapshot);
       if (previousPreview) {
         state.oathAcquisitionCombinedCountsByPair[pairKey] = previousPreview;
       } else {
