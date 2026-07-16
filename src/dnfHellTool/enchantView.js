@@ -1623,7 +1623,7 @@ function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
 
 function getBufferEnchantExclusiveGroupKey(row = {}) {
   const slot = String(row.slot || '').trim();
-  return row.bufferSimulatorSupported && row.sourceType === 'enchant' && row.role === 'buffer' && slot
+  return row.sourceType === 'enchant' && row.role === 'buffer' && slot
     ? `bufferEnchant:${slot}`
     : '';
 }
@@ -4694,10 +4694,18 @@ function combineOathAcquisitionRecommendationRows(
       craftRecommendations,
       craftCount,
     );
-    const effectVariant = getOathAcquisitionVariantFromRecommendations(
-      transcendRecommendations,
-      totalCount,
-    ) || getOathAcquisitionVariantFromRecommendations(craftRecommendations, totalCount)
+    const appliedCombinedSnapshot = hasActiveCounts
+      ? Object.values(simulator.activeSelectionByGroup || {})
+        .map((selection) => selection?.appliedCombinedRecommendationSnapshot)
+        .find((snapshot) => (
+          snapshot?.oathAcquisitionPairKey === pairKey
+          && Number(snapshot.transcendCount || 0) === transcendCount
+          && Number(snapshot.craftCount || 0) === craftCount
+        ))
+      : null;
+    const effectVariant = appliedCombinedSnapshot
+      || getOathAcquisitionVariantFromRecommendations(transcendRecommendations, totalCount)
+      || getOathAcquisitionVariantFromRecommendations(craftRecommendations, totalCount)
       || transcendRecommendation;
     const priceRows = [transcendVariant, craftVariant].filter(Boolean);
     const goldWithoutMaterials = priceRows.reduce(
@@ -13771,6 +13779,53 @@ export function installEnchantView(ctx) {
     );
   }
 
+  function storeAppliedOathAcquisitionCombinedSnapshot(
+    row,
+    transcendCount,
+    craftCount,
+    preservedBaselineSnapshot = null,
+  ) {
+    const simulator = state.dealerSimulator;
+    const pairKey = row?.oathAcquisitionPairKey || '';
+    const targetRarity = pairKey.startsWith('oathDecision:')
+      ? pairKey.slice('oathDecision:'.length)
+      : '';
+    const targetGroupKey = targetRarity ? `oathAcquireTarget:${targetRarity}` : '';
+    if (!simulator || !pairKey || !targetGroupKey) return;
+    const activeSelections = Object.values(simulator.activeSelectionByGroup || {}).filter(
+      (selection) => (
+        selection?.applyType === 'acquireOathDecision'
+        && selection.acquisitionTargetGroupKey === targetGroupKey
+      ),
+    );
+    const previousCombinedSnapshot = activeSelections
+      .map((selection) => selection.appliedCombinedRecommendationSnapshot)
+      .find((snapshot) => snapshot?.oathAcquisitionPairKey === pairKey);
+    const baselineSnapshot = preservedBaselineSnapshot || previousCombinedSnapshot || row;
+    const totalCount = Number(transcendCount || 0) + Number(craftCount || 0);
+    const effectSnapshot = getOathAcquisitionVariantFromRecommendations(
+      baselineSnapshot.transcendRecommendations || [baselineSnapshot.transcendRecommendation],
+      totalCount,
+    ) || getOathAcquisitionVariantFromRecommendations(
+      baselineSnapshot.craftRecommendations || [baselineSnapshot.craftRecommendation],
+      totalCount,
+    ) || baselineSnapshot;
+    const snapshot = {
+      ...cloneSimulatorValue(effectSnapshot),
+      oathAcquisitionPairKey: pairKey,
+      transcendRecommendation: cloneSimulatorValue(baselineSnapshot.transcendRecommendation),
+      craftRecommendation: cloneSimulatorValue(baselineSnapshot.craftRecommendation),
+      transcendRecommendations: cloneSimulatorValue(baselineSnapshot.transcendRecommendations),
+      craftRecommendations: cloneSimulatorValue(baselineSnapshot.craftRecommendations),
+      transcendCount,
+      craftCount,
+      variantCount: totalCount,
+    };
+    activeSelections.forEach((selection) => {
+      selection.appliedCombinedRecommendationSnapshot = cloneSimulatorValue(snapshot);
+    });
+  }
+
   function setOathAcquisitionMethodCount(pairKey, method, requestedCount) {
     let combinedRow = getRenderedCombinedOathAcquisition(pairKey);
     if (!combinedRow) return false;
@@ -14041,6 +14096,9 @@ export function installEnchantView(ctx) {
       const currentCounts = getCombinedOathAcquisitionCounts(row);
       const currentTotalCount = currentCounts.transcend + currentCounts.craft;
       const nextTotalCount = nextTranscendCount + nextCraftCount;
+      const preservedCombinedSnapshot = Object.values(simulator.activeSelectionByGroup || {})
+        .map((selection) => selection?.appliedCombinedRecommendationSnapshot)
+        .find((snapshot) => snapshot?.oathAcquisitionPairKey === pairKey) || null;
       if (nextTotalCount > 0 && currentTotalCount !== nextTotalCount) {
         if (!replaceCombinedOathAcquisitionTotalPlan(row, nextTotalCount)) {
           throw new Error('oath acquisition total plan replacement failed');
@@ -14051,6 +14109,12 @@ export function installEnchantView(ctx) {
           nextTranscendCount,
           nextCraftCount,
         )) throw new Error('oath acquisition method redistribution failed');
+        storeAppliedOathAcquisitionCombinedSnapshot(
+          row,
+          nextTranscendCount,
+          nextCraftCount,
+          preservedCombinedSnapshot,
+        );
         simulator.selectedRecommendationId = `applied-oath-combined:${pairKey}`;
         state.enchantLoadoutTab = 'oath';
         renderEnchantCharacterPortrait();
@@ -14079,6 +14143,11 @@ export function installEnchantView(ctx) {
           nextTranscendCount,
           nextCraftCount,
         )) throw new Error('oath acquisition method redistribution failed');
+        storeAppliedOathAcquisitionCombinedSnapshot(
+          row,
+          nextTranscendCount,
+          nextCraftCount,
+        );
         simulator.selectedRecommendationId = `applied-oath-combined:${pairKey}`;
         renderEnchantCharacterPortrait();
         renderEnchantTable();
