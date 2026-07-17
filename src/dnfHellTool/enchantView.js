@@ -4613,18 +4613,35 @@ function getOathAcquisitionVariantFromRecommendations(recommendations = [], coun
     .find((variant) => Number(variant.variantCount || 1) === requestedCount) || null;
 }
 
-function getActiveOathAcquisitionSelections(simulator = {}) {
-  const selections = [];
-  Object.values(simulator?.activeSelectionByGroup || {}).forEach((selection) => {
+function getActiveOathAcquisitionSelectionEntries(simulator = {}) {
+  const entries = [];
+  Object.entries(simulator?.activeSelectionByGroup || {}).forEach(([
+    exclusiveGroupKey,
+    selection,
+  ]) => {
     const visited = new Set();
     let current = selection;
+    let parentSelection = null;
+    let depth = 0;
     while (current?.applyType === 'acquireOathDecision' && !visited.has(current)) {
       visited.add(current);
-      selections.push(current);
+      entries.push({
+        exclusiveGroupKey,
+        selection: current,
+        parentSelection,
+        depth,
+      });
+      parentSelection = current;
       current = current.replacedAcquisitionSelection;
+      depth += 1;
     }
   });
-  return selections;
+  return entries;
+}
+
+function getActiveOathAcquisitionSelections(simulator = {}) {
+  return getActiveOathAcquisitionSelectionEntries(simulator)
+    .map(({ selection }) => selection);
 }
 
 function getActiveOathAcquisitionMethodCounts(simulator = {}, rows = []) {
@@ -10336,14 +10353,15 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     const row = state.dealerSimulatorRecommendations.get(recommendationId);
     if (!simulator || simulator.applyingRecommendationId || (!row && !targetGroupKey)) return false;
-    const activeDescriptors = Object.entries(simulator.activeSelectionByGroup || {})
-      .filter(([, selection]) => (
+    const activeEntries = getActiveOathAcquisitionSelectionEntries(simulator)
+      .filter(({ selection }) => (
         selection?.applyType === 'acquireOathDecision'
         && (targetGroupKey
           ? selection.acquisitionTargetGroupKey === targetGroupKey
           : selection.acquisitionVariantGroupKey === row.variantGroupKey)
-      ))
-      .map(([exclusiveGroupKey, selection]) => {
+      ));
+    const activeDescriptors = activeEntries
+      .map(({ exclusiveGroupKey, selection }) => {
         const slotIndex = getOathAcquisitionSlotIndex(selection, exclusiveGroupKey);
         return {
           exclusiveGroupKey,
@@ -10357,10 +10375,17 @@ export function installEnchantView(ctx) {
     const descriptors = (targetGroupKey || simulator.role === 'buffer') && activeDescriptors.length
       ? activeDescriptors
       : getOathAcquisitionSelectionDescriptors(row);
-    const selections = descriptors
-      .map((descriptor) => simulator.activeSelectionByGroup?.[descriptor.exclusiveGroupKey])
-      .filter(Boolean);
-    if (!selections.length) return false;
+    const removalEntries = activeEntries.length
+      ? activeEntries
+      : descriptors
+        .map((descriptor) => ({
+          exclusiveGroupKey: descriptor.exclusiveGroupKey,
+          selection: simulator.activeSelectionByGroup?.[descriptor.exclusiveGroupKey],
+          parentSelection: null,
+          depth: 0,
+        }))
+        .filter(({ selection }) => selection);
+    if (!removalEntries.length) return false;
     const rollbackSnapshot = createSimulatorSnapshot();
     const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
     let activeOathTune = cloneSimulatorValue(simulator.activeSelectionByGroup?.oathTune || null);
@@ -10373,16 +10398,22 @@ export function installEnchantView(ctx) {
         delete simulator.oathTuneChangesBySource.oathTune;
       }
     }
-    descriptors.forEach((descriptor) => {
-      const selection = simulator.activeSelectionByGroup?.[descriptor.exclusiveGroupKey];
-      if (selection) {
-        restorePreviousOathAcquisitionSelection(
-          simulator,
-          descriptor.exclusiveGroupKey,
-          selection,
-        );
-      }
-    });
+    removalEntries
+      .slice()
+      .sort((a, b) => b.depth - a.depth)
+      .forEach(({ exclusiveGroupKey, selection, parentSelection }) => {
+        if (parentSelection) {
+          parentSelection.replacedAcquisitionSelection = cloneSimulatorValue(
+            selection.replacedAcquisitionSelection || null,
+          );
+        } else {
+          restorePreviousOathAcquisitionSelection(
+            simulator,
+            exclusiveGroupKey,
+            selection,
+          );
+        }
+      });
     const hasActiveOathAcquisition = Object.keys(simulator.activeSelectionByGroup || {})
       .some((groupKey) => groupKey.startsWith('oathAcquire:'));
     if (!activeOathTune && !hasActiveOathAcquisition && simulator.suspendedOathTune) {
@@ -14005,8 +14036,8 @@ export function installEnchantView(ctx) {
     ).trim();
     const acquisitionTargetGroupKey = targetRarity ? `oathAcquireTarget:${targetRarity}` : '';
     if (!acquisitionTargetGroupKey) return false;
-    const activeEntries = Object.entries(simulator.activeSelectionByGroup || {})
-      .filter(([, selection]) => (
+    const activeEntries = getActiveOathAcquisitionSelectionEntries(simulator)
+      .filter(({ selection }) => (
         selection?.applyType === 'acquireOathDecision'
         && (
           selection.acquisitionTargetGroupKey === acquisitionTargetGroupKey
@@ -14017,6 +14048,7 @@ export function installEnchantView(ctx) {
           ).trim() === targetRarity
         )
       ))
+      .map(({ exclusiveGroupKey, selection }) => [exclusiveGroupKey, selection])
       .sort((a, b) => (
         getOathAcquisitionSlotIndex(a[1], a[0]) - getOathAcquisitionSlotIndex(b[1], b[0])
       ));
