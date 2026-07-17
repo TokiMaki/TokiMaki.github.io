@@ -15,6 +15,8 @@ const EFFECT_LABELS = {
   bufferStat: '버퍼 주스탯',
   str: '힘',
   int: '지능',
+  vit: '체력',
+  spr: '정신력',
   critical: '크리',
 };
 const BUFFER_SCORE_ICON_URL = new URL('../../이미지/bufferScore.png', import.meta.url).href;
@@ -130,9 +132,9 @@ const ENCHANT_INCLUDE_GROUPS = [
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
 const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set(['서약:초월/정가']);
-const EFFECT_ORDER = ['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int'];
+const EFFECT_ORDER = ['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int', 'vit', 'spr'];
 const BUFFER_IRRELEVANT_EFFECT_KEYS = new Set(['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'critical']);
-const DAMAGE_IRRELEVANT_EFFECT_KEYS = new Set(['buffPower', 'buffAmplification', 'bufferStat']);
+const DAMAGE_IRRELEVANT_EFFECT_KEYS = new Set(['buffPower', 'buffAmplification', 'bufferStat', 'vit', 'spr']);
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '머리어깨', key: 'shoulder', side: 'left' },
   { slot: '상의', key: 'top', side: 'left' },
@@ -516,7 +518,7 @@ function formatEffectValue(key, value) {
 
 function formatEffects(effects = {}) {
   return EFFECT_ORDER.map((key) => [key, effects[key]])
-    .filter(([key]) => !(Number.isFinite(effects.allStat) && ['str', 'int'].includes(key)))
+    .filter(([key]) => !(Number.isFinite(effects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)))
     .filter(([, value]) => Number.isFinite(value))
     .map(([key, value]) => formatEffectValue(key, value))
     .join(' / ');
@@ -674,9 +676,9 @@ function getEquipmentTuneBadge(equipment = {}) {
 function getEnchantBadge(effects = {}, reinforceSkill = [], bufferBaseline = null) {
   if (bufferBaseline?.isBuffer) {
     const parts = [];
-    const allStat = Number(effects.allStat || 0);
+    const primaryStat = getBufferSelectedStatEffect(effects, bufferBaseline);
     const skillLevels = getReinforceSkillLevel(reinforceSkill, bufferBaseline.jobName || '');
-    if (Number.isFinite(allStat) && allStat > 0) parts.push(formatEffectNumber(allStat));
+    if (Number.isFinite(primaryStat) && primaryStat > 0) parts.push(formatEffectNumber(primaryStat));
     if (Number.isFinite(skillLevels) && skillLevels > 0) parts.push(`${formatEffectNumber(skillLevels)}Lv`);
     return parts.length ? { text: parts.join('/') } : null;
   }
@@ -730,7 +732,7 @@ function formatBlackFangEffect(row, isBuffer = false) {
   const changedEffects = getRoleRelevantEffects(row.effects || {}, isBuffer);
   const changedKeys = EFFECT_ORDER
     .filter((key) => Number.isFinite(changedEffects?.[key]))
-    .filter((key) => !(Number.isFinite(changedEffects.allStat) && ['str', 'int'].includes(key)));
+    .filter((key) => !(Number.isFinite(changedEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
   const parts = changedKeys
     .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
   return parts.length ? parts.join(' / ') : formatEffects(changedEffects);
@@ -740,6 +742,22 @@ function getDealerPrimaryStatKey(baseline = {}) {
   if (baseline?.statName === '힘') return 'str';
   if (baseline?.statName === '지능') return 'int';
   return '';
+}
+
+function getBufferPrimaryStatKey(baseline = {}) {
+  return {
+    힘: 'str',
+    지능: 'int',
+    체력: 'vit',
+    정신력: 'spr',
+  }[String(baseline?.statName || '').trim()] || '';
+}
+
+function getBufferSelectedStatEffect(effects = {}, baseline = {}) {
+  effects = effects || {};
+  if (Number.isFinite(effects.allStat)) return Number(effects.allStat || 0);
+  const primaryKey = getBufferPrimaryStatKey(baseline);
+  return primaryKey ? Number(effects[primaryKey] || 0) : 0;
 }
 
 function normalizeDealerEnchantDisplayEffects(effects = {}, baseline = {}) {
@@ -791,8 +809,8 @@ function formatEnchantTransitionEffect(row, isBuffer = false, baseline = {}) {
       Number.isFinite(row.bufferBuffAmplificationDelta) &&
       Math.abs(Number(row.bufferBuffAmplificationDelta || 0)) <= 0.000001
     ))
-    .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int'].includes(key)))
-    .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int'].includes(key)));
+    .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)))
+    .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
   const parts = changedKeys
     .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
   if (row.sourceType === 'enchant' && (isBuffer || getDealerPrimaryStatKey(baseline))) return parts.join(' / ');
@@ -822,8 +840,8 @@ function formatTitleBeadTransitionEffect(row, isBuffer = false) {
   const changedKeys = EFFECT_ORDER
     .filter((key) => Number.isFinite(currentEffects[key]) || Number.isFinite(targetEffects[key]))
     .filter((key) => Number(currentEffects[key] || 0) !== Number(targetEffects[key] || 0))
-    .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int'].includes(key)))
-    .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int'].includes(key)));
+    .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)))
+    .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
   const parts = changedKeys
     .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
   return parts.length ? parts.join(' / ') : formatEffects(targetEffects);
@@ -1807,8 +1825,9 @@ function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
     ...Object.keys(targetEffects || {}),
     ...Object.keys(currentEffects || {}),
   ].filter((key) => Number(targetEffects?.[key] || 0) !== Number(currentEffects?.[key] || 0)));
-  if ([...changedKeys].some((key) => key !== 'allStat')) return null;
-  const statDelta = Number(targetEffects?.allStat || 0) - Number(currentEffects?.allStat || 0);
+  if ([...changedKeys].some((key) => !['allStat', 'str', 'int', 'vit', 'spr'].includes(key))) return null;
+  const statDelta = getBufferSelectedStatEffect(targetEffects, baseline)
+    - getBufferSelectedStatEffect(currentEffects, baseline);
   if (!Number.isFinite(statDelta)) return null;
   return {
     statDelta,
@@ -2409,7 +2428,10 @@ function getBufferRecommendationRows(
     const scoringCurrentEffects = getRoleRelevantEffects(current.effects || {}, true);
     const statDelta = row.sourceType === 'upgrade'
       ? Number(row.effects?.allStat || 0)
-      : Number(scoringTargetEffects?.allStat || 0) - Number(scoringCurrentEffects?.allStat || 0);
+      : row.sourceType === 'enchant'
+        ? getBufferSelectedStatEffect(scoringTargetEffects, baseline)
+          - getBufferSelectedStatEffect(scoringCurrentEffects, baseline)
+        : Number(scoringTargetEffects?.allStat || 0) - Number(scoringCurrentEffects?.allStat || 0);
     const titleAppliesToSwitching = row.sourceType === 'title' && baseline.switchingTitleUsesCurrent;
     const replacementStatChanges = row.sourceType === 'title' && !titleAppliesToSwitching
       ? { currentStatDelta: statDelta }

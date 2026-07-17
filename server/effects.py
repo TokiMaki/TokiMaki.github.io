@@ -1,6 +1,6 @@
 from .neople_client import clean_text
 
-EFFECT_ORDER = ["finalDamage", "attackIncrease", "attackAmplification", "buffPower", "buffAmplification", "attack", "elementAll", "allStat", "str", "int", "critical"]
+EFFECT_ORDER = ["finalDamage", "attackIncrease", "attackAmplification", "buffPower", "buffAmplification", "attack", "elementAll", "allStat", "str", "int", "vit", "spr", "critical"]
 
 
 def order_effects(effects: dict) -> dict:
@@ -65,10 +65,9 @@ def normalize_enchant_status(status_rows: list) -> dict:
     if stat_keys.issubset(stat_values.keys()) and len({stat_values[key] for key in stat_keys}) == 1:
         effects["allStat"] = stat_values["str"]
     else:
-        if stat_values.get("str"):
-            effects["str"] = stat_values["str"]
-        if stat_values.get("int"):
-            effects["int"] = stat_values["int"]
+        for key in ("str", "int", "vit", "spr"):
+            if stat_values.get(key):
+                effects[key] = stat_values[key]
     return order_effects(effects)
 
 
