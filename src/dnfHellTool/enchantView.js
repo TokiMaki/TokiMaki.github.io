@@ -1224,6 +1224,89 @@ function getBufferSkillContributionMap(contributions = []) {
   return result;
 }
 
+function normalizeBuffLoadoutEquipmentSlotName(value) {
+  const rawSlotName = String(value || '').trim();
+  return BUFF_LOADOUT_SLOT_NAME_ALIASES[rawSlotName] || rawSlotName;
+}
+
+function hasBuffLoadoutCollection(loadout, collectionName) {
+  return Boolean(
+    loadout
+    && typeof loadout === 'object'
+    && Object.prototype.hasOwnProperty.call(loadout, collectionName),
+  );
+}
+
+function getBufferCurrentSourceScope(scopeSimulator = {}, sourceType = '', targetSlot = '') {
+  const loadout = scopeSimulator?.simulatedBuffLoadout || scopeSimulator?.baseBuffLoadout || {};
+  if (sourceType === 'title') {
+    if (!hasBuffLoadoutCollection(loadout, 'equipment')) {
+      return scopeSimulator?.baseBaseline?.switchingTitleUsesCurrent === false ? 'current' : 'shared';
+    }
+    const hasSeparateTitle = getBuffLoadoutRowsForMetric(loadout.equipment).some((row) => (
+      String(row?.slotId || '').trim() === 'TITLE'
+      || normalizeBuffLoadoutEquipmentSlotName(row?.slotName) === '칭호'
+    ));
+    return hasSeparateTitle ? 'current' : 'shared';
+  }
+  if (sourceType === 'creature') {
+    if (!hasBuffLoadoutCollection(loadout, 'creature')) return 'shared';
+    return getBuffLoadoutRowsForMetric(loadout.creature).length ? 'current' : 'shared';
+  }
+  if (sourceType === 'aura') {
+    if (!hasBuffLoadoutCollection(loadout, 'avatar')) return 'shared';
+    const aura = getBuffLoadoutRowsForMetric(loadout.avatar)
+      .find((row) => String(row?.slotId || '').trim() === 'AURORA');
+    const source = String(aura?.buffAvatarSource || '').trim();
+    if (source === 'wornFallback') return 'shared';
+    return ['actual', 'simulatedPackage'].includes(source) ? 'current' : 'shared';
+  }
+  if (sourceType === 'equipment') {
+    const slotName = normalizeBuffLoadoutEquipmentSlotName(targetSlot);
+    if (!slotName || !hasBuffLoadoutCollection(loadout, 'equipment')) return 'shared';
+    const hasSeparateEquipment = getBuffLoadoutRowsForMetric(loadout.equipment).some((row) => (
+      normalizeBuffLoadoutEquipmentSlotName(row?.slotName) === slotName
+      || (slotName === '칭호' && String(row?.slotId || '').trim() === 'TITLE')
+    ));
+    return hasSeparateEquipment ? 'current' : 'shared';
+  }
+  return 'shared';
+}
+
+function scopeBufferCurrentChanges(slotChanges = {}, scope = 'shared') {
+  if (scope !== 'current') return slotChanges;
+  return {
+    ...slotChanges,
+    statDelta: 0,
+    currentStatDelta: Number(slotChanges.currentStatDelta || 0)
+      + Number(slotChanges.statDelta || 0)
+      + Number(slotChanges.selfStatSkillDelta || 0),
+    switchingStatDelta: 0,
+    selfStatSkillDelta: 0,
+    switchingBuffAmplificationDelta: 0,
+    buffSkillLevelDelta: 0,
+    skillContributionScope: 'current',
+  };
+}
+
+function scopeBufferCurrentChangesBySlot(changesBySlot = {}, scopeSimulator = {}) {
+  return Object.fromEntries(Object.entries(changesBySlot || {}).map(([slotName, slotChanges]) => [
+    slotName,
+    scopeBufferCurrentChanges(
+      slotChanges,
+      getBufferCurrentSourceScope(scopeSimulator, 'equipment', slotName),
+    ),
+  ]));
+}
+
+function scopeBufferCurrentChangesBySource(changesBySource = {}, scopeSimulator = {}, sourceType = '') {
+  const scope = getBufferCurrentSourceScope(scopeSimulator, sourceType);
+  return Object.fromEntries(Object.entries(changesBySource || {}).map(([sourceKey, slotChanges]) => [
+    sourceKey,
+    scopeBufferCurrentChanges(slotChanges, scope),
+  ]));
+}
+
 function getBufferBaselineSkillContexts(baseline = {}) {
   return Object.entries(baseline.currentSelfStatSkills || {}).reduce((contexts, [skillName, info]) => {
     const contextKey = String(info?.contextKey || '').trim();
@@ -1281,6 +1364,7 @@ function resolveBufferNetChanges(
   switchingAvatarChangesBySlot = {},
   switchingPlatinumChangesBySlot = {},
   avatarEmblemChangesBySocket = {},
+  scopeSimulator = {},
 ) {
   const resolvedSwitchingPlatinumChangesBySlot = Object.fromEntries(
     Object.entries(switchingPlatinumChangesBySlot || {}).map(([slotId, slotChanges]) => {
@@ -1297,17 +1381,41 @@ function resolveBufferNetChanges(
       }];
     }),
   );
+  const scopedChangesBySlot = scopeBufferCurrentChangesBySlot(changesBySlot, scopeSimulator);
+  const scopedUpgradeChangesBySlot = scopeBufferCurrentChangesBySlot(
+    upgradeChangesBySlot,
+    scopeSimulator,
+  );
+  const scopedBlackFangChangesBySlot = scopeBufferCurrentChangesBySlot(
+    blackFangChangesBySlot,
+    scopeSimulator,
+  );
+  const scopedCreatureChangesBySource = scopeBufferCurrentChangesBySource(
+    creatureChangesBySource,
+    scopeSimulator,
+    'creature',
+  );
+  const scopedAuraChangesBySource = scopeBufferCurrentChangesBySource(
+    auraChangesBySource,
+    scopeSimulator,
+    'aura',
+  );
+  const scopedTitleChangesBySource = scopeBufferCurrentChangesBySource(
+    titleChangesBySource,
+    scopeSimulator,
+    'title',
+  );
   const changes = [
-    ...Object.values(changesBySlot || {}),
+    ...Object.values(scopedChangesBySlot),
     ...Object.values(artifactChangesByType || {}),
-    ...Object.values(upgradeChangesBySlot || {}),
+    ...Object.values(scopedUpgradeChangesBySlot),
     ...Object.values(equipmentTuneChangesBySource || {}),
     ...Object.values(oathTuneChangesBySource || {}),
     ...Object.values(oathAcquisitionChangesBySource || {}),
-    ...Object.values(blackFangChangesBySlot || {}),
-    ...Object.values(creatureChangesBySource || {}),
-    ...Object.values(auraChangesBySource || {}),
-    ...Object.values(titleChangesBySource || {}),
+    ...Object.values(scopedBlackFangChangesBySlot),
+    ...Object.values(scopedCreatureChangesBySource),
+    ...Object.values(scopedAuraChangesBySource),
+    ...Object.values(scopedTitleChangesBySource),
     ...Object.values(switchingCreatureChangesBySource || {}),
     ...Object.values(switchingTitleChangesBySource || {}),
     ...Object.values(switchingAvatarChangesBySlot || {}),
@@ -1323,33 +1431,122 @@ function resolveBufferNetChanges(
     return result;
   }, Object.fromEntries(BUFFER_SIMULATOR_CHANGE_KEYS.map((key) => [key, 0])));
 
-  const levelDeltaByContext = {};
+  const levelDeltaByScope = { common: {}, current: {} };
   changes.forEach((slotChanges) => {
     const baseMap = getBufferSkillContributionMap(slotChanges?.baseSkillContributions || []);
     const targetMap = getBufferSkillContributionMap(slotChanges?.targetSkillContributions || []);
     if (baseMap == null || targetMap == null) throw new TypeError('Invalid buffer skill contribution');
+    const scope = slotChanges?.skillContributionScope === 'current' ? 'current' : 'common';
     new Set([...Object.keys(baseMap), ...Object.keys(targetMap)]).forEach((contextKey) => {
-      levelDeltaByContext[contextKey] = (levelDeltaByContext[contextKey] || 0)
+      levelDeltaByScope[scope][contextKey] = (levelDeltaByScope[scope][contextKey] || 0)
         + Number(targetMap[contextKey] || 0)
         - Number(baseMap[contextKey] || 0);
     });
   });
 
-  Object.entries(levelDeltaByContext).forEach(([contextKey, levelDelta]) => {
-    if (!levelDelta) return;
+  const changedContextKeys = new Set([
+    ...Object.keys(levelDeltaByScope.common),
+    ...Object.keys(levelDeltaByScope.current),
+  ]);
+  changedContextKeys.forEach((contextKey) => {
+    const commonLevelDelta = Number(levelDeltaByScope.common[contextKey] || 0);
+    const currentLevelDelta = Number(levelDeltaByScope.current[contextKey] || 0);
+    if (!commonLevelDelta && !currentLevelDelta) return;
     const context = skillContexts?.[contextKey];
-    const simulatedLevel = Number(context?.currentLevel) + levelDelta;
-    const netChanges = context?.netChangesByLevel?.[String(simulatedLevel)];
-    if (!context || !Number.isInteger(simulatedLevel) || !netChanges) {
-      throw new RangeError(`Unsupported buffer skill level: ${contextKey}:${simulatedLevel}`);
+    const currentLevel = Number(context?.currentLevel);
+    const commonLevel = currentLevel + commonLevelDelta;
+    const currentOnlyLevel = commonLevel + currentLevelDelta;
+    const commonNetChanges = context?.netChangesByLevel?.[String(commonLevel)];
+    const currentOnlyNetChanges = context?.netChangesByLevel?.[String(currentOnlyLevel)];
+    if (
+      !context
+      || !Number.isInteger(commonLevel)
+      || !Number.isInteger(currentOnlyLevel)
+      || !commonNetChanges
+      || !currentOnlyNetChanges
+    ) {
+      throw new RangeError(`Unsupported buffer skill level: ${contextKey}:${currentOnlyLevel}`);
     }
     ['selfStatSkillDelta', 'auraStatDelta', 'auraAttackDelta'].forEach((key) => {
-      const value = Number(netChanges[key] || 0);
-      if (!Number.isFinite(value)) throw new TypeError(`Invalid buffer skill change: ${contextKey}:${key}`);
-      total[key] += value;
+      const commonValue = Number(commonNetChanges[key] || 0);
+      const currentOnlyValue = Number(currentOnlyNetChanges[key] || 0);
+      if (![commonValue, currentOnlyValue].every(Number.isFinite)) {
+        throw new TypeError(`Invalid buffer skill change: ${contextKey}:${key}`);
+      }
+      total[key] += commonValue;
+      const currentOnlyDelta = currentOnlyValue - commonValue;
+      if (key === 'selfStatSkillDelta') total.currentStatDelta += currentOnlyDelta;
+      else total[key] += currentOnlyDelta;
     });
   });
   return total;
+}
+
+function replaceBufferScopeLoadoutRow(loadout = {}, collectionName = '', predicate, nextRow = null) {
+  const rows = getBuffLoadoutRowsForMetric(loadout?.[collectionName]);
+  const index = rows.findIndex(predicate);
+  if (index >= 0 && nextRow) rows.splice(index, 1, cloneSimulatorValue(nextRow));
+  else if (index >= 0) rows.splice(index, 1);
+  else if (nextRow) rows.push(cloneSimulatorValue(nextRow));
+  loadout[collectionName] = rows;
+}
+
+function getBufferRecommendationScopeSimulator(simulator = {}, row = {}, useCandidate = false) {
+  const targetSlotId = getBuffSimulatorTargetSlotId(row);
+  const changesSwitchingSource = row.sourceType === 'switchingTitle'
+    || row.sourceType === 'switchingCreature'
+    || row.sourceType === 'switchingFragment'
+    || (row.sourceType === 'avatar' && row.kind === 'switchingAvatar');
+  if (!changesSwitchingSource || !targetSlotId) return simulator;
+  const loadout = cloneSimulatorValue(simulator.simulatedBuffLoadout || simulator.baseBuffLoadout || {});
+  const baseLoadout = simulator.baseBuffLoadout || {};
+  if (row.sourceType === 'switchingTitle') {
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.equipment)
+      .find((item) => String(item?.slotId || '').trim() === 'TITLE') || null;
+    replaceBufferScopeLoadoutRow(
+      loadout,
+      'equipment',
+      (item) => String(item?.slotId || '').trim() === 'TITLE',
+      useCandidate
+        ? { ...(row.targetBuffChanges?.equipment || {}), slotId: 'TITLE', slotName: '칭호' }
+        : baseRow,
+    );
+  } else if (row.sourceType === 'switchingCreature') {
+    loadout.creature = useCandidate
+      ? [{ ...(row.targetBuffChanges?.creature || {}), slotId: 'CREATURE' }]
+      : cloneSimulatorValue(baseLoadout.creature || []);
+  } else if (row.sourceType === 'switchingFragment') {
+    const normalizedTargetSlot = normalizeBuffLoadoutEquipmentSlotName(targetSlotId);
+    const matchesTargetSlot = (item) => (
+      normalizeBuffLoadoutEquipmentSlotName(item?.slotName) === normalizedTargetSlot
+    );
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.equipment)
+      .find(matchesTargetSlot) || null;
+    replaceBufferScopeLoadoutRow(
+      loadout,
+      'equipment',
+      matchesTargetSlot,
+      useCandidate
+        ? { ...(row.targetBuffChanges?.equipment || {}), slotName: normalizedTargetSlot }
+        : baseRow,
+    );
+  } else {
+    const baseRow = getBuffLoadoutRowsForMetric(baseLoadout.avatar)
+      .find((item) => String(item?.slotId || '').trim() === targetSlotId) || null;
+    replaceBufferScopeLoadoutRow(
+      loadout,
+      'avatar',
+      (item) => String(item?.slotId || '').trim() === targetSlotId,
+      useCandidate
+        ? {
+          ...(row.targetBuffChanges?.avatar || {}),
+          slotId: targetSlotId,
+          buffAvatarSource: 'simulatedPackage',
+        }
+        : baseRow,
+    );
+  }
+  return { ...simulator, simulatedBuffLoadout: loadout };
 }
 
 function getBufferAvatarEmblemChangesBySocket(row = {}, baseline = {}) {
@@ -2384,6 +2581,7 @@ function getBufferRecommendationRows(
               : row.sourceType === 'avatar' && row.kind === 'platinumEmblem'
                 ? { [row.targetSlotId]: bufferBaseRelativeChanges }
                 : {},
+            simulator,
           ),
         );
       } catch {
@@ -2565,6 +2763,8 @@ function getBufferRecommendationRows(
           [row.targetSlotId]: bufferBaseRelativeChanges,
         }
         : referenceAvatarPlatinumChangesBySlot;
+      const referenceScopeSimulator = getBufferRecommendationScopeSimulator(simulator, row, false);
+      const candidateScopeSimulator = getBufferRecommendationScopeSimulator(simulator, row, true);
       try {
         comparisonScore = calculateBufferScore(
           baseline,
@@ -2593,6 +2793,7 @@ function getBufferRecommendationRows(
               ),
               ...referenceAvatarPlatinumChangesBySlot,
             },
+            referenceScopeSimulator,
           ),
         );
         candidateScore = calculateBufferScore(
@@ -2622,6 +2823,7 @@ function getBufferRecommendationRows(
               ),
               ...candidateAvatarPlatinumChangesBySlot,
             },
+            candidateScopeSimulator,
           ),
         );
       } catch {
@@ -6997,6 +7199,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.switchingAvatarChangesBySlot,
         bufferSimulator.switchingPlatinumChangesBySlot,
         getBufferAvatarNetChanges(bufferSimulator),
+        bufferSimulator,
       )
       : {};
     const candidateChanges = bufferSimulator?.role === 'buffer'
@@ -7027,6 +7230,7 @@ function applyEquipmentTuneDisplayStep(
         bufferSimulator.switchingAvatarChangesBySlot,
         bufferSimulator.switchingPlatinumChangesBySlot,
         getBufferAvatarNetChanges(bufferSimulator),
+        bufferSimulator,
       )
       : displayRow.bufferBaseRelativeChanges;
     const currentScore = calculateBufferScore(bufferBaseline, currentChanges);
@@ -8434,6 +8638,7 @@ export function installEnchantView(ctx) {
         simulator.switchingAvatarChangesBySlot,
         simulator.switchingPlatinumChangesBySlot,
         getBufferAvatarNetChanges(simulator),
+        simulator,
       ),
     );
   }
