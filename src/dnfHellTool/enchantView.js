@@ -1462,7 +1462,14 @@ function getBufferAvatarEmblemNetChanges(
     packageChangesBySlot,
   );
   if (switchingChanges == null) throw new RangeError('Unsupported switching avatar emblem underlay');
-  return { ...avatarChangesBySocket, ...switchingChanges };
+  const mergedChanges = { ...avatarChangesBySocket };
+  Object.entries(switchingChanges).forEach(([socketKey, changes]) => {
+    mergedChanges[socketKey] = {
+      ...(mergedChanges[socketKey] || {}),
+      ...changes,
+    };
+  });
+  return mergedChanges;
 }
 
 function getBufferAvatarPlatinumBaseRelativeChanges(row = {}, baseline = {}) {
@@ -4606,12 +4613,33 @@ function getOathAcquisitionVariantFromRecommendations(recommendations = [], coun
     .find((variant) => Number(variant.variantCount || 1) === requestedCount) || null;
 }
 
+function getActiveOathAcquisitionSelections(simulator = {}) {
+  const selections = [];
+  Object.values(simulator?.activeSelectionByGroup || {}).forEach((selection) => {
+    const visited = new Set();
+    let current = selection;
+    while (current?.applyType === 'acquireOathDecision' && !visited.has(current)) {
+      visited.add(current);
+      selections.push(current);
+      current = current.replacedAcquisitionSelection;
+    }
+  });
+  return selections;
+}
+
 function getActiveOathAcquisitionMethodCounts(simulator = {}, rows = []) {
+  const targetGroupKeys = new Set(
+    rows.map(getOathAcquisitionTargetGroupKey).filter(Boolean),
+  );
   const variantGroupKeys = new Set(rows.map((row) => row?.variantGroupKey).filter(Boolean));
-  return Object.values(simulator?.activeSelectionByGroup || {}).reduce((counts, selection) => {
+  return getActiveOathAcquisitionSelections(simulator).reduce((counts, selection) => {
+    const matchesTargetGroup = targetGroupKeys.size > 0
+      && targetGroupKeys.has(selection?.acquisitionTargetGroupKey);
+    const matchesVariantGroup = targetGroupKeys.size === 0
+      && variantGroupKeys.has(selection?.acquisitionVariantGroupKey);
     if (
       selection?.applyType !== 'acquireOathDecision'
-      || !variantGroupKeys.has(selection.acquisitionVariantGroupKey)
+      || (!matchesTargetGroup && !matchesVariantGroup)
     ) return counts;
     const method = selection.acquisitionMethod === 'craft' ? 'craft' : 'transcend';
     counts[method] += 1;
@@ -4687,7 +4715,7 @@ function combineOathAcquisitionRecommendationRows(
       craftCount,
     );
     const appliedCombinedSnapshot = hasActiveCounts
-      ? Object.values(simulator.activeSelectionByGroup || {})
+      ? getActiveOathAcquisitionSelections(simulator)
         .map((selection) => selection?.appliedCombinedRecommendationSnapshot)
         .find((snapshot) => (
           snapshot?.oathAcquisitionPairKey === pairKey
@@ -5653,16 +5681,18 @@ function adaptOathAcquisitionRecommendation(row = {}, simulator = {}) {
 function isAppliedOathAcquisitionRecommendation(row = {}, simulator = {}) {
   const descriptors = getOathAcquisitionSelectionDescriptors(row);
   if (!descriptors.length) return false;
+  const activeSelections = getActiveOathAcquisitionSelections(simulator);
   return descriptors.every((descriptor) => (
-    simulator?.activeSelectionByGroup?.[descriptor.exclusiveGroupKey]?.candidateSignature
-    === descriptor.candidateSignature
-  )) && Object.values(simulator?.activeSelectionByGroup || {}).filter((selection) => (
+    activeSelections.some((selection) => (
+      selection?.candidateSignature === descriptor.candidateSignature
+    ))
+  )) && activeSelections.filter((selection) => (
     selection?.acquisitionVariantGroupKey === row.variantGroupKey
   )).length === descriptors.length;
 }
 
 function getActiveOathAcquisitionCountByVariantGroup(simulator = {}) {
-  return Object.values(simulator.activeSelectionByGroup || {}).reduce((counts, selection) => {
+  return getActiveOathAcquisitionSelections(simulator).reduce((counts, selection) => {
     if (selection?.applyType !== 'acquireOathDecision' || !selection.acquisitionVariantGroupKey) {
       return counts;
     }
@@ -5677,7 +5707,7 @@ function getActiveOathAcquisitionCountByVariantGroup(simulator = {}) {
 function mergeAppliedOathAcquisitionSnapshots(rows = [], simulator = {}) {
   const mergedRows = rows.slice();
   const snapshotByVariantGroup = new Map();
-  Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
+  getActiveOathAcquisitionSelections(simulator).forEach((selection) => {
     if (
       selection?.applyType !== 'acquireOathDecision' ||
       !selection?.acquisitionVariantGroupKey ||
@@ -9469,9 +9499,20 @@ export function installEnchantView(ctx) {
     const selectedGold = includeMaterialCosts
       ? Number(selection.goldWithMaterials)
       : Number(selection.goldWithoutMaterials);
-    if (Number.isFinite(selectedGold) && selectedGold >= 0) return selectedGold;
-    const fallbackGold = Number(selection.appliedGold || 0);
-    return Number.isFinite(fallbackGold) && fallbackGold >= 0 ? fallbackGold : 0;
+    const ownGold = Number.isFinite(selectedGold) && selectedGold >= 0
+      ? selectedGold
+      : Number(selection.appliedGold || 0);
+    const normalizedOwnGold = Number.isFinite(ownGold) && ownGold >= 0 ? ownGold : 0;
+    if (
+      selection.applyType === 'acquireOathDecision'
+      && selection.replacedAcquisitionSelection
+    ) {
+      return normalizedOwnGold + getDealerSimulatorSelectionGold(
+        selection.replacedAcquisitionSelection,
+        includeMaterialCosts,
+      );
+    }
+    return normalizedOwnGold;
   }
 
   function getOathAcquisitionEntryGold(entry = {}, includeMaterialCosts = false) {
@@ -13861,7 +13902,7 @@ export function installEnchantView(ctx) {
       : '';
     const targetGroupKey = targetRarity ? `oathAcquireTarget:${targetRarity}` : '';
     if (!simulator || !pairKey || !targetGroupKey) return;
-    const activeSelections = Object.values(simulator.activeSelectionByGroup || {}).filter(
+    const activeSelections = getActiveOathAcquisitionSelections(simulator).filter(
       (selection) => (
         selection?.applyType === 'acquireOathDecision'
         && selection.acquisitionTargetGroupKey === targetGroupKey
