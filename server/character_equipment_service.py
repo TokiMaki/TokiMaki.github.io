@@ -3778,6 +3778,7 @@ def resolve_switching_avatar_price(
             "selectedMode": selected_mode,
             "selectedPrice": selected_price,
             "selectedAvatar": selected_avatar,
+            "selectedAvatarRow": selected_row,
             "selectedPlatinum": platinum_item if use_separate else {},
             "debug": {
                 "steps": debug_steps,
@@ -4120,8 +4121,18 @@ def build_switching_avatar_recommendation_row(
     candidate_switching_multiplier: float,
     price_warning_text: str = "",
     debug: dict | None = None,
+    target_avatar_row: dict | None = None,
+    target_platinum: dict | None = None,
 ) -> dict:
     target_slot_id = "JACKET" if "상의" in clean_text(slot) else "PANTS"
+    target_avatar_row = target_avatar_row or selected_avatar
+    target_platinum = target_platinum or {}
+    target_platinum_emblems = (
+        [target_platinum]
+        if clean_text(target_platinum.get("itemId"))
+        or clean_item_display_name(target_platinum.get("itemName"))
+        else get_platinum_emblems(target_avatar_row)
+    )
     return {
         "kind": "switchingAvatar",
         "slot": slot,
@@ -4152,6 +4163,16 @@ def build_switching_avatar_recommendation_row(
                     "topOptionSkillLevel": 1 if target_slot_id == "JACKET" else 0,
                     "platinumSkillLevel": 1,
                 },
+                "platinumEmblems": [
+                    {
+                        "itemId": clean_text(emblem.get("itemId")),
+                        "itemName": clean_item_display_name(emblem.get("itemName")),
+                        "slotColor": clean_text(emblem.get("slotColor")) or "플래티넘",
+                    }
+                    for emblem in target_platinum_emblems
+                    if clean_text(emblem.get("itemId"))
+                    or clean_item_display_name(emblem.get("itemName"))
+                ][:1],
             },
         },
         "equivalentTargetSkills": equivalent_target_skills,
@@ -5169,6 +5190,8 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                             candidate_multiplier,
                             "",
                             debug,
+                            target_avatar_row=price_option.get("selectedAvatarRow") or selected_avatar,
+                            target_platinum=price_option.get("selectedPlatinum") or {},
                         ))
                 for slot_id, slot_label in [
                     ("JACKET", "벞강 상의"),
