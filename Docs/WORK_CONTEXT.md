@@ -30,5 +30,5 @@
 - Docs 주의사항: `Docs/*.json`, `Docs/*.tsv`, `Docs/*.txt` 중 일부는 서버/스크립트가 직접 읽는 기준 데이터다. 문서 정리 중 이동하거나 수정하지 않는다.
 - 문서 관리: 과거 작업 로그와 일회성 질문 기록은 공식 Active Snapshot에 누적하지 않는다. 필요한 결정만 짧게 남기고, 개인 세션 로그는 별도 로컬 문서로 관리한다.
 - 공개 콘텐츠 결정: `Docs/PUBLIC_CONTENT_PLAN.md`에 던파일럿 갱신 캐릭터 기반 세팅 추정 가치, 주간 성장·큰손·가성비 랭킹, 공식 장비점수·버프점수 구간별 세팅 현황 방향을 기록했다. 실제 지출액이 아닌 현재가 기준 추정 가치로 표현한다.
-- 최근 프론트 구조: `enchantEfficiencyScale.js`는 효율 색상 계산, `enchantSearchPanels.js`는 분석·후보 패널 표시, `enchantCreatureRows.js`는 크리쳐·아티팩트 추천 row 정규화, `enchantEquipmentLoadoutBoard.js`·`enchantOathLoadoutBoard.js`·`enchantAvatarLoadoutBoard.js`·`enchantBuffLoadoutBoard.js`는 읽기 전용 장비판 HTML 생성, `enchantAvatarEmblemViewHelpers.js`는 avatar·buff 공용 엠블렘 표현 helper, `enchantPortraitDetailPanel.js`는 네 장비판 detail panel event binding을 담당한다. 기존 표시·row·reset 문구 계약은 유지한다.
-- 다음 작업: loadout tab markup과 delegated click이 공유하는 `data-enchant-loadout-tab`·상태 변경·재렌더 경계를 확인한다.
+- 최근 프론트 구조: `enchantEfficiencyScale.js`는 효율 색상 계산, `enchantSearchPanels.js`는 분석·후보 패널 표시, `enchantCreatureRows.js`는 크리쳐·아티팩트 추천 row 정규화, `enchantEquipmentLoadoutBoard.js`·`enchantOathLoadoutBoard.js`·`enchantAvatarLoadoutBoard.js`·`enchantBuffLoadoutBoard.js`는 읽기 전용 장비판 HTML 생성, `enchantAvatarEmblemViewHelpers.js`는 avatar·buff 공용 엠블렘 표현 helper, `enchantPortraitDetailPanel.js`는 detail panel binding, `enchantLoadoutNavigation.js`는 탭 markup과 delegated click 전환을 담당한다. 기존 표시·row·reset·탭 fallback 계약은 유지한다.
+- 다음 작업: 개발 timing 계측의 중첩 ownership·error/finally flush 순서와 fake clock 기반 분리 가능성을 검토한다.

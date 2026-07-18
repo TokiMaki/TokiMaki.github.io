@@ -15,6 +15,7 @@ import { createEnchantAvatarLoadoutBoard } from './enchantAvatarLoadoutBoard.js'
 import { createEnchantBuffLoadoutBoard } from './enchantBuffLoadoutBoard.js';
 import { createEnchantEquipmentLoadoutBoard } from './enchantEquipmentLoadoutBoard.js';
 import { createEnchantPortraitDetailPanel } from './enchantPortraitDetailPanel.js';
+import { createEnchantLoadoutNavigation } from './enchantLoadoutNavigation.js';
 
 const EFFECT_LABELS = {
   finalDamage: '최종뎀',
@@ -10601,23 +10602,16 @@ export function installEnchantView(ctx) {
     return '';
   }
 
-  function renderEnchantLoadoutTabs(activeTab) {
-    const tabs = [
-      ['equipment', '장비'],
-      ['oath', '서약'],
-      ['avatar', '아바타'],
-      ['buff', '버프강화'],
-    ];
-    return `
-      <div class="enchant-loadout-tabs" role="tablist" aria-label="캐릭터 로드아웃">
-        ${tabs.map(([value, label]) => `
-          <button type="button" class="enchant-loadout-tab${activeTab === value ? ' is-active' : ''}" role="tab" aria-selected="${activeTab === value ? 'true' : 'false'}" data-enchant-loadout-tab="${escapeHtml(value)}">
-            ${escapeHtml(label)}
-          </button>
-        `).join('')}
-      </div>
-    `;
-  }
+  const {
+    renderEnchantLoadoutTabs,
+    bindEnchantLoadoutNavigation,
+  } = createEnchantLoadoutNavigation({
+    escapeHtml,
+    getPortraitContainer: () => els.enchantCharacterPortrait,
+    getActiveTab: () => state.enchantLoadoutTab,
+    setActiveTab: (tab) => { state.enchantLoadoutTab = tab; },
+    renderPortrait: renderEnchantCharacterPortrait,
+  });
 
   function bindOathSymbolFallback() {
     els.enchantCharacterPortrait?.querySelectorAll('[data-oath-symbol-image]').forEach((img) => {
@@ -13578,16 +13572,7 @@ export function installEnchantView(ctx) {
     if (simulatorAction.dataset.dealerSimulatorAction === 'reset') clearDealerSimulator();
   });
 
-  els.enchantCharacterPortrait?.addEventListener('click', (event) => {
-    const target = event.target.closest('[data-enchant-loadout-tab]');
-    if (!target) return;
-    event.preventDefault();
-    const requestedTab = String(target.dataset.enchantLoadoutTab || '');
-    const nextTab = ['equipment', 'oath', 'avatar', 'buff'].includes(requestedTab) ? requestedTab : 'equipment';
-    if (state.enchantLoadoutTab === nextTab) return;
-    state.enchantLoadoutTab = nextTab;
-    renderEnchantCharacterPortrait();
-  });
+  bindEnchantLoadoutNavigation();
 
   document.addEventListener('pointerdown', (event) => {
     if (
