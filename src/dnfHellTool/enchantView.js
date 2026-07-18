@@ -9,6 +9,7 @@ import {
   getBufferArrowBackground,
 } from './enchantEfficiencyScale.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
+import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 
 const EFFECT_LABELS = {
   finalDamage: '최종뎀',
@@ -3062,57 +3063,6 @@ function getBufferRecommendationRows(
     }
   });
   return [...nonUpgradeRows, ...bestUpgradeBySlot.values()].sort(compareBufferRecommendationOrder);
-}
-
-function getCreatureRows(groups) {
-  return (groups || []).flatMap((group) => (group.candidates || []).map((candidate) => ({
-    sourceType: 'creature',
-    slot: '크리쳐',
-    tier: candidate.variant || '일반',
-    itemId: candidate.itemId,
-    itemName: candidate.priceItem?.itemName || candidate.itemName || candidate.name,
-    creatureItemName: candidate.itemName || candidate.name,
-    itemRarity: candidate.itemRarity || '레어',
-    fame: candidate.targetFame || group.targetFame,
-    iconUrl: candidate.priceItem?.iconUrl || candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-    creatureIconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-    effects: candidate.effects || {},
-    itemReinforceSkill: candidate.itemReinforceSkill || [],
-    itemBuff: candidate.itemBuff || {},
-    itemExplain: candidate.itemExplain || '',
-    auction: candidate.auction || {},
-    candidateName: candidate.name,
-    groupName: group.groupName,
-    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
-    skillDamagePercent: Number(candidate.skillDamagePercent || 0),
-    levelTag: candidate.levelTag,
-    reinforceSkillName: candidate.reinforceSkillName || '',
-    reinforceSkillLevel: Number(candidate.reinforceSkillLevel || 0),
-    priceItem: candidate.priceItem || null,
-  })));
-}
-
-function getCreatureArtifactRows(groups) {
-  return (groups || []).flatMap((group) => (group.candidates || []).map((candidate) => ({
-    sourceType: 'creatureArtifact',
-    slot: candidate.slot || group.slot || '크리쳐 아티팩트',
-    tier: '아티팩트',
-    itemId: candidate.itemId,
-    itemName: candidate.itemName,
-    itemRarity: candidate.itemRarity || '유니크',
-    fame: candidate.fame,
-    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-    effects: candidate.effects || {},
-    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 0),
-    element: candidate.element || '',
-    artifactAllElement: Number(candidate.artifactAllElement || 0),
-    artifactSingleElement: Number(candidate.artifactSingleElement || 0),
-    itemExplain: candidate.itemExplain || '',
-    auction: candidate.auction || {},
-    candidateName: candidate.itemName,
-    groupName: group.groupName,
-    slotColor: candidate.slotColor || group.slotColor,
-  })));
 }
 
 function getTitleRows(groups, currentTitle) {
