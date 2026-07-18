@@ -1194,9 +1194,9 @@ function getBufferEnchantSkillDelta(row, current, baseline) {
   return Object.entries(baseline.currentSelfStatSkills || {}).reduce((changes, [skillName, info]) => {
     const levelDelta = getReinforceSkillLevel(candidateSkills, jobName, [skillName])
       - getReinforceSkillLevel(currentSkills, jobName, [skillName]);
-    changes.selfStatSkillDelta += getSkillValueDelta(info, 'Stat', levelDelta);
-    changes.auraStatDelta += getSkillValueDelta(info, 'PartyStat', levelDelta);
-    changes.auraAttackDelta += getSkillValueDelta(info, 'PartyAttack', levelDelta);
+    changes.selfStatSkillDelta += getExactAdjacentSkillValueDelta(info, 'Stat', levelDelta);
+    changes.auraStatDelta += getExactAdjacentSkillValueDelta(info, 'PartyStat', levelDelta);
+    changes.auraAttackDelta += getExactAdjacentSkillValueDelta(info, 'PartyAttack', levelDelta);
     if (!levelDelta) return changes;
     const hasAuraValue = hasSkillValue(info, [
       'previousPartyStat',
@@ -1330,38 +1330,70 @@ function getBufferBaselineSkillContexts(baseline = {}) {
     const contextKey = String(info?.contextKey || '').trim();
     const currentLevel = Number(info?.level);
     if (!contextKey || !Number.isInteger(currentLevel) || currentLevel <= 0) return contexts;
+    const hasOwnFiniteValue = (field) => Object.prototype.hasOwnProperty.call(info || {}, field)
+      && Number.isFinite(Number(info?.[field]));
+    const getAdjacentChanges = (prefix) => {
+      const fieldPairs = [
+        ['affectsSelfStat', `${prefix}Stat`, 'currentStat', 'selfStatSkillDelta'],
+        ['affectsAuraStat', `${prefix}PartyStat`, 'currentPartyStat', 'auraStatDelta'],
+        ['affectsAuraAttack', `${prefix}PartyAttack`, 'currentPartyAttack', 'auraAttackDelta'],
+      ];
+      const changes = {};
+      for (const [affectsField, targetField, currentField, changeField] of fieldPairs) {
+        if (!info?.[affectsField]) {
+          changes[changeField] = 0;
+          continue;
+        }
+        if (!hasOwnFiniteValue(targetField) || !hasOwnFiniteValue(currentField)) return null;
+        changes[changeField] = Number(info[targetField]) - Number(info[currentField]);
+      }
+      return changes;
+    };
     const currentChanges = {
       selfStatSkillDelta: 0,
       auraStatDelta: 0,
       auraAttackDelta: 0,
     };
-    const previousChanges = {
-      selfStatSkillDelta: Number(info.previousStat || 0) - Number(info.currentStat || 0),
-      auraStatDelta: Number(info.previousPartyStat || 0) - Number(info.currentPartyStat || 0),
-      auraAttackDelta: Number(info.previousPartyAttack || 0) - Number(info.currentPartyAttack || 0),
+    const previousChanges = currentLevel > 1 ? getAdjacentChanges('previous') : null;
+    const nextChanges = getAdjacentChanges('next');
+    const netChangesByLevel = {
+      ...(previousChanges ? { [String(currentLevel - 1)]: previousChanges } : {}),
+      [String(currentLevel)]: currentChanges,
+      ...(nextChanges ? { [String(currentLevel + 1)]: nextChanges } : {}),
     };
-    const nextChanges = {
-      selfStatSkillDelta: Number(info.nextStat || 0) - Number(info.currentStat || 0),
-      auraStatDelta: Number(info.nextPartyStat || 0) - Number(info.currentPartyStat || 0),
-      auraAttackDelta: Number(info.nextPartyAttack || 0) - Number(info.currentPartyAttack || 0),
-    };
-    if (![...Object.values(previousChanges), ...Object.values(nextChanges)].every(Number.isFinite)) {
-      return contexts;
-    }
+    const availableLevels = Object.keys(netChangesByLevel).map(Number).filter(Number.isInteger);
     contexts[contextKey] = {
       jobId: info.jobId || '',
       skillId: info.skillId || '',
       skillName,
       currentLevel,
-      minReachableLevel: Math.max(1, currentLevel - 1),
-      maxReachableLevel: currentLevel + 1,
-      netChangesByLevel: {
-        ...(currentLevel > 1 ? { [String(currentLevel - 1)]: previousChanges } : {}),
-        [String(currentLevel)]: currentChanges,
-        [String(currentLevel + 1)]: nextChanges,
-      },
+      minReachableLevel: Math.min(...availableLevels),
+      maxReachableLevel: Math.max(...availableLevels),
+      netChangesByLevel,
     };
     return contexts;
+  }, {});
+}
+
+function mergeBufferSkillContexts(...contextCollections) {
+  return contextCollections.reduce((merged, contexts) => {
+    Object.entries(contexts || {}).forEach(([contextKey, context]) => {
+      if (!context || typeof context !== 'object') return;
+      const previous = merged[contextKey] || {};
+      const netChangesByLevel = {
+        ...(previous.netChangesByLevel || {}),
+        ...(context.netChangesByLevel || {}),
+      };
+      const levels = Object.keys(netChangesByLevel).map(Number).filter(Number.isInteger);
+      merged[contextKey] = {
+        ...previous,
+        ...cloneSimulatorValue(context),
+        minReachableLevel: levels.length ? Math.min(...levels) : context.minReachableLevel,
+        maxReachableLevel: levels.length ? Math.max(...levels) : context.maxReachableLevel,
+        netChangesByLevel,
+      };
+    });
+    return merged;
   }, {});
 }
 
@@ -1449,12 +1481,14 @@ function resolveBufferNetChanges(
     return result;
   }, Object.fromEntries(BUFFER_SIMULATOR_CHANGE_KEYS.map((key) => [key, 0])));
 
-  const levelDeltaByScope = { common: {}, current: {} };
+  const levelDeltaByScope = { common: {}, current: {}, switching: {} };
   changes.forEach((slotChanges) => {
     const baseMap = getBufferSkillContributionMap(slotChanges?.baseSkillContributions || []);
     const targetMap = getBufferSkillContributionMap(slotChanges?.targetSkillContributions || []);
     if (baseMap == null || targetMap == null) throw new TypeError('Invalid buffer skill contribution');
-    const scope = slotChanges?.skillContributionScope === 'current' ? 'current' : 'common';
+    const scope = ['current', 'switching'].includes(slotChanges?.skillContributionScope)
+      ? slotChanges.skillContributionScope
+      : 'common';
     new Set([...Object.keys(baseMap), ...Object.keys(targetMap)]).forEach((contextKey) => {
       levelDeltaByScope[scope][contextKey] = (levelDeltaByScope[scope][contextKey] || 0)
         + Number(targetMap[contextKey] || 0)
@@ -1465,36 +1499,65 @@ function resolveBufferNetChanges(
   const changedContextKeys = new Set([
     ...Object.keys(levelDeltaByScope.common),
     ...Object.keys(levelDeltaByScope.current),
+    ...Object.keys(levelDeltaByScope.switching),
   ]);
   changedContextKeys.forEach((contextKey) => {
     const commonLevelDelta = Number(levelDeltaByScope.common[contextKey] || 0);
     const currentLevelDelta = Number(levelDeltaByScope.current[contextKey] || 0);
-    if (!commonLevelDelta && !currentLevelDelta) return;
-    const context = skillContexts?.[contextKey];
-    const currentLevel = Number(context?.currentLevel);
-    const commonLevel = currentLevel + commonLevelDelta;
-    const currentOnlyLevel = commonLevel + currentLevelDelta;
-    const commonNetChanges = context?.netChangesByLevel?.[String(commonLevel)];
-    const currentOnlyNetChanges = context?.netChangesByLevel?.[String(currentOnlyLevel)];
+    const switchingLevelDelta = Number(levelDeltaByScope.switching[contextKey] || 0);
+    if (!commonLevelDelta && !currentLevelDelta && !switchingLevelDelta) return;
+
+    const currentContext = skillContexts?.[contextKey];
+    const switchingContextKey = `${contextKey}:switching`;
+    const requiresSwitchingContext = Boolean(commonLevelDelta || switchingLevelDelta);
+    const switchingContext = skillContexts?.[switchingContextKey]
+      || (requiresSwitchingContext ? null : currentContext);
+    const currentBaseLevel = Number(currentContext?.currentLevel);
+    const switchingBaseLevel = Number(switchingContext?.currentLevel);
+    const commonCurrentLevel = currentBaseLevel + commonLevelDelta;
+    const currentOnlyLevel = commonCurrentLevel + currentLevelDelta;
+    const commonSwitchingLevel = switchingBaseLevel + commonLevelDelta;
+    const switchingOnlyLevel = commonSwitchingLevel + switchingLevelDelta;
+    const commonCurrentNetChanges = currentContext?.netChangesByLevel?.[String(commonCurrentLevel)];
+    const currentOnlyNetChanges = currentContext?.netChangesByLevel?.[String(currentOnlyLevel)];
+    const commonSwitchingNetChanges = switchingContext?.netChangesByLevel?.[String(commonSwitchingLevel)];
+    const switchingOnlyNetChanges = switchingContext?.netChangesByLevel?.[String(switchingOnlyLevel)];
     if (
-      !context
-      || !Number.isInteger(commonLevel)
+      !currentContext
+      || !switchingContext
+      || !Number.isInteger(commonCurrentLevel)
       || !Number.isInteger(currentOnlyLevel)
-      || !commonNetChanges
+      || !Number.isInteger(commonSwitchingLevel)
+      || !Number.isInteger(switchingOnlyLevel)
+      || !commonCurrentNetChanges
       || !currentOnlyNetChanges
+      || !commonSwitchingNetChanges
+      || !switchingOnlyNetChanges
     ) {
-      throw new RangeError(`Unsupported buffer skill level: ${contextKey}:${currentOnlyLevel}`);
+      throw new RangeError(
+        `Unsupported buffer skill level: ${contextKey}:${currentOnlyLevel}/${switchingOnlyLevel}`,
+      );
     }
     ['selfStatSkillDelta', 'auraStatDelta', 'auraAttackDelta'].forEach((key) => {
-      const commonValue = Number(commonNetChanges[key] || 0);
+      const commonCurrentValue = Number(commonCurrentNetChanges[key] || 0);
       const currentOnlyValue = Number(currentOnlyNetChanges[key] || 0);
-      if (![commonValue, currentOnlyValue].every(Number.isFinite)) {
+      const commonSwitchingValue = Number(commonSwitchingNetChanges[key] || 0);
+      const switchingOnlyValue = Number(switchingOnlyNetChanges[key] || 0);
+      if ([
+        commonCurrentValue,
+        currentOnlyValue,
+        commonSwitchingValue,
+        switchingOnlyValue,
+      ].some((value) => !Number.isFinite(value))) {
         throw new TypeError(`Invalid buffer skill change: ${contextKey}:${key}`);
       }
-      total[key] += commonValue;
-      const currentOnlyDelta = currentOnlyValue - commonValue;
-      if (key === 'selfStatSkillDelta') total.currentStatDelta += currentOnlyDelta;
-      else total[key] += currentOnlyDelta;
+      if (key === 'selfStatSkillDelta') {
+        total.selfStatSkillDelta += commonCurrentValue;
+        total.currentStatDelta += currentOnlyValue - commonCurrentValue;
+        total.switchingStatDelta += switchingOnlyValue - commonCurrentValue;
+      } else {
+        total[key] += currentOnlyValue;
+      }
     });
   });
   return total;
@@ -1712,6 +1775,7 @@ function getBufferAvatarPlatinumBaseRelativeChanges(row = {}, baseline = {}) {
     awakeningSkillLevelDelta: Number(row.bufferAwakeningSkillLevelDelta || 0),
     baseSkillContributions,
     targetSkillContributions,
+    skillContributionScope: row.bufferStatScope === 'current' ? 'current' : 'common',
   };
   return [statDelta, changes.buffSkillLevelDelta, changes.awakeningSkillLevelDelta].every(Number.isFinite)
     ? changes
@@ -1913,11 +1977,35 @@ function getBufferBlackFangCandidateSignature(row = {}) {
   return [groupKey, row.targetItemId, getEffectSignature(row.targetEffects || {})].join(':');
 }
 
+function getAuthoritativeItemSkillLevelBonus(item = {}, baseline = {}, skillName = '', requiredLevel = 0) {
+  const jobName = baseline?.jobName || '';
+  const reinforceSkillGroups = [
+    ...(item?.itemReinforceSkill || []),
+    ...(item?.reinforceSkill || []),
+    ...(item?.enchant?.reinforceSkill || []),
+  ];
+  const namedBonus = getReinforceSkillLevel(reinforceSkillGroups, jobName, [skillName]);
+  const rangeBonus = [
+    ...reinforceSkillGroups,
+    ...(item?.itemBuff?.reinforceSkill || []),
+  ].reduce((total, job) => {
+    if (jobName && job?.jobName && !['공통', jobName].includes(job.jobName)) return total;
+    return total + (job?.levelRange || []).reduce((sum, range) => {
+      const minimum = Number(range?.minLevel || 0);
+      const maximum = Number(range?.maxLevel || 0);
+      return minimum <= requiredLevel && requiredLevel <= maximum
+        ? sum + Number(range?.value || 0)
+        : sum;
+    }, 0);
+  }, 0);
+  return namedBonus + rangeBonus;
+}
+
 function getBufferItemSkillContributions(item = {}, baseline = {}) {
   return Object.entries(baseline.currentSelfStatSkills || {}).flatMap(([skillName, info]) => {
     const contextKey = String(info?.contextKey || '').trim();
     if (!contextKey) return [];
-    const levelContribution = getItemSkillLevelBonus(
+    const levelContribution = getAuthoritativeItemSkillLevelBonus(
       item,
       baseline,
       skillName,
@@ -2040,14 +2128,22 @@ function getBufferTitleCandidateSignature(row = {}) {
 
 function getBufferSwitchingCreatureBaseRelativeChanges(row = {}) {
   if (row.sourceType !== 'switchingCreature') return null;
+  const hasSkillContributions = row.hasExactSkillContributions === true;
   const changes = {
-    switchingStatDelta: Number(row.switchingStatDelta || 0),
+    switchingStatDelta: Number(
+      hasSkillContributions ? row.switchingDirectStatDelta || 0 : row.switchingStatDelta || 0,
+    ),
     switchingBuffAmplificationDelta: Number(row.switchingBuffAmplificationDelta || 0),
     buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
     auraStatDelta: Number(row.auraStatDelta || 0),
     auraAttackDelta: Number(row.auraAttackDelta || 0),
   };
-  return Object.values(changes).every(Number.isFinite) ? changes : null;
+  return Object.values(changes).every(Number.isFinite) ? {
+    ...changes,
+    baseSkillContributions: hasSkillContributions ? row.baseSkillContributions : [],
+    targetSkillContributions: hasSkillContributions ? row.targetSkillContributions : [],
+    skillContributionScope: hasSkillContributions ? row.skillContributionScope || 'switching' : 'common',
+  } : null;
 }
 
 function getBufferSwitchingCreatureExclusiveGroupKey(row = {}) {
@@ -2064,14 +2160,22 @@ function getBufferSwitchingCreatureCandidateSignature(row = {}) {
 
 function getBufferSwitchingTitleBaseRelativeChanges(row = {}) {
   if (row.sourceType !== 'switchingTitle') return null;
+  const hasSkillContributions = row.hasExactSkillContributions === true;
   const changes = {
-    switchingStatDelta: Number(row.switchingStatDelta || 0),
+    switchingStatDelta: Number(
+      hasSkillContributions ? row.switchingDirectStatDelta || 0 : row.switchingStatDelta || 0,
+    ),
     switchingBuffAmplificationDelta: Number(row.switchingBuffAmplificationDelta || 0),
     buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
     auraStatDelta: Number(row.auraStatDelta || 0),
     auraAttackDelta: Number(row.auraAttackDelta || 0),
   };
-  return Object.values(changes).every(Number.isFinite) ? changes : null;
+  return Object.values(changes).every(Number.isFinite) ? {
+    ...changes,
+    baseSkillContributions: hasSkillContributions ? row.baseSkillContributions : [],
+    targetSkillContributions: hasSkillContributions ? row.targetSkillContributions : [],
+    skillContributionScope: hasSkillContributions ? row.skillContributionScope || 'switching' : 'common',
+  } : null;
 }
 
 function getBufferSwitchingTitleExclusiveGroupKey(row = {}) {
@@ -2089,14 +2193,22 @@ function getBufferSwitchingTitleCandidateSignature(row = {}) {
 function getBufferSwitchingAvatarBaseRelativeChanges(row = {}) {
   if (row.sourceType !== 'avatar' || row.kind !== 'switchingAvatar') return null;
   const source = row.bufferSimulatorChanges || {};
+  const hasSkillContributions = row.hasExactSkillContributions === true;
   const changes = {
-    switchingStatDelta: Number(source.switchingStatDelta || 0),
+    switchingStatDelta: Number(
+      hasSkillContributions ? source.switchingDirectStatDelta || 0 : source.switchingStatDelta || 0,
+    ),
     buffSkillLevelDelta: Number(source.buffSkillLevelDelta || 0),
     targetPlatinumSkillLevel: Number(
       row.targetBuffChanges?.avatar?.buffContribution?.platinumSkillLevel || 0,
     ),
   };
-  return Object.values(changes).every(Number.isFinite) ? changes : null;
+  return Object.values(changes).every(Number.isFinite) ? {
+    ...changes,
+    baseSkillContributions: hasSkillContributions ? row.baseSkillContributions : [],
+    targetSkillContributions: hasSkillContributions ? row.targetSkillContributions : [],
+    skillContributionScope: hasSkillContributions ? row.skillContributionScope || 'switching' : 'common',
+  } : null;
 }
 
 function getBufferSwitchingAvatarExclusiveGroupKey(row = {}) {
@@ -2116,14 +2228,22 @@ function getBufferSwitchingAvatarCandidateSignature(row = {}) {
 function getBufferSwitchingPlatinumBaseRelativeChanges(row = {}) {
   if (row.sourceType !== 'avatar' || row.kind !== 'switchingPlatinumEmblem') return null;
   const source = row.bufferSimulatorChanges || {};
+  const hasSkillContributions = row.hasExactSkillContributions === true;
   const changes = {
-    switchingStatDelta: Number(source.switchingStatDelta || 0),
+    switchingStatDelta: Number(
+      hasSkillContributions ? source.switchingDirectStatDelta || 0 : source.switchingStatDelta || 0,
+    ),
     buffSkillLevelDelta: Number(source.buffSkillLevelDelta || 0),
     targetPlatinumSkillLevel: Number(
       row.targetBuffChanges?.platinumEmblem?.skillLevel || 0,
     ),
   };
-  return Object.values(changes).every(Number.isFinite) ? changes : null;
+  return Object.values(changes).every(Number.isFinite) ? {
+    ...changes,
+    baseSkillContributions: hasSkillContributions ? row.baseSkillContributions : [],
+    targetSkillContributions: hasSkillContributions ? row.targetSkillContributions : [],
+    skillContributionScope: hasSkillContributions ? row.skillContributionScope || 'switching' : 'common',
+  } : null;
 }
 
 function getBufferSwitchingPlatinumExclusiveGroupKey(row = {}) {
@@ -2245,11 +2365,18 @@ function getItemSkillLevelBonus(item, baseline, skillName, requiredLevel) {
   return namedBonus + rangeBonus + explicitBonus;
 }
 
-function getSkillValueDelta(info, field, levelDelta) {
+function getExactAdjacentSkillValueDelta(info, field, levelDelta) {
   if (!levelDelta) return 0;
-  const current = Number(info?.[`current${field}`] || 0);
-  if (levelDelta > 0) return (Number(info?.[`next${field}`] || current) - current) * levelDelta;
-  return (current - Number(info?.[`previous${field}`] || current)) * levelDelta;
+  if (!Number.isInteger(levelDelta) || Math.abs(levelDelta) !== 1) return 0;
+  const currentField = `current${field}`;
+  const targetField = `${levelDelta > 0 ? 'next' : 'previous'}${field}`;
+  if (
+    !Object.prototype.hasOwnProperty.call(info || {}, currentField)
+    || !Object.prototype.hasOwnProperty.call(info || {}, targetField)
+  ) return 0;
+  const current = Number(info[currentField]);
+  const target = Number(info[targetField]);
+  return Number.isFinite(current) && Number.isFinite(target) ? target - current : 0;
 }
 
 function getBufferItemSkillChanges(row, current, baseline) {
@@ -2270,9 +2397,9 @@ function getBufferItemSkillChanges(row, current, baseline) {
   const skillChanges = Object.entries(baseline.currentSelfStatSkills || {}).reduce((changes, [skillName, info]) => {
     const levelDelta = getItemSkillLevelBonus(row, baseline, skillName, Number(info?.requiredLevel || 0))
       - getItemSkillLevelBonus(current, baseline, skillName, Number(info?.requiredLevel || 0));
-    changes.statDelta += getSkillValueDelta(info, 'Stat', levelDelta);
-    changes.auraStatDelta += getSkillValueDelta(info, 'PartyStat', levelDelta);
-    changes.auraAttackDelta += getSkillValueDelta(info, 'PartyAttack', levelDelta);
+    changes.statDelta += getExactAdjacentSkillValueDelta(info, 'Stat', levelDelta);
+    changes.auraStatDelta += getExactAdjacentSkillValueDelta(info, 'PartyStat', levelDelta);
+    changes.auraAttackDelta += getExactAdjacentSkillValueDelta(info, 'PartyAttack', levelDelta);
     return changes;
   }, { statDelta: 0, auraStatDelta: 0, auraAttackDelta: 0 });
   if (row.sourceType === 'title') {
@@ -3035,6 +3162,7 @@ function getSwitchingTitleRows(recommendations = []) {
     buffSkillName: candidate.buffSkillName || '',
     enchantBuffSkillLevelDelta: Number(candidate.enchantBuffSkillLevelDelta || 0),
     switchingStatDelta: Number(candidate.switchingStatDelta || 0),
+    switchingDirectStatDelta: Number(candidate.switchingDirectStatDelta || 0),
     switchingBuffAmplificationDelta: Number(candidate.switchingBuffAmplificationDelta || 0),
     bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
     auraStatDelta: Number(candidate.auraStatDelta || 0),
@@ -3044,6 +3172,11 @@ function getSwitchingTitleRows(recommendations = []) {
     targetBuffSlot: 'TITLE',
     purchaseRoute: candidate.purchaseRoute || '',
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
+    baseSkillContributions: candidate.baseSkillContributions || [],
+    targetSkillContributions: candidate.targetSkillContributions || [],
+    hasExactSkillContributions: Array.isArray(candidate.baseSkillContributions)
+      && Array.isArray(candidate.targetSkillContributions),
+    skillContributionScope: candidate.skillContributionScope || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
 }
@@ -3089,6 +3222,7 @@ function getSwitchingCreatureRows(recommendations = []) {
     candidateName: candidate.itemName,
     buffSkillName: candidate.buffSkillName || '',
     switchingStatDelta: Number(candidate.switchingStatDelta || 0),
+    switchingDirectStatDelta: Number(candidate.switchingDirectStatDelta || 0),
     switchingBuffAmplificationDelta: Number(candidate.switchingBuffAmplificationDelta || 0),
     bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
     currentCreatureContribution: Number(candidate.currentCreatureContribution || 0),
@@ -3098,6 +3232,11 @@ function getSwitchingCreatureRows(recommendations = []) {
     purchaseRouteLabel: candidate.purchaseRouteLabel || '',
     targetCreatureName: candidate.targetCreatureName || '',
     freeAction: Boolean(candidate.freeAction),
+    baseSkillContributions: candidate.baseSkillContributions || [],
+    targetSkillContributions: candidate.targetSkillContributions || [],
+    hasExactSkillContributions: Array.isArray(candidate.baseSkillContributions)
+      && Array.isArray(candidate.targetSkillContributions),
+    skillContributionScope: candidate.skillContributionScope || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
 }
@@ -3166,6 +3305,11 @@ function getAvatarRows(currentAvatar) {
     bufferSkillStatDeltas: candidate.bufferSkillStatDeltas || {},
     bufferSkillLevels: candidate.bufferSkillLevels || {},
     currentPlatinumSkill: candidate.currentPlatinumSkill || '',
+    baseSkillContributions: candidate.baseSkillContributions || [],
+    targetSkillContributions: candidate.targetSkillContributions || [],
+    hasExactSkillContributions: Array.isArray(candidate.baseSkillContributions)
+      && Array.isArray(candidate.targetSkillContributions),
+    skillContributionScope: candidate.skillContributionScope || '',
     priceWarningText: candidate.priceWarningText || '',
     recommendationPriority: Number(candidate.recommendationPriority || 0),
   }));
@@ -7937,10 +8081,10 @@ export function installEnchantView(ctx) {
   function initializeDealerSimulator() {
     if (state.currentBufferBaseline?.isBuffer) {
       const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
-      const bufferSkillContexts = {
-        ...getBufferBaselineSkillContexts(state.currentBufferBaseline),
-        ...cloneSimulatorValue(state.currentBufferSkillContexts || {}),
-      };
+      const bufferSkillContexts = mergeBufferSkillContexts(
+        getBufferBaselineSkillContexts(state.currentBufferBaseline),
+        cloneSimulatorValue(state.currentBufferSkillContexts || {}),
+      );
       const baseBaseline = {
         ...cloneSimulatorValue(state.currentBufferBaseline || {}),
         bufferSkillContexts,
@@ -13518,6 +13662,12 @@ export function installEnchantView(ctx) {
     state.currentAura = payload.aura || null;
     state.currentAvatar = payload.avatar || null;
     state.currentBuffLoadout = payload.buffLoadout || null;
+    state.currentBufferSkillContexts = mergeBufferSkillContexts(
+      state.currentBufferSkillContexts,
+      payload.bufferSkillContexts && typeof payload.bufferSkillContexts === 'object'
+        ? payload.bufferSkillContexts
+        : {},
+    );
     state.switchingTitleRecommendations = Array.isArray(payload.switchingTitleRecommendations) ? payload.switchingTitleRecommendations : [];
     state.switchingCreatureRecommendations = Array.isArray(payload.switchingCreatureRecommendations) ? payload.switchingCreatureRecommendations : [];
     state.switchingFragmentRecommendations = Array.isArray(payload.switchingFragmentRecommendations) ? payload.switchingFragmentRecommendations : [];
@@ -13757,9 +13907,12 @@ export function installEnchantView(ctx) {
       const auraPayload = await parseApiJsonResponse(auraResponse, '오라 가격 조회에 실패했습니다.');
       if (isStalePriceRequest()) return;
       state.enchantCards = Array.isArray(payload.cards) ? payload.cards : [];
-      state.currentBufferSkillContexts = payload.bufferSkillContexts && typeof payload.bufferSkillContexts === 'object'
-        ? payload.bufferSkillContexts
-        : {};
+      state.currentBufferSkillContexts = mergeBufferSkillContexts(
+        state.currentBufferSkillContexts,
+        payload.bufferSkillContexts && typeof payload.bufferSkillContexts === 'object'
+          ? payload.bufferSkillContexts
+          : {},
+      );
       if (state.currentBufferBaseline?.isBuffer) initializeDealerSimulator();
       state.creatureUpgradeGroups = Array.isArray(creaturePayload.groups) ? creaturePayload.groups : [];
       state.creatureArtifactGroups = Array.isArray(creaturePayload.artifactGroups) ? creaturePayload.artifactGroups : [];

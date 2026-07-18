@@ -756,6 +756,197 @@ def get_item_level_range_skill_bonus(detail: dict, job_name: str, required_level
     return total
 
 
+def get_authoritative_item_level_range_skill_bonus(detail: dict, job_name: str, required_level: int) -> int:
+    if required_level <= 0:
+        return 0
+    groups = [
+        *(detail.get("reinforceSkill") or []),
+        *(detail.get("itemReinforceSkill") or []),
+        *((detail.get("itemBuff") or {}).get("reinforceSkill") or []),
+        *((detail.get("enchant") or {}).get("reinforceSkill") or []),
+    ]
+    return sum(
+        int(level_range.get("value") or 0)
+        for job in groups
+        if clean_text(job.get("jobName")) in {"", "공통", job_name}
+        for level_range in job.get("levelRange") or []
+        if int(level_range.get("minLevel") or 0) <= required_level <= int(level_range.get("maxLevel") or 0)
+    )
+
+
+def normalize_buffer_contribution_rows(contributions: list, baseline: dict) -> list:
+    skills = {
+        clean_text(info.get("contextKey")): (skill_name, info)
+        for skill_name, info in (baseline.get("currentSelfStatSkills") or {}).items()
+        if clean_text(info.get("contextKey"))
+    }
+    result = {}
+    for contribution in contributions or []:
+        context_key = clean_text(contribution.get("contextKey"))
+        level = int(contribution.get("levelContribution") or 0)
+        if context_key not in skills or not level:
+            continue
+        skill_name, info = skills[context_key]
+        row = result.setdefault(context_key, {
+            "contextKey": context_key,
+            "jobId": clean_text(info.get("jobId")) or clean_text(baseline.get("jobId")),
+            "skillId": clean_text(info.get("skillId")),
+            "skillName": clean_text(skill_name),
+            "levelContribution": 0,
+        })
+        row["levelContribution"] += level
+    return list(result.values())
+
+
+def get_buffer_named_skill_contributions(skill_bonuses: dict, baseline: dict) -> list:
+    skills = baseline.get("currentSelfStatSkills") or {}
+    return normalize_buffer_contribution_rows([{
+        "contextKey": clean_text((skills.get(clean_text(name)) or {}).get("contextKey")),
+        "levelContribution": int(value or 0),
+    } for name, value in (skill_bonuses or {}).items()], baseline)
+
+
+def get_buffer_item_skill_contributions(row: dict, baseline: dict) -> list:
+    if isinstance(row.get("bufferSkillContributions"), list):
+        return normalize_buffer_contribution_rows(row["bufferSkillContributions"], baseline)
+    job_id = clean_text(baseline.get("jobId"))
+    job_name = clean_text(baseline.get("jobName"))
+    fields = [
+        row.get("reinforceSkill") or [],
+        row.get("itemReinforceSkill") or [],
+        ((row.get("itemBuff") or {}).get("reinforceSkill") or []),
+        ((row.get("enchant") or {}).get("reinforceSkill") or []),
+    ]
+    contributions = [
+        contribution
+        for field in fields
+        for contribution in normalize_buffer_skill_contributions(field, job_id, job_name)
+    ]
+    for skill_name, info in (baseline.get("currentSelfStatSkills") or {}).items():
+        level = get_authoritative_item_level_range_skill_bonus(
+            row, job_name, int(info.get("requiredLevel") or 0),
+        )
+        if level:
+            contributions.append({
+                "contextKey": clean_text(info.get("contextKey")),
+                "levelContribution": level,
+            })
+    return normalize_buffer_contribution_rows(contributions, baseline)
+
+def build_buffer_skill_contexts_from_groups(
+    baseline: dict,
+    recommendation_groups: dict,
+    skill_detail_by_context: dict | None = None,
+    switching_level_by_context: dict | None = None,
+) -> dict:
+    job_id = clean_text(baseline.get("jobId"))
+    skill_info_by_context = {
+        clean_text(info.get("contextKey")): {
+            **info,
+            "skillName": skill_name,
+            "detailContextKey": clean_text(info.get("contextKey")),
+        }
+        for skill_name, info in (baseline.get("currentSelfStatSkills") or {}).items()
+        if clean_text(info.get("contextKey"))
+    }
+    for context_key, info in list(skill_info_by_context.items()):
+        switching_level = int((switching_level_by_context or {}).get(context_key) or 0)
+        if switching_level > 0:
+            skill_info_by_context[f"{context_key}:switching"] = {
+                **info,
+                "contextKey": f"{context_key}:switching",
+                "level": switching_level,
+                "detailContextKey": context_key,
+            }
+
+    delta_range_by_context = {}
+    for group in (recommendation_groups or {}).values():
+        scope = clean_text(group.get("scope")) or "common"
+        if scope not in {"common", "current", "switching"}:
+            continue
+        candidate_maps = [
+            {clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
+             for row in contributions or [] if clean_text(row.get("contextKey"))}
+            for contributions in group.get("candidateContributions") or []
+        ]
+        if not candidate_maps:
+            continue
+        base_map = {
+            clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
+            for row in group.get("baseContributions") or []
+            if clean_text(row.get("contextKey"))
+        }
+        context_keys = set(base_map).union(*(set(row) for row in candidate_maps))
+        for base_context_key in context_keys:
+            base_value = base_map.get(base_context_key, 0)
+            values = [base_value, *(row.get(base_context_key, 0) for row in candidate_maps)]
+            scoped_keys = []
+            if scope in {"common", "current"} and base_context_key in skill_info_by_context:
+                scoped_keys.append(base_context_key)
+            switching_key = f"{base_context_key}:switching"
+            if scope in {"common", "switching"} and switching_key in skill_info_by_context:
+                scoped_keys.append(switching_key)
+            for context_key in scoped_keys:
+                level_range = delta_range_by_context.setdefault(context_key, [0, 0])
+                level_range[0] += min(values) - base_value
+                level_range[1] += max(values) - base_value
+
+    contexts = {}
+    for context_key, (min_delta, max_delta) in sorted(delta_range_by_context.items()):
+        info = skill_info_by_context.get(context_key) or {}
+        current_level = int(info.get("level") or 0)
+        minimum_level = current_level + min_delta
+        maximum_level = current_level + max_delta
+        skill_job_id = clean_text(info.get("jobId")) or job_id
+        skill_id = clean_text(info.get("skillId"))
+        if current_level <= 0 or minimum_level <= 0 or maximum_level < minimum_level or not skill_job_id or not skill_id:
+            continue
+        detail = (skill_detail_by_context or {}).get(clean_text(info.get("detailContextKey")) or context_key) or {}
+        level_info = detail.get("levelInfo") or {}
+        available_levels = {
+            int(row.get("level") or 0)
+            for row in level_info.get("rows") or []
+            if isinstance(row, dict) and int(row.get("level") or 0) > 0
+        }
+        required_levels = set(range(minimum_level, maximum_level + 1))
+        if not required_levels or not required_levels.issubset(available_levels):
+            continue
+        affects_self_stat = bool(info.get("affectsSelfStat"))
+        affects_aura_stat = bool(info.get("affectsAuraStat"))
+        affects_aura_attack = bool(info.get("affectsAuraAttack"))
+        option_lines = str(level_info.get("optionDesc") or "").splitlines()
+        has_label = lambda predicate: any(
+            predicate(clean_text(line)) and re.search(r"\{value\d+\}", line)
+            for line in option_lines
+        )
+        if not any((affects_self_stat, affects_aura_stat, affects_aura_attack)) \
+                or (affects_self_stat and not has_label(lambda line: clean_text(baseline.get("statName")) in line)) \
+                or (affects_aura_stat and not has_label(lambda line: "힘" in line and "지능" in line and "증가" in line)) \
+                or (affects_aura_attack and not has_label(lambda line: "파티원" in line and "공격력 증가" in line)):
+            continue
+        current_values = {
+            "selfStatSkillDelta": get_skill_level_stat_value(detail, current_level, baseline.get("statName") or "") if affects_self_stat else 0,
+            "auraStatDelta": get_skill_level_labeled_value(detail, current_level, lambda line: "힘" in line and "지능" in line and "증가" in line) if affects_aura_stat else 0,
+            "auraAttackDelta": get_skill_level_labeled_value(detail, current_level, lambda line: "파티원" in line and "공격력 증가" in line) if affects_aura_attack else 0,
+        }
+        net_changes_by_level = {}
+        for level in sorted(required_levels):
+            net_changes_by_level[str(level)] = {
+                "selfStatSkillDelta": get_skill_level_stat_value(detail, level, baseline.get("statName") or "") - current_values["selfStatSkillDelta"] if affects_self_stat else 0,
+                "auraStatDelta": get_skill_level_labeled_value(detail, level, lambda line: "힘" in line and "지능" in line and "증가" in line) - current_values["auraStatDelta"] if affects_aura_stat else 0,
+                "auraAttackDelta": get_skill_level_labeled_value(detail, level, lambda line: "파티원" in line and "공격력 증가" in line) - current_values["auraAttackDelta"] if affects_aura_attack else 0,
+            }
+        contexts[context_key] = {
+            "jobId": skill_job_id,
+            "skillId": skill_id,
+            "skillName": clean_text(info.get("skillName")),
+            "currentLevel": current_level,
+            "minReachableLevel": minimum_level,
+            "maxReachableLevel": maximum_level,
+            "netChangesByLevel": net_changes_by_level,
+        }
+    return contexts
+
 def get_item_level_range_skill_bonus_by_required_levels(detail: dict, job_name: str, required_levels: list[int]) -> int:
     return sum(
         get_item_level_range_skill_bonus(detail, job_name, int(required_level or 0))
@@ -1012,7 +1203,11 @@ def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
     return oath_upgrades
 
 
-def load_character_enchants(server_id: str, character_id: str) -> dict:
+def load_character_enchants(
+    server_id: str,
+    character_id: str,
+    include_skill_details: bool = False,
+) -> dict:
     steps = []
     payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
     rows, equipment_upgrades = build_equipment_enchant_rows_and_upgrades(payload.get("equipment") or [])
@@ -1043,14 +1238,18 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         "load_character_oath_upgrades",
         lambda: load_character_oath_upgrades(server_id, character_id),
     )
-    buffer_baseline = load_character_buffer_baseline(server_id, character_id)
+    buffer_baseline = load_character_buffer_baseline(
+        server_id,
+        character_id,
+        include_skill_details=include_skill_details,
+    )
+    skill_detail_by_context = {}
+    switching_level_by_context = {}
     if buffer_baseline:
+        skill_detail_by_context = buffer_baseline.pop("_bufferSkillDetails", {})
+        switching_level_by_context = buffer_baseline.pop("_bufferSwitchingSkillLevels", {})
         for row in rows:
-            row["bufferSkillContributions"] = normalize_buffer_skill_contributions(
-                row.get("reinforceSkill") or [],
-                buffer_baseline.get("jobId") or "",
-                buffer_baseline.get("jobName") or "",
-            )
+            row["bufferSkillContributions"] = get_buffer_item_skill_contributions(row, buffer_baseline)
     try:
         oath_payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath") if oath_upgrades else {}
     except Exception:
@@ -1076,7 +1275,7 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
         }
         oath_transcend_debug = {"recommendations": [], "steps": [skip_step]}
         oath_craft_debug = {"recommendations": [], "steps": [skip_step]}
-    return build_character_enchants_payload(
+    result = build_character_enchants_payload(
         payload,
         damage_baseline,
         buffer_baseline,
@@ -1097,6 +1296,118 @@ def load_character_enchants(server_id: str, character_id: str) -> dict:
             "build_oath_craft_recommendations": oath_craft_debug.get("steps") or [],
         },
     )
+    if include_skill_details and buffer_baseline:
+        result["_bufferSkillDetails"] = skill_detail_by_context
+        result["_bufferSwitchingSkillLevels"] = switching_level_by_context
+    return result
+
+
+def add_buffer_skill_contribution_group(
+    recommendation_groups: dict,
+    baseline: dict,
+    group_key: str,
+    base_contributions: list,
+    candidate_contributions: list,
+    scope: str = "common",
+) -> None:
+    group_key = clean_text(group_key)
+    if not group_key or not candidate_contributions:
+        return
+    normalized_base = normalize_buffer_contribution_rows(base_contributions or [], baseline)
+    normalized_candidates = [
+        normalize_buffer_contribution_rows(contributions or [], baseline)
+        for contributions in candidate_contributions
+    ]
+    if not normalized_base and not any(normalized_candidates):
+        return
+    group = recommendation_groups.setdefault(group_key, {
+        "baseContributions": normalized_base,
+        "candidateContributions": [],
+        "scope": clean_text(scope) or "common",
+    })
+    if not group["baseContributions"] and normalized_base:
+        group["baseContributions"] = normalized_base
+    group["candidateContributions"].extend(normalized_candidates)
+
+
+def get_explicit_recommendation_contributions(row: dict, baseline: dict) -> tuple[list, list] | None:
+    base = row.get("baseSkillContributions")
+    target = row.get("targetSkillContributions")
+    if not isinstance(base, list) or not isinstance(target, list):
+        return None
+    return (
+        normalize_buffer_contribution_rows(base, baseline),
+        normalize_buffer_contribution_rows(target, baseline),
+    )
+
+
+def build_buffer_loadout_skill_contexts(
+    baseline: dict,
+    skill_detail_by_context: dict,
+    switching_level_by_context: dict,
+    switching_title_recommendations: list,
+    switching_creature_recommendations: list,
+    avatar_payload: dict,
+) -> dict:
+    recommendation_groups = {}
+    for group_key, rows in [
+        ("bufferSwitchingTitle", switching_title_recommendations),
+        ("bufferSwitchingCreature", switching_creature_recommendations),
+    ]:
+        normalized_rows = [
+            (row, get_explicit_recommendation_contributions(row, baseline))
+            for row in rows or []
+        ]
+        normalized_rows = [(row, pair) for row, pair in normalized_rows if pair is not None]
+        if not normalized_rows:
+            continue
+        base = normalized_rows[0][1][0]
+        add_buffer_skill_contribution_group(
+            recommendation_groups,
+            baseline,
+            group_key,
+            base,
+            [pair[1] for _, pair in normalized_rows],
+            "switching",
+        )
+
+    for recommendation in (avatar_payload or {}).get("recommendations") or []:
+        kind = clean_text(recommendation.get("kind"))
+        target_slot_id = clean_text(
+            recommendation.get("targetSlotId") or recommendation.get("targetBuffSlot")
+        )
+        if not target_slot_id:
+            continue
+        pair = get_explicit_recommendation_contributions(recommendation, baseline)
+        if pair is None:
+            continue
+        group_prefix = {
+            "platinumEmblem": "bufferAvatarPlatinum",
+            "switchingAvatar": "bufferSwitchingAvatarPackage",
+            "switchingPlatinumEmblem": "bufferSwitchingAvatarPlatinum",
+        }.get(kind)
+        if not group_prefix:
+            continue
+        scope = clean_text(recommendation.get("skillContributionScope"))
+        if not scope:
+            scope = "switching" if kind.startswith("switching") else (
+                clean_text(recommendation.get("bufferStatScope")) or "common"
+            )
+        add_buffer_skill_contribution_group(
+            recommendation_groups,
+            baseline,
+            f"{group_prefix}:{target_slot_id}",
+            pair[0],
+            [pair[1]],
+            scope,
+        )
+
+    return build_buffer_skill_contexts_from_groups(
+        baseline,
+        recommendation_groups,
+        skill_detail_by_context,
+        switching_level_by_context,
+    )
 
 
 def build_buffer_enchant_skill_context_payload(
@@ -1104,115 +1415,52 @@ def build_buffer_enchant_skill_context_payload(
     character_id: str,
     payload: dict,
     recommendation_payloads: dict | None = None,
+    baseline: dict | None = None,
+    skill_detail_by_context: dict | None = None,
+    switching_level_by_context: dict | None = None,
 ) -> dict:
     result = copy.deepcopy(payload)
-    baseline = load_character_buffer_baseline(server_id, character_id, include_skill_details=True)
-    if not baseline:
+    loaded_baseline = dict(baseline or load_character_buffer_baseline(
+        server_id,
+        character_id,
+        include_skill_details=True,
+    ) or {})
+    if not loaded_baseline:
         result["bufferSkillContexts"] = {}
         return result
+    details = dict(skill_detail_by_context or loaded_baseline.pop("_bufferSkillDetails", {}))
+    switching_levels = dict(
+        switching_level_by_context or loaded_baseline.pop("_bufferSwitchingSkillLevels", {})
+    )
 
-    job_id = clean_text(baseline.get("jobId"))
-    job_name = clean_text(baseline.get("jobName"))
-    skill_detail_by_context = baseline.pop("_bufferSkillDetails", {})
-    equipment_payload = get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment")
-    current_rows, _ = build_equipment_enchant_rows_and_upgrades(equipment_payload.get("equipment") or [])
-    base_contributions_by_slot = {
-        clean_text(row.get("slot")): normalize_buffer_skill_contributions(
-            row.get("reinforceSkill") or [], job_id, job_name,
-        )
-        for row in current_rows
-        if clean_text(row.get("slot"))
-    }
-
+    equipment_payload = get_character_cached_payload(
+        server_id, character_id, "equipment", "equip/equipment",
+    )
+    current_rows, _ = build_equipment_enchant_rows_and_upgrades(
+        equipment_payload.get("equipment") or [],
+    )
     recommendation_groups = {}
-    candidate_context_keys = set()
-
-    def get_recommendation_contributions(row: dict) -> list:
-        contributions_by_context = {}
-
-        def merge_contributions(contributions: list):
-            for contribution in contributions or []:
-                context_key = clean_text(contribution.get("contextKey"))
-                if not context_key:
-                    continue
-                merged = contributions_by_context.setdefault(context_key, {
-                    **contribution,
-                    "levelContribution": 0,
-                })
-                merged["levelContribution"] += int(contribution.get("levelContribution") or 0)
-
-        existing = row.get("bufferSkillContributions")
-        if isinstance(existing, list):
-            merge_contributions(existing)
-        else:
-            for field_name in ("reinforceSkill", "itemReinforceSkill"):
-                merge_contributions(normalize_buffer_skill_contributions(
-                    row.get(field_name) or [], job_id, job_name,
-                ))
-
-        for skill_name, skill_info in (baseline.get("currentSelfStatSkills") or {}).items():
-            context_key = clean_text(skill_info.get("contextKey"))
-            level_contribution = get_item_level_range_skill_bonus(
-                row,
-                job_name,
-                int(skill_info.get("requiredLevel") or 0),
-            )
-            if not context_key or not level_contribution:
-                continue
-            merge_contributions([{
-                "contextKey": context_key,
-                "jobId": clean_text(skill_info.get("jobId")) or job_id,
-                "skillId": clean_text(skill_info.get("skillId")),
-                "skillName": skill_name,
-                "levelContribution": level_contribution,
-            }])
-
-        return list(contributions_by_context.values())
-
-    def add_recommendation_group(group_key: str, base_row: dict, candidate_rows: list):
-        group_key = clean_text(group_key)
-        if not group_key:
-            return
-        base_contributions = get_recommendation_contributions(base_row or {})
-        candidate_contributions = [
-            get_recommendation_contributions(row)
-            for row in candidate_rows or []
-        ]
-        if not base_contributions and not candidate_contributions:
-            return
-        recommendation_groups[group_key] = {
-            "baseContributions": base_contributions,
-            "candidateContributions": candidate_contributions,
-        }
-        candidate_context_keys.update(
-            clean_text(contribution.get("contextKey"))
-            for contributions in [base_contributions, *candidate_contributions]
-            for contribution in contributions
-            if clean_text(contribution.get("contextKey"))
-        )
-
     enchant_candidates_by_slot = {}
     for card in result.get("cards") or []:
         card_role = clean_text(card.get("role"))
         for source in card.get("sources") or []:
             if clean_text(source.get("role") or card_role) != "buffer":
                 continue
-            contributions = normalize_buffer_skill_contributions(
-                source.get("reinforceSkill") or [], job_id, job_name,
+            source["bufferSkillContributions"] = get_buffer_item_skill_contributions(
+                source, loaded_baseline,
             )
-            source["bufferSkillContributions"] = contributions
             slot = clean_text(source.get("slot"))
             if slot:
                 enchant_candidates_by_slot.setdefault(slot, []).append(source)
-
-    for slot, candidate_rows in enchant_candidates_by_slot.items():
-        base_row = next((row for row in current_rows if clean_text(row.get("slot")) == slot), {})
-        if base_row:
-            base_row = {
-                **base_row,
-                "bufferSkillContributions": base_contributions_by_slot.get(slot) or [],
-            }
-        add_recommendation_group(f"bufferEnchant:{slot}", base_row, candidate_rows)
+    for slot, candidates in enchant_candidates_by_slot.items():
+        current = next((row for row in current_rows if clean_text(row.get("slot")) == slot), {})
+        add_buffer_skill_contribution_group(
+            recommendation_groups,
+            loaded_baseline,
+            f"bufferEnchant:{slot}",
+            get_buffer_item_skill_contributions(current, loaded_baseline),
+            [get_buffer_item_skill_contributions(row, loaded_baseline) for row in candidates],
+        )
 
     if recommendation_payloads is None:
         from .enchant_service import (
@@ -1225,169 +1473,67 @@ def build_buffer_enchant_skill_context_payload(
             "aura": load_aura_upgrades_with_prices(),
             "title": load_title_upgrades_with_prices(),
         }
-    recommendation_payloads = recommendation_payloads or {}
-    creature_candidates = [
-        candidate
-        for group in (recommendation_payloads.get("creature") or {}).get("groups") or []
-        for candidate in group.get("candidates") or []
-    ]
-    aura_candidates = [
-        candidate
-        for group in (recommendation_payloads.get("aura") or {}).get("groups") or []
-        for candidate in group.get("candidates") or []
-    ]
-    title_candidates = [
-        candidate
-        for group in (recommendation_payloads.get("title") or {}).get("groups") or []
-        for candidate in group.get("candidates") or []
-    ]
-    add_recommendation_group(
-        "bufferCreature",
-        (load_character_creature(server_id, character_id).get("creature") or {}),
-        creature_candidates,
-    )
-    add_recommendation_group(
-        "bufferAura",
-        (load_character_aura(server_id, character_id).get("aura") or {}),
-        aura_candidates,
-    )
-    add_recommendation_group(
-        "bufferTitle",
-        (load_character_title(server_id, character_id).get("title") or {}),
-        title_candidates,
-    )
-    switching_title_candidates = load_buffer_switching_title_recommendations(
-        server_id,
-        character_id,
-        baseline,
-    )
-    if switching_title_candidates:
-        _, switching_rows, _ = get_buffer_switching_rows(server_id, character_id)
-        base_switching_title = get_title_row(switching_rows)
-        base_switching_title_id = clean_text(base_switching_title.get("itemId"))
-        base_switching_title_detail = next((
-            detail
-            for detail in fetch_item_details([base_switching_title_id])
-            if clean_text(detail.get("itemId")) == base_switching_title_id
-        ), {}) if base_switching_title_id else {}
-        add_recommendation_group(
-            "bufferSwitchingTitle",
-            {**base_switching_title, **base_switching_title_detail},
-            switching_title_candidates,
+    for source_key, group_key, current_loader in [
+        ("creature", "bufferCreature", load_character_creature),
+        ("aura", "bufferAura", load_character_aura),
+        ("title", "bufferTitle", load_character_title),
+    ]:
+        candidates = [
+            candidate
+            for group in ((recommendation_payloads or {}).get(source_key) or {}).get("groups") or []
+            for candidate in group.get("candidates") or []
+        ]
+        if not candidates:
+            continue
+        current = current_loader(server_id, character_id).get(source_key) or {}
+        add_buffer_skill_contribution_group(
+            recommendation_groups,
+            loaded_baseline,
+            group_key,
+            get_buffer_item_skill_contributions(current, loaded_baseline),
+            [get_buffer_item_skill_contributions(row, loaded_baseline) for row in candidates],
         )
 
     skill_info_by_context = {
-        clean_text(info.get("contextKey")): {**info, "skillName": skill_name}
-        for skill_name, info in (baseline.get("currentSelfStatSkills") or {}).items()
+        clean_text(info.get("contextKey")): info
+        for info in (loaded_baseline.get("currentSelfStatSkills") or {}).values()
         if clean_text(info.get("contextKey"))
     }
-    contexts = {}
-    for context_key in candidate_context_keys:
-        skill_info = skill_info_by_context.get(context_key)
-        if not skill_info:
+    loaded_by_skill_key = {}
+    for context_key, detail in details.items():
+        info = skill_info_by_context.get(context_key) or {}
+        skill_key = (
+            clean_text(info.get("jobId")) or clean_text(loaded_baseline.get("jobId")),
+            clean_text(info.get("skillId")),
+        )
+        if detail and all(skill_key):
+            loaded_by_skill_key.setdefault(skill_key, detail)
+    context_keys = {
+        clean_text(row.get("contextKey"))
+        for group in recommendation_groups.values()
+        for contributions in [group.get("baseContributions") or [], *(group.get("candidateContributions") or [])]
+        for row in contributions or []
+        if clean_text(row.get("contextKey"))
+    }
+    for context_key in context_keys:
+        info = skill_info_by_context.get(context_key) or {}
+        skill_key = (
+            clean_text(info.get("jobId")) or clean_text(loaded_baseline.get("jobId")),
+            clean_text(info.get("skillId")),
+        )
+        if context_key in details or not all(skill_key):
             continue
-        current_level = int(skill_info.get("level") or 0)
-        skill_id = clean_text(skill_info.get("skillId"))
-        if current_level <= 0 or not skill_id:
-            continue
-
-        min_delta = 0
-        max_delta = 0
-        for group in recommendation_groups.values():
-            base_map = {
-                clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
-                for row in group.get("baseContributions") or []
-            }
-            base_value = base_map.get(context_key, 0)
-            possible_values = [base_value]
-            for contributions in group.get("candidateContributions") or []:
-                contribution_map = {
-                    clean_text(row.get("contextKey")): int(row.get("levelContribution") or 0)
-                    for row in contributions
-                }
-                possible_values.append(contribution_map.get(context_key, 0))
-            min_delta += min(possible_values) - base_value
-            max_delta += max(possible_values) - base_value
-
-        minimum_level = current_level + min_delta
-        maximum_level = current_level + max_delta
-        skill_detail = skill_detail_by_context.get(context_key) or get_skill_detail(job_id, skill_id)
-        available_levels = {
-            int(row.get("level") or 0)
-            for row in ((skill_detail.get("levelInfo") or {}).get("rows") or [])
-            if isinstance(row, dict) and int(row.get("level") or 0) > 0
-        }
-        required_levels = set(range(minimum_level, maximum_level + 1))
-        if not required_levels or not required_levels.issubset(available_levels):
-            continue
-
-        affects_self_stat = bool(skill_info.get("affectsSelfStat"))
-        affects_aura_stat = bool(skill_info.get("affectsAuraStat"))
-        affects_aura_attack = bool(skill_info.get("affectsAuraAttack"))
-        if not any((affects_self_stat, affects_aura_stat, affects_aura_attack)):
-            continue
-        option_lines = str((skill_detail.get("levelInfo") or {}).get("optionDesc") or "").splitlines()
-
-        def has_value_label(predicate) -> bool:
-            return any(
-                predicate(clean_text(line)) and re.search(r"\{value\d+\}", line)
-                for line in option_lines
-            )
-
-        if affects_self_stat and not has_value_label(lambda line: clean_text(baseline.get("statName")) in line):
-            continue
-        if affects_aura_stat and not has_value_label(lambda line: "힘" in line and "지능" in line and "증가" in line):
-            continue
-        if affects_aura_attack and not has_value_label(lambda line: "파티원" in line and "공격력 증가" in line):
-            continue
-        current_stat = get_skill_level_stat_value(skill_detail, current_level, baseline.get("statName") or "")
-        current_party_stat = get_skill_level_labeled_value(
-            skill_detail,
-            current_level,
-            lambda line: "힘" in line and "지능" in line and "증가" in line,
-        ) if affects_aura_stat else 0
-        current_party_attack = get_skill_level_labeled_value(
-            skill_detail,
-            current_level,
-            lambda line: "파티원" in line and "공격력 증가" in line,
-        ) if affects_aura_attack else 0
-        net_changes_by_level = {}
-        for level in sorted(required_levels):
-            net_changes_by_level[str(level)] = {
-                "selfStatSkillDelta": (
-                    get_skill_level_stat_value(skill_detail, level, baseline.get("statName") or "") - current_stat
-                    if affects_self_stat else 0
-                ),
-                "auraStatDelta": (
-                    get_skill_level_labeled_value(
-                        skill_detail,
-                        level,
-                        lambda line: "힘" in line and "지능" in line and "증가" in line,
-                    ) - current_party_stat
-                    if affects_aura_stat else 0
-                ),
-                "auraAttackDelta": (
-                    get_skill_level_labeled_value(
-                        skill_detail,
-                        level,
-                        lambda line: "파티원" in line and "공격력 증가" in line,
-                    ) - current_party_attack
-                    if affects_aura_attack else 0
-                ),
-            }
-        contexts[context_key] = {
-            "jobId": job_id,
-            "skillId": skill_id,
-            "skillName": clean_text(skill_info.get("skillName")),
-            "currentLevel": current_level,
-            "minReachableLevel": minimum_level,
-            "maxReachableLevel": maximum_level,
-            "netChangesByLevel": net_changes_by_level,
-        }
-
-    result["bufferSkillContexts"] = contexts
+        if skill_key not in loaded_by_skill_key:
+            loaded_by_skill_key[skill_key] = get_skill_detail(*skill_key)
+        if loaded_by_skill_key[skill_key]:
+            details[context_key] = loaded_by_skill_key[skill_key]
+    result["bufferSkillContexts"] = build_buffer_skill_contexts_from_groups(
+        loaded_baseline,
+        recommendation_groups,
+        details,
+        switching_levels,
+    )
     return result
-
 
 def load_character_creature(server_id: str, character_id: str) -> dict:
     steps = []
@@ -1482,6 +1628,7 @@ def load_character_title(server_id: str, character_id: str) -> dict:
     enchant_effects = enchant_summary.get("effects") or {}
     title_payload = build_title_payload(item_id, detail) if item_id else None
     if title_payload:
+        title_payload["reinforceSkill"] = ((title or {}).get("enchant") or {}).get("reinforceSkill") or []
         title_payload["enchantEffects"] = enchant_effects
         title_payload["titleEnchantElement"] = enchant_summary.get("element") or ""
         title_payload["effects"] = combine_effects(title_payload.get("effects") or {}, enchant_effects)
@@ -3022,7 +3169,7 @@ def load_buffer_switching_title_recommendations(
         )
         title_skill_level_delta = int(config.get("titleSkillLevelDelta") or 0)
         enchant_buff_skill_level_delta = int(config.get("enchantBuffSkillLevelDelta") or 0)
-        recommendations.append(build_buffer_switching_title_recommendation_row(
+        recommendation = build_buffer_switching_title_recommendation_row(
             candidate_price.get("itemId"),
             candidate_price.get("itemName") or config.get("itemName"),
             candidate_price.get("itemRarity") or "레어",
@@ -3044,7 +3191,23 @@ def load_buffer_switching_title_recommendations(
             candidate_contribution - current_contribution,
             clean_text(source_title.get("itemName")),
             f"[{buff_skill_name} +{enchant_buff_skill_level_delta}Lv]",
-        ))
+        )
+        recommendation.update({
+            "switchingDirectStatDelta": (
+                candidate_metrics.get("switchingDirectStatDelta", 0)
+                - current_metrics.get("switchingDirectStatDelta", 0)
+            ),
+            "baseSkillContributions": get_buffer_item_skill_contributions(
+                {**source_title, **source_detail},
+                buffer_baseline,
+            ),
+            "targetSkillContributions": get_buffer_item_skill_contributions(
+                {**candidate_row, **candidate_detail},
+                buffer_baseline,
+            ),
+            "skillContributionScope": "switching",
+        })
+        recommendations.append(recommendation)
     return recommendations
 
 
@@ -3127,6 +3290,10 @@ def load_buffer_switching_creature_release_recommendations(
         required_level,
     )
     switching_stat_delta = release_metrics.get("switchingStatDelta", 0) - current_metrics.get("switchingStatDelta", 0)
+    switching_direct_stat_delta = (
+        release_metrics.get("switchingDirectStatDelta", 0)
+        - current_metrics.get("switchingDirectStatDelta", 0)
+    )
     switching_amp_delta = (
         release_metrics.get("switchingBuffAmplificationDelta", 0)
         - current_metrics.get("switchingBuffAmplificationDelta", 0)
@@ -3155,8 +3322,18 @@ def load_buffer_switching_creature_release_recommendations(
         "currentCreatureContribution": switching_contribution,
         "candidateCreatureContribution": current_contribution,
         "switchingStatDelta": switching_stat_delta,
+        "switchingDirectStatDelta": switching_direct_stat_delta,
         "switchingBuffAmplificationDelta": switching_amp_delta,
         "bufferBuffSkillLevelDelta": buff_skill_level_delta,
+        "baseSkillContributions": get_buffer_item_skill_contributions(
+            {**switching_creature, **switching_detail},
+            buffer_baseline,
+        ),
+        "targetSkillContributions": get_buffer_item_skill_contributions(
+            {**current_creature, **current_detail},
+            buffer_baseline,
+        ),
+        "skillContributionScope": "switching",
         "sourceCreatureName": switching_name,
         "targetCreatureName": current_name,
         "purchaseRoute": "releaseSwitchingCreature",
@@ -3176,7 +3353,17 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             "prefetch_loadout_item_details",
             lambda: prefetch_loadout_item_details(server_id, character_id),
         )
-        enchant_payload = _measure_step(steps, "load_character_enchants", lambda: load_character_enchants(server_id, character_id))
+        enchant_payload = _measure_step(
+            steps,
+            "load_character_enchants",
+            lambda: load_character_enchants(
+                server_id,
+                character_id,
+                include_skill_details=True,
+            ),
+        )
+        buffer_skill_details = enchant_payload.pop("_bufferSkillDetails", {})
+        buffer_switching_levels = enchant_payload.pop("_bufferSwitchingSkillLevels", {})
         creature_payload = _measure_step(steps, "load_character_creature", lambda: load_character_creature(server_id, character_id))
         title_payload = _measure_step(steps, "load_character_title", lambda: load_character_title(server_id, character_id))
         aura_payload = _measure_step(steps, "load_character_aura", lambda: load_character_aura(server_id, character_id))
@@ -3225,6 +3412,20 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             "build_buff_loadout",
             lambda: build_buff_loadout_payload(server_id, character_id),
         )
+        buffer_skill_contexts = {}
+        if enchant_payload.get("bufferBaseline"):
+            buffer_skill_contexts = _measure_step(
+                steps,
+                "build_buffer_skill_contexts",
+                lambda: build_buffer_loadout_skill_contexts(
+                    enchant_payload.get("bufferBaseline") or {},
+                    buffer_skill_details,
+                    buffer_switching_levels,
+                    switching_title_recommendations,
+                    switching_creature_recommendations,
+                    avatar_payload,
+                ),
+            )
         damage_baseline = dict(enchant_payload.get("damageBaseline") or {})
         avatar_primary_stat_name = clean_text((avatar_payload.get("avatar") or {}).get("primaryStatName"))
         if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
@@ -3256,6 +3457,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             "aura": aura_payload.get("aura"),
             "avatar": avatar_payload,
             "buffLoadout": buff_loadout,
+            "bufferSkillContexts": buffer_skill_contexts,
             "switchingTitleRecommendations": switching_title_recommendations,
             "switchingFragmentRecommendations": switching_fragment_recommendations,
             "switchingCreatureRecommendations": switching_creature_recommendations,
@@ -3926,6 +4128,7 @@ def calculate_buffer_switching_avatar_candidate_delta(
     }
     style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     job_name = clean_text(buffer_baseline.get("jobName"))
+    style_rows = flatten_skill_rows(style_payload)
     candidate_switching_rows = replace_avatar_row(switching_rows, slot_id, candidate_avatar_row)
     current_metrics = get_buffer_switching_metrics(
         current_rows,
@@ -3953,13 +4156,32 @@ def calculate_buffer_switching_avatar_candidate_delta(
         [candidate_avatar_row],
         [buff_skill_name],
     )
+    base_skill_contributions = get_buffer_named_skill_contributions(
+        get_setup_skill_bonuses(
+            [effective_switching_row] if effective_switching_row else [],
+            detail_by_id,
+            style_rows,
+            job_name,
+        ),
+        buffer_baseline,
+    )
+    target_skill_contributions = get_buffer_named_skill_contributions(
+        get_setup_skill_bonuses([candidate_avatar_row], detail_by_id, style_rows, job_name),
+        buffer_baseline,
+    )
     stat_delta = (
         float(candidate_metrics.get("switchingStatDelta") or 0)
         - float(current_metrics.get("switchingStatDelta") or 0)
     )
     return {
         "statDelta": stat_delta,
+        "directStatDelta": (
+            float(candidate_metrics.get("switchingDirectStatDelta") or 0)
+            - float(current_metrics.get("switchingDirectStatDelta") or 0)
+        ),
         "buffSkillLevelDelta": candidate_contribution - current_contribution,
+        "baseSkillContributions": base_skill_contributions,
+        "targetSkillContributions": target_skill_contributions,
         "currentBuffSkillLevelContribution": current_contribution,
         "candidateBuffSkillLevelContribution": candidate_contribution,
         "currentMetrics": current_metrics,
@@ -4493,6 +4715,7 @@ def get_buffer_switching_stat_delta(
             skill_delta += delta
             skill_deltas[name] = delta
     current_self_stat_skills = {}
+    switching_skill_levels_by_context = {}
     for name in relevant_skills | score_skill_names:
         style_row = style_by_name.get(name) or {}
         skill_id = clean_text(style_row.get("skillId"))
@@ -4503,6 +4726,7 @@ def get_buffer_switching_stat_delta(
         if not skill_detail:
             skill_detail = get_skill_detail(clean_text(style_payload.get("jobId")), skill_id)
         current_level = base_level + current_bonuses.get(name, 0)
+        switching_level = base_level + switching_bonuses.get(name, 0)
         current_self_stat_skills[name] = {
             "contextKey": f"{job_id}:{skill_id}",
             "jobId": job_id,
@@ -4546,6 +4770,7 @@ def get_buffer_switching_stat_delta(
                 lambda line: "파티원" in line and "공격력 증가" in line,
             ) if name in score_skills.get("auraAttack", set()) else 0,
         }
+        switching_skill_levels_by_context[f"{job_id}:{skill_id}"] = switching_level
         skill_detail_by_name[name] = skill_detail
 
     active_self_stat = sum(
@@ -4591,6 +4816,7 @@ def get_buffer_switching_stat_delta(
             for name, skill_detail in skill_detail_by_name.items()
             if clean_text((style_by_name.get(name) or {}).get("skillId"))
         }
+        result["_bufferSwitchingSkillLevels"] = switching_skill_levels_by_context
     return result
 
 
@@ -5382,7 +5608,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     "bufferStatGain": buffer_stat_gain,
                     "bufferBuffSkillLevelDelta": buffer_buff_skill_level_delta,
                 }
-                recommendations.append(build_buffer_switching_avatar_recommendation_row(
+                recommendation = build_buffer_switching_avatar_recommendation_row(
                     slot_label,
                     selected_avatar,
                     display_item_name,
@@ -5394,7 +5620,17 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     clean_text(price_option.get("priceMode")),
                     completed_avatar_row,
                     debug,
-                ))
+                )
+                recommendation.update({
+                    "baseSkillContributions": switching_avatar_delta.get("baseSkillContributions") or [],
+                    "targetSkillContributions": switching_avatar_delta.get("targetSkillContributions") or [],
+                    "skillContributionScope": "switching",
+                })
+                recommendation["bufferSimulatorChanges"] = {
+                    **(recommendation.get("bufferSimulatorChanges") or {}),
+                    "switchingDirectStatDelta": float(switching_avatar_delta.get("directStatDelta") or 0),
+                }
+                recommendations.append(recommendation)
         for slot_id, slot_label in [
             ("JACKET", "벞강 상의"),
             ("PANTS", "벞강 하의"),
@@ -5455,7 +5691,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             )
             if buffer_stat_gain <= 0 and buffer_buff_skill_level_delta <= 0:
                 continue
-            recommendations.append(build_switching_platinum_recommendation_row(
+            recommendation = build_switching_platinum_recommendation_row(
                 slot_label,
                 item_id,
                 item.get("itemName") or f"플래티넘 엠블렘[{buffer_buff_skill_name}]",
@@ -5475,7 +5711,18 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 item.get("priceWarningText"),
                 buffer_stat_gain=buffer_stat_gain,
                 buffer_buff_skill_level_delta=buffer_buff_skill_level_delta,
-            ))
+            )
+            recommendation.update({
+                "baseSkillContributions": switching_platinum_delta.get("baseSkillContributions") or [],
+                "targetSkillContributions": switching_platinum_delta.get("targetSkillContributions") or [],
+                "skillContributionScope": "switching",
+                "switchingDirectStatDelta": float(switching_platinum_delta.get("directStatDelta") or 0),
+            })
+            recommendation["bufferSimulatorChanges"] = {
+                **(recommendation.get("bufferSimulatorChanges") or {}),
+                "switchingDirectStatDelta": float(switching_platinum_delta.get("directStatDelta") or 0),
+            }
+            recommendations.append(recommendation)
     buffer_platinum_deltas = {}
     buffer_skill_levels = {}
     if buffer_stat_name and platinum_skill and missing_or_wrong_slots:
@@ -5551,7 +5798,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 if buffer_stat_name
                 else 0
             )
-            recommendations.append(build_platinum_emblem_recommendation_row(
+            recommendation = build_platinum_emblem_recommendation_row(
                 slot_label,
                 item_id,
                 item.get("itemName") or f"플래티넘 엠블렘[{target_platinum_skill}]",
@@ -5573,7 +5820,18 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 buffer_stat_scope,
                 slot_id,
                 item.get("directItem") or item,
-            ))
+            )
+            if buffer_stat_name:
+                recommendation.update({
+                    "baseSkillContributions": get_buffer_named_skill_contributions(
+                        {current_platinum_skill: 1}, buffer_baseline,
+                    ),
+                    "targetSkillContributions": get_buffer_named_skill_contributions(
+                        {target_platinum_skill: 1}, buffer_baseline,
+                    ),
+                    "skillContributionScope": buffer_stat_scope or "common",
+                })
+            recommendations.append(recommendation)
     if buffer_stat_name:
         current_buffer_configs, switching_buffer_configs = get_buffer_avatar_emblem_configs(switching_rows)
         current_emblem_debug = _measure_step(
