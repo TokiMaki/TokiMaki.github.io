@@ -26,6 +26,11 @@ _DEALER_SWITCHING_TITLE_DB_CACHE = None
 _DEALER_SWITCHING_CREATURE_DB_CACHE = None
 _OATH_TUNE_STAGE_DB_CACHE = None
 
+_JOB_BASE_STAT_LOOKUP_ALIASES = {
+    ("프리스트(남)", "眞 크루세이더"): "眞 크루세이더(남)",
+    ("프리스트(여)", "眞 크루세이더"): "眞 크루세이더(여)",
+}
+
 
 def load_upgrade_expected_db() -> dict:
     global _UPGRADE_EXPECTED_DB_CACHE
@@ -102,6 +107,11 @@ def load_job_base_stats() -> dict:
         except FileNotFoundError:
             _JOB_BASE_STAT_CACHE = {}
     return _JOB_BASE_STAT_CACHE
+
+
+def resolve_job_base_stat_row(job_name: str, job_grow_name: str) -> dict:
+    lookup_key = _JOB_BASE_STAT_LOOKUP_ALIASES.get((job_name, job_grow_name), job_grow_name)
+    return load_job_base_stats().get(lookup_key) or {}
 
 
 def load_oath_tune_stage_db() -> dict:

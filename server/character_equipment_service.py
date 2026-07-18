@@ -8,8 +8,8 @@ from .data_store import (
     load_dealer_switching_buff_db,
     load_dealer_switching_creature_db,
     load_dealer_switching_title_db,
-    load_job_base_stats,
     load_oath_tune_stage_db,
+    resolve_job_base_stat_row,
     load_switching_avatar_db,
     load_upgrade_expected_db,
 )
@@ -547,8 +547,9 @@ def get_equipment_base_element_bonus(equipment_rows: list) -> float:
 
 def build_damage_baseline_from_status_payload(payload: dict, equipment_base_element: float = 0) -> dict:
     status = status_rows_to_map(payload.get("status") or [])
+    job_name = clean_text(payload.get("jobName"))
     job_grow_name = clean_text(payload.get("jobGrowName"))
-    base_stats = load_job_base_stats().get(job_grow_name) or {}
+    base_stats = resolve_job_base_stat_row(job_name, job_grow_name)
     selected_stat_name = "힘" if status.get("힘", 0) >= status.get("지능", 0) else "지능"
     element_values = {
         "fire": status.get("화속성 강화", 0),
@@ -583,7 +584,7 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
         "stat": status.get(selected_stat_name, 0),
         "statName": selected_stat_name,
         "baseStat": parse_percent_or_number(base_stats.get(selected_stat_name)),
-        "jobName": clean_text(payload.get("jobName")),
+        "jobName": job_name,
         "jobGrowName": job_grow_name,
         "attack": attack_value,
         "attackSource": attack_source,
@@ -3229,7 +3230,10 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         if damage_baseline and not enchant_payload.get("bufferBaseline") and avatar_primary_stat_name in {"힘", "지능"}:
             damage_baseline["statName"] = avatar_primary_stat_name
             damage_baseline["baseStat"] = parse_percent_or_number(
-                (load_job_base_stats().get(clean_text(damage_baseline.get("jobGrowName"))) or {}).get(avatar_primary_stat_name)
+                resolve_job_base_stat_row(
+                    clean_text(damage_baseline.get("jobName")),
+                    clean_text(damage_baseline.get("jobGrowName")),
+                ).get(avatar_primary_stat_name)
             )
         return {
             "serverId": enchant_payload.get("serverId"),
@@ -3300,8 +3304,9 @@ def get_avatar_slot(avatar_rows: list, slot_id: str) -> dict:
 
 
 def get_character_primary_stat_name(payload: dict) -> str:
+    job_name = clean_text(payload.get("jobName"))
     job_grow_name = clean_text(payload.get("jobGrowName"))
-    base_stats = load_job_base_stats().get(job_grow_name) or {}
+    base_stats = resolve_job_base_stat_row(job_name, job_grow_name)
     return "지능" if parse_percent_or_number(base_stats.get("지능")) > parse_percent_or_number(base_stats.get("힘")) else "힘"
 
 
