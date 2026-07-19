@@ -16,6 +16,7 @@ import { createEnchantBuffLoadoutBoard } from './enchantBuffLoadoutBoard.js';
 import { createEnchantEquipmentLoadoutBoard } from './enchantEquipmentLoadoutBoard.js';
 import { createEnchantPortraitDetailPanel } from './enchantPortraitDetailPanel.js';
 import { createEnchantLoadoutNavigation } from './enchantLoadoutNavigation.js';
+import { createEnchantDevelopmentTiming } from './enchantDevelopmentTiming.js';
 
 const EFFECT_LABELS = {
   finalDamage: '최종뎀',
@@ -10992,44 +10993,28 @@ export function installEnchantView(ctx) {
     );
   }
 
-  function getEnchantNowMs() {
-    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
-      return performance.now();
-    }
-    return Date.now();
-  }
-
-  function beginEnchantTiming(label) {
-    if (!state.isDevMode) return false;
-    state.enchantTiming = {
-      label,
-      startedAt: getEnchantNowMs(),
-      steps: [],
-    };
-    return true;
-  }
-
-  function recordEnchantTimingStep(name, startedAt, extra = {}) {
-    if (!state.isDevMode || !state.enchantTiming || !Number.isFinite(startedAt)) return;
-    state.enchantTiming.steps.push({
-      name,
-      ms: Math.round((getEnchantNowMs() - startedAt) * 10) / 10,
-      ...extra,
-    });
-  }
-
-  function flushEnchantTiming(status = 'done') {
-    if (!state.isDevMode || !state.enchantTiming) return;
-    const summary = {
-      label: state.enchantTiming.label,
-      status,
-      totalMs: Math.round((getEnchantNowMs() - state.enchantTiming.startedAt) * 10) / 10,
-      steps: state.enchantTiming.steps,
-    };
-    globalThis.__enchantTimingLast = summary;
-    console.info(`[enchant-timing] ${summary.label} · ${status}`, summary);
-    state.enchantTiming = null;
-  }
+  const {
+    getEnchantNowMs,
+    beginEnchantTiming,
+    recordEnchantTimingStep,
+    flushEnchantTiming,
+  } = createEnchantDevelopmentTiming({
+    getIsDevMode: () => state.isDevMode,
+    getTiming: () => state.enchantTiming,
+    setTiming: (timing) => {
+      state.enchantTiming = timing;
+    },
+    now: () => {
+      if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        return performance.now();
+      }
+      return Date.now();
+    },
+    setLastSummary: (summary) => {
+      globalThis.__enchantTimingLast = summary;
+    },
+    logInfo: (...args) => console.info(...args),
+  });
 
   function renderEnchantIncludeControls(includeKeys = ENCHANT_INCLUDE_ORDER) {
     if (!els.enchantIncludeControls) return;
