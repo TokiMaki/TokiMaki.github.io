@@ -391,13 +391,25 @@ function testSourceAuthorityAssemblyAndExistingFactoryBoundaries() {
 });`;
   assert.equal(view.split(expectedAssembly).length - 1, 1);
 
-  const estimateSource = getFunctionSource(view, 'estimateDamageMultiplier');
-  const estimateEnd = view.indexOf(estimateSource) + estimateSource.length;
+  const damageMetricAssembly = `const {
+  getDealerPrimaryStatKey,
+  getDamageBaseline,
+  getEquipmentScoreEffectiveStat,
+  getSelectedStatEffect,
+  estimateDamagePercent,
+  estimateDamageMultiplier,
+  regionAttackFlat: REGION_ATTACK_FLAT,
+  elementDamagePerElement: ELEMENT_DAMAGE_PER_ELEMENT,
+} = createEnchantDealerDamageMetric({
+  elementEffectKeyByName: ELEMENT_EFFECT_KEY_BY_NAME,
+});`;
+  const damageMetricAssemblyStart = view.indexOf(damageMetricAssembly);
+  const damageMetricAssemblyEnd = damageMetricAssemblyStart + damageMetricAssembly.length;
   const assemblyStart = view.indexOf(expectedAssembly);
   const assemblyEnd = assemblyStart + expectedAssembly.length;
   const includeStart = view.indexOf('function getEnchantIncludeGroups(');
-  assert.ok(estimateEnd < assemblyStart);
-  assert.equal(view.slice(estimateEnd, assemblyStart).trim(), '');
+  assert.ok(damageMetricAssemblyStart >= 0 && damageMetricAssemblyEnd < assemblyStart);
+  assert.equal(view.slice(damageMetricAssemblyEnd, assemblyStart).trim(), '');
   assert.ok(assemblyEnd < includeStart);
   assert.equal(view.slice(assemblyEnd, includeStart).trim(), '');
 
