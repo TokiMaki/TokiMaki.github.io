@@ -13,6 +13,7 @@ import { createEnchantRecommendationControls } from './enchantRecommendationCont
 import { createEnchantRecommendationLayout } from './enchantRecommendationLayout.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
+import { getSwitchingTitleRows, getSwitchingFragmentRows, getSwitchingCreatureRows } from './enchantSwitchingRows.js';
 import { createEnchantOathLoadoutBoard } from './enchantOathLoadoutBoard.js';
 import { createEnchantAvatarLoadoutBoard } from './enchantAvatarLoadoutBoard.js';
 import { createEnchantBuffLoadoutBoard } from './enchantBuffLoadoutBoard.js';
@@ -2822,107 +2823,6 @@ function getTitleRows(groups, currentTitle) {
     ...titleRows,
     ...getCurrentTitleBeadRows(titleRows, currentTitle),
   ];
-}
-
-function getSwitchingTitleRows(recommendations = []) {
-  return (recommendations || []).map((candidate) => ({
-    sourceType: 'switchingTitle',
-    slot: candidate.slot === '버프강화 칭호' ? '벞강 칭호' : candidate.slot || '벞강 칭호',
-    tier: candidate.tier === '스위칭' ? '버프강화' : candidate.tier || '버프강화',
-    kind: candidate.kind || 'switchingTitle',
-    itemId: candidate.itemId,
-    itemName: candidate.itemName,
-    itemRarity: candidate.itemRarity || '레어',
-    fame: candidate.fame,
-    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-    effects: candidate.effects || {},
-    itemReinforceSkill: candidate.itemReinforceSkill || [],
-    itemBuff: candidate.itemBuff || {},
-    enchantEffects: candidate.enchantEffects || {},
-    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
-    itemExplain: candidate.itemExplain || '',
-    auction: candidate.auction || {},
-    candidateName: candidate.itemName,
-    buffSkillName: candidate.buffSkillName || '',
-    enchantBuffSkillLevelDelta: Number(candidate.enchantBuffSkillLevelDelta || 0),
-    switchingStatDelta: Number(candidate.switchingStatDelta || 0),
-    switchingDirectStatDelta: Number(candidate.switchingDirectStatDelta || 0),
-    switchingBuffAmplificationDelta: Number(candidate.switchingBuffAmplificationDelta || 0),
-    bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
-    auraStatDelta: Number(candidate.auraStatDelta || 0),
-    auraAttackDelta: Number(candidate.auraAttackDelta || 0),
-    currentTitleContribution: Number(candidate.currentTitleContribution || 0),
-    candidateTitleContribution: Number(candidate.candidateTitleContribution || 0),
-    targetBuffSlot: 'TITLE',
-    purchaseRoute: candidate.purchaseRoute || '',
-    purchaseRouteLabel: candidate.purchaseRouteLabel || '',
-    baseSkillContributions: candidate.baseSkillContributions || [],
-    targetSkillContributions: candidate.targetSkillContributions || [],
-    hasExactSkillContributions: Array.isArray(candidate.baseSkillContributions)
-      && Array.isArray(candidate.targetSkillContributions),
-    skillContributionScope: candidate.skillContributionScope || '',
-    recommendationPriority: Number(candidate.recommendationPriority || 0),
-  }));
-}
-
-function getSwitchingFragmentRows(recommendations = []) {
-  return (recommendations || []).map((candidate) => ({
-    sourceType: 'switchingFragment',
-    slot: candidate.slot || '짙편린',
-    tier: candidate.tier || '버프강화',
-    kind: candidate.kind || 'switchingFragment',
-    itemId: candidate.itemId,
-    itemName: candidate.itemName,
-    itemRarity: candidate.itemRarity || '유니크',
-    fame: candidate.fame,
-    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-    effects: candidate.effects || {},
-    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
-    itemExplain: candidate.itemExplain || '',
-    auction: candidate.auction || {},
-    candidateName: candidate.itemName,
-    switchingSlot: candidate.switchingSlot || '',
-    targetBuffSlot: candidate.targetBuffSlot || candidate.switchingSlot || '',
-    targetBuffChanges: candidate.targetBuffChanges || null,
-    purchaseRouteLabel: candidate.purchaseRouteLabel || '',
-  }));
-}
-
-function getSwitchingCreatureRows(recommendations = []) {
-  return (recommendations || []).map((candidate) => ({
-    sourceType: 'switchingCreature',
-    slot: candidate.slot || '벞강 크리쳐',
-    tier: candidate.tier || '버프강화',
-    kind: candidate.kind || 'switchingCreature',
-    itemId: candidate.itemId,
-    itemName: candidate.itemName,
-    itemRarity: candidate.itemRarity || '레어',
-    fame: candidate.fame,
-    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-    effects: candidate.effects || {},
-    skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 1),
-    itemExplain: candidate.itemExplain || '',
-    auction: candidate.auction || {},
-    candidateName: candidate.itemName,
-    buffSkillName: candidate.buffSkillName || '',
-    switchingStatDelta: Number(candidate.switchingStatDelta || 0),
-    switchingDirectStatDelta: Number(candidate.switchingDirectStatDelta || 0),
-    switchingBuffAmplificationDelta: Number(candidate.switchingBuffAmplificationDelta || 0),
-    bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
-    currentCreatureContribution: Number(candidate.currentCreatureContribution || 0),
-    candidateCreatureContribution: Number(candidate.candidateCreatureContribution || 0),
-    targetBuffSlot: 'CREATURE',
-    purchaseRoute: candidate.purchaseRoute || '',
-    purchaseRouteLabel: candidate.purchaseRouteLabel || '',
-    targetCreatureName: candidate.targetCreatureName || '',
-    freeAction: Boolean(candidate.freeAction),
-    baseSkillContributions: candidate.baseSkillContributions || [],
-    targetSkillContributions: candidate.targetSkillContributions || [],
-    hasExactSkillContributions: Array.isArray(candidate.baseSkillContributions)
-      && Array.isArray(candidate.targetSkillContributions),
-    skillContributionScope: candidate.skillContributionScope || '',
-    recommendationPriority: Number(candidate.recommendationPriority || 0),
-  }));
 }
 
 function getAuraRows(groups) {
