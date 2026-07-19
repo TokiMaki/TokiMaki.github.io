@@ -50,6 +50,8 @@
 
 코드 구현, 수정, 구조 검토를 시작할 때 `Docs/WORK_CONTEXT.md`가 있으면 먼저 `Active Snapshot`만 확인한다.
 
+`src/dnfHellTool/enchantView.js` 분리 작업은 시작하거나 재개하기 전에 `Docs/architecture/ENCHANT_VIEW_REFACTOR_GOAL.md`를 반드시 읽고 목표·불변 조건·완료 기준을 다시 확인한다.
+
 - 매번 문서 전체나 과거 로그를 읽지 않는다.
 - 단순 질문이나 코드 변경이 없는 짧은 답변에서는 확인하지 않아도 된다.
 - 파일이 없고 실제 구현 또는 구조 작업을 시작하는 경우에만 아래 최소 형식으로 생성한다.
