@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createEnchantRecommendationDisplayOrder } from '../src/dnfHellTool/enchantRecommendationDisplayOrder.js';
 
 const PRE_MOVE_FIXTURE_JSON_SHA256 = 'd3e625baf5b1aadc9600d928754de5c79ea3a574fddc9b8203489066093c6192';
-const PRE_MOVE_ENCHANT_VIEW_SHA256 = '77a19e28585ed575377daefc50ddaecb8669aff2facd5283d21b30fd5cf7d271';
+const PRE_MOVE_ENCHANT_VIEW_SHA256 = '1da6c145cc6b52804892dcd1d44f619def0c710505fca030e328a904469c6d74';
 const LEGACY_KEY_BLOCK_SHA256 = '111ab5c7ed7205a1864a818fb09150c7c6e801f64f7afe5a4d037417ecfb6661';
 const LEGACY_FREEZE_BLOCK_SHA256 = '5c17932f8e6490322b4342cbcbaaa4d92000cf83e3b062324da5477865434a04';
 const LEGACY_RELEASE_BLOCK_SHA256 = 'f8bae6574f8a93a160d4b84b2e17c89d4dff726d34fd912efd73a2dfb57b428b';

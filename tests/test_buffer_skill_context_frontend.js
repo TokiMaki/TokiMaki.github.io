@@ -7,7 +7,7 @@ const end = source.indexOf('\nfunction replaceBufferScopeLoadoutRow', start);
 const adjacentStart = source.indexOf('function getExactAdjacentSkillValueDelta');
 const adjacentEnd = source.indexOf('\nfunction getBufferItemSkillChanges', adjacentStart);
 const reinforceStart = source.indexOf('function getReinforceSkillLevel');
-const reinforceEnd = source.indexOf('\nfunction formatReinforceSkills', reinforceStart);
+const reinforceEnd = source.indexOf('\nfunction getBufferEnchantSkillDelta', reinforceStart);
 const authoritativeStart = source.indexOf('function getAuthoritativeItemSkillLevelBonus');
 const authoritativeEnd = source.indexOf('\nfunction getBufferEquippedItemBaseRelativeChanges', authoritativeStart);
 assert(
