@@ -9,6 +9,7 @@ import {
   getBufferArrowBackground,
 } from './enchantEfficiencyScale.js';
 import { createEnchantEfficiencyLegend } from './enchantEfficiencyLegend.js';
+import { createEnchantRecommendationControls } from './enchantRecommendationControls.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 import { createEnchantOathLoadoutBoard } from './enchantOathLoadoutBoard.js';
@@ -90,19 +91,6 @@ const SLOT_ORDER = [
   '서약 조율',
 ];
 
-const TIER_ORDER = ['가성비', '준종결', '종결', '일반', '플래티넘', '아바타', '엠블렘', '조율'];
-const ENCHANT_INCLUDE_GROUPS = [
-  { title: '마법부여', items: ['가성비', '준종결', '종결'] },
-  { title: '오라/칭호/크리쳐', items: ['일반', '플래티넘', '오라', '칭호', '크리쳐', '아티팩트'], splitAfter: '플래티넘', breakBefore: true },
-  { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '아바타'], breakBefore: true },
-  { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
-  { title: '강화/증폭', items: ['강화', '증폭'] },
-  { title: '장비', items: ['조율'] },
-  { title: '서약', items: ['조율', '초월/정가'] },
-  { title: '흑아', items: ['흑아'] },
-];
-const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set(['서약:초월/정가']);
 const EFFECT_ORDER = ['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'buffPower', 'buffAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'allStat', 'bufferStat', 'str', 'int', 'vit', 'spr'];
 const BUFFER_IRRELEVANT_EFFECT_KEYS = new Set(['finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification', 'attack', 'elementAll', 'elementFire', 'elementWater', 'elementLight', 'elementDark', 'critical']);
 const DAMAGE_IRRELEVANT_EFFECT_KEYS = new Set(['buffPower', 'buffAmplification', 'bufferStat', 'vit', 'spr']);
@@ -5308,16 +5296,6 @@ function sortByPriceAsc(a, b) {
   return a.itemName.localeCompare(b.itemName, 'ko-KR');
 }
 
-function setOptions(select, values, allLabel) {
-  if (!select) return;
-  const current = select.value || 'all';
-  select.innerHTML = [
-    `<option value="all">${allLabel}</option>`,
-    ...values.map((value) => `<option value="${value}">${value}</option>`),
-  ].join('');
-  select.value = values.includes(current) ? current : 'all';
-}
-
 function getCurrentEnchantBySlot(currentEnchants, baseline) {
   const bySlot = new Map();
   (currentEnchants || []).forEach((enchant) => {
@@ -7148,6 +7126,27 @@ export function installEnchantView(ctx) {
     escapeHtml,
     legendElement: els.enchantEfficiencyLegend,
     getIsBuffer: () => Boolean(state.currentBufferBaseline?.isBuffer),
+  });
+
+  const {
+    resetEnchantRecommendationFilters,
+    renderEnchantIncludeControls,
+    renderEnchantFilters,
+    getSelectedEnchantIncludeTiers,
+    isEnchantIncludeKeySelected,
+  } = createEnchantRecommendationControls({
+    escapeHtml,
+    slotOrder: SLOT_ORDER,
+    getIncludeKeysForRow: getEnchantIncludeGroups,
+    slotFilter: els.enchantSlotFilter,
+    tierFilter: els.enchantTierFilter,
+    includeControls: els.enchantIncludeControls,
+    includeFilterStorageKey: ENCHANT_INCLUDE_FILTER_STORAGE_KEY,
+    includeKnownFilterStorageKey: ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY,
+    storage: {
+      getItem: (key) => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+    },
   });
 
   const {
@@ -10834,11 +10833,6 @@ export function installEnchantView(ctx) {
     state.equipmentTunePopoverSource = '';
   }
 
-  function resetEnchantRecommendationFilters() {
-    if (els.enchantSlotFilter) els.enchantSlotFilter.value = 'all';
-    if (els.enchantTierFilter) els.enchantTierFilter.value = 'all';
-  }
-
   function hasEnchantPriceRecommendationData() {
     return (
       state.enchantCards.length > 0
@@ -10876,137 +10870,6 @@ export function installEnchantView(ctx) {
     },
     logInfo: (...args) => console.info(...args),
   });
-
-  function renderEnchantIncludeControls(includeKeys = ENCHANT_INCLUDE_ORDER) {
-    if (!els.enchantIncludeControls) return;
-    let storedChecked = null;
-    if (ENCHANT_INCLUDE_FILTER_STORAGE_KEY) {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY) || 'null');
-        if (Array.isArray(parsed)) storedChecked = new Set(parsed.filter((key) => typeof key === 'string'));
-      } catch {
-        storedChecked = null;
-      }
-    }
-    if (storedChecked) {
-      const legacyOathKeys = ['서약:초월', '서약:정가'];
-      const hadLegacyOathSelection = legacyOathKeys.some((key) => storedChecked.has(key));
-      legacyOathKeys.forEach((key) => storedChecked.delete(key));
-      if (hadLegacyOathSelection) storedChecked.add('서약:초월/정가');
-      let knownKeys = null;
-      if (ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY) {
-        try {
-          const parsedKnown = JSON.parse(localStorage.getItem(ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY) || 'null');
-          if (Array.isArray(parsedKnown)) knownKeys = new Set(parsedKnown.filter((key) => typeof key === 'string'));
-        } catch {
-          knownKeys = null;
-        }
-      }
-      const hadKnownKeys = Boolean(knownKeys);
-      knownKeys = knownKeys || new Set(ENCHANT_INCLUDE_ORDER);
-      legacyOathKeys.forEach((key) => knownKeys.delete(key));
-      let addedNewKey = false;
-      ENCHANT_INCLUDE_ORDER.forEach((key) => {
-        if (!knownKeys.has(key)) {
-          if (!DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS.has(key)) {
-            storedChecked.add(key);
-          }
-          knownKeys.add(key);
-          addedNewKey = true;
-        }
-      });
-      if ((addedNewKey || hadLegacyOathSelection) && ENCHANT_INCLUDE_FILTER_STORAGE_KEY) {
-        try {
-          localStorage.setItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY, JSON.stringify([...storedChecked]));
-        } catch {
-          // 저장소를 쓸 수 없어도 현재 렌더에서는 신규 항목을 켠다.
-        }
-      }
-      if ((!hadKnownKeys || addedNewKey) && ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY) {
-        try {
-          localStorage.setItem(ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY, JSON.stringify([...knownKeys]));
-        } catch {
-          // known 키 저장 실패는 현재 체크 상태에 영향 주지 않는다.
-        }
-      }
-    }
-    const checked = new Set(
-      [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
-        .map((input) => input.value),
-    );
-    const existingKeys = new Set(
-      [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]')]
-        .map((input) => input.value),
-    );
-    const initialRender = els.enchantIncludeControls.childElementCount === 0;
-    const includeKeySet = new Set(includeKeys);
-    els.enchantIncludeControls.innerHTML = ENCHANT_INCLUDE_GROUPS
-      .map((group) => {
-        const options = group.items
-          .map((item) => ({ item, key: `${group.title}:${item}` }))
-          .filter(({ key }) => includeKeySet.has(key));
-        if (!options.length) return '';
-        return `
-          ${group.breakBefore ? '<span class="enchant-include-group-break" aria-hidden="true"></span>' : ''}
-          <div class="enchant-include-group">
-            <div class="enchant-include-group-title">${escapeHtml(group.title)}</div>
-            <div class="enchant-include-group-options${group.splitAfter ? ' is-split' : ''}">
-              ${options.map(({ item, key }) => {
-                const isChecked = storedChecked
-                  ? storedChecked.has(key)
-                  : existingKeys.has(key)
-                    ? checked.has(key)
-                    : !DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS.has(key);
-                return `
-                  <label class="enchant-include-option">
-                    <input type="checkbox" data-enchant-tier="${escapeHtml(key)}" value="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} />
-                    <span>${escapeHtml(item)}</span>
-                  </label>
-                  ${group.splitAfter === item ? '<span class="enchant-include-option-break" aria-hidden="true"></span>' : ''}
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      })
-      .join('');
-  }
-
-  function renderEnchantFilters(rows) {
-    const slots = [...new Set(rows.map((row) => row.slot))].sort((a, b) => {
-      const indexA = SLOT_ORDER.includes(a) ? SLOT_ORDER.indexOf(a) : SLOT_ORDER.length;
-      const indexB = SLOT_ORDER.includes(b) ? SLOT_ORDER.indexOf(b) : SLOT_ORDER.length;
-      return indexA - indexB;
-    });
-    const tiers = [...new Set(rows.map((row) => row.tier))].sort((a, b) => {
-      const indexA = TIER_ORDER.includes(a) ? TIER_ORDER.indexOf(a) : TIER_ORDER.length;
-      const indexB = TIER_ORDER.includes(b) ? TIER_ORDER.indexOf(b) : TIER_ORDER.length;
-      return indexA - indexB;
-    });
-    const includeTiers = [...new Set([...ENCHANT_INCLUDE_ORDER, ...rows.flatMap(getEnchantIncludeGroups)])].sort((a, b) => {
-      const indexA = ENCHANT_INCLUDE_ORDER.includes(a) ? ENCHANT_INCLUDE_ORDER.indexOf(a) : ENCHANT_INCLUDE_ORDER.length;
-      const indexB = ENCHANT_INCLUDE_ORDER.includes(b) ? ENCHANT_INCLUDE_ORDER.indexOf(b) : ENCHANT_INCLUDE_ORDER.length;
-      if (indexA !== indexB) return indexA - indexB;
-      return String(a).localeCompare(String(b), 'ko-KR');
-    });
-    setOptions(els.enchantSlotFilter, slots, '전체');
-    setOptions(els.enchantTierFilter, tiers, '전체');
-    renderEnchantIncludeControls(includeTiers);
-  }
-
-  function getSelectedEnchantIncludeTiers() {
-    if (!els.enchantIncludeControls) return null;
-    const checked = [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
-      .map((input) => input.value);
-    return checked.length ? new Set(checked) : new Set();
-  }
-
-  function isEnchantIncludeKeySelected(key, includeTiers) {
-    if (!includeTiers) return true;
-    if (includeTiers.has(key)) return true;
-    if (String(key).startsWith('버프강화:아바타:')) return includeTiers.has('버프강화:아바타');
-    return false;
-  }
 
   function isTitleRouteAllowed(row) {
     if (row?.sourceType !== 'title') return true;
