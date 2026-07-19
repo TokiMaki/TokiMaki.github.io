@@ -45,4 +45,6 @@
 - 최근 프론트 구조: `enchantSimulatorIdentity.js`는 공통 recommendation source의 slot/type 정규화, exclusive group, candidate signature를 소유한다. 서약 획득 factory와 순환하는 최상위 identity dispatcher, applied snapshot merge와 실제 simulator lifecycle은 `enchantView.js`에 유지한다.
 - 최근 프론트 구조: `enchantRecommendationEvaluationPolicy.js`는 딜러·버퍼 공용 비용 계산, 재료/무료 획득 분류, 중복 선택, 재료 마부 정렬과 tier 효율 pruning을 소유한다. include filter taxonomy와 최종 렌더링은 `enchantView.js`에 유지한다.
 - 최근 프론트 구조: `enchantDealerDamageMetric.js`는 딜러 기본 damage baseline, 장비점수 유효 스탯과 증분 딜 metric을 소유한다. 딜러 마부 표시 adapter, 버퍼 stat helper와 simulator normalization은 `enchantView.js`에 유지한다.
-- 다음 작업: 남은 `enchantView.js` 책임이 조립·권위 state·simulator transaction·DOM/event·API lifecycle인지 완료 감사하고, 안정화용 테스트 중 중복되거나 이동 시점에만 필요했던 파일을 한 번에 정리할지 판단한다.
+- 최근 프론트 구조: `enchantView.js` 책임 분리는 완료했다. 남은 factory 조립·dispatcher, 권위 state 동기화, simulator transaction, DOM/event, API request guard는 view 책임이며 추가 lifecycle 분리는 진행하지 않는다.
+- 최근 테스트 구조: `test_enchant_*.js` 22개는 모두 고유한 회귀 보호가 있어 유지한다. 이동 시점에만 필요했던 정확한 source 위치·공백·출현 횟수 검사는 최소 assembly·runtime 계약으로 정리했다.
+- 다음 작업: 새 기능이나 버그가 생기면 해당 도메인 모듈에서 최소 변경하고, `enchantView.js` 추가 분리는 새로운 응집된 순수 책임과 동작 보존 근거가 확인될 때만 검토한다.
