@@ -13,6 +13,7 @@ import { createEnchantRecommendationControls } from './enchantRecommendationCont
 import { createEnchantRecommendationLayout } from './enchantRecommendationLayout.js';
 import { createEnchantRecommendationApplicationState } from './enchantRecommendationApplicationState.js';
 import { createEnchantRecommendationDisplayOrder } from './enchantRecommendationDisplayOrder.js';
+import { createEnchantDealerSimulatorRecommendationEligibility } from './enchantDealerSimulatorRecommendationEligibility.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 import { getSwitchingTitleRows, getSwitchingFragmentRows, getSwitchingCreatureRows } from './enchantSwitchingRows.js';
@@ -10848,6 +10849,14 @@ export function installEnchantView(ctx) {
     getRecommendList: () => els.enchantRecommendList,
   });
 
+  const { applyDealerSimulatorRecommendationEligibility } =
+    createEnchantDealerSimulatorRecommendationEligibility({
+      getEnchantCandidateSignature,
+      getAuraCandidateSignature,
+      getCreatureCandidateSignature,
+      getTitleCandidateSignature,
+    });
+
   const { decorateEnchantRecommendationApplicationState } =
     createEnchantRecommendationApplicationState({
       getSimulatorExclusiveGroupKey,
@@ -10946,36 +10955,7 @@ export function installEnchantView(ctx) {
         )
         : row
     ));
-    if (dealerSimulator && !dealerSimulator.baseEligibleEnchantCandidateSignatures.length) {
-      dealerSimulator.baseEligibleEnchantCandidateSignatures = recommendations
-        .filter((row) => row.sourceType === 'enchant')
-        .map(getEnchantCandidateSignature)
-        .filter(Boolean);
-    }
-    if (dealerSimulator && !dealerSimulator.baseEligibleAuraCandidateSignatures.length) {
-      dealerSimulator.baseEligibleAuraCandidateSignatures = recommendations
-        .filter((row) => row.sourceType === 'aura')
-        .map(getAuraCandidateSignature)
-        .filter(Boolean);
-    }
-    if (dealerSimulator && !dealerSimulator.baseEligibleCreatureCandidateSignatures.length) {
-      dealerSimulator.baseEligibleCreatureCandidateSignatures = recommendations
-        .filter((row) => row.sourceType === 'creature')
-        .map(getCreatureCandidateSignature)
-        .filter(Boolean);
-    }
-    if (dealerSimulator && !dealerSimulator.baseEligibleTitleCandidateSignatures.length) {
-      dealerSimulator.baseEligibleTitleCandidateSignatures = recommendations
-        .filter((row) => row.sourceType === 'title')
-        .map(getTitleCandidateSignature)
-        .filter(Boolean);
-    }
-    const eligibleTitleSignatures = new Set(dealerSimulator?.baseEligibleTitleCandidateSignatures || []);
-    if (dealerSimulator && Object.keys(dealerSimulator.activeSelectionByGroup || {}).length && eligibleTitleSignatures.size) {
-      recommendations = recommendations.filter((row) => (
-        row.sourceType !== 'title' || eligibleTitleSignatures.has(getTitleCandidateSignature(row))
-      ));
-    }
+    recommendations = applyDealerSimulatorRecommendationEligibility(recommendations, dealerSimulator);
     if (dealerSimulator) {
       const equipmentTuneStepIndex = getTuneStepIndexBySource(state, 'equipmentTune');
       recommendations = recommendations.map((row) => (
