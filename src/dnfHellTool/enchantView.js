@@ -18,6 +18,7 @@ import { createEnchantBuffLoadoutBoard } from './enchantBuffLoadoutBoard.js';
 import { createEnchantEquipmentLoadoutBoard } from './enchantEquipmentLoadoutBoard.js';
 import { createEnchantPortraitDetailPanel } from './enchantPortraitDetailPanel.js';
 import { createEnchantLoadoutNavigation } from './enchantLoadoutNavigation.js';
+import { createEnchantOathSymbolFallback } from './enchantOathSymbolFallback.js';
 import { createEnchantDevelopmentTiming } from './enchantDevelopmentTiming.js';
 import { createEnchantSimulatorDisplay } from './enchantSimulatorDisplay.js';
 
@@ -10613,19 +10614,9 @@ export function installEnchantView(ctx) {
     renderPortrait: renderEnchantCharacterPortrait,
   });
 
-  function bindOathSymbolFallback() {
-    els.enchantCharacterPortrait?.querySelectorAll('[data-oath-symbol-image]').forEach((img) => {
-      const showFallback = () => {
-        img.hidden = true;
-        img.closest('.enchant-oath-symbol')?.classList.add('is-fallback');
-      };
-      if (img.complete && img.naturalWidth === 0) {
-        showFallback();
-        return;
-      }
-      img.addEventListener('error', showFallback, { once: true });
-    });
-  }
+  const { bindOathSymbolFallback } = createEnchantOathSymbolFallback({
+    getPortraitContainer: () => els.enchantCharacterPortrait,
+  });
 
   const {
     bindEnchantPortraitDetailPanel,
