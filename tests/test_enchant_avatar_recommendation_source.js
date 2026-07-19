@@ -523,9 +523,9 @@ function testEnchantViewAssemblyAndAuthority() {
   assert.match(source, /const AVATAR_PLATINUM_SLOT_LABEL_BY_KEY = \{/);
   const normalizeIndex = source.indexOf('function normalizeSimulatorDamageDelta');
   const factoryIndex = source.indexOf('} = createEnchantAvatarRecommendationSource({');
-  const titleEffectsIndex = source.indexOf('function getTitleEffectsWithoutEnchantElement');
+  const buffLoadoutRowsForMetricIndex = source.indexOf('function getBuffLoadoutRowsForMetric');
   assert.ok(normalizeIndex >= 0 && normalizeIndex < factoryIndex);
-  assert.ok(factoryIndex < titleEffectsIndex);
+  assert.ok(factoryIndex < buffLoadoutRowsForMetricIndex);
   const factoryDeclarationStart = source.lastIndexOf('const {', factoryIndex);
   const factoryBlock = source.slice(
     factoryDeclarationStart,
