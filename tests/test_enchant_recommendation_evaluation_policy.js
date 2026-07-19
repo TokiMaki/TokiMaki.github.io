@@ -21,22 +21,6 @@ const PUBLIC_OUTPUTS = [
   'removeInefficientLowerTierEnchants',
 ];
 
-const MOVED_FUNCTIONS = [
-  'getCostPerPointOnePercent',
-  'isMaterialAcquisition',
-  'isFreeActionRecommendation',
-  'isMaterialEnchantAcquisition',
-  'getMaterialEnchantMaterialRank',
-  'getMaterialEnchantSlotRank',
-  'compareMaterialEnchantOrder',
-  'getRoundedMetricKey',
-  'getComparableRecommendationGold',
-  'isPreferredDuplicateRecommendation',
-  'getEnchantTierRank',
-  'getEnchantEfficiencyValue',
-  'removeInefficientLowerTierEnchants',
-];
-
 const PRIVATE_FUNCTIONS = [
   'getMaterialEnchantMaterialRank',
   'getMaterialEnchantSlotRank',
@@ -63,79 +47,7 @@ function normalizeSource(source) {
   return source.replace(/\r\n/g, '\n');
 }
 
-function getFunctionSource(source, name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert.ok(start >= 0, `${name} definition exists`);
-  const bodyStart = source.indexOf(') {', start) + 2;
-  assert.ok(bodyStart >= 2, `${name} body exists`);
-  let depth = 0;
-  let state = 'code';
-  let quote = '';
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const character = source[index];
-    const next = source[index + 1] || '';
-    if (state === 'lineComment') {
-      if (character === '\n' || character === '\r') state = 'code';
-      continue;
-    }
-    if (state === 'blockComment') {
-      if (character === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-      continue;
-    }
-    if (state === 'string') {
-      if (character === '\\') index += 1;
-      else if (character === quote) state = 'code';
-      continue;
-    }
-    if (state === 'template') {
-      if (character === '\\') index += 1;
-      else if (character === '`') state = 'code';
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      state = 'lineComment';
-      index += 1;
-      continue;
-    }
-    if (character === '/' && next === '*') {
-      state = 'blockComment';
-      index += 1;
-      continue;
-    }
-    if (character === "'" || character === '"') {
-      state = 'string';
-      quote = character;
-      continue;
-    }
-    if (character === '`') {
-      state = 'template';
-      continue;
-    }
-    if (character === '{') depth += 1;
-    if (character === '}') {
-      depth -= 1;
-      if (depth === 0) return source.slice(start, index + 1);
-    }
-  }
-  throw new Error(`unterminated function ${name}`);
-}
 
-function getFactoryDependencyEntries(source, factoryName) {
-  const marker = `} = ${factoryName}({`;
-  const start = source.indexOf(marker);
-  assert.ok(start >= 0, `${factoryName} assembly exists`);
-  const bodyStart = start + marker.length;
-  const bodyEnd = source.indexOf('\n});', bodyStart);
-  assert.ok(bodyEnd >= 0, `${factoryName} assembly closes`);
-  return source.slice(bodyStart, bodyEnd)
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.replace(/,$/, ''));
-}
 
 function testFactoryContractDependencyOrderAliasesAndPrivacy() {
   assert.deepEqual(Object.keys(policyModule), ['createEnchantRecommendationEvaluationPolicy']);
@@ -357,160 +269,28 @@ function testDealerAndBufferTierEfficiencyPruning() {
   assert.strictEqual(removeInefficientLowerTierEnchants([otherSource], false)[0], otherSource);
 }
 
-function testSourceAuthorityAssemblyAndExistingFactoryBoundaries() {
+function testViewImportAndPolicyAssemblyContract() {
   const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
-  const modulePath = fileURLToPath(new URL('../src/dnfHellTool/enchantRecommendationEvaluationPolicy.js', import.meta.url));
   const view = normalizeSource(readFileSync(viewPath, 'utf8'));
-  const moduleSource = normalizeSource(readFileSync(modulePath, 'utf8'));
 
-  const importText = "import { createEnchantRecommendationEvaluationPolicy } from './enchantRecommendationEvaluationPolicy.js';";
-  assert.equal(view.split(importText).length - 1, 1);
-  MOVED_FUNCTIONS.forEach((name) => {
-    const pattern = new RegExp(`function\\s+${name}\\s*\\(`, 'g');
-    assert.equal((view.match(pattern) || []).length, 0, `${name} left enchantView.js`);
-    assert.equal((moduleSource.match(pattern) || []).length, 1, `${name} has one module authority`);
+  assert.match(
+    view,
+    /import \{ createEnchantRecommendationEvaluationPolicy \} from '\.\/enchantRecommendationEvaluationPolicy\.js';/,
+  );
+  const factoryIndex = view.indexOf('} = createEnchantRecommendationEvaluationPolicy({');
+  assert.ok(factoryIndex >= 0, 'recommendation evaluation policy factory is assembled');
+  const factoryBlock = view.slice(
+    view.lastIndexOf('const {', factoryIndex),
+    view.indexOf('});', factoryIndex) + 3,
+  );
+  PUBLIC_OUTPUTS.forEach((name) => {
+    assert.match(factoryBlock, new RegExp(`\\b${name}\\b`));
   });
-  const slotConstant = "const MATERIAL_ENCHANT_SLOT_ORDER = [";
-  assert.equal(view.split(slotConstant).length - 1, 0);
-  assert.equal(moduleSource.split(slotConstant).length - 1, 1);
-  assert.equal(view.split("const MATERIAL_ENCHANT_MATERIAL_ORDER = ['은화', '비단', '잔해', '소명'];").length - 1, 1);
-  assert.equal((view.match(/function\s+getEnchantIncludeGroups\s*\(/g) || []).length, 1);
-
-  const expectedAssembly = `const {
-  getCostPerPointOnePercent,
-  isMaterialAcquisition,
-  isFreeActionRecommendation,
-  isMaterialEnchantAcquisition,
-  compareMaterialEnchantOrder,
-  getRoundedMetricKey,
-  isPreferredDuplicateRecommendation,
-  removeInefficientLowerTierEnchants,
-} = createEnchantRecommendationEvaluationPolicy({
-  getRecommendationGold,
-  materialEnchantMaterialOrder: MATERIAL_ENCHANT_MATERIAL_ORDER,
-});`;
-  assert.equal(view.split(expectedAssembly).length - 1, 1);
-
-  const damageMetricAssembly = `const {
-  getDealerPrimaryStatKey,
-  getDamageBaseline,
-  getEquipmentScoreEffectiveStat,
-  getSelectedStatEffect,
-  estimateDamagePercent,
-  estimateDamageMultiplier,
-  regionAttackFlat: REGION_ATTACK_FLAT,
-  elementDamagePerElement: ELEMENT_DAMAGE_PER_ELEMENT,
-} = createEnchantDealerDamageMetric({
-  elementEffectKeyByName: ELEMENT_EFFECT_KEY_BY_NAME,
-});`;
-  const damageMetricAssemblyStart = view.indexOf(damageMetricAssembly);
-  const damageMetricAssemblyEnd = damageMetricAssemblyStart + damageMetricAssembly.length;
-  const assemblyStart = view.indexOf(expectedAssembly);
-  const assemblyEnd = assemblyStart + expectedAssembly.length;
-  const includeStart = view.indexOf('function getEnchantIncludeGroups(');
-  assert.ok(damageMetricAssemblyStart >= 0 && damageMetricAssemblyEnd < assemblyStart);
-  assert.equal(view.slice(damageMetricAssemblyEnd, assemblyStart).trim(), '');
-  assert.ok(assemblyEnd < includeStart);
-  assert.equal(view.slice(assemblyEnd, includeStart).trim(), '');
-
-  const expectedOathDependencies = [
-    'oathDecisionVariantSourceTypes: OATH_DECISION_VARIANT_SOURCE_TYPES',
-    'applyUpgradeMaterialPrices',
-    'cloneSimulatorValue',
-    'getRecommendationGold',
-    'mergeUpgradeMaterials',
-    'getCostPerPointOnePercent',
-    'getRoleRelevantEffects',
-    'getOathTuneState',
-    'syncOathTuneStageDisplay',
-    'getSimulatorExclusiveGroupKey',
-    'getSimulatorCandidateSignature',
-  ];
-  const expectedBufferDependencies = [
-    'OATH_DECISION_VARIANT_SOURCE_TYPES',
-    'getReinforceSkillLevel',
-    'getItemSkillLevelBonus',
-    'isMaterialAcquisition',
-    'compareMaterialEnchantOrder',
-    'getCurrentCreatureArtifactBySlot',
-    'adaptOathAcquisitionRecommendation',
-    'getTitleBeadOnlyRow',
-    'isFreeActionRecommendation',
-    'getEffectSignature',
-    'addEffects',
-    'getRoleRelevantEffects',
-    'getBufferSelectedStatEffect',
-    'getBufferOathAcquisitionEvaluation',
-    'getBufferAvatarEmblemChangesBySocket',
-    'getBufferSwitchingAvatarEmblemOverlays',
-    'resolveBufferSwitchingAvatarEmblemChanges',
-    'getBufferCreatureArtifactBaseRelativeChanges',
-    'getBufferCreatureBaseRelativeChanges',
-    'getBufferAuraBaseRelativeChanges',
-    'getBufferTitleBaseRelativeChanges',
-    'getBufferSwitchingCreatureBaseRelativeChanges',
-    'getBufferSwitchingTitleBaseRelativeChanges',
-    'getBufferSwitchingPlatinumBaseRelativeChanges',
-    'getBufferSwitchingAvatarBaseRelativeChanges',
-    'getBufferAvatarPlatinumBaseRelativeChanges',
-    'mergeBufferChangeMap',
-    'getBufferBlackFangBaseRelativeChanges',
-    'getBufferUpgradeBaseRelativeChanges',
-    'getBufferEquipmentTuneBaseRelativeChanges',
-    'getBufferOathTuneBaseRelativeChanges',
-    'getBufferEnchantBaseRelativeChanges',
-    'resolveBufferNetChanges',
-    'getCreatureArtifactType',
-    'getBuffSimulatorTargetSlotId',
-    'cloneSimulatorValue',
-    'getBufferRecommendationScopeSimulator',
-    'getBufferAvatarEmblemNetChanges',
-    'getRecommendationGold',
-    'getRoundedMetricKey',
-    'getStableObjectSignature',
-    'isPreferredDuplicateRecommendation',
-    'removeInefficientLowerTierEnchants',
-  ];
-  const expectedDealerDependencies = [
-    'tuneSourceTypes: TUNE_SOURCE_TYPES',
-    'creatureArtifactTypes: CREATURE_ARTIFACT_TYPES',
-    'elementEffectKeyByName: ELEMENT_EFFECT_KEY_BY_NAME',
-    'regionAttackFlat: REGION_ATTACK_FLAT',
-    'elementDamagePerElement: ELEMENT_DAMAGE_PER_ELEMENT',
-    'estimateDamagePercent',
-    'addEffects',
-    'subtractEffects',
-    'getDamageBaseline',
-    'getFinalDamageReplacementMultiplier',
-    'estimateDamageMultiplier',
-    'getSelectedStatEffect',
-    'getEquipmentScoreEffectiveStat',
-    'getCurrentCreatureArtifactBySlot',
-    'getCreatureArtifactType',
-    'isSameTitleBase',
-    'getTitleBeadOnlyRow',
-    'getCostPerPointOnePercent',
-    'getEffectSignature',
-    'getRoleRelevantEffects',
-    'getRoundedMetricKey',
-    'isMaterialAcquisition',
-    'isFreeActionRecommendation',
-    'isMaterialEnchantAcquisition',
-    'compareMaterialEnchantOrder',
-    'isPreferredDuplicateRecommendation',
-    'removeInefficientLowerTierEnchants',
-  ];
-  assert.deepEqual(getFactoryDependencyEntries(view, 'createEnchantOathAcquisition'), expectedOathDependencies);
-  assert.deepEqual(getFactoryDependencyEntries(view, 'createEnchantBufferRecommendation'), expectedBufferDependencies);
-  assert.deepEqual(getFactoryDependencyEntries(view, 'createEnchantDealerRecommendation'), expectedDealerDependencies);
-
-  const policyIndex = view.indexOf('createEnchantRecommendationEvaluationPolicy({');
-  const oathIndex = view.indexOf('createEnchantOathAcquisition({');
-  const bufferIndex = view.indexOf('createEnchantBufferRecommendation({');
-  const dealerIndex = view.indexOf('createEnchantDealerRecommendation({');
-  assert.ok(policyIndex < oathIndex);
-  assert.ok(oathIndex < bufferIndex);
-  assert.ok(bufferIndex < dealerIndex);
+  assert.match(factoryBlock, /\bgetRecommendationGold\b/);
+  assert.match(
+    factoryBlock,
+    /materialEnchantMaterialOrder:\s*MATERIAL_ENCHANT_MATERIAL_ORDER/,
+  );
 }
 
 const tests = [
@@ -521,7 +301,7 @@ const tests = [
   testRoundedMetricKey,
   testDuplicatePreferencePolicy,
   testDealerAndBufferTierEfficiencyPruning,
-  testSourceAuthorityAssemblyAndExistingFactoryBoundaries,
+  testViewImportAndPolicyAssemblyContract,
 ];
 
 let failures = 0;

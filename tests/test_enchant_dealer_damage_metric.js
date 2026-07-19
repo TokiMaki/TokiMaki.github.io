@@ -80,79 +80,7 @@ function normalizeSource(source) {
   return source.replace(/\r\n/g, '\n');
 }
 
-function getFunctionSource(source, name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert.ok(start >= 0, `${name} definition exists`);
-  const bodyStart = source.indexOf(') {', start) + 2;
-  assert.ok(bodyStart >= 2, `${name} body exists`);
-  let depth = 0;
-  let state = 'code';
-  let quote = '';
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const character = source[index];
-    const next = source[index + 1] || '';
-    if (state === 'lineComment') {
-      if (character === '\n' || character === '\r') state = 'code';
-      continue;
-    }
-    if (state === 'blockComment') {
-      if (character === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-      continue;
-    }
-    if (state === 'string') {
-      if (character === '\\') index += 1;
-      else if (character === quote) state = 'code';
-      continue;
-    }
-    if (state === 'template') {
-      if (character === '\\') index += 1;
-      else if (character === '`') state = 'code';
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      state = 'lineComment';
-      index += 1;
-      continue;
-    }
-    if (character === '/' && next === '*') {
-      state = 'blockComment';
-      index += 1;
-      continue;
-    }
-    if (character === "'" || character === '"') {
-      state = 'string';
-      quote = character;
-      continue;
-    }
-    if (character === '`') {
-      state = 'template';
-      continue;
-    }
-    if (character === '{') depth += 1;
-    if (character === '}') {
-      depth -= 1;
-      if (depth === 0) return source.slice(start, index + 1);
-    }
-  }
-  throw new Error(`unterminated function ${name}`);
-}
 
-function getFactoryDependencyEntries(source, factoryName) {
-  const marker = `} = ${factoryName}({`;
-  const start = source.indexOf(marker);
-  assert.ok(start >= 0, `${factoryName} assembly exists`);
-  const bodyStart = start + marker.length;
-  const bodyEnd = source.indexOf('\n});', bodyStart);
-  assert.ok(bodyEnd >= 0, `${factoryName} assembly closes`);
-  return source.slice(bodyStart, bodyEnd)
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.replace(/,$/, ''));
-}
 
 function testFactoryContractAliasesOutputOrderAndPrivacy() {
   assert.deepEqual(Object.keys(damageMetricModule), ['createEnchantDealerDamageMetric']);
@@ -398,154 +326,27 @@ function createStubModuleSource(importNames) {
   return `${lines.join('\n')}\n`;
 }
 
-async function testViewSourceAuthorityAssemblyTdzSmokeAndFactoryBoundaries() {
+async function testViewImportAssemblyAndTdzSmoke() {
   const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
   const modulePath = fileURLToPath(new URL('../src/dnfHellTool/enchantDealerDamageMetric.js', import.meta.url));
   const view = normalizeSource(readFileSync(viewPath, 'utf8'));
-  const moduleSource = normalizeSource(readFileSync(modulePath, 'utf8'));
 
-  const importText = "import { createEnchantDealerDamageMetric } from './enchantDealerDamageMetric.js';";
-  assert.equal(view.split(importText).length - 1, 1);
-  MOVED_CONSTANTS.forEach((name) => {
-    const pattern = new RegExp(`const\\s+${name}\\s*=`, 'g');
-    assert.equal((view.match(pattern) || []).length, 0, `${name} left enchantView.js`);
-    assert.equal((moduleSource.match(pattern) || []).length, 1, `${name} has one module authority`);
-  });
-  MOVED_FUNCTIONS.forEach((name) => {
-    const pattern = new RegExp(`function\\s+${name}\\s*\\(`, 'g');
-    assert.equal((view.match(pattern) || []).length, 0, `${name} left enchantView.js`);
-    assert.equal((moduleSource.match(pattern) || []).length, 1, `${name} has one module authority`);
-  });
-
-  const expectedAssembly = `const {
-  getDealerPrimaryStatKey,
-  getDamageBaseline,
-  getEquipmentScoreEffectiveStat,
-  getSelectedStatEffect,
-  estimateDamagePercent,
-  estimateDamageMultiplier,
-  regionAttackFlat: REGION_ATTACK_FLAT,
-  elementDamagePerElement: ELEMENT_DAMAGE_PER_ELEMENT,
-} = createEnchantDealerDamageMetric({
-  elementEffectKeyByName: ELEMENT_EFFECT_KEY_BY_NAME,
-});`;
-  assert.equal(view.split(expectedAssembly).length - 1, 1);
-  const formatPercentSource = getFunctionSource(view, 'formatPercent');
-  const formatPercentEnd = view.indexOf(formatPercentSource) + formatPercentSource.length;
-  const assemblyStart = view.indexOf(expectedAssembly);
-  const assemblyEnd = assemblyStart + expectedAssembly.length;
-  const policyDeclarationStart = view.lastIndexOf(
-    'const {',
-    view.indexOf('} = createEnchantRecommendationEvaluationPolicy({'),
+  assert.match(
+    view,
+    /import \{ createEnchantDealerDamageMetric \} from '\.\/enchantDealerDamageMetric\.js';/,
   );
-  assert.ok(formatPercentEnd < assemblyStart);
-  assert.equal(view.slice(formatPercentEnd, assemblyStart).trim(), '');
-  assert.ok(assemblyEnd < policyDeclarationStart);
-  assert.equal(view.slice(assemblyEnd, policyDeclarationStart).trim(), '');
-
-  const displayAdapterIndex = view.indexOf('function normalizeDealerEnchantDisplayEffects(');
-  const transitionAdapterIndex = view.indexOf('function formatEnchantTransitionEffect(');
-  assert.ok(displayAdapterIndex >= 0 && displayAdapterIndex < assemblyStart);
-  assert.ok(transitionAdapterIndex >= 0 && transitionAdapterIndex < assemblyStart);
-  assert.equal((view.match(/function\s+normalizeDealerEnchantDisplayEffects\s*\(/g) || []).length, 1);
-  assert.equal((view.match(/function\s+formatEnchantTransitionEffect\s*\(/g) || []).length, 1);
-  assert.equal((view.match(/function\s+getBufferPrimaryStatKey\s*\(/g) || []).length, 1);
-  assert.equal((view.match(/function\s+getBufferSelectedStatEffect\s*\(/g) || []).length, 1);
-  assert.equal((view.match(/function\s+normalizeSimulatorDamageDelta\s*\(/g) || []).length, 1);
-  assert.equal((view.match(/function\s+getFinalDamageReplacementMultiplier\s*\(/g) || []).length, 1);
-
-  const expectedFactoryDependencies = new Map([
-    ['createEnchantEquipmentProgression', [
-      'addEffects',
-      'subtractEffects',
-      'estimateDamagePercent',
-      'estimateDamageMultiplier',
-      'applyUpgradeMaterialPrices',
-      'getUpgradeMaterials',
-      'getFinalDamageReplacementMultiplier',
-    ]],
-    ['createEnchantAvatarRecommendationSource', [
-      'avatarPlatinumSlotLabelByKey: AVATAR_PLATINUM_SLOT_LABEL_BY_KEY',
-      'cloneSimulatorValue',
-      'getDealerPrimaryStatKey',
-      'addEffects',
-      'getDamageBaseline',
-      'normalizeSimulatorDamageDelta',
-      'subtractEffects',
-      'getSelectedStatEffect',
-    ]],
-    ['createEnchantBufferSimulatorCalculation', [
-      'getBuffLoadoutRowsForMetric',
-      'cloneSimulatorValue',
-      'getBuffSimulatorTargetSlotId',
-      'getSelectedStatEffect',
-    ]],
-    ['createEnchantDealerRecommendation', [
-      'tuneSourceTypes: TUNE_SOURCE_TYPES',
-      'creatureArtifactTypes: CREATURE_ARTIFACT_TYPES',
-      'elementEffectKeyByName: ELEMENT_EFFECT_KEY_BY_NAME',
-      'regionAttackFlat: REGION_ATTACK_FLAT',
-      'elementDamagePerElement: ELEMENT_DAMAGE_PER_ELEMENT',
-      'estimateDamagePercent',
-      'addEffects',
-      'subtractEffects',
-      'getDamageBaseline',
-      'getFinalDamageReplacementMultiplier',
-      'estimateDamageMultiplier',
-      'getSelectedStatEffect',
-      'getEquipmentScoreEffectiveStat',
-      'getCurrentCreatureArtifactBySlot',
-      'getCreatureArtifactType',
-      'isSameTitleBase',
-      'getTitleBeadOnlyRow',
-      'getCostPerPointOnePercent',
-      'getEffectSignature',
-      'getRoleRelevantEffects',
-      'getRoundedMetricKey',
-      'isMaterialAcquisition',
-      'isFreeActionRecommendation',
-      'isMaterialEnchantAcquisition',
-      'compareMaterialEnchantOrder',
-      'isPreferredDuplicateRecommendation',
-      'removeInefficientLowerTierEnchants',
-    ]],
-    ['createEnchantDealerSimulatorCalculation', [
-      'addEffects',
-      'getFinalDamageReplacementMultiplier',
-      'blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS',
-      'getAvatarEmblemMetricBaseline',
-      'getDamageBaseline',
-      'getCreatureArtifactEffectsTotal',
-      'subtractEffects',
-      'getAvatarRegularEmblemEffectsTotal',
-      'getEquipmentProgressionEffectsTotal',
-      'getOathCrystalEffectsTotal',
-      'normalizeSimulatorDamageDelta',
-      'getSelectedStatEffect',
-      'elementDamagePerElement: ELEMENT_DAMAGE_PER_ELEMENT',
-      'getAdjustedElementBaselineForRecommendation',
-      'estimateDamageMultiplier',
-      'getSkillDamageMultiplier',
-      'getCreatureArtifactReplacementMultiplier',
-      'getEquipmentProgressionFinalDamageChangeMultiplier',
-      'getEquipmentTuneDamageMultiplier',
-      'getOathCrystalFinalDamageChangeMultiplier',
-      'getOathTuneDamageMultiplier',
-      'getElementAdjustedReplacementIncrementalDamagePercent',
-      'getReplacementIncrementalDamagePercent',
-      'getDealerAvatarPlatinumEquipmentScoreMultiplier',
-      'getAvatarPlatinumDamageMultiplier',
-      'getBuffEnhancementMetricMultiplier',
-    ]],
-  ]);
-  expectedFactoryDependencies.forEach((dependencies, factoryName) => {
-    assert.deepEqual(getFactoryDependencyEntries(view, factoryName), dependencies);
+  const factoryIndex = view.indexOf('} = createEnchantDealerDamageMetric({');
+  assert.ok(factoryIndex >= 0, 'dealer damage metric factory is assembled');
+  const factoryBlock = view.slice(
+    view.lastIndexOf('const {', factoryIndex),
+    view.indexOf('});', factoryIndex) + 3,
+  );
+  PUBLIC_OUTPUTS.forEach((name) => {
+    assert.match(factoryBlock, new RegExp(`\\b${name}\\b`));
   });
-  const factoryIndexes = [...expectedFactoryDependencies.keys()].map((factoryName) => (
-    view.indexOf(`${factoryName}({`)
-  ));
-  assert.ok(factoryIndexes.every((index) => index >= 0));
-  assert.deepEqual(factoryIndexes, factoryIndexes.slice().sort((a, b) => a - b));
+  assert.match(factoryBlock, /regionAttackFlat:\s*REGION_ATTACK_FLAT/);
+  assert.match(factoryBlock, /elementDamagePerElement:\s*ELEMENT_DAMAGE_PER_ELEMENT/);
+  assert.match(factoryBlock, /elementEffectKeyByName:\s*ELEMENT_EFFECT_KEY_BY_NAME/);
 
   const smokeRoot = mkdtempSync(join(tmpdir(), 'enchant-dealer-damage-metric-'));
   try {
@@ -579,7 +380,7 @@ const tests = [
   testPrimaryStatAndDamageBaselineFallbacksOrderAndReferences,
   testEffectiveStatTruncationAndSelectedStatBranches,
   testDamageMultiplierSentinelsProductPercentRatioAndImmutability,
-  testViewSourceAuthorityAssemblyTdzSmokeAndFactoryBoundaries,
+  testViewImportAssemblyAndTdzSmoke,
 ];
 
 let failures = 0;

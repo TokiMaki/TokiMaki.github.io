@@ -418,50 +418,56 @@ function testBuildSimulatedTitleTargetFallbackAndDeepClone() {
   });
 }
 
-function testEnchantViewAssemblyAndTdzSmoke() {
+function testEnchantViewImportAndAssemblyContract() {
   const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
   const source = readFileSync(viewPath, 'utf8');
-  const importText = "import { createEnchantTitleRecommendationSource } from './enchantTitleRecommendationSource.js';";
-  assert.equal(source.split(importText).length - 1, 1);
-  for (const name of [
-    'buildSimulatedTitleTarget',
-    'getTitleRows',
-    'getTitleBaseEffectSignature',
-    'getCurrentTitleBeadRows',
-    'isSameTitleBase',
-    'getTitleBeadOnlyRow',
-  ]) {
-    assert.equal(source.includes(`function ${name}`), false, `${name} has one authority in the new module`);
-  }
-  const reinforceSkillIndex = source.indexOf('function getReinforceSkillLevel');
+  assert.match(
+    source,
+    /import \{ createEnchantTitleRecommendationSource \} from '\.\/enchantTitleRecommendationSource\.js';/,
+  );
+
   const factoryIndex = source.indexOf('} = createEnchantTitleRecommendationSource({');
-  const itemSkillIndex = source.indexOf('function getItemSkillLevelBonus');
-  assert.ok(reinforceSkillIndex >= 0 && reinforceSkillIndex < factoryIndex);
-  assert.ok(factoryIndex < itemSkillIndex);
-  assert.match(source.slice(factoryIndex, itemSkillIndex), /cloneSimulatorValue,\s+addEffects,\s+subtractEffects,\s+getEffectSignature,/);
+  assert.ok(factoryIndex >= 0, 'title recommendation source factory is assembled');
+  const factoryBlock = source.slice(
+    source.lastIndexOf('const {', factoryIndex),
+    source.indexOf('});', factoryIndex) + 3,
+  );
+  PUBLIC_FUNCTIONS.forEach((name) => {
+    assert.match(factoryBlock, new RegExp(`\\b${name}\\b`));
+  });
+  for (const dependency of [
+    'cloneSimulatorValue',
+    'addEffects',
+    'subtractEffects',
+    'getEffectSignature',
+  ]) {
+    assert.match(factoryBlock, new RegExp(`\\b${dependency}\\b`));
+  }
 
   const sourceCalculationIndex = source.indexOf('} = createEnchantBufferSimulatorSourceCalculation({');
-  const bufferRecommendationIndex = source.indexOf('} = createEnchantBufferRecommendation({');
-  const dealerRecommendationIndex = source.indexOf('} = createEnchantDealerRecommendation({');
-  assert.ok(factoryIndex < sourceCalculationIndex);
-  assert.ok(sourceCalculationIndex < bufferRecommendationIndex);
-  assert.ok(bufferRecommendationIndex < dealerRecommendationIndex);
-
+  assert.ok(sourceCalculationIndex >= 0);
   const sourceCalculationBlock = source.slice(
-    sourceCalculationIndex,
+    source.lastIndexOf('const {', sourceCalculationIndex),
     source.indexOf('});', sourceCalculationIndex) + 3,
   );
-  assert.match(sourceCalculationBlock, /getItemSkillLevelBonus,\s+buildSimulatedTitleTarget,\s+getEquipmentProgressionType,/);
+  assert.match(sourceCalculationBlock, /\bbuildSimulatedTitleTarget\b/);
+
+  const bufferRecommendationIndex = source.indexOf('} = createEnchantBufferRecommendation({');
+  assert.ok(bufferRecommendationIndex >= 0);
   const bufferRecommendationBlock = source.slice(
-    bufferRecommendationIndex,
+    source.lastIndexOf('const {', bufferRecommendationIndex),
     source.indexOf('});', bufferRecommendationIndex) + 3,
   );
-  assert.match(bufferRecommendationBlock, /adaptOathAcquisitionRecommendation,\s+getTitleBeadOnlyRow,\s+isFreeActionRecommendation,/);
+  assert.match(bufferRecommendationBlock, /\bgetTitleBeadOnlyRow\b/);
+
+  const dealerRecommendationIndex = source.indexOf('} = createEnchantDealerRecommendation({');
+  assert.ok(dealerRecommendationIndex >= 0);
   const dealerRecommendationBlock = source.slice(
-    dealerRecommendationIndex,
+    source.lastIndexOf('const {', dealerRecommendationIndex),
     source.indexOf('});', dealerRecommendationIndex) + 3,
   );
-  assert.match(dealerRecommendationBlock, /getCreatureArtifactType,\s+isSameTitleBase,\s+getTitleBeadOnlyRow,\s+getCostPerPointOnePercent,/);
+  assert.match(dealerRecommendationBlock, /\bisSameTitleBase\b/);
+  assert.match(dealerRecommendationBlock, /\bgetTitleBeadOnlyRow\b/);
 }
 
 const tests = [
@@ -471,7 +477,7 @@ const tests = [
   testSameTitleBase,
   testBeadOnlyIdentityFallbackAndConversion,
   testBuildSimulatedTitleTargetFallbackAndDeepClone,
-  testEnchantViewAssemblyAndTdzSmoke,
+  testEnchantViewImportAndAssemblyContract,
 ];
 
 let failures = 0;

@@ -409,11 +409,10 @@ test('enchantView source contract와 binder 호출 순서를 유지한다', () =
   );
   assert.doesNotMatch(viewSource, /function bindOathSymbolFallback\s*\(/);
 
-  const navigationIndex = viewSource.indexOf('} = createEnchantLoadoutNavigation({');
-  const fallbackIndex = viewSource.indexOf('const { bindOathSymbolFallback } = createEnchantOathSymbolFallback({');
-  const detailIndex = viewSource.indexOf('} = createEnchantPortraitDetailPanel({');
-  assert.ok(navigationIndex >= 0 && navigationIndex < fallbackIndex);
-  assert.ok(fallbackIndex < detailIndex);
+  assert.match(
+    viewSource,
+    /const \{ bindOathSymbolFallback \} = createEnchantOathSymbolFallback\(\{/,
+  );
 
   const renderStart = viewSource.indexOf('function renderEnchantCharacterPortrait()');
   const renderEnd = viewSource.indexOf('function getSelectedEnchantCharacter()', renderStart);

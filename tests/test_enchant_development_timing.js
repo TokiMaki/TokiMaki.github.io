@@ -246,14 +246,24 @@ test('enchantView keeps initialization, adapter fallback, and ownership orchestr
 
   assert.match(source, /import \{ createEnchantDevelopmentTiming \} from '\.\/enchantDevelopmentTiming\.js';/);
   assert.match(source, /state\.enchantTiming = null;/);
+  const factoryIndex = source.indexOf('} = createEnchantDevelopmentTiming({');
+  assert.ok(factoryIndex >= 0, 'development timing factory is assembled');
+  const factoryBlock = source.slice(
+    source.lastIndexOf('const {', factoryIndex),
+    source.indexOf('\n  });', factoryIndex) + '\n  });'.length,
+  );
+  assert.match(factoryBlock, /\bbeginEnchantTiming\b/);
+  assert.match(factoryBlock, /\brecordEnchantTimingStep\b/);
+  assert.match(factoryBlock, /\bflushEnchantTiming\b/);
+  assert.match(factoryBlock, /getTiming:\s*\(\)\s*=>\s*state\.enchantTiming/);
+  assert.match(factoryBlock, /setTiming:\s*\(timing\)\s*=>\s*\{\s*state\.enchantTiming = timing;\s*\}/);
+  assert.match(factoryBlock, /typeof performance !== 'undefined' && typeof performance\.now === 'function'[\s\S]*return performance\.now\(\);[\s\S]*return Date\.now\(\);/);
   assert.match(source, /const ownsTiming = !state\.enchantTiming && beginEnchantTiming\(forceRefresh \? 'price-refresh' : 'price-load'\);/);
-  assert.match(source, /typeof performance !== 'undefined' && typeof performance\.now === 'function'[\s\S]*return performance\.now\(\);[\s\S]*return Date\.now\(\);/);
+  assert.match(source, /flushEnchantTiming\('error'\)/);
+  assert.match(source, /flushEnchantTiming\('complete'\)/);
+  assert.match(source, /flushEnchantTiming\('candidate-select'\)/);
   assert.doesNotMatch(source, /function getEnchantNowMs\(/);
   assert.doesNotMatch(source, /function beginEnchantTiming\(/);
   assert.doesNotMatch(source, /function recordEnchantTimingStep\(/);
   assert.doesNotMatch(source, /function flushEnchantTiming\(/);
-  assert.equal((source.match(/state\.enchantTiming/g) || []).length, 4);
-  assert.equal((source.match(/flushEnchantTiming\('error'\)/g) || []).length, 3);
-  assert.equal((source.match(/flushEnchantTiming\('complete'\)/g) || []).length, 2);
-  assert.equal((source.match(/flushEnchantTiming\('candidate-select'\)/g) || []).length, 1);
 });

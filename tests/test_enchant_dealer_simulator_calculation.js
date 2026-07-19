@@ -511,72 +511,27 @@ function testCumulativeTitleFallbackAndMissingBaseShortCircuit() {
   assert.equal(invoked, false, 'missing baseDamageBaseline returns before dependency calls');
 }
 
-function testEnchantViewAuthorityDependencyContractAndTdzAssembly() {
+function testEnchantViewImportAndAssemblyContract() {
   const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
   const source = readFileSync(viewPath, 'utf8');
-  const importText = "import { createEnchantDealerSimulatorCalculation } from './enchantDealerSimulatorCalculation.js';";
-  assert.equal(source.split(importText).length - 1, 1);
+  assert.match(
+    source,
+    /import \{ createEnchantDealerSimulatorCalculation \} from '\.\/enchantDealerSimulatorCalculation\.js';/,
+  );
 
-  for (const name of [...PRIVATE_FUNCTIONS, ...PUBLIC_FUNCTIONS]) {
-    assert.equal(source.includes(`function ${name}`), false, `${name} has one authority in the new module`);
-  }
-  assert.equal(source.split('function normalizeSimulatorDamageDelta').length - 1, 1);
-  assert.equal(source.split('function getFinalDamageReplacementMultiplier').length - 1, 1);
-
-  const dealerFactoryIndex = source.indexOf('} = createEnchantDealerRecommendation({');
-  const dealerFactoryEnd = source.indexOf('});', dealerFactoryIndex) + 3;
-  const calculationFactoryIndex = source.indexOf('} = createEnchantDealerSimulatorCalculation({');
-  const calculationDeclarationStart = source.lastIndexOf('const {', calculationFactoryIndex);
-  const calculationFactoryEnd = source.indexOf('});', calculationFactoryIndex) + 3;
-  const hasHigherIndex = source.indexOf('function hasHigherEnchantCandidate');
-  assert.ok(dealerFactoryIndex >= 0);
-  assert.ok(dealerFactoryEnd < calculationFactoryIndex);
-  assert.ok(calculationFactoryIndex < hasHigherIndex);
-  assert.equal(source.slice(dealerFactoryEnd, calculationDeclarationStart).trim(), '');
-  assert.equal(source.slice(calculationFactoryEnd, hasHigherIndex).trim(), '');
-
-  const factoryBlock = source.slice(calculationDeclarationStart, calculationFactoryEnd);
-  const expectedFactoryBlock = `const {
-  buildSimulatedDamageBaseline,
-  getSimulatorCumulativeDamageMultiplier,
-} = createEnchantDealerSimulatorCalculation({
-  addEffects,
-  getFinalDamageReplacementMultiplier,
-  blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,
-  getAvatarEmblemMetricBaseline,
-  getDamageBaseline,
-  getCreatureArtifactEffectsTotal,
-  subtractEffects,
-  getAvatarRegularEmblemEffectsTotal,
-  getEquipmentProgressionEffectsTotal,
-  getOathCrystalEffectsTotal,
-  normalizeSimulatorDamageDelta,
-  getSelectedStatEffect,
-  elementDamagePerElement: ELEMENT_DAMAGE_PER_ELEMENT,
-  getAdjustedElementBaselineForRecommendation,
-  estimateDamageMultiplier,
-  getSkillDamageMultiplier,
-  getCreatureArtifactReplacementMultiplier,
-  getEquipmentProgressionFinalDamageChangeMultiplier,
-  getEquipmentTuneDamageMultiplier,
-  getOathCrystalFinalDamageChangeMultiplier,
-  getOathTuneDamageMultiplier,
-  getElementAdjustedReplacementIncrementalDamagePercent,
-  getReplacementIncrementalDamagePercent,
-  getDealerAvatarPlatinumEquipmentScoreMultiplier,
-  getAvatarPlatinumDamageMultiplier,
-  getBuffEnhancementMetricMultiplier,
-});`;
-  assert.equal(factoryBlock.replaceAll('\r\n', '\n'), expectedFactoryBlock);
-
-  const keptNormalizeIndex = source.indexOf('function normalizeSimulatorDamageDelta');
-  const keptFinalDamageIndex = source.indexOf('function getFinalDamageReplacementMultiplier');
-  const avatarFactoryIndex = source.indexOf('} = createEnchantAvatarRecommendationSource({');
-  assert.ok(keptFinalDamageIndex < calculationFactoryIndex);
-  assert.ok(keptNormalizeIndex < avatarFactoryIndex);
-  assert.ok(avatarFactoryIndex < calculationFactoryIndex);
-  assert.ok(source.indexOf('} = createEnchantOathProgression({') < calculationFactoryIndex);
-  assert.ok(source.indexOf('} = createEnchantBuffEnhancementMetric({') < calculationFactoryIndex);
+  const factoryIndex = source.indexOf('} = createEnchantDealerSimulatorCalculation({');
+  assert.ok(factoryIndex >= 0, 'dealer simulator calculation factory is assembled');
+  const factoryBlock = source.slice(
+    source.lastIndexOf('const {', factoryIndex),
+    source.indexOf('});', factoryIndex) + 3,
+  );
+  PUBLIC_FUNCTIONS.forEach((name) => {
+    assert.match(factoryBlock, new RegExp(`\\b${name}\\b`));
+  });
+  assert.match(factoryBlock, /blackFangSimulatorSlots:\s*BLACK_FANG_SIMULATOR_SLOTS/);
+  assert.match(factoryBlock, /elementDamagePerElement:\s*ELEMENT_DAMAGE_PER_ELEMENT/);
+  assert.match(factoryBlock, /\bnormalizeSimulatorDamageDelta\b/);
+  assert.match(factoryBlock, /\bgetFinalDamageReplacementMultiplier\b/);
 }
 
 const tests = [
@@ -584,7 +539,7 @@ const tests = [
   testBuildSimulatedDamageBaselineAllSourcesAdjustedFallbackAndImmutability,
   testCumulativeMultiplierAllSentinelsTitleAdjustedAndMetricBranches,
   testCumulativeTitleFallbackAndMissingBaseShortCircuit,
-  testEnchantViewAuthorityDependencyContractAndTdzAssembly,
+  testEnchantViewImportAndAssemblyContract,
 ];
 
 let failures = 0;

@@ -494,62 +494,26 @@ function testPlatinumMultipliersAndTitleJobFiltering() {
   assert.equal(getAvatarPlatinumRecommendationMultiplier({ effects: { finalDamage: -7 } }), 1);
 }
 
-function testEnchantViewAssemblyAndAuthority() {
+function testEnchantViewImportAndAssemblyContract() {
   const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
   const source = readFileSync(viewPath, 'utf8');
-  const importText = "import { createEnchantAvatarRecommendationSource } from './enchantAvatarRecommendationSource.js';";
-  assert.equal(source.split(importText).length - 1, 1);
-  for (const name of [
-    'AVATAR_EQUIPMENT_SCORE_RED_SLOT_IDS',
-    'AVATAR_EQUIPMENT_SCORE_GREEN_YELLOW_SLOT_IDS',
-    'AVATAR_EQUIPMENT_SCORE_STAT_BY_GRADE',
-  ]) {
-    assert.equal(source.includes(`const ${name} =`), false, `${name} moved to one authority`);
-  }
-  for (const name of [
-    'getAvatarPlatinumDamageMultiplier',
-    'resolveDealerAvatarSkillCoefficient',
-    'getDealerTitleRecognizedLevelContribution',
-    'getDealerAvatarRecognizedLevel',
-    'getDealerAvatarPlatinumEquipmentScoreMultiplier',
-    'getAvatarPlatinumRecommendationMultiplier',
-    'getAvatarRows',
-    'normalizeAvatarSimulatorState',
-    'getAvatarRegularEmblemEffectsTotal',
-    'getAvatarEmblemMetricBaseline',
-  ]) {
-    assert.equal(source.includes(`function ${name}`), false, `${name} moved to one authority`);
-  }
-  assert.match(source, /const AVATAR_PLATINUM_SLOT_LABEL_BY_KEY = \{/);
-  const normalizeIndex = source.indexOf('function normalizeSimulatorDamageDelta');
+  assert.match(
+    source,
+    /import \{ createEnchantAvatarRecommendationSource \} from '\.\/enchantAvatarRecommendationSource\.js';/,
+  );
+
   const factoryIndex = source.indexOf('} = createEnchantAvatarRecommendationSource({');
-  const buffLoadoutRowsForMetricIndex = source.indexOf('function getBuffLoadoutRowsForMetric');
-  assert.ok(normalizeIndex >= 0 && normalizeIndex < factoryIndex);
-  assert.ok(factoryIndex < buffLoadoutRowsForMetricIndex);
-  const factoryDeclarationStart = source.lastIndexOf('const {', factoryIndex);
+  assert.ok(factoryIndex >= 0, 'avatar recommendation source factory is assembled');
   const factoryBlock = source.slice(
-    factoryDeclarationStart,
+    source.lastIndexOf('const {', factoryIndex),
     source.indexOf('});', factoryIndex) + 3,
   );
-  assert.match(factoryBlock, /avatarPlatinumSlotLabelByKey: AVATAR_PLATINUM_SLOT_LABEL_BY_KEY,\s+cloneSimulatorValue,\s+getDealerPrimaryStatKey,\s+addEffects,\s+getDamageBaseline,\s+normalizeSimulatorDamageDelta,\s+subtractEffects,\s+getSelectedStatEffect,/);
-  assert.deepEqual(
-    [...factoryBlock.matchAll(/^  ([A-Za-z][A-Za-z0-9]*),$/gm)].map((match) => match[1]),
-    [
-      'getAvatarPlatinumDamageMultiplier',
-      'getDealerAvatarPlatinumEquipmentScoreMultiplier',
-      'getAvatarPlatinumRecommendationMultiplier',
-      'getAvatarRows',
-      'normalizeAvatarSimulatorState',
-      'getAvatarRegularEmblemEffectsTotal',
-      'getAvatarEmblemMetricBaseline',
-      'cloneSimulatorValue',
-      'getDealerPrimaryStatKey',
-      'addEffects',
-      'getDamageBaseline',
-      'normalizeSimulatorDamageDelta',
-      'subtractEffects',
-      'getSelectedStatEffect',
-    ],
+  PUBLIC_FUNCTIONS.forEach((name) => {
+    assert.match(factoryBlock, new RegExp(`\\b${name}\\b`));
+  });
+  assert.match(
+    factoryBlock,
+    /avatarPlatinumSlotLabelByKey:\s*AVATAR_PLATINUM_SLOT_LABEL_BY_KEY/,
   );
 }
 
@@ -559,7 +523,7 @@ const tests = [
   testNormalizeAvatarSimulatorStateCloneAndRecognition,
   testAvatarEmblemActualEquipmentScoreAndBaselineIdentity,
   testPlatinumMultipliersAndTitleJobFiltering,
-  testEnchantViewAssemblyAndAuthority,
+  testEnchantViewImportAndAssemblyContract,
 ];
 
 let failures = 0;

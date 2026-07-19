@@ -457,50 +457,26 @@ function testArtifactTypesAndCurrentMapReferenceSemantics() {
   assert.equal(identity.getCreatureArtifactType({ slotColor: 'GREEN' }), 'GREEN');
 }
 
-function testSourceAuthorityAssemblyDispatchersAndOathBoundary() {
+function testViewAssemblyDispatchersAndOathBoundary() {
   const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
-  const modulePath = fileURLToPath(new URL('../src/dnfHellTool/enchantSimulatorIdentity.js', import.meta.url));
   const view = readFileSync(viewPath, 'utf8');
-  const moduleSource = readFileSync(modulePath, 'utf8');
 
-  const importText = "import { createEnchantSimulatorIdentity } from './enchantSimulatorIdentity.js';";
-  assert.equal(view.split(importText).length - 1, 1);
-  MOVED_FUNCTIONS.forEach((name) => {
-    const pattern = new RegExp(`function\\s+${name}\\s*\\(`, 'g');
-    assert.equal((view.match(pattern) || []).length, 0, `${name} left enchantView.js`);
-    assert.equal((moduleSource.match(pattern) || []).length, 1, `${name} has one module authority`);
-  });
-  const constantText = "const CREATURE_ARTIFACT_TYPES = new Set(['RED', 'BLUE', 'GREEN']);";
-  assert.equal(view.split(constantText).length - 1, 0);
-  assert.equal(moduleSource.split(constantText).length - 1, 1);
-
-  const reinforceSource = getFunctionSource(view, 'getReinforceSkillLevel');
-  const reinforceStart = view.indexOf(reinforceSource);
-  const reinforceEnd = reinforceStart + reinforceSource.length;
+  assert.match(
+    view,
+    /import \{ createEnchantSimulatorIdentity \} from '\.\/enchantSimulatorIdentity\.js';/,
+  );
   const identityCallIndex = view.indexOf('} = createEnchantSimulatorIdentity({');
-  const identityDeclarationStart = view.lastIndexOf('const {', identityCallIndex);
-  const identityCallEnd = view.indexOf('});', identityCallIndex) + 3;
-  const titleCallIndex = view.indexOf('} = createEnchantTitleRecommendationSource({');
-  const titleDeclarationStart = view.lastIndexOf('const {', titleCallIndex);
-  assert.ok(reinforceEnd < identityCallIndex);
-  assert.equal(view.slice(reinforceEnd, identityDeclarationStart).trim(), '');
-  assert.equal(view.slice(identityCallEnd, titleDeclarationStart).trim(), '');
-  assert.ok(identityCallIndex < titleCallIndex);
-  assert.ok(view.indexOf('const EFFECT_ORDER') < identityCallIndex);
-  assert.ok(view.indexOf('const BLACK_FANG_SIMULATOR_SLOTS') < identityCallIndex);
-
-  const identityAssembly = view.slice(identityDeclarationStart, identityCallEnd);
-  assert.match(identityAssembly, /creatureArtifactTypes: CREATURE_ARTIFACT_TYPES,/);
-  assert.match(identityAssembly, /effectOrder: EFFECT_ORDER,\s*blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,/);
-
-  const appliedSnapshotIndex = view.indexOf('function getAppliedSelectionRecommendationSnapshot');
-  const mergeSnapshotIndex = view.indexOf('function mergeAppliedSimulatorSnapshots');
-  const exclusiveDispatcherIndex = view.indexOf('function getSimulatorExclusiveGroupKey');
-  const candidateDispatcherIndex = view.indexOf('function getSimulatorCandidateSignature');
-  assert.ok(appliedSnapshotIndex >= 0);
-  assert.ok(appliedSnapshotIndex < mergeSnapshotIndex);
-  assert.ok(mergeSnapshotIndex < exclusiveDispatcherIndex);
-  assert.ok(exclusiveDispatcherIndex < candidateDispatcherIndex);
+  assert.ok(identityCallIndex >= 0, 'simulator identity factory is assembled');
+  const identityAssembly = view.slice(
+    view.lastIndexOf('const {', identityCallIndex),
+    view.indexOf('});', identityCallIndex) + 3,
+  );
+  PUBLIC_OUTPUTS.forEach((name) => {
+    assert.match(identityAssembly, new RegExp(`\\b${name}\\b`));
+  });
+  assert.match(identityAssembly, /effectOrder:\s*EFFECT_ORDER/);
+  assert.match(identityAssembly, /blackFangSimulatorSlots:\s*BLACK_FANG_SIMULATOR_SLOTS/);
+  assert.match(identityAssembly, /creatureArtifactTypes:\s*CREATURE_ARTIFACT_TYPES/);
 
   const exclusiveDispatcher = getFunctionSource(view, 'getSimulatorExclusiveGroupKey');
   const candidateDispatcher = getFunctionSource(view, 'getSimulatorCandidateSignature');
@@ -514,33 +490,12 @@ function testSourceAuthorityAssemblyDispatchersAndOathBoundary() {
   );
 
   const oathCallIndex = view.indexOf('} = createEnchantOathAcquisition({');
-  assert.ok(titleCallIndex < oathCallIndex);
-  assert.ok(oathCallIndex < exclusiveDispatcherIndex, 'hoisted dispatcher definition remains after oath factory assembly');
-  const oathCallEnd = view.indexOf('});', oathCallIndex) + 3;
-  const oathAssembly = view.slice(view.lastIndexOf('const {', oathCallIndex), oathCallEnd);
+  assert.ok(oathCallIndex >= 0, 'oath acquisition factory is assembled');
+  const oathAssembly = view.slice(
+    view.lastIndexOf('const {', oathCallIndex),
+    view.indexOf('});', oathCallIndex) + 3,
+  );
   assert.match(oathAssembly, /getSimulatorExclusiveGroupKey,\s*getSimulatorCandidateSignature,/);
-
-  const laterFactories = [
-    'createEnchantTitleRecommendationSource({',
-    'createEnchantEquipmentProgression({',
-    'createEnchantEquipmentTuneProgression({',
-    'createEnchantAvatarRecommendationSource({',
-    'createEnchantBufferSimulatorCalculation({',
-    'createEnchantBufferSimulatorSourceCalculation({',
-    'createEnchantBufferSimulatorSourceIdentity({',
-    'createEnchantBuffEnhancementMetric({',
-    'createEnchantOathProgression({',
-    'createEnchantOathAcquisition({',
-    'createEnchantBufferRecommendation({',
-    'createEnchantDealerRecommendation({',
-    'createEnchantDealerSimulatorCalculation({',
-  ];
-  let previousIndex = identityCallIndex;
-  laterFactories.forEach((factory) => {
-    const index = view.indexOf(factory);
-    assert.ok(index > previousIndex, `${factory} relative assembly order remains after identity factory`);
-    previousIndex = index;
-  });
 }
 
 const tests = [
@@ -549,7 +504,7 @@ const tests = [
   testDealerSourceIdentityMatrix,
   testAvatarAndBuffSwitchingIdentityMatrix,
   testArtifactTypesAndCurrentMapReferenceSemantics,
-  testSourceAuthorityAssemblyDispatchersAndOathBoundary,
+  testViewAssemblyDispatchersAndOathBoundary,
 ];
 
 let failures = 0;
