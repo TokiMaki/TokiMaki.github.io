@@ -296,8 +296,8 @@ assert.deepEqual({
   tuneCount: dealerRow.tuneCount,
 }, {
   effects: { skillDamageMultiplier: 1.02 },
-  auction: { minUnitPrice: 4600000 },
-  expectedGold: 4600000,
+  auction: { minUnitPrice: 5000000 },
+  expectedGold: 5000000,
   currentSetPoint: 2550,
   targetSetPoint: 2620,
   currentTuneFinalDamage: 0,
@@ -306,7 +306,7 @@ assert.deepEqual({
   targetTuneBuffPower: 400,
   tuneCount: 7,
 });
-assert.equal(dealerRow.tuneSteps.length, 2);
+assert.equal(dealerRow.tuneSteps.length, 1);
 assert.deepEqual(
   dealerRow.tuneSteps.map((step) => ({
     index: step.index,
@@ -330,20 +330,8 @@ assert.deepEqual(
       targetFinalDamage: 2,
       currentBuffPower: 0,
       targetBuffPower: 400,
-      expectedGold: 4600000,
+      expectedGold: 5000000,
       effects: { skillDamageMultiplier: 1.02 },
-    },
-    {
-      index: 1,
-      tuneCount: 14,
-      currentSetPoint: 2550,
-      targetSetPoint: 2690,
-      currentFinalDamage: 0,
-      targetFinalDamage: 4,
-      currentBuffPower: 0,
-      targetBuffPower: 800,
-      expectedGold: 11600000,
-      effects: { skillDamageMultiplier: 1.04 },
     },
   ],
 );
@@ -352,8 +340,7 @@ assert.deepEqual(
   [
     { slot: '머리어깨', fromTuneLevel: 1, toTuneLevel: 3, count: 2 },
     { slot: '상의', fromTuneLevel: 0, toTuneLevel: 3, count: 3 },
-    { slot: '알 수 없음', fromTuneLevel: 2, toTuneLevel: 3, count: 1 },
-    { slot: '벨트', fromTuneLevel: 0, toTuneLevel: 1, count: 1 },
+    { slot: '벨트', fromTuneLevel: 0, toTuneLevel: 2, count: 2 },
   ],
 );
 assert.deepEqual(
@@ -368,20 +355,8 @@ assert.deepEqual(
     ['상의', 0, 1],
     ['상의', 1, 2],
     ['상의', 2, 3],
-    ['알 수 없음', 2, 3],
     ['벨트', 0, 1],
-  ],
-);
-assert.deepEqual(
-  dealerRow.tuneSteps[1].tunePlan.slotChanges.map(({ slot, count }) => [slot, count]),
-  [
-    ['머리어깨', 2],
-    ['상의', 3],
-    ['알 수 없음', 1],
-    ['벨트', 3],
-    ['신발', 3],
-    ['무기', 1],
-    ['팔찌', 1],
+    ['벨트', 1, 2],
   ],
 );
 assert.deepEqual(
@@ -400,7 +375,7 @@ assert.deepEqual(
     {
       key: 'legendarySoul',
       label: '레전더리 소울',
-      amount: 120,
+      amount: 100,
       priceKey: 'legendarySoul',
       auction: { minUnitPrice: 100 },
       itemId: 'legendary-soul',
@@ -411,7 +386,7 @@ assert.deepEqual(
     {
       key: 'epicSoul',
       label: '에픽 소울',
-      amount: 10,
+      amount: 20,
       priceKey: 'epicSoul',
       auction: { minUnitPrice: 200 },
       itemId: 'epic-soul',
@@ -431,11 +406,11 @@ const bufferRows = progression.getEquipmentTuneRows(
 );
 assert.equal(bufferRows.length, 1);
 assert.deepEqual(bufferRows[0].effects, { buffPower: 400 });
-assert.equal(bufferRows[0].expectedGold, 4600000);
-assert.deepEqual(bufferRows[0].auction, { minUnitPrice: 4600000 });
+assert.equal(bufferRows[0].expectedGold, 5000000);
+assert.deepEqual(bufferRows[0].auction, { minUnitPrice: 5000000 });
 assert.deepEqual(
   bufferRows[0].tuneSteps.map((step) => step.effects),
-  [{ buffPower: 400 }, { buffPower: 800 }],
+  [{ buffPower: 400 }],
 );
 assert.deepEqual(
   Object.keys(bufferRows[0]),
@@ -463,6 +438,56 @@ assert.deepEqual(
   [],
 );
 
+const anniversaryEquipment = [
+  { slot: '상의', itemRarity: '태초', tuneLevel: 0, tuneRemaining: 0, tuneSetPoint: 2120 },
+  { slot: '보조장비', itemRarity: '태초', tuneLevel: 0, tuneRemaining: 0, tuneSetPoint: 145 },
+  { slot: '귀걸이', itemRarity: '에픽', tuneLevel: 0, tuneRemaining: 3, tuneSetPoint: 215 },
+  { slot: '마법석', itemRarity: '에픽', tuneLevel: 0, tuneRemaining: 3, tuneSetPoint: 215 },
+  {
+    slot: '보조무기',
+    itemRarity: '에픽',
+    itemName: '살룡검 발뭉',
+    tuneLevel: 0,
+    tuneRemaining: 3,
+    tuneUpgradeable: true,
+    tuneSetPoint: 0,
+  },
+];
+assert.equal(progression.getEquipmentTuneSetPoint(anniversaryEquipment), 2695);
+assert.deepEqual(
+  progression.getEquipmentTuneRows(anniversaryEquipment, materialPrices),
+  [],
+);
+
+const normalSevenTuneRows = progression.getEquipmentTuneRows([
+  ...anniversaryEquipment.filter((row) => row.slot !== '보조무기'),
+  {
+    slot: '무기',
+    itemRarity: '에픽',
+    itemName: '정상 조율 무기',
+    tuneLevel: 2,
+    tuneRemaining: 1,
+    tuneUpgradeable: true,
+    tuneSetPoint: 0,
+  },
+], materialPrices);
+assert.equal(normalSevenTuneRows.length, 1);
+assert.deepEqual({
+  currentSetPoint: normalSevenTuneRows[0].currentSetPoint,
+  targetSetPoint: normalSevenTuneRows[0].targetSetPoint,
+  tuneCount: normalSevenTuneRows[0].tuneCount,
+  slotChanges: normalSevenTuneRows[0].tunePlan.slotChanges,
+}, {
+  currentSetPoint: 2695,
+  targetSetPoint: 2765,
+  tuneCount: 7,
+  slotChanges: [
+    { slot: '무기', fromTuneLevel: 2, toTuneLevel: 3, count: 1 },
+    { slot: '귀걸이', fromTuneLevel: 0, toTuneLevel: 3, count: 3 },
+    { slot: '마법석', fromTuneLevel: 0, toTuneLevel: 3, count: 3 },
+  ],
+});
+
 const planEquipment = equipment.filter((row) => row.slot !== '마법석');
 const planEquipmentBefore = clone(planEquipment);
 const validPlan = deepFreeze(clone(dealerRow.tunePlan));
@@ -474,7 +499,7 @@ assert.deepEqual(validInput, planEquipmentBefore);
 assert.deepEqual(validPlan, dealerRow.tunePlan);
 const appliedBySlot = new Map(applied.map((row) => [row.slot, row]));
 assert.deepEqual(
-  ['머리어깨', '상의', '알 수 없음', '벨트'].map((slot) => ({
+  ['머리어깨', '상의', '벨트'].map((slot) => ({
     slot,
     tuneLevel: appliedBySlot.get(slot).tuneLevel,
     tuneSetPoint: appliedBySlot.get(slot).tuneSetPoint,
@@ -483,14 +508,13 @@ assert.deepEqual(
   [
     { slot: '머리어깨', tuneLevel: 3, tuneSetPoint: 20, tuneRemaining: 0 },
     { slot: '상의', tuneLevel: 3, tuneSetPoint: 30, tuneRemaining: 0 },
-    { slot: '알 수 없음', tuneLevel: 3, tuneSetPoint: 10, tuneRemaining: 0 },
-    { slot: '벨트', tuneLevel: 1, tuneSetPoint: 10, tuneRemaining: 2 },
+    { slot: '벨트', tuneLevel: 2, tuneSetPoint: 20, tuneRemaining: 1 },
   ],
 );
 assert.equal(progression.getEquipmentTuneSetPoint(applied), 2620);
 assert.deepEqual(
   progression.getChangedEquipmentTuneSlots(equipment, applied),
-  ['벨트', '알 수 없음', '상의', '머리어깨'],
+  ['벨트', '상의', '머리어깨'],
 );
 
 const planWithoutSteps = progression.applyEquipmentTunePlan(planEquipment, {
@@ -565,7 +589,7 @@ assert.equal(
 );
 assert.equal(
   progression.getEquipmentTuneCandidateSignature(dealerRow),
-  'equipmentTune:2550:2620:7,2690:14',
+  'equipmentTune:2550:2620:7',
 );
 assert.equal(
   progression.getEquipmentTuneCandidateSignature({

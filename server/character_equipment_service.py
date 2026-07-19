@@ -98,6 +98,20 @@ AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHO
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
 SWITCHING_LEVEL_CAP = 7
 EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF = 2550
+EQUIPMENT_TUNE_SLOT_NAMES = {
+    "머리어깨",
+    "상의",
+    "하의",
+    "벨트",
+    "신발",
+    "무기",
+    "팔찌",
+    "목걸이",
+    "보조장비",
+    "반지",
+    "귀걸이",
+    "마법석",
+}
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION = 1
@@ -1059,7 +1073,11 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     tune_set_point = sum(parse_percent_or_number(tune.get("setPoint")) for tune in tune_rows)
     tune_upgradeable = any(tune.get("upgrade") is not False for tune in tune_rows)
     is_unique_equipment = re.match(r"^고유\s*[:\-]", item_name) is not None
-    is_tune_target = item_rarity in {"에픽", "레전더리"} and not is_unique_equipment
+    is_tune_target = (
+        slot_name in EQUIPMENT_TUNE_SLOT_NAMES
+        and item_rarity in {"에픽", "레전더리"}
+        and not is_unique_equipment
+    )
     tune_remaining = max(0, 3 - tune_level) if is_tune_target and tune_upgradeable else 0
     return {
         "slot": slot_name,

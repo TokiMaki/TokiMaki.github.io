@@ -41,6 +41,7 @@ export function createEnchantEquipmentTuneProgression({
     const rarity = String(equipment.itemRarity || '').trim();
     const itemName = String(equipment.itemName || '').trim();
     const level = Number(equipment.tuneLevel || 0);
+    if (!EQUIPMENT_TUNE_SLOT_ORDER.includes(equipment.slot)) return false;
     if (!EQUIPMENT_TUNE_COST_BY_RARITY[rarity]) return false;
     if (/^고유\s*[:\-]/.test(itemName)) return false;
     if (equipment.tuneUpgradeable === false) return false;
