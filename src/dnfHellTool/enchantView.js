@@ -8,6 +8,7 @@ import {
   getBufferEfficiencyColor,
   getBufferArrowBackground,
 } from './enchantEfficiencyScale.js';
+import { createEnchantEfficiencyLegend } from './enchantEfficiencyLegend.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 import { createEnchantOathLoadoutBoard } from './enchantOathLoadoutBoard.js';
@@ -7143,6 +7144,12 @@ export function installEnchantView(ctx) {
   } = ctx.constants;
   const { bindCharacterAvatars, escapeHtml, getCharacterAvatarUrl, getCharacterPortraitMarkup } = ctx.deps;
 
+  const { renderEfficiencyLegend } = createEnchantEfficiencyLegend({
+    escapeHtml,
+    legendElement: els.enchantEfficiencyLegend,
+    getIsBuffer: () => Boolean(state.currentBufferBaseline?.isBuffer),
+  });
+
   const {
     showEnchantAnalysisLoading,
     showEnchantAnalysisError,
@@ -11072,43 +11079,6 @@ export function installEnchantView(ctx) {
       rows: rows.length,
       allRows: allRows.length,
     });
-  }
-
-  function renderEfficiencyLegend(recommendations) {
-    if (!els.enchantEfficiencyLegend) return;
-    if (state.currentBufferBaseline?.isBuffer) {
-      const items = [
-        ...BUFFER_EFFICIENCY_COLOR_STOPS.map((stop) => ({
-          className: 'scale',
-          label: `100점당 ${stop.label}`,
-          color: stop.color,
-        })),
-        { className: 'rainbow', label: '100점당 3333만 초과', color: '' },
-      ];
-      els.enchantEfficiencyLegend.innerHTML = items
-        .map((item) => `
-          <span class="enchant-efficiency-legend-item enchant-efficiency-${item.className}"${item.color ? ` style="--enchant-band: ${escapeHtml(item.color)}"` : ''}>
-            <span class="enchant-efficiency-dot"></span>
-            ${escapeHtml(item.label)}
-          </span>
-        `).join('');
-      return;
-    }
-    const items = [
-      ...DAMAGE_EFFICIENCY_COLOR_STOPS.map((stop) => ({
-        className: 'scale',
-        label: `0.1%당 ${stop.label}`,
-        color: stop.color,
-      })),
-      { className: 'rainbow', label: '0.1%당 1000만 초과', color: '' },
-    ];
-    els.enchantEfficiencyLegend.innerHTML = items
-      .map((item) => `
-        <span class="enchant-efficiency-legend-item enchant-efficiency-${item.className}"${item.color ? ` style="--enchant-band: ${escapeHtml(item.color)}"` : ''}>
-          <span class="enchant-efficiency-dot"></span>
-          ${escapeHtml(item.label)}
-        </span>
-      `).join('');
   }
 
   function fitEnchantRecommendTitles() {
