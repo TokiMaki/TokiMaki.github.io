@@ -362,57 +362,6 @@ function getRoleRelevantEffects(effects = {}, isBuffer = false) {
   );
 }
 
-function formatRoleRelevantEquipmentEffects(effects = {}, isBuffer = false) {
-  return formatEffects(Object.fromEntries(
-    Object.entries(getRoleRelevantEffects(effects, isBuffer)),
-  ));
-}
-
-function getFilteredExplainSegments(text = '') {
-  const normalized = String(text || '')
-    .replace(/\s+/g, ' ')
-    .replace(/[•●]/g, '·')
-    .trim();
-  if (!normalized) return [];
-  return normalized
-    .split(/\s*[·|/]\s*/)
-    .map((part) => part
-      .replace(/\d+(?:\s*~\s*\d+)?\s*(?:Lv|레벨)[^%]*?액티브\s*스킬[^%]*?\d+(?:\.\d+)?%\s*증가/ig, '')
-      .replace(/최종\s*데미지\s*\d+(?:\.\d+)?%\s*증가/ig, '')
-      .replace(/물리크리티컬|마법크리티컬|크리티컬/ig, '')
-      .replace(/^[,:·/\s]+|[,:·/\s]+$/g, '')
-      .trim())
-    .filter(Boolean)
-    .filter((part) => part !== '% 증가');
-}
-
-function getExplainDetailText(text = '') {
-  return getFilteredExplainSegments(text).join(' / ');
-}
-
-function subtractDetailEffects(base = {}, removed = {}) {
-  const result = {};
-  [...new Set([...Object.keys(base || {}), ...Object.keys(removed || {})])].forEach((key) => {
-    const value = Number(base?.[key] || 0) - Number(removed?.[key] || 0);
-    if (Number.isFinite(value) && Math.abs(value) > 0.000001) {
-      result[key] = value;
-    }
-  });
-  return result;
-}
-
-function formatEffectSummary(prefix, effects = {}) {
-  const text = formatEffects(effects);
-  return `${prefix}: ${text || '없음'}`;
-}
-
-function formatTuneState(equipment = {}) {
-  const level = Number(equipment.tuneLevel || 0);
-  const setPoint = Number(equipment.tuneSetPoint || 0);
-  if (!Number.isFinite(setPoint) || setPoint <= 0) return '';
-  return `조율 ${Number.isFinite(level) ? level : 0}회`;
-}
-
 function formatEffectTransitionValue(key, currentValue, targetValue) {
   const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffAmplification', 'critical'].includes(key) ? '%' : '';
   return `${EFFECT_LABELS[key] || key} ${formatEffectNumber(currentValue)}${suffix} -> ${formatEffectNumber(targetValue)}${suffix}`;
@@ -1077,14 +1026,6 @@ const {
   getBuffSimulatorTargetSlotId,
   getBuffSimulatorExclusiveGroupKey,
 });
-
-function getTuneDetailLine(equipment = {}) {
-  const text = formatTuneState(equipment);
-  return text ? {
-    text,
-    className: 'enchant-portrait-detail-line-effect',
-  } : null;
-}
 
 const {
   getBufferOathTuneBaseRelativeChanges,
@@ -5322,16 +5263,6 @@ export function installEnchantView(ctx) {
     if (els.enchantStatus) {
       els.enchantStatus.textContent = state.isDevMode ? devText : text;
     }
-  }
-
-  function renderEnchantRecommendLoading(text = '스펙업 순서 추천을 불러오는 중입니다...') {
-    if (!els.enchantRecommendList) return;
-    els.enchantRecommendList.innerHTML = `<div class="table-empty-cell">${escapeHtml(text)}</div>`;
-  }
-
-  function renderEnchantCharacterMessage(text) {
-    if (!els.enchantCharacterPortrait) return;
-    els.enchantCharacterPortrait.innerHTML = `<div class="table-empty-cell">${escapeHtml(text)}</div>`;
   }
 
   function resetCurrentEnchantCharacterState() {
