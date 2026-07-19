@@ -433,10 +433,10 @@ function testEnchantViewAssemblyAndTdzSmoke() {
   ]) {
     assert.equal(source.includes(`function ${name}`), false, `${name} has one authority in the new module`);
   }
-  const avatarMultiplierIndex = source.indexOf('function getAvatarPlatinumRecommendationMultiplier');
+  const reinforceSkillIndex = source.indexOf('function getReinforceSkillLevel');
   const factoryIndex = source.indexOf('} = createEnchantTitleRecommendationSource({');
   const itemSkillIndex = source.indexOf('function getItemSkillLevelBonus');
-  assert.ok(avatarMultiplierIndex >= 0 && avatarMultiplierIndex < factoryIndex);
+  assert.ok(reinforceSkillIndex >= 0 && reinforceSkillIndex < factoryIndex);
   assert.ok(factoryIndex < itemSkillIndex);
   assert.match(source.slice(factoryIndex, itemSkillIndex), /cloneSimulatorValue,\s+addEffects,\s+subtractEffects,\s+getEffectSignature,/);
 
