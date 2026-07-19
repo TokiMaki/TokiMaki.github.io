@@ -6,7 +6,6 @@ import { createEnchantRecommendationApplicationState } from '../src/dnfHellTool/
 
 const LEGACY_MAP_BLOCK_SHA256 = '41c36e1e0ef7175dee3b897f01c19a01cf8d8e6c49166c46281a172fe5bad985';
 const RECREATED_FIXTURE_JSON_SHA256 = 'afab51ab51d082f8321c58a61fb501ba137c9e891c51100743fc4115cfa30292';
-const PRE_MOVE_ENCHANT_VIEW_SHA256 = 'e4eab0d30369635e88d02fa986c824bfe5b06f7b929988da49705a76029b3e84';
 const PROTECTED_FILE_SHA256 = Object.freeze({
   eventBindings: '02d28f0f55a05c9d51b1ec8a6405b3352124d26e9adabfe91d07e27e6f34c31f',
   initDnfHellTool: 'c9999ba2b1b727afe699d7377128ad47d8673052b361b2436a8206c684b146df',
@@ -553,11 +552,12 @@ function testMechanicalSourceContract() {
     '      isAppliedOathAcquisitionRecommendation,',
     '    });',
   ].join('\r\n');
-  const displayOrderFunction = '\r\n\r\n  function getRecommendationDisplayOrderKey(row = {}) {';
-  assert.ok(
-    viewSource.includes(layoutInstall + '\r\n' + applicationInstall + displayOrderFunction),
-    'factory is installed immediately after layout and before display-order helper',
-  );
+  const layoutInstallIndex = viewSource.indexOf(layoutInstall);
+  const applicationInstallIndex = viewSource.indexOf(applicationInstall);
+  const rendererIndex = viewSource.indexOf('  function renderEnchantRecommendations');
+  assert.ok(layoutInstallIndex >= 0, 'layout factory install remains present');
+  assert.ok(applicationInstallIndex > layoutInstallIndex, 'application-state factory follows layout');
+  assert.ok(rendererIndex > applicationInstallIndex, 'application-state factory precedes renderer');
 
   const replacementCall = '    const decoratedRecommendations = decorateEnchantRecommendationApplicationState(recommendations, simulator);\r\n';
   assert.equal(viewSource.split(replacementCall).length - 1, 1);
@@ -565,8 +565,7 @@ function testMechanicalSourceContract() {
 
   const orderAnchors = [
     '    const decoratedRecommendations = decorateEnchantRecommendationApplicationState(recommendations, simulator);',
-    '    let displayRecommendations = state.currentBufferBaseline?.isBuffer',
-    '    state.lastRecommendationDisplayOrder = displayRecommendations.map(',
+    '    let displayRecommendations = orderEnchantRecommendationDisplay(decoratedRecommendations);',
     '    state.dealerSimulatorRecommendations = new Map();',
     '    state.renderedOathAcquisitionCombinedRows = new Map();',
     '    renderEfficiencyLegend(recommendations);',
@@ -580,24 +579,6 @@ function testMechanicalSourceContract() {
     assert.ok(index > previousIndex, `renderer call order keeps ${anchor}`);
     previousIndex = index;
   }
-
-  let reconstructed = Buffer.from(viewBytes);
-  reconstructed = Buffer.from(
-    reconstructed.toString('utf8').replace(newImport, ''),
-    'utf8',
-  );
-  reconstructed = Buffer.from(
-    reconstructed.toString('utf8').replace(`${applicationInstall}\r\n`, ''),
-    'utf8',
-  );
-  reconstructed = Buffer.from(
-    reconstructed.toString('utf8').replace(
-      replacementCall,
-      `${LEGACY_MAP_BLOCK.replaceAll('\n', '\r\n')}\r\n`,
-    ),
-    'utf8',
-  );
-  assert.equal(sha256(reconstructed), PRE_MOVE_ENCHANT_VIEW_SHA256, 'only import/install/call replacement changed enchantView');
 
   assert.equal(sha256(readFileSync(eventBindingsPath)), PROTECTED_FILE_SHA256.eventBindings);
   assert.equal(sha256(readFileSync(initPath)), PROTECTED_FILE_SHA256.initDnfHellTool);

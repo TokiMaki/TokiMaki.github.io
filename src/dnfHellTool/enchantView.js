@@ -12,6 +12,7 @@ import { createEnchantEfficiencyLegend } from './enchantEfficiencyLegend.js';
 import { createEnchantRecommendationControls } from './enchantRecommendationControls.js';
 import { createEnchantRecommendationLayout } from './enchantRecommendationLayout.js';
 import { createEnchantRecommendationApplicationState } from './enchantRecommendationApplicationState.js';
+import { createEnchantRecommendationDisplayOrder } from './enchantRecommendationDisplayOrder.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 import { getSwitchingTitleRows, getSwitchingFragmentRows, getSwitchingCreatureRows } from './enchantSwitchingRows.js';
@@ -10857,35 +10858,33 @@ export function installEnchantView(ctx) {
       isAppliedOathAcquisitionRecommendation,
     });
 
-  function getRecommendationDisplayOrderKey(row = {}) {
-    if (row.sourceType === 'oathAcquisitionCombined') {
-      return `oathCombined:${row.oathAcquisitionPairKey}`;
-    }
-    if (TUNE_SOURCE_TYPES.has(row.sourceType)) return `tune:${row.sourceType}`;
-    if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && row.variantGroupKey) {
-      return `oathDecision:${row.variantGroupKey}`;
-    }
-    return getDealerSimulatorRecommendationId(row);
-  }
-
-  function freezeRecommendationOrderWhileEditing(sourceType = '') {
-    if (state.frozenRecommendationDisplayKey) return;
-    const candidateKeys = [
-      `tune:${sourceType}`,
-      `oathCombined:${sourceType}`,
-      `oathDecision:${sourceType}`,
-    ];
-    const displayOrder = state.lastRecommendationDisplayOrder || [];
-    const key = candidateKeys.find((candidate) => displayOrder.includes(candidate)) || '';
-    if (!key) return;
-    state.frozenRecommendationDisplayKey = key;
-    state.frozenRecommendationDisplayIndex = displayOrder.indexOf(key);
-  }
-
-  function releaseRecommendationOrderAfterEditing() {
-    state.frozenRecommendationDisplayKey = '';
-    state.frozenRecommendationDisplayIndex = -1;
-  }
+  const {
+    orderEnchantRecommendationDisplay,
+    freezeRecommendationOrderWhileEditing,
+    releaseRecommendationOrderAfterEditing,
+  } = createEnchantRecommendationDisplayOrder({
+    tuneSourceTypes: TUNE_SOURCE_TYPES,
+    oathDecisionVariantSourceTypes: OATH_DECISION_VARIANT_SOURCE_TYPES,
+    getDealerSimulatorRecommendationId,
+    compareBufferRecommendationOrder,
+    compareDealerRecommendationOrder,
+    getDisplayOrderState: () => ({
+      isBuffer: state.currentBufferBaseline?.isBuffer,
+      equipmentTunePopoverOpen: state.equipmentTunePopoverOpen,
+      lastRecommendationDisplayOrder: state.lastRecommendationDisplayOrder,
+      frozenRecommendationDisplayKey: state.frozenRecommendationDisplayKey,
+      frozenRecommendationDisplayIndex: state.frozenRecommendationDisplayIndex,
+    }),
+    setLastRecommendationDisplayOrder: (value) => {
+      state.lastRecommendationDisplayOrder = value;
+    },
+    setFrozenRecommendationDisplayKey: (value) => {
+      state.frozenRecommendationDisplayKey = value;
+    },
+    setFrozenRecommendationDisplayIndex: (value) => {
+      state.frozenRecommendationDisplayIndex = value;
+    },
+  });
 
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
@@ -10993,28 +10992,7 @@ export function installEnchantView(ctx) {
       ));
     }
     const decoratedRecommendations = decorateEnchantRecommendationApplicationState(recommendations, simulator);
-    let displayRecommendations = state.currentBufferBaseline?.isBuffer
-      ? decoratedRecommendations.sort(compareBufferRecommendationOrder)
-      : decoratedRecommendations.sort(compareDealerRecommendationOrder);
-    if (state.equipmentTunePopoverOpen && state.frozenRecommendationDisplayKey) {
-      const frozenRowIndex = displayRecommendations.findIndex(
-        (row) => getRecommendationDisplayOrderKey(row) === state.frozenRecommendationDisplayKey,
-      );
-      if (frozenRowIndex >= 0) {
-        const [frozenRow] = displayRecommendations.splice(frozenRowIndex, 1);
-        const targetIndex = Math.max(
-          0,
-          Math.min(
-            displayRecommendations.length,
-            Number(state.frozenRecommendationDisplayIndex || 0),
-          ),
-        );
-        displayRecommendations.splice(targetIndex, 0, frozenRow);
-      }
-    }
-    state.lastRecommendationDisplayOrder = displayRecommendations.map(
-      getRecommendationDisplayOrderKey,
-    );
+    let displayRecommendations = orderEnchantRecommendationDisplay(decoratedRecommendations);
     state.dealerSimulatorRecommendations = new Map();
     state.renderedOathAcquisitionCombinedRows = new Map();
     renderEfficiencyLegend(recommendations);
