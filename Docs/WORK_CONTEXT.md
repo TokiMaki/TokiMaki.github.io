@@ -3,7 +3,7 @@
 ## Active Snapshot
 
 - 현재 목표: DunPilot은 던전앤파이터 캐릭터의 현재 세팅을 분석해 마법부여, 증폭, 장비 조율, 서약 조율, 버프강화, 칭호, 크리쳐, 오라, 흑아 등 스펙업 후보의 골드 효율과 추천 순서를 비교한다.
-- 현재 주요 파일: `neople_hell_api_server.py`, `server/character_equipment_service.py`, `server/enchant_service.py`, `server/repositories/*`, `server/candidates/*`, `server/calculators/*`, `server/presenters/*`, `src/dnfHellTool/enchantView.js`, `src/dnfHellTool/enchantEquipmentProgression.js`, `src/dnfHellTool/enchantOathProgression.js`, `src/dnfHellTool/enchantOathAcquisition.js`, `Docs/*.json`.
+- 현재 주요 파일: `neople_hell_api_server.py`, `server/character_equipment_service.py`, `server/enchant_service.py`, `server/repositories/*`, `server/candidates/*`, `server/calculators/*`, `server/presenters/*`, `src/dnfHellTool/enchantView.js`, `src/dnfHellTool/enchantEquipmentProgression.js`, `src/dnfHellTool/enchantEquipmentTuneProgression.js`, `src/dnfHellTool/enchantOathProgression.js`, `src/dnfHellTool/enchantOathAcquisition.js`, `Docs/*.json`.
 - 서버 구조 원칙: Route는 HTTP 요청/응답, Service는 orchestration, Repository/Cache는 캐시/TTL/single-flight/fallback, Candidate Resolver는 후보 탐색, Calculator는 수치 계산, Presenter는 프론트 payload 조립을 담당한다.
 - 최근 구조 분리: Candidate Resolver, Repository/Cache, Calculator, Presenter 1차 분리를 완료했다. Route/Service 경계도 `/api/search`, `/api/summarize`, `/api/avatar-skill-efficiency`부터 얇게 정리했다.
 - 최근 성능 구조: `/api/character-loadout`에는 origin 내부 15초 response cache와 같은 `(serverId, characterId)` 요청 single-flight가 있다. 성공 200 body만 최대 64개 메모리에 저장하고, cache hit/대기 요청은 heavy semaphore와 loadout 계산을 건너뛴다.
@@ -32,5 +32,5 @@
 - 공개 콘텐츠 결정: `Docs/PUBLIC_CONTENT_PLAN.md`에 던파일럿 갱신 캐릭터 기반 세팅 추정 가치, 주간 성장·큰손·가성비 랭킹, 공식 장비점수·버프점수 구간별 세팅 현황 방향을 기록했다. 실제 지출액이 아닌 현재가 기준 추정 가치로 표현한다.
 - 최근 프론트 구조: `enchantEfficiencyScale.js`, `enchantEfficiencyLegend.js`, `enchantRecommendationControls.js`, `enchantRecommendationLayout.js` 등 표시 보조 모듈은 기존 책임을 유지한다. `enchantEquipmentProgression.js`는 강화·안전강화·증폭·증폭 전환의 누적 효과·비용·추천 row·시뮬레이터 identity를 소유하는 응집된 장비 성장 도메인이다.
 - 최근 경계 교정: 추천 eligibility 초기화, 적용 상태 장식, 편집 중 표시 순서 고정은 서로 다른 view 수명주기라서 세 소형 모듈로 유지하지 않고 `enchantView.js` 로컬 함수로 복원했다. 호출·정렬·state mutation·event 순서는 유지했고, 해당 이동 전용 source/hash 테스트 3개는 삭제했다.
-- 최근 프론트 구조: `enchantOathProgression.js`는 서약 조율 set-state·계획·비용·효과·추천 row·identity를 소유한다. `enchantOathAcquisition.js`는 서약 초월/정가 row, variant 결합, active selection 해석, 기준 상태 재구성, 후보 재평가와 applied snapshot 파생을 소유한다. 실제 simulator apply/remove/rollback, selection·snapshot 쓰기, 공용 state, DOM·event는 `enchantView.js`에 남겼다.
-- 다음 작업: 남은 `enchantView.js` 책임을 현재 코드 기준으로 다시 분석해, 상태/DOM bridge가 아닌 다음 substantive 도메인 하나를 확정한다.
+- 최근 프론트 구조: `enchantEquipmentTuneProgression.js`는 장비 조율 후보·세트포인트 단계·최소 비용 plan·불변 plan 적용·누적 딜/버퍼 효과·추천 row·identity를 소유한다. `enchantOathProgression.js`는 서약 조율 progression을, `enchantOathAcquisition.js`는 서약 초월/정가 후보 재평가와 variant/applied snapshot 파생을 소유한다. 실제 simulator 수명주기, state 쓰기, DOM·event는 `enchantView.js`에 남겼다.
+- 다음 작업: 버프강화 metric·recommendation adaptation 경계를 분석하되, 실제 loadout 교체·복원에도 공유되는 `getBuffLoadoutRowsForMetric`과 simulator mutation은 view에 남길 범위를 먼저 확인한다.
