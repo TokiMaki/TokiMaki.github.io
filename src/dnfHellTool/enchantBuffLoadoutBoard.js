@@ -128,13 +128,22 @@ export function createEnchantBuffLoadoutBoard(deps) {
       return [levelLine('', contribution.skillLevel)];
     }
     if (label === '상의 아바타') {
-      return [
+      const lines = [
         levelLine('상의 옵션', contribution.topOptionSkillLevel),
-        levelLine('플래티넘 엠블렘', contribution.platinumSkillLevel),
       ];
+      if (Number(contribution.itemSkillLevel || 0) > 0) {
+        lines.push(levelLine('아이템 효과', contribution.itemSkillLevel));
+      }
+      lines.push(levelLine('플래티넘 엠블렘', contribution.platinumSkillLevel));
+      return lines;
     }
     if (label === '하의 아바타') {
-      return [levelLine('플래티넘 엠블렘', contribution.platinumSkillLevel)];
+      const lines = [];
+      if (Number(contribution.itemSkillLevel || 0) > 0) {
+        lines.push(levelLine('아이템 효과', contribution.itemSkillLevel));
+      }
+      lines.push(levelLine('플래티넘 엠블렘', contribution.platinumSkillLevel));
+      return lines;
     }
     if (label === '크리쳐') {
       return [levelLine('', contribution.skillLevel)];
@@ -185,10 +194,12 @@ export function createEnchantBuffLoadoutBoard(deps) {
     const platinumBadgeState = avatarSlotKey && String(item.itemRarity || '').includes('레어')
       ? hasAvatarEmblemIdentity(platinumEmblem || {}) ? 'filled' : 'empty'
       : '';
-    if (platinumBadgeState) {
+    if (avatarSlotKey) {
       detailLines = detailLines.filter(
         (line) => !String(line?.text || '').startsWith('플래티넘 엠블렘:'),
       );
+    }
+    if (platinumBadgeState) {
       if (platinumBadgeState === 'filled') {
         detailLines.push({
           text: String(platinumEmblem.itemName || platinumEmblem.name || '플래티넘 엠블렘 이름 확인 불가').trim(),
@@ -202,12 +213,22 @@ export function createEnchantBuffLoadoutBoard(deps) {
       }
     }
     const regularEmblems = avatarSlotKey ? getAvatarSlotEmblems(item) : [];
-    regularEmblems.filter(Boolean).forEach((emblem) => {
-      detailLines.push({
-        text: String(emblem.itemName || '엠블렘 이름 확인 불가').trim(),
-        className: `enchant-portrait-detail-line-avatar-emblem enchant-portrait-detail-line-avatar-${getAvatarEmblemDetailColor(avatarSlotKey, emblem)}`,
-      });
-    });
+    if (avatarSlotKey) {
+      for (let index = 0; index < 2; index += 1) {
+        const emblem = regularEmblems[index];
+        if (!emblem) {
+          detailLines.push({
+            text: '엠블렘 없음',
+            className: 'enchant-portrait-detail-line-sub',
+          });
+          continue;
+        }
+        detailLines.push({
+          text: String(emblem.itemName || '엠블렘 이름 확인 불가').trim(),
+          className: `enchant-portrait-detail-line-avatar-emblem enchant-portrait-detail-line-avatar-${getAvatarEmblemDetailColor(avatarSlotKey, emblem)}`,
+        });
+      }
+    }
     const emblemBadgeColors = avatarSlotKey ? getAvatarEmblemBadgeColors(avatarSlotKey, item) : [];
     return `
       <span class="enchant-buff-slot ${escapeHtml(extraClass)}${hasActiveSweep ? ' is-simulator-sweep' : ''}" tabindex="0" aria-label="${escapeHtml(itemName)}" data-buff-loadout-detail data-detail-title="${escapeHtml(itemName)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}"${sweepStyle}>

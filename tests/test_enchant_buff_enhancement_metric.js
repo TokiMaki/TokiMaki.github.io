@@ -81,12 +81,18 @@ assert.equal(metric.getBuffLoadoutLevelContribution({
   avatar: [
     null,
     'invalid',
-    { buffContribution: { topOptionSkillLevel: 1, platinumSkillLevel: 2 } },
+    {
+      buffContribution: {
+        topOptionSkillLevel: 1,
+        itemSkillLevel: 1,
+        platinumSkillLevel: 2,
+      },
+    },
   ],
   creature: {
     buffContribution: { skillLevel: 3 },
   },
-}), 8);
+}), 9);
 assert.equal(normalizationCalls.length, 3);
 assert.deepEqual(normalizationCalls.map((value) => (
   Array.isArray(value) ? 'array' : typeof value
@@ -413,6 +419,40 @@ function assertNoOpIdentity(row, simulator) {
 }
 
 assertNoOpIdentity({ sourceType: 'other', effects: {} }, createAdaptationSimulator());
+
+const rentalAvatarSimulator = createAdaptationSimulator();
+rentalAvatarSimulator.baseBuffLoadout.avatar[0] = {
+  ...rentalAvatarSimulator.baseBuffLoadout.avatar[0],
+  itemId: 'rental-jacket',
+  buffAvatarSource: 'wornFallback',
+  buffContribution: {
+    topOptionSkillLevel: 1,
+    itemSkillLevel: 1,
+    platinumSkillLevel: 0,
+  },
+};
+rentalAvatarSimulator.simulatedBuffLoadout = clone(rentalAvatarSimulator.baseBuffLoadout);
+assert.equal(
+  metric.getBuffLoadoutLevelContribution(rentalAvatarSimulator.baseBuffLoadout),
+  2,
+);
+assertNoOpIdentity({
+  sourceType: 'avatar',
+  kind: 'switchingAvatar',
+  targetSlotId: 'JACKET',
+  itemId: 'rare-jacket',
+  effects: {},
+  targetBuffChanges: {
+    avatar: {
+      itemId: 'rare-jacket',
+      buffContribution: {
+        topOptionSkillLevel: 1,
+        itemSkillLevel: 0,
+        platinumSkillLevel: 1,
+      },
+    },
+  },
+}, rentalAvatarSimulator);
 assertNoOpIdentity({
   sourceType: 'switchingFragment',
   targetBuffSlot: '벨트',

@@ -13,6 +13,7 @@ export function createEnchantBuffEnhancementMetric(deps) {
     const avatarLevel = getBuffLoadoutRowsForMetric(loadout.avatar).reduce((sum, row) => (
       sum
       + Number(row?.buffContribution?.topOptionSkillLevel || 0)
+      + Number(row?.buffContribution?.itemSkillLevel || 0)
       + Number(row?.buffContribution?.platinumSkillLevel || 0)
     ), 0);
     const creatureLevel = getBuffLoadoutRowsForMetric(loadout.creature)

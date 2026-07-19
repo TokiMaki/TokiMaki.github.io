@@ -415,7 +415,7 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
         clean_text(detail.get("itemId")): detail
         for detail in fetch_item_details([
             clean_text(row.get("itemId"))
-            for row in [*equipment_rows, *creature_rows]
+            for row in [*equipment_rows, *avatar_rows, *creature_rows]
             if clean_text(row.get("itemId"))
         ])
         if clean_text(detail.get("itemId"))
@@ -452,17 +452,12 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
         }
 
     def build_avatar_contribution(row: dict) -> dict:
-        platinum_skill_level = sum(
-            1
-            for emblem in get_platinum_emblems(row)
-            if is_matching_switching_platinum_emblem(emblem, target_skill_names)
+        return get_switching_avatar_skill_level_contribution_parts(
+            row,
+            target_skill_names,
+            job_name,
+            detail_by_id.get(clean_text(row.get("itemId"))) or {},
         )
-        if clean_text(row.get("slotId")) == "JACKET":
-            return {
-                "topOptionSkillLevel": 1 if has_matching_switching_avatar_top_option(row, target_skill_names) else 0,
-                "platinumSkillLevel": platinum_skill_level,
-            }
-        return {"platinumSkillLevel": platinum_skill_level}
 
     def build_creature_contribution(row: dict) -> dict:
         item_id = clean_text(row.get("itemId"))
@@ -2452,20 +2447,80 @@ def get_capped_switching_level_delta(
     return min(SWITCHING_LEVEL_CAP, new_total) - min(SWITCHING_LEVEL_CAP, current_total)
 
 
-def get_switching_avatar_skill_level_contribution(avatar_rows: list, target_skill_names: list[str]) -> int:
-    target_skill_names = [clean_text(skill_name) for skill_name in target_skill_names or [] if clean_text(skill_name)]
-    if not target_skill_names:
-        return 0
-    total = 0
-    for row in avatar_rows or []:
-        option_ability = clean_text(row.get("optionAbility"))
-        if any(skill_name_matches(option_ability, skill_name) for skill_name in target_skill_names):
-            total += 1
-        for emblem in get_platinum_emblems(row):
-            platinum_skill = clean_text(extract_platinum_skill_name(emblem.get("itemName")))
-            if any(skill_name_matches(platinum_skill, skill_name) for skill_name in target_skill_names):
-                total += 1
-    return total
+def get_switching_avatar_skill_level_contribution_parts(
+    row: dict,
+    target_skill_names: list[str],
+    job_name: str = "",
+    item_detail: dict | None = None,
+) -> dict:
+    target_skill_names = list(dict.fromkeys(
+        clean_text(skill_name)
+        for skill_name in target_skill_names or []
+        if clean_text(skill_name)
+    ))
+    option_ability = clean_text(
+        (row or {}).get("optionAbility")
+        or (((row or {}).get("avatar") or {}).get("ability"))
+        or (((row or {}).get("avatar") or {}).get("optionAbility"))
+    )
+    option_match = re.search(r"(.+?)\s*스킬\s*Lv\s*\+\s*(\d+)", option_ability, re.IGNORECASE)
+    top_option_skill_level = 0
+    if option_match and any(
+        skill_name_matches(option_match.group(1).strip("[]"), skill_name)
+        for skill_name in target_skill_names
+    ):
+        top_option_skill_level = int(option_match.group(2))
+    elif any(
+        skill_name_matches(option_ability, skill_name)
+        for skill_name in target_skill_names
+    ):
+        top_option_skill_level = 1
+    if item_detail is None:
+        item_id = clean_text((row or {}).get("itemId"))
+        item_detail = next(iter(fetch_item_details([item_id])), {}) if item_id else {}
+    item_skill_level = get_named_skill_level_bonus_any(
+        (item_detail or {}).get("itemReinforceSkill") or [],
+        clean_text(job_name),
+        target_skill_names,
+    )
+    platinum_skill_level = sum(
+        1
+        for emblem in get_platinum_emblems(row or {})
+        if is_matching_switching_platinum_emblem(emblem, target_skill_names)
+    )
+    return {
+        "topOptionSkillLevel": top_option_skill_level,
+        "itemSkillLevel": item_skill_level,
+        "platinumSkillLevel": platinum_skill_level,
+    }
+
+
+def get_switching_avatar_skill_level_contribution(
+    avatar_rows: list,
+    target_skill_names: list[str],
+    job_name: str = "",
+    detail_by_id: dict | None = None,
+) -> int:
+    avatar_rows = [row for row in avatar_rows or [] if isinstance(row, dict)]
+    if detail_by_id is None:
+        detail_by_id = {
+            clean_text(detail.get("itemId")): detail
+            for detail in fetch_item_details([
+                clean_text(row.get("itemId"))
+                for row in avatar_rows
+                if clean_text(row.get("itemId"))
+            ])
+            if clean_text(detail.get("itemId"))
+        }
+    return sum(
+        sum(get_switching_avatar_skill_level_contribution_parts(
+            row,
+            target_skill_names,
+            job_name,
+            (detail_by_id or {}).get(clean_text(row.get("itemId"))) or {},
+        ).values())
+        for row in avatar_rows
+    )
 
 
 def merge_switching_avatar_rows_with_current(switching_rows: list, current_avatar_rows: list) -> list:
@@ -2526,7 +2581,11 @@ def get_current_dealer_switching_level_total(
             equivalent_skill_names,
             target_required_levels,
         )
-        + get_switching_avatar_skill_level_contribution(avatar_rows, target_skill_names)
+        + get_switching_avatar_skill_level_contribution(
+            avatar_rows,
+            target_skill_names,
+            job_name,
+        )
     )
 
 
@@ -4166,14 +4225,20 @@ def calculate_buffer_switching_avatar_candidate_delta(
         stat_name,
         buff_skill_name,
     )
-    current_contribution = get_switching_avatar_skill_level_contribution(
-        [effective_switching_row] if effective_switching_row else [],
+    current_buff_contribution = get_switching_avatar_skill_level_contribution_parts(
+        effective_switching_row,
         [buff_skill_name],
+        job_name,
+        detail_by_id.get(clean_text(effective_switching_row.get("itemId"))) or {},
     )
-    candidate_contribution = get_switching_avatar_skill_level_contribution(
-        [candidate_avatar_row],
+    candidate_buff_contribution = get_switching_avatar_skill_level_contribution_parts(
+        candidate_avatar_row,
         [buff_skill_name],
+        job_name,
+        detail_by_id.get(clean_text(candidate_avatar_row.get("itemId"))) or {},
     )
+    current_contribution = sum(current_buff_contribution.values())
+    candidate_contribution = sum(candidate_buff_contribution.values())
     base_skill_contributions = get_buffer_named_skill_contributions(
         get_setup_skill_bonuses(
             [effective_switching_row] if effective_switching_row else [],
@@ -4202,6 +4267,8 @@ def calculate_buffer_switching_avatar_candidate_delta(
         "targetSkillContributions": target_skill_contributions,
         "currentBuffSkillLevelContribution": current_contribution,
         "candidateBuffSkillLevelContribution": candidate_contribution,
+        "currentBuffContribution": current_buff_contribution,
+        "candidateBuffContribution": candidate_buff_contribution,
         "currentMetrics": current_metrics,
         "candidateMetrics": candidate_metrics,
         "usedCurrentAvatarFallback": clean_text(effective_switching_row.get("buffAvatarSource")) == "wornFallback",
@@ -4368,6 +4435,7 @@ def build_switching_avatar_recommendation_row(
     debug: dict | None = None,
     target_avatar_row: dict | None = None,
     target_platinum: dict | None = None,
+    job_name: str = "",
 ) -> dict:
     target_slot_id = "JACKET" if "상의" in clean_text(slot) else "PANTS"
     target_avatar_row = target_avatar_row or selected_avatar
@@ -4377,6 +4445,20 @@ def build_switching_avatar_recommendation_row(
         if clean_text(target_platinum.get("itemId"))
         or clean_item_display_name(target_platinum.get("itemName"))
         else get_platinum_emblems(target_avatar_row)
+    )
+    contribution_row = {**target_avatar_row}
+    if isinstance(contribution_row.get("avatar"), dict):
+        contribution_row["avatar"] = {**contribution_row["avatar"], "emblems": []}
+    contribution_row["emblems"] = list(get_avatar_auction_emblems(target_avatar_row))
+    if target_platinum_emblems and not has_matching_switching_platinum(
+        contribution_row,
+        equivalent_target_skills,
+    ):
+        contribution_row["emblems"].append(target_platinum_emblems[0])
+    buff_contribution = get_switching_avatar_skill_level_contribution_parts(
+        contribution_row,
+        equivalent_target_skills,
+        job_name,
     )
     return {
         "kind": "switchingAvatar",
@@ -4404,10 +4486,7 @@ def build_switching_avatar_recommendation_row(
                 "itemRarity": clean_text(selected_avatar.get("itemRarity") or "레어"),
                 "iconUrl": selected_avatar.get("iconUrl") or get_item_icon_url(selected_avatar.get("itemId")),
                 "optionAbility": target_skill if target_slot_id == "JACKET" else "",
-                "buffContribution": {
-                    "topOptionSkillLevel": 1 if target_slot_id == "JACKET" else 0,
-                    "platinumSkillLevel": 1,
-                },
+                "buffContribution": buff_contribution,
                 "platinumEmblems": [
                     {
                         "itemId": clean_text(emblem.get("itemId")),
@@ -4442,14 +4521,14 @@ def build_buffer_switching_avatar_recommendation_row(
     price_mode: str,
     target_avatar_row: dict | None = None,
     debug: dict | None = None,
+    target_buff_contribution: dict | None = None,
 ) -> dict:
     target_slot_id = "JACKET" if "상의" in clean_text(slot) else "PANTS"
     target_avatar_row = target_avatar_row or selected_avatar
     target_platinum_emblems = get_platinum_emblems(target_avatar_row)
-    target_platinum_skill_level = sum(
-        1
-        for emblem in target_platinum_emblems
-        if skill_name_matches(extract_platinum_skill_name(emblem.get("itemName")), target_skill)
+    target_buff_contribution = target_buff_contribution or get_switching_avatar_skill_level_contribution_parts(
+        target_avatar_row,
+        [target_skill],
     )
     return {
         "kind": "switchingAvatar",
@@ -4478,10 +4557,7 @@ def build_buffer_switching_avatar_recommendation_row(
                 "itemRarity": clean_text(target_avatar_row.get("itemRarity") or selected_avatar.get("itemRarity") or "레어"),
                 "iconUrl": target_avatar_row.get("iconUrl") or selected_avatar.get("iconUrl") or get_item_icon_url(selected_avatar.get("itemId")),
                 "optionAbility": clean_text(target_avatar_row.get("optionAbility")) if target_slot_id == "JACKET" else "",
-                "buffContribution": {
-                    "topOptionSkillLevel": 1 if target_slot_id == "JACKET" else 0,
-                    "platinumSkillLevel": target_platinum_skill_level,
-                },
+                "buffContribution": target_buff_contribution,
                 "emblems": [
                     build_normalized_avatar_emblem(emblem, stat_name)
                     for emblem in get_avatar_auction_emblems(target_avatar_row)
@@ -5334,9 +5410,10 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 note = get_damage_application_note(switching_entry)
                 switching_avatar_db_key, switching_avatar_db_entry = get_switching_avatar_db_entry(buff_payload)
                 if switching_avatar_db_entry:
-                    for slot_id, slot_label, db_slot_key, candidate_contribution in [
-                        ("JACKET", "벞강 상의", "top", 2),
-                        ("PANTS", "벞강 하의", "bottom", 1),
+                    dealer_job_name = clean_text(buff_payload.get("jobName"))
+                    for slot_id, slot_label, db_slot_key in [
+                        ("JACKET", "벞강 상의", "top"),
+                        ("PANTS", "벞강 하의", "bottom"),
                     ]:
                         raw_row = get_avatar_slot(dealer_switching_rows, slot_id)
                         if clean_text(raw_row.get("itemRarity")) == "레어":
@@ -5348,6 +5425,27 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                         current_contribution = get_switching_avatar_skill_level_contribution(
                             [row],
                             equivalent_platinum_skills,
+                            dealer_job_name,
+                        )
+                        candidate_template = {
+                            "slotId": slot_id,
+                            "optionAbility": (
+                                f"{buff_skill_name} 스킬 Lv +1"
+                                if slot_id == "JACKET"
+                                else ""
+                            ),
+                            "emblems": [{
+                                "itemName": f"플래티넘 엠블렘[{buff_skill_name}]",
+                                "slotColor": "플래티넘",
+                            }],
+                        }
+                        candidate_contribution = sum(
+                            get_switching_avatar_skill_level_contribution_parts(
+                                candidate_template,
+                                equivalent_platinum_skills,
+                                dealer_job_name,
+                                {},
+                            ).values()
                         )
                         if candidate_contribution <= current_contribution:
                             continue
@@ -5441,6 +5539,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                             debug,
                             target_avatar_row=price_option.get("selectedAvatarRow") or selected_avatar,
                             target_platinum=price_option.get("selectedPlatinum") or {},
+                            job_name=dealer_job_name,
                         ))
                 for slot_id, slot_label in [
                     ("JACKET", "벞강 상의"),
@@ -5638,6 +5737,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     clean_text(price_option.get("priceMode")),
                     completed_avatar_row,
                     debug,
+                    switching_avatar_delta.get("candidateBuffContribution") or {},
                 )
                 recommendation.update({
                     "baseSkillContributions": switching_avatar_delta.get("baseSkillContributions") or [],

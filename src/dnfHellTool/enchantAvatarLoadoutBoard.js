@@ -69,6 +69,9 @@ export function createEnchantAvatarLoadoutBoard({
     if (!slotLabel) {
       return null;
     }
+    if (String(avatarSlot.itemRarity || '').trim() !== '레어') {
+      return null;
+    }
     const platinumEmblems = getAvatarSlotPlatinumEmblems(avatarSlot).filter(isPlatinumAvatarEmblem);
     const platinumName = String(
       platinumEmblems[0]?.itemName
