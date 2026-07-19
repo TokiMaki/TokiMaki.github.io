@@ -34,7 +34,8 @@
 - 최근 경계 교정: 추천 eligibility 초기화, 적용 상태 장식, 편집 중 표시 순서 고정은 서로 다른 view 수명주기라서 세 소형 모듈로 유지하지 않고 `enchantView.js` 로컬 함수로 복원했다. 호출·정렬·state mutation·event 순서는 유지했고, 해당 이동 전용 source/hash 테스트 3개는 삭제했다.
 - 최근 프론트 구조: `enchantEquipmentTuneProgression.js`는 장비 조율 후보·세트포인트 단계·최소 비용 plan·불변 plan 적용·누적 딜/버퍼 효과·추천 row·identity를 소유한다. `enchantOathProgression.js`는 서약 조율 progression을, `enchantOathAcquisition.js`는 서약 초월/정가 후보 재평가와 variant/applied snapshot 파생을 소유한다. 실제 simulator 수명주기, state 쓰기, DOM·event는 `enchantView.js`에 남겼다.
 - 최근 프론트 구조: `enchantBuffEnhancementMetric.js`는 버프강화 레벨·짙은 편린·실제 딜/장비점수 metric과 스위칭 추천 row 재적응을 소유한다. 공유 row 정규화, 실제 loadout 교체·복원, host 판정과 simulator 수명주기는 `enchantView.js`에 유지한다.
-- 최근 프론트 구조: `enchantBufferSimulatorCalculation.js`는 버퍼 change-map 정규화·current/shared/switching scope·스킬 컨텍스트·추천 비교용 scope loadout·아바타 엠블렘/플래티넘 순변화 합산을 소유한다. 버프점수 공식, 추천 row 정책·identity, 실제 simulator mutation과 DOM·event는 `enchantView.js`에 유지한다.
+- 최근 프론트 구조: `enchantBufferSimulatorCalculation.js`는 버퍼 change-map 정규화·current/shared/switching scope·스킬 컨텍스트·추천 비교용 scope loadout·아바타 엠블렘/플래티넘 순변화 합산을 소유한다. 실제 simulator mutation과 DOM·event는 `enchantView.js`에 유지한다.
 - 최근 프론트 구조: `enchantBufferSimulatorSourceCalculation.js`는 마부·크리쳐 아티팩트·흑아·크리쳐/오라/칭호·버프강화 교체·강화/증폭 추천 row의 버퍼 base-relative change 변환만 소유한다. source identity와 전역 dispatcher, 점수·추천·state mutation은 `enchantView.js`에 유지한다.
 - 최근 프론트 구조: `enchantBufferSimulatorSourceIdentity.js`는 source별 버퍼 recommendation row의 exclusive group key와 candidate signature만 소유한다. 전역 identity dispatcher 우선순위와 snapshot/apply/replace/remove/reset/active-selection lifecycle은 `enchantView.js`에 유지한다.
-- 다음 작업: `calculateBufferScore`, `compareBufferRecommendationOrder`, `getBufferRecommendationRows`에 섞인 버퍼 점수 공식과 추천 row 정책의 다음 응집 경계를 분석하되, 전역 추천 조립·정렬과 simulator state/DOM lifecycle은 `enchantView.js`에 유지할 수 있는지 먼저 확인한다.
+- 최근 프론트 구조: `enchantBufferRecommendation.js`는 버퍼 점수 공식과 원천 추천 row의 평가·필터·중복 제거·효율 계산·정렬 정책을 소유한다. snapshot/variant/조율 단계 적용, 최종 표시 정렬, frozen order와 simulator state/DOM lifecycle은 `enchantView.js`에 유지한다.
+- 다음 작업: 새 추천 모듈 내부는 직접 fixture가 더 쌓이기 전 재분해하지 않고, `enchantView.js`에 남은 대형 책임과 호출부를 다시 훑어 다음 한 도메인 경계를 선정한다.
