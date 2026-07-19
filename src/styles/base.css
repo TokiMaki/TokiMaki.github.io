@@ -469,7 +469,7 @@
         inset 0 -1px 0 rgb(0 0 0 / 0.36);
       border-radius: 4px;
       line-height: 1.55;
-      white-space: pre-line;
+      white-space: pre-wrap;
     }
     .landing-notice-item[open] .landing-notice-item-body {
       margin-left: 0;
