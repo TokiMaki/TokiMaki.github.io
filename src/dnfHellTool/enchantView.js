@@ -11,9 +11,6 @@ import {
 import { createEnchantEfficiencyLegend } from './enchantEfficiencyLegend.js';
 import { createEnchantRecommendationControls } from './enchantRecommendationControls.js';
 import { createEnchantRecommendationLayout } from './enchantRecommendationLayout.js';
-import { createEnchantRecommendationApplicationState } from './enchantRecommendationApplicationState.js';
-import { createEnchantRecommendationDisplayOrder } from './enchantRecommendationDisplayOrder.js';
-import { createEnchantDealerSimulatorRecommendationEligibility } from './enchantDealerSimulatorRecommendationEligibility.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 import { getSwitchingTitleRows, getSwitchingFragmentRows, getSwitchingCreatureRows } from './enchantSwitchingRows.js';
@@ -10330,51 +10327,144 @@ export function installEnchantView(ctx) {
     getRecommendList: () => els.enchantRecommendList,
   });
 
-  const { applyDealerSimulatorRecommendationEligibility } =
-    createEnchantDealerSimulatorRecommendationEligibility({
-      getEnchantCandidateSignature,
-      getAuraCandidateSignature,
-      getCreatureCandidateSignature,
-      getTitleCandidateSignature,
-    });
+  function applyDealerSimulatorRecommendationEligibility(recommendations, dealerSimulator) {
+    if (dealerSimulator && !dealerSimulator.baseEligibleEnchantCandidateSignatures.length) {
+      dealerSimulator.baseEligibleEnchantCandidateSignatures = recommendations
+        .filter((row) => row.sourceType === 'enchant')
+        .map(getEnchantCandidateSignature)
+        .filter(Boolean);
+    }
+    if (dealerSimulator && !dealerSimulator.baseEligibleAuraCandidateSignatures.length) {
+      dealerSimulator.baseEligibleAuraCandidateSignatures = recommendations
+        .filter((row) => row.sourceType === 'aura')
+        .map(getAuraCandidateSignature)
+        .filter(Boolean);
+    }
+    if (dealerSimulator && !dealerSimulator.baseEligibleCreatureCandidateSignatures.length) {
+      dealerSimulator.baseEligibleCreatureCandidateSignatures = recommendations
+        .filter((row) => row.sourceType === 'creature')
+        .map(getCreatureCandidateSignature)
+        .filter(Boolean);
+    }
+    if (dealerSimulator && !dealerSimulator.baseEligibleTitleCandidateSignatures.length) {
+      dealerSimulator.baseEligibleTitleCandidateSignatures = recommendations
+        .filter((row) => row.sourceType === 'title')
+        .map(getTitleCandidateSignature)
+        .filter(Boolean);
+    }
+    const eligibleTitleSignatures = new Set(dealerSimulator?.baseEligibleTitleCandidateSignatures || []);
+    if (dealerSimulator && Object.keys(dealerSimulator.activeSelectionByGroup || {}).length && eligibleTitleSignatures.size) {
+      recommendations = recommendations.filter((row) => (
+        row.sourceType !== 'title' || eligibleTitleSignatures.has(getTitleCandidateSignature(row))
+      ));
+    }
+    return recommendations;
+  }
 
-  const { decorateEnchantRecommendationApplicationState } =
-    createEnchantRecommendationApplicationState({
-      getSimulatorExclusiveGroupKey,
-      getSimulatorCandidateSignature,
-      getOathAcquisitionSelectionDescriptors,
-      getActiveOathAcquisitionMethodCounts,
-      getEquipmentProgressionType,
-      isAppliedOathAcquisitionRecommendation,
+  function decorateEnchantRecommendationApplicationState(recommendations, simulator) {
+    return recommendations.map((row) => {
+      const isCombinedOathAcquisition = row.sourceType === 'oathAcquisitionCombined';
+      const exclusiveGroupKey = isCombinedOathAcquisition
+        ? `oathAcquisitionCombined:${row.oathAcquisitionPairKey}`
+        : getSimulatorExclusiveGroupKey(row);
+      const candidateSignature = isCombinedOathAcquisition
+        ? `${exclusiveGroupKey}:${Number(row.transcendCount || 0)}:${Number(row.craftCount || 0)}`
+        : getSimulatorCandidateSignature(row);
+      const oathAcquisitionDescriptors = getOathAcquisitionSelectionDescriptors(row);
+      const activeCombinedCounts = isCombinedOathAcquisition
+        ? getActiveOathAcquisitionMethodCounts(
+          simulator,
+          [
+            ...(row.transcendRecommendations || [row.transcendRecommendation]),
+            ...(row.craftRecommendations || [row.craftRecommendation]),
+          ].filter(Boolean),
+        )
+        : null;
+      const activeSelection = exclusiveGroupKey
+        ? simulator?.activeSelectionByGroup?.[exclusiveGroupKey]
+        : null;
+      const isAppliedBufferUpgrade = Boolean(
+        simulator?.role === 'buffer'
+        && row.sourceType === 'upgrade'
+        && activeSelection?.applyType === 'replaceBufferEquipmentProgression'
+        && activeSelection.progressionType === getEquipmentProgressionType(row)
+        && Number(activeSelection.targetLevel) === Number(row.targetLevel),
+      );
+      const isApplied = isCombinedOathAcquisition
+        ? activeCombinedCounts.transcend + activeCombinedCounts.craft > 0
+          && activeCombinedCounts.transcend === Number(row.transcendCount || 0)
+          && activeCombinedCounts.craft === Number(row.craftCount || 0)
+        : oathAcquisitionDescriptors.length
+        ? isAppliedOathAcquisitionRecommendation(row, simulator)
+        : isAppliedBufferUpgrade || Boolean(
+          exclusiveGroupKey &&
+          candidateSignature &&
+          activeSelection?.candidateSignature === candidateSignature
+        );
+      return {
+        ...row,
+        isApplied,
+        exclusiveGroupKey,
+        candidateSignature,
+      };
     });
+  }
 
-  const {
-    orderEnchantRecommendationDisplay,
-    freezeRecommendationOrderWhileEditing,
-    releaseRecommendationOrderAfterEditing,
-  } = createEnchantRecommendationDisplayOrder({
-    tuneSourceTypes: TUNE_SOURCE_TYPES,
-    oathDecisionVariantSourceTypes: OATH_DECISION_VARIANT_SOURCE_TYPES,
-    getDealerSimulatorRecommendationId,
-    compareBufferRecommendationOrder,
-    compareDealerRecommendationOrder,
-    getDisplayOrderState: () => ({
-      isBuffer: state.currentBufferBaseline?.isBuffer,
-      equipmentTunePopoverOpen: state.equipmentTunePopoverOpen,
-      lastRecommendationDisplayOrder: state.lastRecommendationDisplayOrder,
-      frozenRecommendationDisplayKey: state.frozenRecommendationDisplayKey,
-      frozenRecommendationDisplayIndex: state.frozenRecommendationDisplayIndex,
-    }),
-    setLastRecommendationDisplayOrder: (value) => {
-      state.lastRecommendationDisplayOrder = value;
-    },
-    setFrozenRecommendationDisplayKey: (value) => {
-      state.frozenRecommendationDisplayKey = value;
-    },
-    setFrozenRecommendationDisplayIndex: (value) => {
-      state.frozenRecommendationDisplayIndex = value;
-    },
-  });
+  function getRecommendationDisplayOrderKey(row = {}) {
+    if (row.sourceType === 'oathAcquisitionCombined') {
+      return `oathCombined:${row.oathAcquisitionPairKey}`;
+    }
+    if (TUNE_SOURCE_TYPES.has(row.sourceType)) return `tune:${row.sourceType}`;
+    if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && row.variantGroupKey) {
+      return `oathDecision:${row.variantGroupKey}`;
+    }
+    return getDealerSimulatorRecommendationId(row);
+  }
+
+  function orderEnchantRecommendationDisplay(recommendations) {
+    let displayRecommendations = state.currentBufferBaseline?.isBuffer
+      ? recommendations.sort(compareBufferRecommendationOrder)
+      : recommendations.sort(compareDealerRecommendationOrder);
+    if (state.equipmentTunePopoverOpen && state.frozenRecommendationDisplayKey) {
+      const frozenRowIndex = displayRecommendations.findIndex(
+        (row) => getRecommendationDisplayOrderKey(row) === state.frozenRecommendationDisplayKey,
+      );
+      if (frozenRowIndex >= 0) {
+        const [frozenRow] = displayRecommendations.splice(frozenRowIndex, 1);
+        const targetIndex = Math.max(
+          0,
+          Math.min(
+            displayRecommendations.length,
+            Number(state.frozenRecommendationDisplayIndex || 0),
+          ),
+        );
+        displayRecommendations.splice(targetIndex, 0, frozenRow);
+      }
+    }
+    state.lastRecommendationDisplayOrder = displayRecommendations.map(
+      getRecommendationDisplayOrderKey,
+    );
+    return displayRecommendations;
+  }
+
+  function freezeRecommendationOrderWhileEditing(sourceType = '') {
+    if (state.frozenRecommendationDisplayKey) return;
+    const candidateKeys = [
+      `tune:${sourceType}`,
+      `oathCombined:${sourceType}`,
+      `oathDecision:${sourceType}`,
+    ];
+    const displayOrder = state.lastRecommendationDisplayOrder || [];
+    const key = candidateKeys.find((candidate) => displayOrder.includes(candidate)) || '';
+    if (!key) return;
+    state.frozenRecommendationDisplayKey = key;
+    state.frozenRecommendationDisplayIndex = displayOrder.indexOf(key);
+  }
+
+  function releaseRecommendationOrderAfterEditing() {
+    state.frozenRecommendationDisplayKey = '';
+    state.frozenRecommendationDisplayIndex = -1;
+  }
 
   function renderEnchantRecommendations(rows = getCardRows(state.enchantCards), allRows = rows, includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true) {
     if (!els.enchantRecommendList) return;
