@@ -35,6 +35,7 @@ import {
 import {
   EQUIPMENT_TUNE_MIN_SET_POINT,
   EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
+  EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
   createEnchantEquipmentTuneProgression,
 } from './enchantEquipmentTuneProgression.js';
 import { createEnchantOathProgression } from './enchantOathProgression.js';
@@ -46,6 +47,12 @@ import { createEnchantRecommendationEvaluationPolicy } from './enchantRecommenda
 import { createEnchantBufferRecommendation } from './enchantBufferRecommendation.js';
 import { createEnchantDealerRecommendation } from './enchantDealerRecommendation.js';
 import { createEnchantDealerSimulatorCalculation } from './enchantDealerSimulatorCalculation.js';
+import {
+  replaceEquipmentBodyInRows,
+  replaceEquipmentBodyPreservingState,
+  resolveCanonicalEquipmentSlotId,
+  resolveCanonicalEquipmentSlotName,
+} from './enchantEquipmentBodyReplacement.js';
 
 const EFFECT_LABELS = {
   finalDamage: '최종뎀',
@@ -256,7 +263,7 @@ function getMaterialGold(materials = []) {
 function getRecommendationGold(row, includeMaterialCosts = false) {
   const baseGold = Number.isFinite(row?.expectedGold) ? row.expectedGold : Number(row?.auction?.minUnitPrice || 0);
   if (!Number.isFinite(baseGold) || baseGold <= 0) return 0;
-  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)) return baseGold;
+  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)) return baseGold;
   const materialGold = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
     ? getMaterialGold(row.expectedMaterials)
     : getMaterialGold(row.materials);
@@ -640,6 +647,7 @@ function getEnchantIncludeGroups(row = {}) {
     return [`아바타:${row.kind === 'platinumEmblem' ? '플래티넘 엠블렘' : '엠블렘'}`];
   }
   if (row.sourceType === 'blackFang') return ['흑아:흑아'];
+  if (row.sourceType === 'relicCraft') return ['유일:제작'];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
   if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return ['서약:초월/정가'];
@@ -714,6 +722,8 @@ const {
   getTitleCandidateSignature,
   getBlackFangExclusiveGroupKey,
   getBlackFangCandidateSignature,
+  getRelicCraftExclusiveGroupKey,
+  getRelicCraftCandidateSignature,
   getAvatarEmblemExclusiveGroupKey,
   getAvatarEmblemCandidateSignature,
   getAvatarPlatinumExclusiveGroupKey,
@@ -789,43 +799,132 @@ function getAuraRows(groups) {
 }
 
 function getBlackFangRows(recommendations = []) {
-  return (recommendations || []).map((candidate) => ({
-    sourceType: 'blackFang',
-    slot: candidate.slot,
-    tier: candidate.tier || '흑아',
-    itemId: candidate.itemId,
-    itemName: candidate.itemName,
-    itemRarity: candidate.itemRarity || '',
-    fame: 0,
-    iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-    effects: candidate.effects || {},
-    currentEffects: candidate.currentEffects || {},
-    targetEffects: candidate.targetEffects || {},
-    itemExplain: candidate.itemExplain || '',
-    auction: candidate.auction || {},
-    expectedGold: candidate.expectedGold,
-    materials: Array.isArray(candidate.materials) ? candidate.materials : [],
-    materialText: candidate.materialText || '',
-    targetItemName: candidate.targetItemName || '',
-    targetItemId: candidate.targetItemId || '',
-    targetItemRarity: candidate.targetItemRarity || '',
-    targetIconUrl: candidate.targetIconUrl || '',
-    targetItemExplain: candidate.targetItemExplain || '',
-  }));
+  return (recommendations || []).map((candidate) => {
+    const slot = candidate.slot;
+    const targetEquipmentBody = candidate.targetEquipmentBody || {
+      slotId: resolveCanonicalEquipmentSlotId({ slot }),
+      slot,
+      itemId: candidate.targetItemId || '',
+      itemName: candidate.targetItemName || '',
+      itemRarity: candidate.targetItemRarity || '',
+      iconUrl: candidate.targetIconUrl || '',
+      effects: candidate.targetEffects || {},
+      itemExplain: candidate.targetItemExplain || '',
+    };
+    const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody);
+    const currentEquipmentBody = candidate.currentEquipmentBody || {
+      slotId: targetSlotId,
+      slot,
+      slotName: slot,
+      itemId: candidate.currentItemId || '',
+      itemName: candidate.currentItemName || '',
+      itemRarity: candidate.currentItemRarity || '',
+      effects: candidate.currentEffects || {},
+      itemReinforceSkill: candidate.currentItemReinforceSkill || [],
+      itemBuff: candidate.currentItemBuff || {},
+    };
+    return {
+      sourceType: 'blackFang',
+      slot,
+      targetSlotId,
+      tier: candidate.tier || '흑아',
+      itemId: candidate.itemId,
+      itemName: candidate.itemName,
+      itemRarity: candidate.itemRarity || '',
+      fame: 0,
+      iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+      effects: candidate.effects || {},
+      currentEffects: candidate.currentEffects || {},
+      targetEffects: targetEquipmentBody.effects || {},
+      currentEquipmentBody,
+      targetEquipmentBody,
+      itemExplain: candidate.itemExplain || '',
+      auction: candidate.auction || {},
+      expectedGold: candidate.expectedGold,
+      materials: Array.isArray(candidate.materials) ? candidate.materials : [],
+      materialText: candidate.materialText || '',
+      targetItemName: targetEquipmentBody.itemName || '',
+      targetItemId: targetEquipmentBody.itemId || '',
+      targetItemRarity: targetEquipmentBody.itemRarity || '',
+      targetIconUrl: targetEquipmentBody.iconUrl || '',
+      targetItemExplain: targetEquipmentBody.itemExplain || '',
+    };
+  });
+}
+
+function getRelicCraftRows(recommendations = [], equipmentUpgrades = []) {
+  return (recommendations || []).flatMap((candidate) => {
+    const targetEquipmentBody = candidate.targetEquipmentBody || null;
+    if (
+      candidate.sourceType !== 'relicCraft'
+      || resolveCanonicalEquipmentSlotId(targetEquipmentBody || {}) !== 'MAGIC_STON'
+      || !targetEquipmentBody?.itemId
+      || !Object.keys(targetEquipmentBody.effects || {}).length
+    ) return [];
+    const targetEquipmentUpgrades = replaceEquipmentBodyInRows(
+      equipmentUpgrades,
+      targetEquipmentBody,
+    );
+    if (!targetEquipmentUpgrades) return [];
+    const currentSetPoint = getEquipmentTuneSetPoint(equipmentUpgrades);
+    const targetSetPoint = getEquipmentTuneSetPoint(targetEquipmentUpgrades);
+    const currentTuneBuffPower = getEquipmentTuneStage(currentSetPoint)
+      * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
+    const targetTuneBuffPower = getEquipmentTuneStage(targetSetPoint)
+      * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
+    const currentEffects = candidate.currentEffects
+      || candidate.currentEquipmentBody?.effects
+      || {};
+    const targetEffects = targetEquipmentBody.effects || {};
+    return [{
+      ...candidate,
+      sourceType: 'relicCraft',
+      slot: resolveCanonicalEquipmentSlotName(targetEquipmentBody),
+      targetSlotId: 'MAGIC_STON',
+      tier: candidate.tier || '태초',
+      cardTitle: candidate.cardTitle || '유물 제작',
+      cardSubtitle: candidate.cardSubtitle || '마법석',
+      effects: subtractEffects(targetEffects, currentEffects),
+      currentEffects,
+      targetEffects,
+      targetEquipmentBody,
+      currentEquipmentSetPoint: currentSetPoint,
+      targetEquipmentSetPoint: targetSetPoint,
+      equipmentTuneBuffPowerDelta: targetTuneBuffPower - currentTuneBuffPower,
+      skillDamageMultiplier: getEquipmentTuneDamageMultiplier(
+        equipmentUpgrades,
+        targetEquipmentUpgrades,
+      ),
+      materials: Array.isArray(candidate.materials) ? candidate.materials : [],
+      simulatorSupported: true,
+    }];
+  });
 }
 
 function attachBlackFangBaseBodyData(equipmentRows = [], recommendations = []) {
-  const recommendationBySlot = new Map(
+  const recommendationBySlotId = new Map(
     (recommendations || [])
-      .filter((row) => BLACK_FANG_SIMULATOR_SLOTS.has(String(row?.slot || '').trim()))
-      .map((row) => [row.slot, row]),
+      .filter((row) => ['blackFang', 'relicCraft'].includes(row?.sourceType))
+      .map((row) => [
+        resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row),
+        row,
+      ])
+      .filter(([slotId]) => slotId),
   );
   return cloneSimulatorValue(equipmentRows || []).map((equipment) => {
-    const recommendation = recommendationBySlot.get(equipment?.slot);
+    const recommendation = recommendationBySlotId.get(
+      resolveCanonicalEquipmentSlotId(equipment),
+    );
     if (!recommendation) return equipment;
+    const currentBody = recommendation.currentEquipmentBody || {};
     return {
       ...equipment,
-      bodyEffects: cloneSimulatorValue(recommendation.currentEffects || {}),
+      bodyEffects: cloneSimulatorValue(
+        currentBody.effects || recommendation.currentEffects || {},
+      ),
+      bodyExplain: currentBody.itemExplain || '',
+      itemReinforceSkill: cloneSimulatorValue(currentBody.itemReinforceSkill || []),
+      itemBuff: cloneSimulatorValue(currentBody.itemBuff || {}),
     };
   });
 }
@@ -958,7 +1057,7 @@ const {
 const {
   getBufferEnchantBaseRelativeChanges,
   getBufferCreatureArtifactBaseRelativeChanges,
-  getBufferBlackFangBaseRelativeChanges,
+  getBufferEquipmentBodyBaseRelativeChanges,
   getBufferCreatureBaseRelativeChanges,
   getBufferAuraBaseRelativeChanges,
   getBufferTitleBaseRelativeChanges,
@@ -979,6 +1078,7 @@ const {
   getEquipmentProgressionType,
   getEquipmentProgressionMode,
   getCumulativeUpgradeEffectsForEquipment,
+  resolveCanonicalEquipmentSlotId,
 });
 
 const {
@@ -986,6 +1086,8 @@ const {
   getBufferEnchantCandidateSignature,
   getBufferBlackFangExclusiveGroupKey,
   getBufferBlackFangCandidateSignature,
+  getBufferRelicCraftExclusiveGroupKey,
+  getBufferRelicCraftCandidateSignature,
   getBufferCreatureExclusiveGroupKey,
   getBufferCreatureCandidateSignature,
   getBufferAuraExclusiveGroupKey,
@@ -1115,7 +1217,7 @@ const {
   getBufferSwitchingAvatarBaseRelativeChanges,
   getBufferAvatarPlatinumBaseRelativeChanges,
   mergeBufferChangeMap,
-  getBufferBlackFangBaseRelativeChanges,
+  getBufferEquipmentBodyBaseRelativeChanges,
   getBufferUpgradeBaseRelativeChanges,
   getBufferEquipmentTuneBaseRelativeChanges,
   getBufferOathTuneBaseRelativeChanges,
@@ -1327,6 +1429,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getBufferCreatureArtifactExclusiveGroupKey(row)
     || getBufferUpgradeExclusiveGroupKey(row)
     || getBufferBlackFangExclusiveGroupKey(row)
+    || getBufferRelicCraftExclusiveGroupKey(row)
     || getBufferCreatureExclusiveGroupKey(row)
     || getBufferAuraExclusiveGroupKey(row)
     || getBufferTitleExclusiveGroupKey(row)
@@ -1343,6 +1446,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getOathTuneExclusiveGroupKey(row)
     || getOathAcquisitionExclusiveGroupKey(row)
     || getBlackFangExclusiveGroupKey(row)
+    || getRelicCraftExclusiveGroupKey(row)
     || getEquipmentProgressionExclusiveGroupKey(row)
     || getAvatarEmblemExclusiveGroupKey(row)
     || getAvatarPlatinumExclusiveGroupKey(row)
@@ -1354,6 +1458,7 @@ function getSimulatorCandidateSignature(row = {}) {
     || getBufferCreatureArtifactCandidateSignature(row)
     || getBufferUpgradeCandidateSignature(row)
     || getBufferBlackFangCandidateSignature(row)
+    || getBufferRelicCraftCandidateSignature(row)
     || getBufferCreatureCandidateSignature(row)
     || getBufferAuraCandidateSignature(row)
     || getBufferTitleCandidateSignature(row)
@@ -1370,6 +1475,7 @@ function getSimulatorCandidateSignature(row = {}) {
     || getOathTuneCandidateSignature(row)
     || getOathAcquisitionCandidateSignature(row)
     || getBlackFangCandidateSignature(row)
+    || getRelicCraftCandidateSignature(row)
     || getEquipmentProgressionCandidateSignature(row)
     || getAvatarEmblemCandidateSignature(row)
     || getAvatarPlatinumCandidateSignature(row)
@@ -1422,7 +1528,6 @@ const {
 } = createEnchantDealerSimulatorCalculation({
   addEffects,
   getFinalDamageReplacementMultiplier,
-  blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,
   getAvatarEmblemMetricBaseline,
   getDamageBaseline,
   getCreatureArtifactEffectsTotal,
@@ -1754,6 +1859,7 @@ export function installEnchantView(ctx) {
   state.currentOathCraftRecommendations = [];
   state.oathTuneStageDb = null;
   state.currentBlackFangRecommendations = [];
+  state.currentRelicCraftRecommendations = [];
   state.upgradeExpectedDb = null;
   state.upgradeMaterialPrices = {};
   state.currentDamageBaseline = null;
@@ -2104,7 +2210,7 @@ export function installEnchantView(ctx) {
     });
     const blackFangReferenceBaselineBySlot = new Map();
     candidateRows.forEach((row) => {
-      if (row.sourceType !== 'blackFang' || blackFangReferenceBaselineBySlot.has(row.slot)) return;
+      if (!['blackFang', 'relicCraft'].includes(row.sourceType) || blackFangReferenceBaselineBySlot.has(row.slot)) return;
       const referenceEquipment = simulator.simulatedEquipmentUpgrades.map((equipment) => (
         equipment?.slot === row.slot && baseEquipmentBySlot.has(row.slot)
           ? cloneSimulatorValue(baseEquipmentBySlot.get(row.slot))
@@ -2271,7 +2377,10 @@ export function installEnchantView(ctx) {
       const baseBuffLoadout = cloneSimulatorValue(state.currentBuffLoadout || {});
       const baseEquipmentUpgrades = attachBlackFangBaseBodyData(
         state.currentEquipmentUpgrades || [],
-        state.currentBlackFangRecommendations || [],
+        [
+          ...(state.currentBlackFangRecommendations || []),
+          ...(state.currentRelicCraftRecommendations || []),
+        ],
       );
       const baseOathUpgrades = attachOathAcquisitionBaseCalculationData(
         state.currentOathUpgrades || {},
@@ -2342,7 +2451,10 @@ export function installEnchantView(ctx) {
     const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
     const baseEquipmentUpgrades = attachBlackFangBaseBodyData(
       state.currentEquipmentUpgrades || [],
-      state.currentBlackFangRecommendations || [],
+      [
+        ...(state.currentBlackFangRecommendations || []),
+        ...(state.currentRelicCraftRecommendations || []),
+      ],
     );
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
     const baseAura = getCanonicalCurrentAura();
@@ -2549,17 +2661,23 @@ export function installEnchantView(ctx) {
         applyType: 'replaceEquipmentProgression',
       };
     }
-    if (row.sourceType === 'blackFang') {
-      const targetSlot = String(row.slot || '').trim();
+    if (['blackFang', 'relicCraft'].includes(row.sourceType)) {
+      const targetEquipmentBody = row.targetEquipmentBody || {};
+      const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || row);
+      const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
+      const isSupportedSlot = row.sourceType === 'blackFang'
+        ? BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)
+        : targetSlotId === 'MAGIC_STON';
       if (
-        !BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot) ||
-        !row.targetItemId ||
-        !Object.keys(row.targetEffects || {}).length
+        !isSupportedSlot
+        || !targetEquipmentBody.itemId
+        || !Object.keys(targetEquipmentBody.effects || {}).length
       ) return null;
       return {
         targetTab: 'equipment',
         targetSlot,
-        applyType: 'replaceBlackFangBody',
+        targetSlotId,
+        applyType: 'replaceEquipmentBody',
       };
     }
     if (row.sourceType === 'equipmentTune') {
@@ -2924,18 +3042,24 @@ export function installEnchantView(ctx) {
         baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
       };
     }
-    if (row.sourceType === 'blackFang') {
-      const targetSlot = String(row.slot || '').trim();
+    if (['blackFang', 'relicCraft'].includes(row.sourceType)) {
+      const targetEquipmentBody = row.targetEquipmentBody || {};
+      const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || row);
+      const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
+      const isSupportedSlot = row.sourceType === 'blackFang'
+        ? BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)
+        : targetSlotId === 'MAGIC_STON';
       if (
-        !BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)
-        || !row.targetItemId
-        || !Object.keys(row.targetEffects || {}).length
+        !isSupportedSlot
+        || !targetEquipmentBody.itemId
+        || !Object.keys(targetEquipmentBody.effects || {}).length
         || !row.bufferBaseRelativeChanges
       ) return null;
       return {
         targetTab: 'equipment',
         targetSlot,
-        applyType: 'replaceBlackFangBody',
+        targetSlotId,
+        applyType: 'replaceEquipmentBody',
         baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
       };
     }
@@ -3035,9 +3159,9 @@ export function installEnchantView(ctx) {
   function replaceSimulatedBufferEquipmentProgression(row, target) {
     const simulator = state.dealerSimulator;
     if (simulator?.role !== 'buffer' || target?.applyType !== 'replaceBufferEquipmentProgression') return false;
-    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
-      (equipment) => equipment?.slot === target.targetSlot,
-    );
+    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex((equipment) => (
+      resolveCanonicalEquipmentSlotId(equipment) === target.targetSlotId
+    ));
     if (equipmentIndex < 0) return false;
     const targetLevel = Number(target.targetLevel);
     if (!Number.isFinite(targetLevel) || targetLevel < 0) return false;
@@ -3608,22 +3732,13 @@ export function installEnchantView(ctx) {
     );
   }
 
-  function replaceEquipmentBodyPreservingState(currentEquipment = {}, targetBody = {}) {
-    const nextEquipment = cloneSimulatorValue(currentEquipment || {});
-    nextEquipment.itemId = targetBody.itemId || '';
-    nextEquipment.itemName = targetBody.itemName || nextEquipment.itemName || '';
-    nextEquipment.iconUrl = targetBody.iconUrl || '';
-    nextEquipment.itemRarity = targetBody.itemRarity || nextEquipment.itemRarity || '';
-    nextEquipment.bodyEffects = cloneSimulatorValue(targetBody.effects || {});
-    nextEquipment.bodyExplain = targetBody.itemExplain || '';
-    return nextEquipment;
-  }
-
-  function replaceSimulatedBlackFangBody(row, target) {
+  function replaceSimulatedEquipmentBody(row, target) {
     const simulator = state.dealerSimulator;
-    if (!simulator || target?.applyType !== 'replaceBlackFangBody') return false;
+    if (!simulator || target?.applyType !== 'replaceEquipmentBody') return false;
+    const targetSlotId = target.targetSlotId
+      || resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row);
     const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
-      (equipment) => equipment?.slot === target.targetSlot,
+      (equipment) => resolveCanonicalEquipmentSlotId(equipment) === targetSlotId,
     );
     if (equipmentIndex < 0) return false;
     simulator.simulatedEquipmentUpgrades.splice(
@@ -3631,7 +3746,9 @@ export function installEnchantView(ctx) {
       1,
       replaceEquipmentBodyPreservingState(
         simulator.simulatedEquipmentUpgrades[equipmentIndex],
-        {
+        row.targetEquipmentBody || {
+          slotId: row.targetSlotId,
+          slot: row.slot,
           itemId: row.targetItemId,
           itemName: row.targetItemName,
           iconUrl: row.targetIconUrl,
@@ -4016,9 +4133,9 @@ export function installEnchantView(ctx) {
         : replaceSimulatedBuffAvatar(row, target, true),
       remove: restoreSimulatedBuffSelectionToBase,
     },
-    replaceBlackFangBody: {
-      apply: replaceSimulatedBlackFangBody,
-      remove: (selection) => restoreSimulatedEquipmentBodyToBase(selection.targetSlot),
+    replaceEquipmentBody: {
+      apply: replaceSimulatedEquipmentBody,
+      remove: restoreSimulatedEquipmentBodyToBase,
     },
     replaceEquipmentProgression: {
       apply: replaceSimulatedEquipmentProgression,
@@ -4660,26 +4777,36 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function restoreSimulatedEquipmentBodyToBase(targetSlot) {
+  function restoreSimulatedEquipmentBodyToBase(selection = {}) {
     const simulator = state.dealerSimulator;
-    if (!simulator || !BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)) return false;
-    const baseEquipment = simulator.baseEquipmentUpgrades.find((equipment) => equipment?.slot === targetSlot);
-    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
-      (equipment) => equipment?.slot === targetSlot,
-    );
+    const targetSlotId = selection.targetSlotId
+      || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot });
+    if (!simulator || !targetSlotId) return false;
+    const baseEquipment = simulator.baseEquipmentUpgrades.find((equipment) => (
+      resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
+    ));
+    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex((equipment) => (
+      resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
+    ));
     if (!baseEquipment || equipmentIndex < 0) return false;
+    const targetSlot = resolveCanonicalEquipmentSlotName(baseEquipment);
     simulator.simulatedEquipmentUpgrades.splice(
       equipmentIndex,
       1,
       replaceEquipmentBodyPreservingState(
         simulator.simulatedEquipmentUpgrades[equipmentIndex],
         {
+          slotId: targetSlotId,
+          slot: targetSlot,
           itemId: baseEquipment.itemId,
           itemName: baseEquipment.itemName,
           iconUrl: baseEquipment.iconUrl,
           itemRarity: baseEquipment.itemRarity,
           effects: baseEquipment.bodyEffects,
           itemExplain: baseEquipment.bodyExplain,
+          itemReinforceSkill: baseEquipment.itemReinforceSkill,
+          itemBuff: baseEquipment.itemBuff,
+          tuneSetPoint: baseEquipment.tuneSetPoint,
         },
       ),
     );
@@ -4853,12 +4980,14 @@ export function installEnchantView(ctx) {
     simulator.simulatedEquipmentUpgrades = cloneSimulatorValue(
       selection.beforeTuneSnapshot || simulator.baseEquipmentUpgrades || [],
     ).map((equipment) => {
-      if (simulator.role !== 'buffer') return equipment;
       const currentEquipment = currentEquipmentBySlot.get(equipment?.slot);
-      const blackFangSelection = simulator.activeSelectionByGroup?.[
-        `bufferBlackFang:${equipment?.slot}`
-      ];
-      if (!currentEquipment || blackFangSelection?.applyType !== 'replaceBlackFangBody') {
+      const equipmentBodySelection = Object.values(
+        simulator.activeSelectionByGroup || {},
+      ).find((selection) => (
+        selection?.targetSlot === equipment?.slot
+        && selection.applyType === 'replaceEquipmentBody'
+      ));
+      if (!currentEquipment || !equipmentBodySelection) {
         return equipment;
       }
       return replaceEquipmentBodyPreservingState(equipment, {
@@ -4868,6 +4997,7 @@ export function installEnchantView(ctx) {
         itemRarity: currentEquipment.itemRarity,
         effects: currentEquipment.bodyEffects,
         itemExplain: currentEquipment.bodyExplain,
+        tuneSetPoint: currentEquipment.tuneSetPoint,
       });
     });
     if (simulator.role === 'buffer') {
@@ -5276,6 +5406,7 @@ export function installEnchantView(ctx) {
     state.currentOathCraftRecommendations = [];
     state.oathTuneStageDb = null;
     state.currentBlackFangRecommendations = [];
+    state.currentRelicCraftRecommendations = [];
     state.upgradeExpectedDb = null;
     state.upgradeMaterialPrices = {};
     state.currentDamageBaseline = null;
@@ -5323,6 +5454,7 @@ export function installEnchantView(ctx) {
       || state.switchingFragmentRecommendations.length > 0
       || state.currentOathTranscendRecommendations.length > 0
       || state.currentOathCraftRecommendations.length > 0
+      || state.currentRelicCraftRecommendations.length > 0
       || state.auraUpgradeGroups.length > 0
     );
   }
@@ -5393,6 +5525,10 @@ export function installEnchantView(ctx) {
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
+      ...getRelicCraftRows(
+        state.currentRelicCraftRecommendations,
+        getActiveEquipmentUpgrades(),
+      ),
     ].map((row) => adaptBuffEnhancementRecommendation(row, state.dealerSimulator));
     renderEnchantFilters(allRows);
 
@@ -5405,7 +5541,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -5767,6 +5903,8 @@ export function installEnchantView(ctx) {
           ? formatOathTranscendEffect(row, isBufferMetric, row.sourceType === 'oathAcquisitionCombined')
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
+        : row.sourceType === 'relicCraft'
+          ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
           ? formatEnchantTransitionEffect(row, isBufferMetric, activeDamageBaseline)
         : row.sourceType === 'creatureArtifact'
@@ -5816,6 +5954,8 @@ export function installEnchantView(ctx) {
           ? '정가'
         : row.sourceType === 'oathAcquisitionCombined'
           ? '초월/정가'
+        : row.sourceType === 'relicCraft'
+          ? row.cardSubtitle || '마법석'
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
@@ -5844,6 +5984,8 @@ export function installEnchantView(ctx) {
           ? '서약 결정'
         : row.sourceType === 'oathAcquisitionCombined'
           ? '서약 결정'
+        : row.sourceType === 'relicCraft'
+          ? row.cardTitle || '유물 제작'
         : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
       const isMaterialEnchant = isMaterialEnchantRecommendation(row);
@@ -5855,16 +5997,16 @@ export function installEnchantView(ctx) {
           ? getMaterialEnchantMaterialParts(row)
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? getBlackFangMaterialParts(row.materials)
-        : row.sourceType === 'blackFang'
+        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
           ? getBlackFangMaterialParts(row.materials)
           : [];
       const rowGold = getRecommendationGold(row, includeMaterialCosts);
       const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
-        : includeMaterialCosts && ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
+        : includeMaterialCosts && ['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
         ? '재료 포함'
-        : ['upgrade', 'blackFang', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType) ? '예상 골드' : '최저가';
+        : ['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
       const materialPartsMarkup = materialParts.length
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
@@ -5996,6 +6138,7 @@ export function installEnchantView(ctx) {
       state.currentOathCraftRecommendations = [];
       state.oathTuneStageDb = null;
       state.currentBlackFangRecommendations = [];
+      state.currentRelicCraftRecommendations = [];
       state.upgradeExpectedDb = null;
       state.upgradeMaterialPrices = {};
       state.currentDamageBaseline = null;
@@ -6022,6 +6165,7 @@ export function installEnchantView(ctx) {
     state.currentOathCraftRecommendations = Array.isArray(payload.oathCraftRecommendations) ? payload.oathCraftRecommendations : [];
     state.oathTuneStageDb = payload.oathTuneStageDb || null;
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
+    state.currentRelicCraftRecommendations = Array.isArray(payload.relicCraftRecommendations) ? payload.relicCraftRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
     state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
@@ -6285,6 +6429,7 @@ export function installEnchantView(ctx) {
     state.currentOathCraftRecommendations = Array.isArray(payload.oathCraftRecommendations) ? payload.oathCraftRecommendations : [];
     state.oathTuneStageDb = payload.oathTuneStageDb || null;
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
+    state.currentRelicCraftRecommendations = Array.isArray(payload.relicCraftRecommendations) ? payload.relicCraftRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
     state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
@@ -6651,14 +6796,25 @@ export function installEnchantView(ctx) {
     );
     const nextEquipment = plannedEquipment.map((equipment) => {
       const currentEquipment = currentEquipmentBySlot.get(equipment?.slot);
-      if (!currentEquipment || !BLACK_FANG_SIMULATOR_SLOTS.has(equipment?.slot)) return equipment;
+      const equipmentBodySelection = Object.values(
+        simulator.activeSelectionByGroup || {},
+      ).find((activeSelection) => (
+        activeSelection?.applyType === 'replaceEquipmentBody'
+        && activeSelection.targetSlot === equipment?.slot
+      ));
+      if (!currentEquipment || !equipmentBodySelection) return equipment;
       return replaceEquipmentBodyPreservingState(equipment, {
+        slotId: resolveCanonicalEquipmentSlotId(currentEquipment),
+        slot: resolveCanonicalEquipmentSlotName(currentEquipment),
         itemId: currentEquipment.itemId,
         itemName: currentEquipment.itemName,
         iconUrl: currentEquipment.iconUrl,
         itemRarity: currentEquipment.itemRarity,
         effects: currentEquipment.bodyEffects,
         itemExplain: currentEquipment.bodyExplain,
+        itemReinforceSkill: currentEquipment.itemReinforceSkill,
+        itemBuff: currentEquipment.itemBuff,
+        tuneSetPoint: currentEquipment.tuneSetPoint,
       });
     });
     const updatedSelection = {

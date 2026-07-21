@@ -8,7 +8,6 @@ const { createEnchantDealerSimulatorCalculation } = dealerSimulatorModule;
 const DEPENDENCY_NAMES = [
   'addEffects',
   'getFinalDamageReplacementMultiplier',
-  'blackFangSimulatorSlots',
   'getAvatarEmblemMetricBaseline',
   'getDamageBaseline',
   'getCreatureArtifactEffectsTotal',
@@ -123,7 +122,6 @@ function createDependencies(overrides = {}) {
   return {
     addEffects,
     getFinalDamageReplacementMultiplier: () => 1,
-    blackFangSimulatorSlots: new Set(['목걸이', '팔찌', '반지']),
     getAvatarEmblemMetricBaseline: (baseline) => baseline,
     getDamageBaseline,
     getCreatureArtifactEffectsTotal: (artifacts) => sumRows(artifacts, 'effects'),
@@ -342,6 +340,7 @@ function createCumulativeHarness({ adjusted = true } = {}) {
     ['aura-base>aura-sim', 1.03],
     ['creature-base>creature-sim', 1.05],
     ['body-base>body-sim', 1.08],
+    ['perfume-base>perfume-sim', 1.20],
   ]);
   const dependencies = createDependencies({
     addEffects: record('addEffects', addEffects),
@@ -349,7 +348,6 @@ function createCumulativeHarness({ adjusted = true } = {}) {
       'getFinalDamageReplacementMultiplier',
       (current, target) => replacementMultipliers.get(`${current?.marker || ''}>${target?.marker || ''}`) || 1,
     ),
-    blackFangSimulatorSlots: new Set(['목걸이']),
     getAvatarEmblemMetricBaseline: record('getAvatarEmblemMetricBaseline', (baseline) => baseline),
     getDamageBaseline: record('getDamageBaseline', getDamageBaseline),
     getCreatureArtifactEffectsTotal: record('getCreatureArtifactEffectsTotal', () => ({})),
@@ -405,8 +403,14 @@ function createCumulativeHarness({ adjusted = true } = {}) {
     simulatedCreatureArtifacts: [{ marker: 'artifact-sim' }],
     baseTitle: { itemId: 'base-title', effects: {} },
     simulatedTitle: { itemId: 'sim-title', effects: {} },
-    baseEquipmentUpgrades: [{ slot: '목걸이', bodyEffects: { marker: 'body-base' } }],
-    simulatedEquipmentUpgrades: [{ slot: '목걸이', bodyEffects: { marker: 'body-sim' } }],
+    baseEquipmentUpgrades: [
+      { slot: '목걸이', bodyEffects: { marker: 'body-base' } },
+      { slotId: 'MAGIC_STON', slot: '마법석', bodyEffects: { marker: 'perfume-base' } },
+    ],
+    simulatedEquipmentUpgrades: [
+      { slot: '목걸이', bodyEffects: { marker: 'body-sim' } },
+      { slotId: 'MAGIC_STON', slot: '마법석', bodyEffects: { marker: 'perfume-sim' } },
+    ],
     baseOathUpgrades: { crystals: [] },
     simulatedOathUpgrades: { crystals: [] },
     baseAvatar: { slots: [] },
@@ -431,7 +435,7 @@ function testCumulativeMultiplierAllSentinelsTitleAdjustedAndMetricBranches() {
     'actual',
   );
   const common = 1.01 * 1.02 * 1.03 * 1.04 * 1.05 * 1.06 * 1.07
-    * 1.08 * 1.09 * 1.10 * 1.11 * 1.12 * 1.13;
+    * 1.08 * 1.20 * 1.09 * 1.10 * 1.11 * 1.12 * 1.13;
   assertClose(actual, common * 1.14 * 1.16);
   const actualNames = actualHarness.calls.map(({ name }) => name);
   for (const name of [
@@ -488,7 +492,7 @@ function testCumulativeTitleFallbackAndMissingBaseShortCircuit() {
     'actual',
   );
   const commonWithoutTitle = 1.01 * 1.02 * 1.03 * 1.04 * 1.05 * 1.06 * 1.07
-    * 1.08 * 1.09 * 1.10 * 1.11 * 1.12;
+    * 1.08 * 1.20 * 1.09 * 1.10 * 1.11 * 1.12;
   assertClose(fallback, commonWithoutTitle * 1.17 * 1.14 * 1.16);
   const names = fallbackHarness.calls.map(({ name }) => name);
   assert.ok(names.includes('getReplacementIncrementalDamagePercent'));
@@ -497,14 +501,12 @@ function testCumulativeTitleFallbackAndMissingBaseShortCircuit() {
   let invoked = false;
   const throwingDependencies = Object.fromEntries(DEPENDENCY_NAMES.map((name) => [
     name,
-    name === 'blackFangSimulatorSlots'
-      ? new Set()
-      : name === 'elementDamagePerElement'
-        ? 0.5
-        : () => {
-          invoked = true;
-          throw new Error(`unexpected dependency call: ${name}`);
-        },
+    name === 'elementDamagePerElement'
+      ? 0.5
+      : () => {
+        invoked = true;
+        throw new Error(`unexpected dependency call: ${name}`);
+      },
   ]));
   const shortCircuit = createEnchantDealerSimulatorCalculation(throwingDependencies);
   assert.equal(shortCircuit.getSimulatorCumulativeDamageMultiplier({}), 1);
@@ -528,7 +530,7 @@ function testEnchantViewImportAndAssemblyContract() {
   PUBLIC_FUNCTIONS.forEach((name) => {
     assert.match(factoryBlock, new RegExp(`\\b${name}\\b`));
   });
-  assert.match(factoryBlock, /blackFangSimulatorSlots:\s*BLACK_FANG_SIMULATOR_SLOTS/);
+  assert.doesNotMatch(factoryBlock, /blackFangSimulatorSlots/);
   assert.match(factoryBlock, /elementDamagePerElement:\s*ELEMENT_DAMAGE_PER_ELEMENT/);
   assert.match(factoryBlock, /\bnormalizeSimulatorDamageDelta\b/);
   assert.match(factoryBlock, /\bgetFinalDamageReplacementMultiplier\b/);

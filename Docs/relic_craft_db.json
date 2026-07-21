@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "crafts": [
+    {
+      "key": "elegantDignityPerfume",
+      "enabled": true,
+      "sourceType": "relicCraft",
+      "display": {
+        "cardTitle": "유물 제작",
+        "cardSubtitle": "마법석"
+      },
+      "target": {
+        "itemId": "df77236c51ea1274a3deb79c3e470695",
+        "itemName": "우아한 기품의 향수",
+        "itemRarity": "태초",
+        "slotId": "MAGIC_STON",
+        "itemTypeDetail": "마법석"
+      },
+      "minimumCurrentEquipmentSetPoint": 2620,
+      "manualPrices": {
+        "perfumeBottle": {
+          "unitPrice": 1200000000,
+          "editable": true
+        }
+      },
+      "baseCraft": {
+        "fixedGold": 100000000,
+        "materials": [
+          { "key": "perfumeBottle", "label": "힘을 잃은 기품의 향수병", "itemId": "679cacdbd935ea441d207501ebe4b0cb", "amount": 1, "priceSource": "localManual" },
+          { "key": "behemothTear", "label": "베히모스의 눈물(1회 교환 가능)", "itemId": "cbeb05e1c979e159f6a7501d6a294378", "amount": 1000, "priceSource": "materialResolver" },
+          { "key": "historiaQuartz", "label": "히스토리아 쿼츠", "itemId": "c1e1dd70d4dbdf410fe715b339000821", "amount": 2000, "priceSource": "materialResolver" },
+          { "key": "primordialSoul", "label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888", "amount": 5, "priceSource": "materialResolver" }
+        ]
+      },
+      "precision100": {
+        "targetPercent": 100,
+        "operationCount": 25,
+        "fixedGold": 100000000,
+        "materials": [
+          { "key": "behemothTear", "amount": 200 },
+          { "key": "historiaQuartz", "amount": 500 }
+        ],
+        "effectsByPrecision": {
+          "perPercent": { "finalDamage": 0.1, "buffPower": 30, "fame": 5 },
+          "milestones": [
+            { "percent": 25, "finalDamage": 0.5, "buffPower": 390, "fame": 100 },
+            { "percent": 50, "finalDamage": 0.6, "buffPower": 420, "fame": 100 },
+            { "percent": 75, "finalDamage": 0.6, "buffPower": 420, "fame": 100 },
+            { "percent": 100, "finalDamage": 1.8, "buffPower": 540, "fame": 220 }
+          ]
+        }
+      },
+      "calculator": {
+        "equipmentTune": { "minSetPoint": 2550, "stepPoint": 70, "finalDamagePerStage": 2, "buffPowerPerStage": 400 },
+        "bufferSkillLevels": { "buffSkillLevel": 1, "awakeningSkillLevel": 2 },
+        "requiredBaseEffectKeys": ["attackIncrease"]
+      }
+    }
+  ]
+}

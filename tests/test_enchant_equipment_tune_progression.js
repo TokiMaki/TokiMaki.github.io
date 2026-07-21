@@ -51,6 +51,7 @@ const progression = createEnchantEquipmentTuneProgression({
 assert.deepEqual(new Set(Object.keys(equipmentTuneModule)), new Set([
   'EQUIPMENT_TUNE_MIN_SET_POINT',
   'EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE',
+  'EQUIPMENT_TUNE_MEMORY_BUFF_POWER',
   'createEnchantEquipmentTuneProgression',
 ]));
 assert.equal(EQUIPMENT_TUNE_MIN_SET_POINT, 2550);

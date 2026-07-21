@@ -25,6 +25,8 @@ const PUBLIC_OUTPUTS = [
   'getTitleCandidateSignature',
   'getBlackFangExclusiveGroupKey',
   'getBlackFangCandidateSignature',
+  'getRelicCraftExclusiveGroupKey',
+  'getRelicCraftCandidateSignature',
   'getAvatarEmblemExclusiveGroupKey',
   'getAvatarEmblemCandidateSignature',
   'getAvatarPlatinumExclusiveGroupKey',
@@ -44,6 +46,7 @@ const EXCLUSIVE_DISPATCH_ORDER = [
   'getBufferCreatureArtifactExclusiveGroupKey',
   'getBufferUpgradeExclusiveGroupKey',
   'getBufferBlackFangExclusiveGroupKey',
+  'getBufferRelicCraftExclusiveGroupKey',
   'getBufferCreatureExclusiveGroupKey',
   'getBufferAuraExclusiveGroupKey',
   'getBufferTitleExclusiveGroupKey',
@@ -60,6 +63,7 @@ const EXCLUSIVE_DISPATCH_ORDER = [
   'getOathTuneExclusiveGroupKey',
   'getOathAcquisitionExclusiveGroupKey',
   'getBlackFangExclusiveGroupKey',
+  'getRelicCraftExclusiveGroupKey',
   'getEquipmentProgressionExclusiveGroupKey',
   'getAvatarEmblemExclusiveGroupKey',
   'getAvatarPlatinumExclusiveGroupKey',
@@ -71,6 +75,7 @@ const CANDIDATE_DISPATCH_ORDER = [
   'getBufferCreatureArtifactCandidateSignature',
   'getBufferUpgradeCandidateSignature',
   'getBufferBlackFangCandidateSignature',
+  'getBufferRelicCraftCandidateSignature',
   'getBufferCreatureCandidateSignature',
   'getBufferAuraCandidateSignature',
   'getBufferTitleCandidateSignature',
@@ -87,6 +92,7 @@ const CANDIDATE_DISPATCH_ORDER = [
   'getOathTuneCandidateSignature',
   'getOathAcquisitionCandidateSignature',
   'getBlackFangCandidateSignature',
+  'getRelicCraftCandidateSignature',
   'getEquipmentProgressionCandidateSignature',
   'getAvatarEmblemCandidateSignature',
   'getAvatarPlatinumCandidateSignature',
@@ -308,6 +314,21 @@ function testDealerSourceIdentityMatrix() {
     'blackFang:목걸이:black-fang-1:finalDamage:6|attack:0',
   );
   assert.equal(identity.getBlackFangExclusiveGroupKey({ ...blackFang, slot: '무기' }), '');
+
+  const relicCraft = {
+    sourceType: 'relicCraft',
+    targetSlotId: 'MAGIC_STON',
+    targetEquipmentBody: {
+      itemId: 'perfume-1',
+      effects: { finalDamage: 70.67376612, attack: 3729 },
+    },
+  };
+  assert.equal(identity.getRelicCraftExclusiveGroupKey(relicCraft), 'relicCraft:마법석');
+  assert.equal(
+    identity.getRelicCraftCandidateSignature(relicCraft),
+    'relicCraft:마법석:perfume-1:finalDamage:70.67376612|attack:3729',
+  );
+  assert.equal(identity.getRelicCraftExclusiveGroupKey({ ...relicCraft, targetSlotId: 'SUPPORT' }), '');
 }
 
 function testAvatarAndBuffSwitchingIdentityMatrix() {

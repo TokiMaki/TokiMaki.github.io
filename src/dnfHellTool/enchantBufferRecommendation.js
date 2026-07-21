@@ -27,7 +27,7 @@ export function createEnchantBufferRecommendation(deps) {
     getBufferSwitchingAvatarBaseRelativeChanges,
     getBufferAvatarPlatinumBaseRelativeChanges,
     mergeBufferChangeMap,
-    getBufferBlackFangBaseRelativeChanges,
+    getBufferEquipmentBodyBaseRelativeChanges,
     getBufferUpgradeBaseRelativeChanges,
     getBufferEquipmentTuneBaseRelativeChanges,
     getBufferOathTuneBaseRelativeChanges,
@@ -115,6 +115,24 @@ export function createEnchantBufferRecommendation(deps) {
         buffSkillLevelDelta: Number(row.bufferBuffSkillLevelDelta || 0),
         auraStatDelta: Number(row.auraStatDelta || 0),
         auraAttackDelta: Number(row.auraAttackDelta || 0),
+      };
+    }
+    if (['blackFang', 'relicCraft'].includes(row.sourceType)) {
+      const targetItem = row.targetEquipmentBody || {};
+      const currentItem = row.currentEquipmentBody || {};
+      return {
+        buffSkillLevelDelta: getItemSkillLevelBonus(
+          targetItem,
+          baseline,
+          baseline.buffSkillName,
+          30,
+        ) - getItemSkillLevelBonus(currentItem, baseline, baseline.buffSkillName, 30),
+        awakeningSkillLevelDelta: getItemSkillLevelBonus(
+          targetItem,
+          baseline,
+          baseline.awakeningSkillName,
+          50,
+        ) - getItemSkillLevelBonus(currentItem, baseline, baseline.awakeningSkillName, 50),
       };
     }
     if (!['creature', 'title', 'aura'].includes(row.sourceType)) return {};
@@ -229,7 +247,7 @@ export function createEnchantBufferRecommendation(deps) {
     const bySlotTier = new Map();
     (rows || []).forEach((row) => {
       if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang'].includes(row.sourceType)) return;
+      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft'].includes(row.sourceType)) return;
       if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && simulator?.role === 'buffer') {
         row = adaptOathAcquisitionRecommendation(row, simulator);
         if (!row) return;
@@ -246,8 +264,8 @@ export function createEnchantBufferRecommendation(deps) {
       : row;
       const current = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? {}
-        : row.sourceType === 'blackFang'
-          ? { effects: row.currentEffects || {} }
+        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+          ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { effects: row.currentEffects || {} }
         : row.sourceType === 'creature'
@@ -268,14 +286,15 @@ export function createEnchantBufferRecommendation(deps) {
       if (
         !['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType) &&
         row.sourceType !== 'blackFang' &&
+        row.sourceType !== 'relicCraft' &&
         row.sourceType !== 'oathTranscend' &&
         row.sourceType !== 'oathCraft' &&
         current?.itemId &&
         current.itemId === row.itemId &&
         getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
       ) return;
-      const targetEffects = row.sourceType === 'blackFang'
-        ? row.targetEffects || addEffects(row.currentEffects, row.effects)
+      const targetEffects = row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+        ? row.targetEquipmentBody?.effects || row.targetEffects || addEffects(row.currentEffects, row.effects)
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? row.targetEffects || row.effects || {}
         : row.effects || {};
@@ -297,9 +316,15 @@ export function createEnchantBufferRecommendation(deps) {
       const oathSetBuffPowerDelta = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? Number(row.oathSetBuffPowerDelta || 0)
         : 0;
+      const equipmentTuneBuffPowerDelta = ['blackFang', 'relicCraft'].includes(row.sourceType)
+        ? Number(row.equipmentTuneBuffPowerDelta || 0)
+        : 0;
       const buffPowerDelta = row.sourceType === 'upgrade'
         ? 0
-        : Number(scoringTargetEffects?.buffPower || 0) - Number(scoringCurrentEffects?.buffPower || 0) + oathSetBuffPowerDelta;
+        : Number(scoringTargetEffects?.buffPower || 0)
+          - Number(scoringCurrentEffects?.buffPower || 0)
+          + oathSetBuffPowerDelta
+          + equipmentTuneBuffPowerDelta;
       const buffAmplificationChanges = row.sourceType === 'title' && !titleAppliesToSwitching
         ? { currentBuffAmplificationDelta: buffAmplificationDelta }
         : {
@@ -394,8 +419,8 @@ export function createEnchantBufferRecommendation(deps) {
               bufferAvatarEmblemChangesBySocket || bufferSwitchingAvatarEmblemChangesBySocket,
             )
             : null
-        : row.sourceType === 'blackFang'
-          ? getBufferBlackFangBaseRelativeChanges(row)
+        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+          ? getBufferEquipmentBodyBaseRelativeChanges(row, baseline)
         : row.sourceType === 'upgrade'
           ? getBufferUpgradeBaseRelativeChanges(row, simulator)
           : row.sourceType === 'equipmentTune'
@@ -429,7 +454,7 @@ export function createEnchantBufferRecommendation(deps) {
               OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
                 ? { oathAcquisition: bufferBaseRelativeChanges }
                 : {},
-              row.sourceType === 'blackFang'
+              row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
                 ? { [row.slot]: bufferBaseRelativeChanges }
                 : {},
               row.sourceType === 'creature'
@@ -533,7 +558,9 @@ export function createEnchantBufferRecommendation(deps) {
               oathAcquisitionEvaluation.referenceChanges;
           }
         }
-        if (row.sourceType === 'blackFang') delete referenceBlackFangChangesBySlot[row.slot];
+        if (row.sourceType === 'blackFang' || row.sourceType === 'relicCraft') {
+          delete referenceBlackFangChangesBySlot[row.slot];
+        }
         if (row.sourceType === 'creature') delete referenceCreatureChangesBySource.creature;
         if (row.sourceType === 'aura') delete referenceAuraChangesBySource.aura;
         if (row.sourceType === 'title') delete referenceTitleChangesBySource.title;
@@ -582,7 +609,7 @@ export function createEnchantBufferRecommendation(deps) {
         const candidateOathAcquisitionChangesBySource = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
           ? { oathAcquisition: bufferBaseRelativeChanges }
           : referenceOathAcquisitionChangesBySource;
-        const candidateBlackFangChangesBySlot = row.sourceType === 'blackFang'
+        const candidateBlackFangChangesBySlot = row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
           ? { ...referenceBlackFangChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
           : referenceBlackFangChangesBySlot;
         const candidateCreatureChangesBySource = row.sourceType === 'creature'

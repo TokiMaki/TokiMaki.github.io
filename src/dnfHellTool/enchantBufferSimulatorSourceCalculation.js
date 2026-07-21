@@ -5,12 +5,12 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
     getRoleRelevantEffects,
     getBufferSelectedStatEffect,
     getCreatureArtifactType,
-    blackFangSimulatorSlots,
     getItemSkillLevelBonus,
     buildSimulatedTitleTarget,
     getEquipmentProgressionType,
     getEquipmentProgressionMode,
     getCumulativeUpgradeEffectsForEquipment,
+    resolveCanonicalEquipmentSlotId,
   } = deps;
 
   function getBufferEnchantBaseRelativeChanges(row, baseEnchant, baseline) {
@@ -69,26 +69,61 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
     };
   }
 
-  function getBufferBlackFangBaseRelativeChanges(row = {}) {
-    const targetSlot = String(row.slot || '').trim();
-    if (row.sourceType !== 'blackFang' || !blackFangSimulatorSlots.has(targetSlot)) return null;
-    const targetEffects = getRoleRelevantEffects(row.targetEffects || {}, true);
-    const baseEffects = getRoleRelevantEffects(row.currentEffects || {}, true);
+  function getBufferEquipmentBodyBaseRelativeChanges(row = {}, baseline = {}) {
+    const targetBody = row.targetEquipmentBody || {};
+    const currentBody = row.currentEquipmentBody || {};
+    const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody || row);
+    const currentSlotId = resolveCanonicalEquipmentSlotId(currentBody || row);
+    if (
+      !['blackFang', 'relicCraft'].includes(row.sourceType)
+      || !targetSlotId
+      || targetSlotId !== currentSlotId
+      || !targetBody.itemId
+    ) return null;
+    const targetEffects = getRoleRelevantEffects(targetBody.effects || {}, true);
+    const baseEffects = getRoleRelevantEffects(currentBody.effects || {}, true);
     const changedKeys = new Set([
       ...Object.keys(targetEffects),
       ...Object.keys(baseEffects),
     ].filter((key) => Number(targetEffects[key] || 0) !== Number(baseEffects[key] || 0)));
-    if ([...changedKeys].some((key) => !['allStat', 'buffPower', 'buffAmplification'].includes(key))) return null;
-    const statDelta = Number(targetEffects.allStat || 0) - Number(baseEffects.allStat || 0);
-    const buffPowerDelta = Number(targetEffects.buffPower || 0) - Number(baseEffects.buffPower || 0);
+    if ([...changedKeys].some((key) => ![
+      'allStat', 'str', 'int', 'vit', 'spr', 'buffPower', 'buffAmplification',
+    ].includes(key))) return null;
+    const statDelta = getBufferSelectedStatEffect(targetEffects, baseline)
+      - getBufferSelectedStatEffect(baseEffects, baseline);
+    const buffPowerDelta = Number(targetEffects.buffPower || 0)
+      - Number(baseEffects.buffPower || 0)
+      + Number(row.equipmentTuneBuffPowerDelta || 0);
     const buffAmplificationDelta = Number(targetEffects.buffAmplification || 0)
       - Number(baseEffects.buffAmplification || 0);
-    if (![statDelta, buffPowerDelta, buffAmplificationDelta].every(Number.isFinite)) return null;
+    const buffSkillLevelDelta = getItemSkillLevelBonus(
+      targetBody,
+      baseline,
+      baseline.buffSkillName,
+      30,
+    ) - getItemSkillLevelBonus(currentBody, baseline, baseline.buffSkillName, 30);
+    const awakeningSkillLevelDelta = getItemSkillLevelBonus(
+      targetBody,
+      baseline,
+      baseline.awakeningSkillName,
+      50,
+    ) - getItemSkillLevelBonus(currentBody, baseline, baseline.awakeningSkillName, 50);
+    if (![
+      statDelta,
+      buffPowerDelta,
+      buffAmplificationDelta,
+      buffSkillLevelDelta,
+      awakeningSkillLevelDelta,
+    ].every(Number.isFinite)) return null;
     return {
       statDelta,
       buffPowerDelta,
       currentBuffAmplificationDelta: buffAmplificationDelta,
       switchingBuffAmplificationDelta: buffAmplificationDelta,
+      buffSkillLevelDelta,
+      awakeningSkillLevelDelta,
+      baseSkillContributions: getBufferItemSkillContributions(currentBody, baseline),
+      targetSkillContributions: getBufferItemSkillContributions(targetBody, baseline),
     };
   }
 
@@ -306,7 +341,7 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
   return {
     getBufferEnchantBaseRelativeChanges,
     getBufferCreatureArtifactBaseRelativeChanges,
-    getBufferBlackFangBaseRelativeChanges,
+    getBufferEquipmentBodyBaseRelativeChanges,
     getBufferCreatureBaseRelativeChanges,
     getBufferAuraBaseRelativeChanges,
     getBufferTitleBaseRelativeChanges,

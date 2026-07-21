@@ -387,6 +387,70 @@ function testReplacementDamageFormulas() {
   );
 }
 
+function testRelicCraftUsesNormalizedEquipmentBodies() {
+  const recommendation = createRecommendation();
+  const { getRepresentativeRecommendationRows, getReplacementIncrementalDamagePercent } = recommendation;
+  const baseline = {
+    stat: 6500,
+    statName: '힘',
+    baseStat: 800,
+    element: 330,
+    elementName: 'fire',
+    elementNames: ['fire'],
+    elementValues: { fire: 330, water: 300, light: 0, dark: 0 },
+    elementDamage: 153.5,
+    attack: 4000,
+    finalDamage: 0,
+    attackIncrease: 0,
+    attackAmplification: 0,
+  };
+  const currentEquipmentBody = {
+    slotId: 'MAGIC_STON',
+    itemId: 'current-magic-stone',
+    effects: { finalDamage: 25, attackIncrease: 10 },
+  };
+  const targetEquipmentBody = {
+    slotId: 'MAGIC_STON',
+    itemId: 'df77236c51ea1274a3deb79c3e470695',
+    effects: { finalDamage: 70.67376612, attackIncrease: 10 },
+  };
+  const row = {
+    sourceType: 'relicCraft',
+    slot: '마법석',
+    itemId: targetEquipmentBody.itemId,
+    itemName: '우아한 기품의 향수',
+    currentEffects: { finalDamage: 999 },
+    targetEffects: { finalDamage: 999 },
+    currentEquipmentBody,
+    targetEquipmentBody,
+    effects: { finalDamage: 45.67376612 },
+    skillDamageMultiplier: 1.02,
+    expectedGold: 1000,
+    auction: { minUnitPrice: 1000 },
+  };
+  const [result] = getRepresentativeRecommendationRows(
+    [deepFreeze(row)],
+    [],
+    {},
+    {},
+    {},
+    deepFreeze(baseline),
+  );
+  const expected = getReplacementIncrementalDamagePercent(
+    { ...row, effects: targetEquipmentBody.effects },
+    currentEquipmentBody,
+    baseline,
+  );
+  const legacyAliasValue = getReplacementIncrementalDamagePercent(
+    { ...row, effects: row.targetEffects },
+    { effects: row.currentEffects },
+    baseline,
+  );
+  assert.ok(result);
+  assertClose(result.incrementalDamagePercent, expected, 1e-12);
+  assert.notEqual(result.incrementalDamagePercent, legacyAliasValue);
+}
+
 function testCreatureArtifactCalculations() {
   const {
     getCreatureArtifactEffectsTotal,
@@ -762,6 +826,7 @@ function testInputImmutability() {
 const tests = [
   testFactoryContract,
   testReplacementDamageFormulas,
+  testRelicCraftUsesNormalizedEquipmentBodies,
   testCreatureArtifactCalculations,
   testRepresentativeRowsAndSimulatorReferences,
   testComparatorPolicyAndStableSort,

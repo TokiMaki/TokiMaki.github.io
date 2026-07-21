@@ -31,7 +31,7 @@ const DEPENDENCY_NAMES = [
   'getBufferSwitchingAvatarBaseRelativeChanges',
   'getBufferAvatarPlatinumBaseRelativeChanges',
   'mergeBufferChangeMap',
-  'getBufferBlackFangBaseRelativeChanges',
+  'getBufferEquipmentBodyBaseRelativeChanges',
   'getBufferUpgradeBaseRelativeChanges',
   'getBufferEquipmentTuneBaseRelativeChanges',
   'getBufferOathTuneBaseRelativeChanges',
@@ -165,7 +165,7 @@ function createDependencies(overrides = {}) {
     getBufferSwitchingAvatarBaseRelativeChanges: nullChange,
     getBufferAvatarPlatinumBaseRelativeChanges: nullChange,
     mergeBufferChangeMap: () => null,
-    getBufferBlackFangBaseRelativeChanges: nullChange,
+    getBufferEquipmentBodyBaseRelativeChanges: nullChange,
     getBufferUpgradeBaseRelativeChanges: nullChange,
     getBufferEquipmentTuneBaseRelativeChanges: nullChange,
     getBufferOathTuneBaseRelativeChanges: nullChange,
@@ -466,12 +466,72 @@ function testSimulatorResolutionFailureFallsBackToBaseScoring() {
   assert.ok(result.incrementalBuffScore > 0);
 }
 
+function testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly() {
+  const { getBufferRecommendationRows } = createRecommendation();
+  const baseline = {
+    isBuffer: true,
+    bufferKey: 'femaleCrusader',
+    jobName: '프리스트(여)',
+    statName: '지능',
+    stat: 12000,
+    activeSelfStat: 500,
+    switchingStatDelta: 200,
+    buffPower: 18000,
+    buffAmplification: 20,
+    switchingBuffAmplificationDelta: 5,
+    buffSkillName: '버프',
+    buffSkillLevel: 40,
+    awakeningSkillName: '각성',
+    awakeningSkillLevel: 40,
+    auraStat: 500,
+    auraAttack: 100,
+    currentSelfStatSkills: {},
+  };
+  const row = {
+    sourceType: 'relicCraft',
+    slot: '마법석',
+    itemId: 'df77236c51ea1274a3deb79c3e470695',
+    itemName: '우아한 기품의 향수',
+    effects: { finalDamage: 45.67376612, buffPower: 6360 },
+    currentEffects: { finalDamage: 25, buffPower: 11220 },
+    targetEffects: { finalDamage: 70.67376612, buffPower: 17580 },
+    currentEquipmentBody: {
+      slotId: 'MAGIC_STON',
+      itemId: 'current-magic-stone',
+      effects: { finalDamage: 25, buffPower: 11220 },
+      skillLevels: { 버프: 1, 각성: 0 },
+    },
+    targetEquipmentBody: {
+      slotId: 'MAGIC_STON',
+      itemId: 'df77236c51ea1274a3deb79c3e470695',
+      effects: { finalDamage: 70.67376612, buffPower: 17580 },
+      skillLevels: { 버프: 2, 각성: 1 },
+    },
+    equipmentTuneBuffPowerDelta: 400,
+    expectedGold: 1000,
+    auction: { minUnitPrice: 1000 },
+  };
+  const [result] = getBufferRecommendationRows(
+    [deepFreeze(row)],
+    [],
+    null,
+    null,
+    null,
+    deepFreeze(baseline),
+  );
+  assert.ok(result);
+  assert.equal(result.bufferBuffPowerDelta, 6760);
+  assert.equal(result.targetEffects.finalDamage, 70.67376612);
+  assert.ok(result.incrementalBuffScore > 0);
+}
+
 const tests = [
   testFactoryContract,
   testCalculateBufferScoreFixturesAndEdges,
   testComparatorPolicy,
   testRecommendationRowBoundaries,
   testSimulatorResolutionFailureFallsBackToBaseScoring,
+  testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly,
 ];
 
 let failures = 0;

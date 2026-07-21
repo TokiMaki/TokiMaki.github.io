@@ -15,6 +15,7 @@ from .data_store import (
 )
 from .api_fanout_trace import finish_api_fanout_trace, start_api_fanout_trace
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number
+from .equipment_body import get_equipment_tune_set_point
 from .avatar_skill_optimizer import (
     flatten_skill_rows,
     get_avatar_candidate_combos,
@@ -44,6 +45,7 @@ from .candidates.avatar_emblem import (
     get_emblem_stat_value,
 )
 from .candidates.black_fang import build_black_fang_recommendations_debug
+from .candidates.relic_craft import build_relic_craft_recommendations_debug
 from .candidates.oath_transcend import build_oath_craft_recommendations_debug, build_oath_transcend_recommendations_debug
 from .candidates.switching_fragment import (
     SWITCHING_FRAGMENT_TARGET_SLOTS,
@@ -1065,7 +1067,7 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     item_rarity = clean_text(equipment.get("itemRarity"))
     tune_rows = [tune for tune in equipment.get("tune") or [] if isinstance(tune, dict)]
     tune_level = max([int(parse_percent_or_number(tune.get("level"))) for tune in tune_rows] or [0])
-    tune_set_point = sum(parse_percent_or_number(tune.get("setPoint")) for tune in tune_rows)
+    tune_set_point = get_equipment_tune_set_point(equipment)
     tune_upgradeable = any(tune.get("upgrade") is not False for tune in tune_rows)
     is_unique_equipment = re.match(r"^고유\s*[:\-]", item_name) is not None
     is_tune_target = (
@@ -1246,6 +1248,12 @@ def load_character_enchants(
         lambda: build_black_fang_recommendations_debug(payload.get("equipment") or [], upgrade_material_prices),
     )
     black_fang_recommendations = black_fang_debug.get("recommendations") or []
+    relic_craft_debug = _measure_step(
+        steps,
+        "build_relic_craft_recommendations",
+        lambda: build_relic_craft_recommendations_debug(payload.get("equipment") or [], upgrade_material_prices),
+    )
+    relic_craft_recommendations = relic_craft_debug.get("recommendations") or []
     oath_upgrades = _measure_step(
         steps,
         "load_character_oath_upgrades",
@@ -1299,12 +1307,14 @@ def load_character_enchants(
         oath_craft_debug.get("recommendations") or [],
         load_oath_tune_stage_db(),
         black_fang_recommendations,
+        relic_craft_recommendations,
         load_upgrade_expected_db(),
         upgrade_material_prices,
         steps,
         {
             "get_equipment_base_element_bonus": equipment_base_element_debug.get("steps") or [],
             "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
+            "build_relic_craft_recommendations": relic_craft_debug.get("steps") or [],
             "build_oath_transcend_recommendations": oath_transcend_debug.get("steps") or [],
             "build_oath_craft_recommendations": oath_craft_debug.get("steps") or [],
         },
@@ -3527,6 +3537,7 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
             "oathCraftRecommendations": enchant_payload.get("oathCraftRecommendations") or [],
             "oathTuneStageDb": enchant_payload.get("oathTuneStageDb") or {},
             "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
+            "relicCraftRecommendations": enchant_payload.get("relicCraftRecommendations") or [],
             "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
             "upgradeMaterialPrices": enchant_payload.get("upgradeMaterialPrices"),
             "creature": creature_payload.get("creature"),

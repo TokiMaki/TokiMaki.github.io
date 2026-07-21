@@ -8,6 +8,8 @@ const PUBLIC_FUNCTIONS = [
   'getBufferEnchantCandidateSignature',
   'getBufferBlackFangExclusiveGroupKey',
   'getBufferBlackFangCandidateSignature',
+  'getBufferRelicCraftExclusiveGroupKey',
+  'getBufferRelicCraftCandidateSignature',
   'getBufferCreatureExclusiveGroupKey',
   'getBufferCreatureCandidateSignature',
   'getBufferAuraExclusiveGroupKey',
@@ -156,6 +158,21 @@ assert.equal(
 assert.equal(identity.getBufferBlackFangExclusiveGroupKey({ ...blackFangRow, bufferSimulatorSupported: false }), '');
 assert.equal(identity.getBufferBlackFangExclusiveGroupKey({ ...blackFangRow, slot: '무기' }), '');
 assert.equal(identity.getBufferBlackFangCandidateSignature({ ...blackFangRow, targetItemId: '' }), '');
+
+const relicCraftRow = {
+  bufferSimulatorSupported: true,
+  sourceType: 'relicCraft',
+  slot: ' 마법석 ',
+  targetItemId: 'perfume-1',
+  targetEffects: { buffPower: 17580 },
+};
+assert.equal(identity.getBufferRelicCraftExclusiveGroupKey(relicCraftRow), 'bufferRelicCraft:마법석');
+assert.equal(
+  identity.getBufferRelicCraftCandidateSignature(relicCraftRow),
+  'bufferRelicCraft:마법석:perfume-1:effect:{"buffPower":17580}',
+);
+assert.equal(identity.getBufferRelicCraftExclusiveGroupKey({ ...relicCraftRow, slot: '보조장비' }), '');
+assert.equal(identity.getBufferRelicCraftCandidateSignature({ ...relicCraftRow, targetItemId: '' }), '');
 
 const creatureRow = {
   bufferSimulatorSupported: true,

@@ -2,7 +2,6 @@ export function createEnchantDealerSimulatorCalculation(deps) {
   const {
     addEffects,
     getFinalDamageReplacementMultiplier,
-    blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,
     getAvatarEmblemMetricBaseline,
     getDamageBaseline,
     getCreatureArtifactEffectsTotal,
@@ -66,9 +65,17 @@ export function createEnchantDealerSimulatorCalculation(deps) {
   }
 
   function getEquipmentBodyFinalDamageChangeMultiplier(baseEquipment = [], simulatedEquipment = baseEquipment) {
-    const baseBySlot = new Map((baseEquipment || []).map((equipment) => [equipment?.slot, equipment]));
-    const simulatedBySlot = new Map((simulatedEquipment || []).map((equipment) => [equipment?.slot, equipment]));
-    return [...BLACK_FANG_SIMULATOR_SLOTS].reduce((multiplier, slot) => (
+    const getSlotKey = (equipment = {}) => String(
+      equipment?.slotId || equipment?.slot || equipment?.slotName || '',
+    ).trim();
+    const baseBySlot = new Map((baseEquipment || [])
+      .map((equipment) => [getSlotKey(equipment), equipment])
+      .filter(([slot]) => slot));
+    const simulatedBySlot = new Map((simulatedEquipment || [])
+      .map((equipment) => [getSlotKey(equipment), equipment])
+      .filter(([slot]) => slot));
+    const slots = new Set([...baseBySlot.keys(), ...simulatedBySlot.keys()]);
+    return [...slots].reduce((multiplier, slot) => (
       multiplier * getFinalDamageReplacementMultiplier(
         baseBySlot.get(slot)?.bodyEffects || {},
         simulatedBySlot.get(slot)?.bodyEffects || baseBySlot.get(slot)?.bodyEffects || {},

@@ -43,6 +43,20 @@ export function createEnchantBufferSimulatorSourceIdentity(deps) {
     return [groupKey, row.targetItemId, getEffectSignature(row.targetEffects || {})].join(':');
   }
 
+  function getBufferRelicCraftExclusiveGroupKey(row = {}) {
+    return row.bufferSimulatorSupported
+      && row.sourceType === 'relicCraft'
+      && String(row.slot || '').trim() === '마법석'
+      ? 'bufferRelicCraft:마법석'
+      : '';
+  }
+
+  function getBufferRelicCraftCandidateSignature(row = {}) {
+    const groupKey = getBufferRelicCraftExclusiveGroupKey(row);
+    if (!groupKey || !row.targetItemId) return '';
+    return [groupKey, row.targetItemId, getEffectSignature(row.targetEffects || {})].join(':');
+  }
+
   function getBufferCreatureExclusiveGroupKey(row = {}) {
     return row.bufferSimulatorSupported && row.sourceType === 'creature'
       ? 'bufferCreature'
@@ -177,6 +191,8 @@ export function createEnchantBufferSimulatorSourceIdentity(deps) {
     getBufferEnchantCandidateSignature,
     getBufferBlackFangExclusiveGroupKey,
     getBufferBlackFangCandidateSignature,
+    getBufferRelicCraftExclusiveGroupKey,
+    getBufferRelicCraftCandidateSignature,
     getBufferCreatureExclusiveGroupKey,
     getBufferCreatureCandidateSignature,
     getBufferAuraExclusiveGroupKey,

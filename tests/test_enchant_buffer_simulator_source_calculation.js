@@ -6,7 +6,7 @@ const { createEnchantBufferSimulatorSourceCalculation } = sourceCalculationModul
 const PUBLIC_FUNCTIONS = [
   'getBufferEnchantBaseRelativeChanges',
   'getBufferCreatureArtifactBaseRelativeChanges',
-  'getBufferBlackFangBaseRelativeChanges',
+  'getBufferEquipmentBodyBaseRelativeChanges',
   'getBufferCreatureBaseRelativeChanges',
   'getBufferAuraBaseRelativeChanges',
   'getBufferTitleBaseRelativeChanges',
@@ -23,12 +23,12 @@ const DEPENDENCY_NAMES = [
   'getRoleRelevantEffects',
   'getBufferSelectedStatEffect',
   'getCreatureArtifactType',
-  'blackFangSimulatorSlots',
   'getItemSkillLevelBonus',
   'buildSimulatedTitleTarget',
   'getEquipmentProgressionType',
   'getEquipmentProgressionMode',
   'getCumulativeUpgradeEffectsForEquipment',
+  'resolveCanonicalEquipmentSlotId',
 ];
 
 function clone(value) {
@@ -80,6 +80,17 @@ function getCreatureArtifactType(row = {}) {
   return ['RED', 'BLUE', 'GREEN'].includes(value) ? value : '';
 }
 
+function resolveCanonicalEquipmentSlotId(row = {}) {
+  const slotId = String(row?.slotId || '').trim();
+  if (slotId) return slotId;
+  return {
+    목걸이: 'AMULET',
+    팔찌: 'WRIST',
+    반지: 'RING',
+    마법석: 'MAGIC_STON',
+  }[String(row?.slotName || row?.slot || '').trim()] || '';
+}
+
 function getItemSkillLevelBonus(item = {}, baseline = {}, skillName = '', requiredLevel = 0) {
   return Number(item?._skillBonuses?.[`${skillName}:${requiredLevel}`] || 0);
 }
@@ -119,12 +130,12 @@ const dependencies = new Proxy({
   getRoleRelevantEffects,
   getBufferSelectedStatEffect,
   getCreatureArtifactType,
-  blackFangSimulatorSlots: new Set(['목걸이', '팔찌', '반지']),
   getItemSkillLevelBonus,
   buildSimulatedTitleTarget,
   getEquipmentProgressionType,
   getEquipmentProgressionMode,
   getCumulativeUpgradeEffectsForEquipment,
+  resolveCanonicalEquipmentSlotId,
 }, {
   get(target, property, receiver) {
     dependencyReads.push(property);
@@ -225,21 +236,100 @@ assert.deepEqual(calculation.getBufferCreatureArtifactBaseRelativeChanges(
 assert.equal(calculation.getBufferCreatureArtifactBaseRelativeChanges({ ...artifactRow, slotColor: 'invalid' }, artifactBase), null);
 assert.equal(calculation.getBufferCreatureArtifactBaseRelativeChanges({ ...artifactRow, effects: { attack: 1 } }, artifactBase), null);
 
+const bodyReplacementBaseline = {
+  statName: '지능',
+  buffSkillName: '버프',
+  awakeningSkillName: '각성',
+  currentSelfStatSkills: {},
+};
 const blackFangRow = {
   sourceType: 'blackFang',
-  slot: ' 목걸이 ',
-  currentEffects: { allStat: 4, buffPower: 10, buffAmplification: 1 },
-  targetEffects: { allStat: 14, buffPower: 35, buffAmplification: 2.5 },
+  currentEquipmentBody: {
+    slotId: 'AMULET',
+    itemId: 'current-necklace',
+    effects: { allStat: 4, buffPower: 10, buffAmplification: 1 },
+  },
+  targetEquipmentBody: {
+    slotId: 'AMULET',
+    itemId: 'target-necklace',
+    effects: { allStat: 14, buffPower: 35, buffAmplification: 2.5 },
+  },
 };
-assert.deepEqual(calculation.getBufferBlackFangBaseRelativeChanges(deepFreeze(blackFangRow)), {
+assert.deepEqual(calculation.getBufferEquipmentBodyBaseRelativeChanges(
+  deepFreeze(blackFangRow),
+  deepFreeze(bodyReplacementBaseline),
+), {
   statDelta: 10,
   buffPowerDelta: 25,
   currentBuffAmplificationDelta: 1.5,
   switchingBuffAmplificationDelta: 1.5,
+  buffSkillLevelDelta: 0,
+  awakeningSkillLevelDelta: 0,
+  baseSkillContributions: [],
+  targetSkillContributions: [],
 });
-assert.equal(calculation.getBufferBlackFangBaseRelativeChanges({ ...blackFangRow, slot: '무기' }), null);
-assert.equal(calculation.getBufferBlackFangBaseRelativeChanges({ ...blackFangRow, sourceType: 'upgrade' }), null);
-assert.equal(calculation.getBufferBlackFangBaseRelativeChanges({ ...blackFangRow, targetEffects: { attack: 1 } }), null);
+const perfumeRow = {
+  sourceType: 'relicCraft',
+  equipmentTuneBuffPowerDelta: 400,
+  currentEquipmentBody: {
+    slotId: 'MAGIC_STON',
+    itemId: 'current-magic-stone',
+    effects: { buffPower: 11220, finalDamage: 25 },
+    _skillBonuses: { '버프:30': 1, '각성:50': 0 },
+  },
+  targetEquipmentBody: {
+    slotId: 'MAGIC_STON',
+    itemId: 'df77236c51ea1274a3deb79c3e470695',
+    effects: { buffPower: 17580, finalDamage: 70.67376612 },
+    _skillBonuses: { '버프:30': 2, '각성:50': 1 },
+  },
+};
+const bufferBodyCalculation = createEnchantBufferSimulatorSourceCalculation({
+  getReinforceSkillLevel,
+  getBufferSkillContributionMap,
+  getRoleRelevantEffects: (effects = {}) => Object.fromEntries(
+    Object.entries(effects).filter(([key]) => ![
+      'finalDamage', 'skillDamageMultiplier', 'attackIncrease', 'attackAmplification',
+      'attack', 'elementAll', 'critical',
+    ].includes(key)),
+  ),
+  getBufferSelectedStatEffect,
+  getCreatureArtifactType,
+  getItemSkillLevelBonus,
+  buildSimulatedTitleTarget,
+  getEquipmentProgressionType,
+  getEquipmentProgressionMode,
+  getCumulativeUpgradeEffectsForEquipment,
+  resolveCanonicalEquipmentSlotId,
+});
+assert.deepEqual(bufferBodyCalculation.getBufferEquipmentBodyBaseRelativeChanges(
+  deepFreeze(perfumeRow),
+  deepFreeze(bodyReplacementBaseline),
+), {
+  statDelta: 0,
+  buffPowerDelta: 6760,
+  currentBuffAmplificationDelta: 0,
+  switchingBuffAmplificationDelta: 0,
+  buffSkillLevelDelta: 1,
+  awakeningSkillLevelDelta: 1,
+  baseSkillContributions: [],
+  targetSkillContributions: [],
+});
+assert.equal(
+  calculation.getBufferEquipmentBodyBaseRelativeChanges({
+    ...blackFangRow,
+    targetEquipmentBody: { ...blackFangRow.targetEquipmentBody, slotId: 'RING' },
+  }, bodyReplacementBaseline),
+  null,
+);
+assert.equal(calculation.getBufferEquipmentBodyBaseRelativeChanges({ ...blackFangRow, sourceType: 'upgrade' }, bodyReplacementBaseline), null);
+assert.equal(calculation.getBufferEquipmentBodyBaseRelativeChanges({
+  ...blackFangRow,
+  targetEquipmentBody: {
+    ...blackFangRow.targetEquipmentBody,
+    effects: { buffPower: 35, attack: 1 },
+  },
+}, bodyReplacementBaseline), null);
 
 const equippedBaseline = {
   jobName: '버퍼',

@@ -42,11 +42,12 @@ export function createEnchantDealerRecommendation(deps) {
 
   function getRecommendationDamageEffects(row, current) {
     if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
-    if (row.sourceType === 'blackFang') {
-      return subtractEffects(
-        row.targetEffects || addEffects(row.currentEffects, row.effects),
-        row.currentEffects || {},
-      );
+    if (row.sourceType === 'blackFang' || row.sourceType === 'relicCraft') {
+      const targetEffects = row.targetEquipmentBody?.effects
+        || row.targetEffects
+        || addEffects(row.currentEffects, row.effects);
+      const currentEffects = row.currentEquipmentBody?.effects || row.currentEffects || {};
+      return subtractEffects(targetEffects, currentEffects);
     }
     if (['avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType)) return row.effects || {};
     return subtractEffects(row.effects || {}, current?.effects || {});
@@ -590,7 +591,7 @@ export function createEnchantDealerRecommendation(deps) {
           ? simulationOptions?.creatureArtifactReferenceBaselineByType?.get(getCreatureArtifactType(row)) || baseline
         : row.sourceType === 'title'
           ? simulationOptions?.titleReferenceBaseline || baseline
-        : row.sourceType === 'blackFang'
+        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
           ? simulationOptions?.blackFangReferenceBaselineBySlot?.get(row.slot) || baseline
           : baseline;
       const artifactReferenceCreature = row.sourceType === 'creatureArtifact'
@@ -618,8 +619,8 @@ export function createEnchantDealerRecommendation(deps) {
         ? { effects: {} }
         : TUNE_SOURCE_TYPES.has(row.sourceType)
           ? { effects: {} }
-        : row.sourceType === 'blackFang'
-          ? { effects: {} }
+        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+          ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { effects: row.currentEffects || {} }
         : row.sourceType === 'avatar'
@@ -712,12 +713,21 @@ export function createEnchantDealerRecommendation(deps) {
           adjustedElementBaseline
             ? getElementAdjustedReplacementIncrementalDamagePercent(row, current, evaluationBaseline, adjustedElementBaseline)
             : getReplacementIncrementalDamagePercent(
-              row.sourceType === 'blackFang'
-                ? { ...row, effects: row.targetEffects || addEffects(row.currentEffects, row.effects) }
+              row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+                ? {
+                  ...row,
+                  effects: row.targetEquipmentBody?.effects
+                    || row.targetEffects
+                    || addEffects(row.currentEffects, row.effects),
+                }
                 : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
                   ? { ...row, effects: row.targetEffects || row.effects || {} }
                 : row,
-              row.sourceType === 'blackFang' || row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft' ? { effects: row.currentEffects || {} } : current,
+              row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+                ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
+                : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+                  ? { effects: row.currentEffects || {} }
+                  : current,
               evaluationBaseline,
             )
         )
@@ -751,7 +761,7 @@ export function createEnchantDealerRecommendation(deps) {
           ? `${row.sourceType}:${row.slot}:${row.tier}`
         : ['creature', 'title', 'switchingTitle', 'switchingCreature', 'aura'].includes(row.sourceType)
         ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
-        : row.sourceType === 'blackFang'
+        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
           ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
           : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
           ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`

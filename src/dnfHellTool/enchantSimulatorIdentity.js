@@ -117,6 +117,23 @@ export function createEnchantSimulatorIdentity(deps) {
     ].join(':');
   }
 
+  function getRelicCraftExclusiveGroupKey(row = {}) {
+    return row.sourceType === 'relicCraft' && row.targetSlotId === 'MAGIC_STON'
+      ? 'relicCraft:마법석'
+      : '';
+  }
+
+  function getRelicCraftCandidateSignature(row = {}) {
+    const groupKey = getRelicCraftExclusiveGroupKey(row);
+    const targetBody = row.targetEquipmentBody || {};
+    if (!groupKey || !targetBody.itemId) return '';
+    return [
+      groupKey,
+      targetBody.itemId,
+      getEffectSignature(targetBody.effects || {}),
+    ].join(':');
+  }
+
   function getAvatarEmblemExclusiveGroupKey(row = {}) {
     const targetSlotId = String(row.targetSlotId || '').trim();
     return row.sourceType === 'avatar' && row.kind === 'brilliantEmblem' && targetSlotId
@@ -223,6 +240,8 @@ export function createEnchantSimulatorIdentity(deps) {
     getTitleCandidateSignature,
     getBlackFangExclusiveGroupKey,
     getBlackFangCandidateSignature,
+    getRelicCraftExclusiveGroupKey,
+    getRelicCraftCandidateSignature,
     getAvatarEmblemExclusiveGroupKey,
     getAvatarEmblemCandidateSignature,
     getAvatarPlatinumExclusiveGroupKey,
