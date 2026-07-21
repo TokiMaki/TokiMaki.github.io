@@ -94,6 +94,9 @@ assert.equal(replaceEquipmentBodyInRows(rows, { slotId: 'UNKNOWN', itemId: 'x' }
 
 const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
 const viewSource = readFileSync(viewPath, 'utf8');
+const blackFangPresenterPath = fileURLToPath(new URL('../server/presenters/black_fang_presenter.py', import.meta.url));
+const blackFangPresenterSource = readFileSync(blackFangPresenterPath, 'utf8');
+assert.match(blackFangPresenterSource, /"sourceType":\s*"blackFang"/);
 assert.doesNotMatch(viewSource, /replaceRelicCraftBody|replaceBlackFangBody/);
 assert.match(viewSource, /applyType:\s*'replaceEquipmentBody'/);
 assert.match(viewSource, /replaceEquipmentBodyInRows\(/);

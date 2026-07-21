@@ -217,6 +217,8 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertNotIn('"calculator"', (ROOT / "Docs/relic_craft_db.json").read_text(encoding="utf-8"))
         self.assertIn("replaceEquipmentBodyInRows", relic_source)
         self.assertNotIn("targetSlotId: 'MAGIC_STON'", relic_source)
+        black_fang_presenter_source = (ROOT / "server/presenters/black_fang_presenter.py").read_text(encoding="utf-8")
+        self.assertIn('"sourceType": "blackFang"', black_fang_presenter_source)
 
 
 if __name__ == "__main__":

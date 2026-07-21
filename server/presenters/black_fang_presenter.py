@@ -18,6 +18,7 @@ def build_black_fang_recommendation_row(
     target_item_explain: str,
 ) -> dict:
     return {
+        "sourceType": "blackFang",
         "slot": slot,
         "tier": "흑아",
         "itemId": item_id,

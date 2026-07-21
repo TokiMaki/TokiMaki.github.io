@@ -27,6 +27,7 @@
 - 최근 서약 정책: `서약 결정 초월`/`서약 정가` 추천은 각각 `oathTranscendRecommendations`/`oathCraftRecommendations` 별도 필드와 `oathTranscend`/`oathCraft` sourceType으로 기존 `oathUpgrades`/서약 조율과 분리한다. 장비 세트포인트 2550 미만 또는 미확인 캐릭터는 초월/정가 추천을 생성하지 않는다. target 서약 결정은 exact item search/detail 검증 후 생성하고, 딜러/버퍼별 유효 옵션과 세트포인트 교체 효과를 반영하며, 에픽/태초 추천은 rarity별 최상위 1개와 일반 에픽 8칸/태초 3칸 cap을 반영한다. 고유 current는 허용하되 target 고유는 제외하고, target set은 고유 이름이 아니라 다른 일반 서약 결정의 단일 family context로만 정한다. `창조의 안개 결정 - 반지`는 딜러 current 최종 데미지 19%로 계산한다.
 - 최근 유물 제작 정책: `우아한 기품의 향수` target body의 버프력은 본체 12,930과 정밀도 100% 4,650을 합친 17,580으로 한 번만 정규화한다. 장비 조율 단계 버프력 변화는 기존처럼 별도 delta로 유지한다.
 - 유물 제작 아이템별 효과 수치와 자격 조건은 `Docs/relic_craft_db.json`의 `authoritativeEffects`/`eligibility`를 단일 권위로 사용한다. 서버는 generic equipment body normalizer로 읽고, 프론트는 target body의 실제 slot/setPoint/effects만 소비한다.
+- 최근 흑아 교정: 흑아 recommendation presenter는 `sourceType=blackFang`을 원본 payload부터 제공한다. 공통 장비 본체 초기화가 현재 장비 `bodyEffects`를 놓치지 않아 시뮬레이터 최종 데미지가 목표값 추가가 아니라 기존 본체 대비 교체 배율로 계산된다.
 - 운영 주의사항: 운영 서버 포트 `8787`은 임의 종료/재시작하지 않는다. 검증 서버는 `8799`만 사용한다. `pkill -f neople_hell_api_server.py`는 금지한다.
 - 운영 주의사항: 8799 검증 서버를 종료해야 하면 먼저 해당 PID가 8799를 점유하는지 확인하고 그 PID만 종료한다. 8787 재시작/종료가 필요하면 실행하지 말고 먼저 보고한다.
 - Docs 주의사항: `Docs/*.json`, `Docs/*.tsv`, `Docs/*.txt` 중 일부는 서버/스크립트가 직접 읽는 기준 데이터다. 문서 정리 중 이동하거나 수정하지 않는다.
