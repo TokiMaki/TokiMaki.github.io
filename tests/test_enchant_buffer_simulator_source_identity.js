@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import * as sourceIdentityModule from '../src/dnfHellTool/enchantBufferSimulatorSourceIdentity.js';
+import {
+  resolveCanonicalEquipmentSlotId,
+  resolveCanonicalEquipmentSlotName,
+} from '../src/dnfHellTool/enchantEquipmentBodyReplacement.js';
 
 const { createEnchantBufferSimulatorSourceIdentity } = sourceIdentityModule;
 
@@ -40,6 +44,8 @@ const DEPENDENCY_NAMES = [
   'getCreatureArtifactType',
   'upgradeSlotLabels',
   'getEquipmentProgressionType',
+  'resolveCanonicalEquipmentSlotId',
+  'resolveCanonicalEquipmentSlotName',
 ];
 
 const evaluationLog = [];
@@ -110,6 +116,8 @@ const dependencies = new Proxy({
   getCreatureArtifactType,
   upgradeSlotLabels,
   getEquipmentProgressionType,
+  resolveCanonicalEquipmentSlotId,
+  resolveCanonicalEquipmentSlotName,
 }, {
   get(target, property, receiver) {
     dependencyReads.push(property);
@@ -163,6 +171,7 @@ const relicCraftRow = {
   bufferSimulatorSupported: true,
   sourceType: 'relicCraft',
   slot: ' 마법석 ',
+  targetSlotId: 'MAGIC_STON',
   targetItemId: 'perfume-1',
   targetEffects: { buffPower: 17580 },
 };

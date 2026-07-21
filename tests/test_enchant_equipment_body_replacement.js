@@ -40,7 +40,7 @@ const perfume = {
   itemExplain: 'perfume explain',
   itemReinforceSkill: [{ jobName: '공통', skills: [{ name: '버프', value: 1 }] }],
   itemBuff: { explain: 'perfume buff' },
-  tuneSetPoint: 187,
+  tuneSetPoint: 145,
 };
 
 assert.equal(resolveCanonicalEquipmentSlotId({ slotName: '마법석' }), 'MAGIC_STON');
@@ -49,7 +49,7 @@ assert.equal(resolveCanonicalEquipmentSlotName({ slotId: 'MAGIC_STON' }), '마�
 const applied = replaceEquipmentBodyPreservingState(base, perfume);
 assert.equal(applied.itemId, perfume.itemId);
 assert.deepEqual(applied.bodyEffects, perfume.effects);
-assert.equal(applied.tuneSetPoint, 187);
+assert.equal(applied.tuneSetPoint, 145);
 for (const key of [
   'tuneLevel', 'tuneRemaining', 'reinforce', 'refine', 'isAmplified',
   'amplificationName', 'enchant', 'activeActionMarker',

@@ -1,3 +1,5 @@
+import { isEquipmentBodyReplacementSource } from './enchantEquipmentBodyReplacement.js';
+
 export function createEnchantBufferSimulatorSourceCalculation(deps) {
   const {
     getReinforceSkillLevel,
@@ -75,7 +77,7 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
     const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody || row);
     const currentSlotId = resolveCanonicalEquipmentSlotId(currentBody || row);
     if (
-      !['blackFang', 'relicCraft'].includes(row.sourceType)
+      !isEquipmentBodyReplacementSource(row)
       || !targetSlotId
       || targetSlotId !== currentSlotId
       || !targetBody.itemId

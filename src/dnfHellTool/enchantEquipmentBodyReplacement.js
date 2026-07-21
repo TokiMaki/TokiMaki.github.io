@@ -16,9 +16,18 @@ const EQUIPMENT_SLOT_ID_BY_NAME = Object.fromEntries(
   Object.entries(EQUIPMENT_SLOT_NAME_BY_ID).map(([slotId, slotName]) => [slotName, slotId]),
 );
 
+const EQUIPMENT_BODY_REPLACEMENT_SOURCE_TYPES = new Set(['blackFang', 'relicCraft']);
+
 function cloneValue(value) {
   if (typeof structuredClone === 'function') return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
+}
+
+export function isEquipmentBodyReplacementSource(rowOrSourceType = '') {
+  const sourceType = typeof rowOrSourceType === 'string'
+    ? rowOrSourceType
+    : rowOrSourceType?.sourceType;
+  return EQUIPMENT_BODY_REPLACEMENT_SOURCE_TYPES.has(String(sourceType || '').trim());
 }
 
 export function resolveCanonicalEquipmentSlotId(row = {}) {

@@ -1,3 +1,5 @@
+import { isEquipmentBodyReplacementSource } from './enchantEquipmentBodyReplacement.js';
+
 export function createEnchantBufferRecommendation(deps) {
   const {
     OATH_DECISION_VARIANT_SOURCE_TYPES,
@@ -117,7 +119,7 @@ export function createEnchantBufferRecommendation(deps) {
         auraAttackDelta: Number(row.auraAttackDelta || 0),
       };
     }
-    if (['blackFang', 'relicCraft'].includes(row.sourceType)) {
+    if (isEquipmentBodyReplacementSource(row)) {
       const targetItem = row.targetEquipmentBody || {};
       const currentItem = row.currentEquipmentBody || {};
       return {
@@ -264,7 +266,7 @@ export function createEnchantBufferRecommendation(deps) {
       : row;
       const current = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? {}
-        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+        : isEquipmentBodyReplacementSource(row)
           ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { effects: row.currentEffects || {} }
@@ -293,7 +295,7 @@ export function createEnchantBufferRecommendation(deps) {
         current.itemId === row.itemId &&
         getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
       ) return;
-      const targetEffects = row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+      const targetEffects = isEquipmentBodyReplacementSource(row)
         ? row.targetEquipmentBody?.effects || row.targetEffects || addEffects(row.currentEffects, row.effects)
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? row.targetEffects || row.effects || {}
@@ -316,7 +318,7 @@ export function createEnchantBufferRecommendation(deps) {
       const oathSetBuffPowerDelta = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? Number(row.oathSetBuffPowerDelta || 0)
         : 0;
-      const equipmentTuneBuffPowerDelta = ['blackFang', 'relicCraft'].includes(row.sourceType)
+      const equipmentTuneBuffPowerDelta = isEquipmentBodyReplacementSource(row)
         ? Number(row.equipmentTuneBuffPowerDelta || 0)
         : 0;
       const buffPowerDelta = row.sourceType === 'upgrade'
@@ -419,7 +421,7 @@ export function createEnchantBufferRecommendation(deps) {
               bufferAvatarEmblemChangesBySocket || bufferSwitchingAvatarEmblemChangesBySocket,
             )
             : null
-        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+        : isEquipmentBodyReplacementSource(row)
           ? getBufferEquipmentBodyBaseRelativeChanges(row, baseline)
         : row.sourceType === 'upgrade'
           ? getBufferUpgradeBaseRelativeChanges(row, simulator)
@@ -454,7 +456,7 @@ export function createEnchantBufferRecommendation(deps) {
               OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
                 ? { oathAcquisition: bufferBaseRelativeChanges }
                 : {},
-              row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+              isEquipmentBodyReplacementSource(row)
                 ? { [row.slot]: bufferBaseRelativeChanges }
                 : {},
               row.sourceType === 'creature'
@@ -507,8 +509,8 @@ export function createEnchantBufferRecommendation(deps) {
         const referenceOathAcquisitionChangesBySource = {
           ...(simulator.oathAcquisitionChangesBySource || {}),
         };
-        const referenceBlackFangChangesBySlot = {
-          ...(simulator.blackFangChangesBySlot || {}),
+        const referenceEquipmentBodyChangesBySlot = {
+          ...(simulator.equipmentBodyChangesBySlot || {}),
         };
         const referenceCreatureChangesBySource = {
           ...(simulator.creatureChangesBySource || {}),
@@ -558,8 +560,8 @@ export function createEnchantBufferRecommendation(deps) {
               oathAcquisitionEvaluation.referenceChanges;
           }
         }
-        if (row.sourceType === 'blackFang' || row.sourceType === 'relicCraft') {
-          delete referenceBlackFangChangesBySlot[row.slot];
+        if (isEquipmentBodyReplacementSource(row)) {
+          delete referenceEquipmentBodyChangesBySlot[row.slot];
         }
         if (row.sourceType === 'creature') delete referenceCreatureChangesBySource.creature;
         if (row.sourceType === 'aura') delete referenceAuraChangesBySource.aura;
@@ -609,9 +611,9 @@ export function createEnchantBufferRecommendation(deps) {
         const candidateOathAcquisitionChangesBySource = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
           ? { oathAcquisition: bufferBaseRelativeChanges }
           : referenceOathAcquisitionChangesBySource;
-        const candidateBlackFangChangesBySlot = row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
-          ? { ...referenceBlackFangChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
-          : referenceBlackFangChangesBySlot;
+        const candidateEquipmentBodyChangesBySlot = isEquipmentBodyReplacementSource(row)
+          ? { ...referenceEquipmentBodyChangesBySlot, [row.slot]: bufferBaseRelativeChanges }
+          : referenceEquipmentBodyChangesBySlot;
         const candidateCreatureChangesBySource = row.sourceType === 'creature'
           ? { creature: bufferBaseRelativeChanges }
           : referenceCreatureChangesBySource;
@@ -680,7 +682,7 @@ export function createEnchantBufferRecommendation(deps) {
               referenceEquipmentTuneChangesBySource,
               referenceOathTuneChangesBySource,
               referenceOathAcquisitionChangesBySource,
-              referenceBlackFangChangesBySlot,
+              referenceEquipmentBodyChangesBySlot,
               referenceCreatureChangesBySource,
               referenceAuraChangesBySource,
               referenceTitleChangesBySource,
@@ -710,7 +712,7 @@ export function createEnchantBufferRecommendation(deps) {
               candidateEquipmentTuneChangesBySource,
               candidateOathTuneChangesBySource,
               candidateOathAcquisitionChangesBySource,
-              candidateBlackFangChangesBySlot,
+              candidateEquipmentBodyChangesBySlot,
               candidateCreatureChangesBySource,
               candidateAuraChangesBySource,
               candidateTitleChangesBySource,

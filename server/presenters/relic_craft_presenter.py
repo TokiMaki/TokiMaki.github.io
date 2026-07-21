@@ -2,10 +2,10 @@ def build_relic_craft_recommendation_row(**values) -> dict:
     target_body = values["target_equipment_body"]
     current_body = values["current_equipment_body"]
     return {
-        "sourceType": "relicCraft",
+        "sourceType": values["source_type"],
         "slot": values["slot"],
         "targetSlotId": values["target_slot_id"],
-        "tier": "태초",
+        "tier": values["tier"],
         "cardTitle": values["card_title"],
         "cardSubtitle": values["card_subtitle"],
         "itemId": values["item_id"],

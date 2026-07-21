@@ -1,17 +1,6 @@
 import math
 
 
-PERFUME_ITEM_ID = "df77236c51ea1274a3deb79c3e470695"
-PERFUME_SLOT_ID = "MAGIC_STON"
-PERFUME_SLOT_NAME = "마법석"
-PERFUME_BODY_FINAL_DAMAGE_PERCENT = 48.9
-PERFUME_PRECISION_FINAL_DAMAGE_PERCENT = 13.1
-PERFUME_BODY_BUFF_POWER = 12930.0
-PERFUME_PRECISION_BUFF_POWER = 4650.0
-PERFUME_OBJECT_DAMAGE_PERCENT_PER_HIT = 90900
-PERFUME_OBJECT_HIT_COUNT = 4
-PERFUME_OBJECT_DAMAGE_PER_FINAL_DAMAGE_PERCENT = 270000
-
 _SLOT_ID_BY_NAME = {
     "무기": "WEAPON",
     "상의": "JACKET",
@@ -64,44 +53,35 @@ def get_equipment_tune_set_point(row: dict | None) -> float:
     )
 
 
-def get_perfume_final_damage_percent() -> float:
-    body_multiplier = 1 + PERFUME_BODY_FINAL_DAMAGE_PERCENT / 100
-    precision_multiplier = 1 + PERFUME_PRECISION_FINAL_DAMAGE_PERCENT / 100
+def get_relic_craft_final_damage_percent(authoritative_effects: dict) -> float:
+    config = (authoritative_effects or {}).get("finalDamage") or {}
+    body_multiplier = 1 + _number(config.get("bodyPercent")) / 100
+    precision_multiplier = 1 + _number(config.get("precisionPercent")) / 100
+    object_damage_per_final_damage = _number(config.get("objectDamagePerFinalDamagePercent"))
+    if object_damage_per_final_damage <= 0:
+        return 0.0
     object_multiplier = 1 + (
-        (PERFUME_OBJECT_DAMAGE_PERCENT_PER_HIT * PERFUME_OBJECT_HIT_COUNT)
-        / PERFUME_OBJECT_DAMAGE_PER_FINAL_DAMAGE_PERCENT
+        _number(config.get("objectDamagePercentPerHit"))
+        * _number(config.get("objectHitCount"))
+        / object_damage_per_final_damage
     ) / 100
     return (body_multiplier * precision_multiplier * object_multiplier - 1) * 100
 
 
-def _get_precision_effects(precision: dict) -> dict:
-    target_percent = _number(precision.get("targetPercent"))
-    config = precision.get("effectsByPrecision") or {}
-    per_percent = config.get("perPercent") or {}
-    effects = {
-        key: _number(per_percent.get(key)) * target_percent
-        for key in ("finalDamage", "buffPower")
-    }
-    for milestone in config.get("milestones") or []:
-        if target_percent < _number(milestone.get("percent")):
-            continue
-        for key in effects:
-            effects[key] += _number(milestone.get(key)) - _number(per_percent.get(key))
-    return effects
-
-
-def normalize_perfume_target_equipment_body(
+def normalize_relic_craft_target_equipment_body(
     *,
     target_config: dict,
     target_detail: dict,
     normalized_status: dict,
     precision: dict,
+    authoritative_effects: dict,
     icon_url: str,
     item_explain: str,
 ) -> tuple[dict, str]:
-    if _clean_text(target_config.get("itemId")) != PERFUME_ITEM_ID:
-        return {}, "invalid_relic_craft_target_item_id"
-    if _clean_text(target_detail.get("itemId")) != PERFUME_ITEM_ID:
+    target_item_id = _clean_text(target_config.get("itemId"))
+    if not target_item_id:
+        return {}, "missing_relic_craft_target_item"
+    if _clean_text(target_detail.get("itemId")) != target_item_id:
         return {}, "missing_or_invalid_relic_craft_item_detail"
     if _clean_text(target_detail.get("itemName")) != _clean_text(target_config.get("itemName")):
         return {}, "missing_or_invalid_relic_craft_item_detail"
@@ -109,16 +89,13 @@ def normalize_perfume_target_equipment_body(
         return {}, "missing_or_invalid_relic_craft_item_detail"
     if _clean_text(target_detail.get("itemTypeDetail")) != _clean_text(target_config.get("itemTypeDetail")):
         return {}, "missing_or_invalid_relic_craft_item_detail"
-    if resolve_canonical_equipment_slot_id(target_config) != PERFUME_SLOT_ID:
-        return {}, "invalid_relic_craft_target_slot"
-    if _number(precision.get("targetPercent")) != 100 or _number(precision.get("operationCount")) != 25:
-        return {}, "invalid_relic_craft_precision_contract"
 
-    precision_effects = _get_precision_effects(precision)
-    if abs(precision_effects.get("finalDamage", 0) - PERFUME_PRECISION_FINAL_DAMAGE_PERCENT) > 0.000001:
-        return {}, "invalid_relic_craft_precision_final_damage"
-    if abs(precision_effects.get("buffPower", 0) - PERFUME_PRECISION_BUFF_POWER) > 0.000001:
-        return {}, "invalid_relic_craft_precision_buff_power"
+    target_slot_id = resolve_canonical_equipment_slot_id(target_config)
+    target_slot_name = resolve_canonical_equipment_slot_name(target_config)
+    if not target_slot_id or not target_slot_name:
+        return {}, "invalid_relic_craft_target_slot"
+    if _number(precision.get("targetPercent")) <= 0 or _number(precision.get("operationCount")) <= 0:
+        return {}, "invalid_relic_craft_precision_contract"
 
     target_set_point = get_equipment_tune_set_point(target_detail)
     if target_set_point <= 0:
@@ -127,16 +104,31 @@ def normalize_perfume_target_equipment_body(
     effects = dict(normalized_status or {})
     effects.pop("finalDamage", None)
     effects.pop("buffPower", None)
-    if _number(effects.get("attackIncrease")) <= 0:
-        return {}, "missing_relic_craft_attack_increase"
-    effects["finalDamage"] = get_perfume_final_damage_percent()
-    effects["buffPower"] = PERFUME_BODY_BUFF_POWER + PERFUME_PRECISION_BUFF_POWER
+    required_effect_reason_by_key = {
+        "attackIncrease": "missing_relic_craft_attack_increase",
+    }
+    for effect_key in authoritative_effects.get("requiredBaseEffectKeys") or []:
+        if _number(effects.get(effect_key)) <= 0:
+            return {}, required_effect_reason_by_key.get(
+                effect_key,
+                f"missing_relic_craft_{effect_key}",
+            )
+
+    final_damage = get_relic_craft_final_damage_percent(authoritative_effects)
+    buff_power_config = authoritative_effects.get("buffPower") or {}
+    buff_power = _number(buff_power_config.get("body")) + _number(buff_power_config.get("precision"))
+    if final_damage <= 0:
+        return {}, "invalid_relic_craft_final_damage"
+    if buff_power <= 0:
+        return {}, "invalid_relic_craft_buff_power"
+    effects["finalDamage"] = final_damage
+    effects["buffPower"] = buff_power
 
     return {
-        "slotId": PERFUME_SLOT_ID,
-        "slot": PERFUME_SLOT_NAME,
-        "slotName": PERFUME_SLOT_NAME,
-        "itemId": PERFUME_ITEM_ID,
+        "slotId": target_slot_id,
+        "slot": target_slot_name,
+        "slotName": target_slot_name,
+        "itemId": target_item_id,
         "itemName": _clean_text(target_detail.get("itemName")),
         "itemRarity": _clean_text(target_detail.get("itemRarity")),
         "iconUrl": icon_url,

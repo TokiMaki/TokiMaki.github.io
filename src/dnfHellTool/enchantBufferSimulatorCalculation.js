@@ -199,7 +199,7 @@ export function createEnchantBufferSimulatorCalculation(deps) {
     equipmentTuneChangesBySource = {},
     oathTuneChangesBySource = {},
     oathAcquisitionChangesBySource = {},
-    blackFangChangesBySlot = {},
+    equipmentBodyChangesBySlot = {},
     creatureChangesBySource = {},
     auraChangesBySource = {},
     titleChangesBySource = {},
@@ -230,8 +230,8 @@ export function createEnchantBufferSimulatorCalculation(deps) {
       upgradeChangesBySlot,
       scopeSimulator,
     );
-    const scopedBlackFangChangesBySlot = scopeBufferCurrentChangesBySlot(
-      blackFangChangesBySlot,
+    const scopedEquipmentBodyChangesBySlot = scopeBufferCurrentChangesBySlot(
+      equipmentBodyChangesBySlot,
       scopeSimulator,
     );
     const scopedCreatureChangesBySource = scopeBufferCurrentChangesBySource(
@@ -256,7 +256,7 @@ export function createEnchantBufferSimulatorCalculation(deps) {
       ...Object.values(equipmentTuneChangesBySource || {}),
       ...Object.values(oathTuneChangesBySource || {}),
       ...Object.values(oathAcquisitionChangesBySource || {}),
-      ...Object.values(scopedBlackFangChangesBySlot),
+      ...Object.values(scopedEquipmentBodyChangesBySlot),
       ...Object.values(scopedCreatureChangesBySource),
       ...Object.values(scopedAuraChangesBySource),
       ...Object.values(scopedTitleChangesBySource),

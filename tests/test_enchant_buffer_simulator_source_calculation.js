@@ -270,18 +270,18 @@ assert.deepEqual(calculation.getBufferEquipmentBodyBaseRelativeChanges(
 });
 const perfumeRow = {
   sourceType: 'relicCraft',
-  equipmentTuneBuffPowerDelta: 400,
+  equipmentTuneBuffPowerDelta: 0,
   currentEquipmentBody: {
     slotId: 'MAGIC_STON',
     itemId: 'current-magic-stone',
     effects: { buffPower: 11220, finalDamage: 25 },
-    _skillBonuses: { '버프:30': 1, '각성:50': 0 },
+    _skillBonuses: { '버프:30': 1, '각성:50': 2 },
   },
   targetEquipmentBody: {
     slotId: 'MAGIC_STON',
     itemId: 'df77236c51ea1274a3deb79c3e470695',
     effects: { buffPower: 17580, finalDamage: 70.67376612 },
-    _skillBonuses: { '버프:30': 2, '각성:50': 1 },
+    _skillBonuses: { '버프:30': 1, '각성:50': 2 },
   },
 };
 const bufferBodyCalculation = createEnchantBufferSimulatorSourceCalculation({
@@ -307,11 +307,11 @@ assert.deepEqual(bufferBodyCalculation.getBufferEquipmentBodyBaseRelativeChanges
   deepFreeze(bodyReplacementBaseline),
 ), {
   statDelta: 0,
-  buffPowerDelta: 6760,
+  buffPowerDelta: 6360,
   currentBuffAmplificationDelta: 0,
   switchingBuffAmplificationDelta: 0,
-  buffSkillLevelDelta: 1,
-  awakeningSkillLevelDelta: 1,
+  buffSkillLevelDelta: 0,
+  awakeningSkillLevelDelta: 0,
   baseSkillContributions: [],
   targetSkillContributions: [],
 });

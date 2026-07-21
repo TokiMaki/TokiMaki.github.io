@@ -2,12 +2,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as identityModule from '../src/dnfHellTool/enchantSimulatorIdentity.js';
+import {
+  resolveCanonicalEquipmentSlotId,
+  resolveCanonicalEquipmentSlotName,
+} from '../src/dnfHellTool/enchantEquipmentBodyReplacement.js';
 
 const { createEnchantSimulatorIdentity } = identityModule;
 
 const DEPENDENCY_NAMES = [
   'effectOrder',
   'blackFangSimulatorSlots',
+  'resolveCanonicalEquipmentSlotId',
+  'resolveCanonicalEquipmentSlotName',
 ];
 
 const PUBLIC_OUTPUTS = [
@@ -103,6 +109,8 @@ function createIdentity(effectOrder = ['finalDamage', 'attack'], blackFangSlots 
   return createEnchantSimulatorIdentity({
     effectOrder,
     blackFangSimulatorSlots: blackFangSlots,
+    resolveCanonicalEquipmentSlotId,
+    resolveCanonicalEquipmentSlotName,
   });
 }
 
@@ -205,7 +213,7 @@ function testFactoryContractDependencyAliasesAndPublicSet() {
 
   const modulePath = fileURLToPath(new URL('../src/dnfHellTool/enchantSimulatorIdentity.js', import.meta.url));
   const moduleSource = readFileSync(modulePath, 'utf8');
-  assert.match(moduleSource, /const \{\s*effectOrder: EFFECT_ORDER,\s*blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,\s*\} = deps;/);
+  assert.match(moduleSource, /const \{\s*effectOrder: EFFECT_ORDER,\s*blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,\s*resolveCanonicalEquipmentSlotId,\s*resolveCanonicalEquipmentSlotName,\s*\} = deps;/);
 }
 
 function testEffectAndStableObjectSignatures() {
@@ -319,6 +327,8 @@ function testDealerSourceIdentityMatrix() {
     sourceType: 'relicCraft',
     targetSlotId: 'MAGIC_STON',
     targetEquipmentBody: {
+      slotId: 'MAGIC_STON',
+      slotName: '마법석',
       itemId: 'perfume-1',
       effects: { finalDamage: 70.67376612, attack: 3729 },
     },
@@ -328,7 +338,14 @@ function testDealerSourceIdentityMatrix() {
     identity.getRelicCraftCandidateSignature(relicCraft),
     'relicCraft:마법석:perfume-1:finalDamage:70.67376612|attack:3729',
   );
-  assert.equal(identity.getRelicCraftExclusiveGroupKey({ ...relicCraft, targetSlotId: 'SUPPORT' }), '');
+  assert.equal(identity.getRelicCraftExclusiveGroupKey({
+    ...relicCraft,
+    targetEquipmentBody: {
+      ...relicCraft.targetEquipmentBody,
+      slotId: 'SUPPORT',
+      slotName: '보조장비',
+    },
+  }), '');
 }
 
 function testAvatarAndBuffSwitchingIdentityMatrix() {

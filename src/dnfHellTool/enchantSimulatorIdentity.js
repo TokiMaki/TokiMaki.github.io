@@ -2,6 +2,8 @@ export function createEnchantSimulatorIdentity(deps) {
   const {
     effectOrder: EFFECT_ORDER,
     blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,
+    resolveCanonicalEquipmentSlotId,
+    resolveCanonicalEquipmentSlotName,
   } = deps;
 
   function getEffectSignature(effects = {}) {
@@ -118,8 +120,16 @@ export function createEnchantSimulatorIdentity(deps) {
   }
 
   function getRelicCraftExclusiveGroupKey(row = {}) {
-    return row.sourceType === 'relicCraft' && row.targetSlotId === 'MAGIC_STON'
-      ? 'relicCraft:마법석'
+    const targetBody = row.targetEquipmentBody || row;
+    const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody);
+    const targetSlotName = resolveCanonicalEquipmentSlotName(targetBody);
+    const declaredTargetSlotId = resolveCanonicalEquipmentSlotId({
+      slotId: row.targetSlotId,
+      slot: row.slot,
+    });
+    if (declaredTargetSlotId && targetSlotId !== declaredTargetSlotId) return '';
+    return row.sourceType === 'relicCraft' && targetSlotId && targetSlotName
+      ? `relicCraft:${targetSlotName}`
       : '';
   }
 

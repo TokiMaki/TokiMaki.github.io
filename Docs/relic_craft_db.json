@@ -16,7 +16,9 @@
         "slotId": "MAGIC_STON",
         "itemTypeDetail": "마법석"
       },
-      "minimumCurrentEquipmentSetPoint": 2620,
+      "eligibility": {
+        "minimumCurrentEquipmentSetPoint": 2620
+      },
       "manualPrices": {
         "perfumeBottle": {
           "unitPrice": 1200000000,
@@ -39,20 +41,20 @@
         "materials": [
           { "key": "behemothTear", "amount": 200 },
           { "key": "historiaQuartz", "amount": 500 }
-        ],
-        "effectsByPrecision": {
-          "perPercent": { "finalDamage": 0.1, "buffPower": 30, "fame": 5 },
-          "milestones": [
-            { "percent": 25, "finalDamage": 0.5, "buffPower": 390, "fame": 100 },
-            { "percent": 50, "finalDamage": 0.6, "buffPower": 420, "fame": 100 },
-            { "percent": 75, "finalDamage": 0.6, "buffPower": 420, "fame": 100 },
-            { "percent": 100, "finalDamage": 1.8, "buffPower": 540, "fame": 220 }
-          ]
-        }
+        ]
       },
-      "calculator": {
-        "equipmentTune": { "minSetPoint": 2550, "stepPoint": 70, "finalDamagePerStage": 2, "buffPowerPerStage": 400 },
-        "bufferSkillLevels": { "buffSkillLevel": 1, "awakeningSkillLevel": 2 },
+      "authoritativeEffects": {
+        "finalDamage": {
+          "bodyPercent": 48.9,
+          "precisionPercent": 13.1,
+          "objectDamagePercentPerHit": 90900,
+          "objectHitCount": 4,
+          "objectDamagePerFinalDamagePercent": 270000
+        },
+        "buffPower": {
+          "body": 12930,
+          "precision": 4650
+        },
         "requiredBaseEffectKeys": ["attackIncrease"]
       }
     }

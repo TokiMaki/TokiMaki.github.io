@@ -1,3 +1,5 @@
+import { isEquipmentBodyReplacementSource } from './enchantEquipmentBodyReplacement.js';
+
 export function createEnchantDealerRecommendation(deps) {
   const {
     tuneSourceTypes: TUNE_SOURCE_TYPES,
@@ -42,7 +44,7 @@ export function createEnchantDealerRecommendation(deps) {
 
   function getRecommendationDamageEffects(row, current) {
     if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
-    if (row.sourceType === 'blackFang' || row.sourceType === 'relicCraft') {
+    if (isEquipmentBodyReplacementSource(row)) {
       const targetEffects = row.targetEquipmentBody?.effects
         || row.targetEffects
         || addEffects(row.currentEffects, row.effects);
@@ -591,8 +593,8 @@ export function createEnchantDealerRecommendation(deps) {
           ? simulationOptions?.creatureArtifactReferenceBaselineByType?.get(getCreatureArtifactType(row)) || baseline
         : row.sourceType === 'title'
           ? simulationOptions?.titleReferenceBaseline || baseline
-        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
-          ? simulationOptions?.blackFangReferenceBaselineBySlot?.get(row.slot) || baseline
+        : isEquipmentBodyReplacementSource(row)
+          ? simulationOptions?.equipmentBodyReferenceBaselineBySlot?.get(row.slot) || baseline
           : baseline;
       const artifactReferenceCreature = row.sourceType === 'creatureArtifact'
         ? simulationOptions?.referenceCreatureByArtifactType?.get(getCreatureArtifactType(row))
@@ -619,7 +621,7 @@ export function createEnchantDealerRecommendation(deps) {
         ? { effects: {} }
         : TUNE_SOURCE_TYPES.has(row.sourceType)
           ? { effects: {} }
-        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+        : isEquipmentBodyReplacementSource(row)
           ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { effects: row.currentEffects || {} }
@@ -713,7 +715,7 @@ export function createEnchantDealerRecommendation(deps) {
           adjustedElementBaseline
             ? getElementAdjustedReplacementIncrementalDamagePercent(row, current, evaluationBaseline, adjustedElementBaseline)
             : getReplacementIncrementalDamagePercent(
-              row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+              isEquipmentBodyReplacementSource(row)
                 ? {
                   ...row,
                   effects: row.targetEquipmentBody?.effects
@@ -723,7 +725,7 @@ export function createEnchantDealerRecommendation(deps) {
                 : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
                   ? { ...row, effects: row.targetEffects || row.effects || {} }
                 : row,
-              row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+              isEquipmentBodyReplacementSource(row)
                 ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
                 : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
                   ? { effects: row.currentEffects || {} }
@@ -761,7 +763,7 @@ export function createEnchantDealerRecommendation(deps) {
           ? `${row.sourceType}:${row.slot}:${row.tier}`
         : ['creature', 'title', 'switchingTitle', 'switchingCreature', 'aura'].includes(row.sourceType)
         ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
-        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+        : isEquipmentBodyReplacementSource(row)
           ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
           : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
           ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`

@@ -4,9 +4,8 @@ import time
 from ..data_store import load_relic_craft_db
 from ..effects import normalize_enchant_status, subtract_effects
 from ..equipment_body import (
-    PERFUME_ITEM_ID,
     get_equipment_tune_set_point,
-    normalize_perfume_target_equipment_body,
+    normalize_relic_craft_target_equipment_body,
     resolve_canonical_equipment_slot_id,
     resolve_canonical_equipment_slot_name,
 )
@@ -108,18 +107,21 @@ def build_relic_craft_recommendations_debug(
     started_at = time.perf_counter()
     recipe = _find_recipe()
     target_config = recipe.get("target") or {}
+    target_item_id = clean_text(target_config.get("itemId"))
     target_slot_id = resolve_canonical_equipment_slot_id(target_config)
     current = next((
         row for row in equipment_rows or []
         if resolve_canonical_equipment_slot_id(row) == target_slot_id
     ), {})
-    if not recipe or clean_text(target_config.get("itemId")) != PERFUME_ITEM_ID:
+    if not recipe or not target_item_id or not target_slot_id:
         return {"recommendations": [], "steps": [{"reason": "missing_relic_craft_target_item"}]}
-    if not current or clean_text(current.get("itemId")) == PERFUME_ITEM_ID:
+    if not current or clean_text(current.get("itemId")) == target_item_id:
         return {"recommendations": [], "steps": []}
 
     current_set_point = _get_equipment_set_point(equipment_rows)
-    minimum_current_set_point = _number(recipe.get("minimumCurrentEquipmentSetPoint"))
+    minimum_current_set_point = _number(
+        ((recipe.get("eligibility") or {}).get("minimumCurrentEquipmentSetPoint"))
+    )
     if current_set_point < minimum_current_set_point:
         return {
             "recommendations": [],
@@ -132,19 +134,21 @@ def build_relic_craft_recommendations_debug(
 
     details = {
         clean_text(detail.get("itemId")): detail
-        for detail in fetch_item_details([current.get("itemId"), PERFUME_ITEM_ID])
+        for detail in fetch_item_details([current.get("itemId"), target_item_id])
     }
     current_detail = details.get(clean_text(current.get("itemId"))) or {}
-    target_detail = details.get(PERFUME_ITEM_ID) or {}
+    target_detail = details.get(target_item_id) or {}
     if not current_detail:
         return {"recommendations": [], "steps": [{"reason": "missing_or_invalid_relic_craft_item_detail"}]}
 
-    target_body, target_reason = normalize_perfume_target_equipment_body(
+    precision = recipe.get("precision100") or {}
+    target_body, target_reason = normalize_relic_craft_target_equipment_body(
         target_config=target_config,
         target_detail=target_detail,
         normalized_status=normalize_enchant_status(target_detail.get("itemStatus") or []),
-        precision=recipe.get("precision100") or {},
-        icon_url=get_item_icon_url(PERFUME_ITEM_ID),
+        precision=precision,
+        authoritative_effects=recipe.get("authoritativeEffects") or {},
+        icon_url=get_item_icon_url(target_item_id),
         item_explain=get_item_explain(target_detail),
     )
     if target_reason:
@@ -167,7 +171,6 @@ def build_relic_craft_recommendations_debug(
     if not materials:
         return {"recommendations": [], "steps": [{"reason": "missing_relic_craft_material_price"}]}
 
-    precision = recipe.get("precision100") or {}
     fixed_gold = _number((recipe.get("baseCraft") or {}).get("fixedGold")) + _number(
         precision.get("fixedGold")
     )
@@ -182,7 +185,10 @@ def build_relic_craft_recommendations_debug(
         item_name=target_body["itemName"],
         item_rarity=target_body["itemRarity"],
         icon_url=target_body["iconUrl"],
-        item_explain=f"{current_body['itemName']} -> {target_body['itemName']} (정밀도 100%)",
+        item_explain=(
+            f"{current_body['itemName']} -> {target_body['itemName']} "
+            f"(정밀도 {int(_number(precision.get('targetPercent')))}%)"
+        ),
         effects=effects,
         current_effects=current_effects,
         target_effects=target_effects,
@@ -202,9 +208,11 @@ def build_relic_craft_recommendations_debug(
             f"{material['label']} {material['amount']:,}개" for material in materials
         ),
         card_title=display.get("cardTitle") or "유물 제작",
-        card_subtitle=display.get("cardSubtitle") or "마법석",
-        precision_percent=100,
-        precision_operation_count=25,
+        card_subtitle=display.get("cardSubtitle") or target_body["slot"],
+        source_type=recipe.get("sourceType") or "relicCraft",
+        tier=target_body["itemRarity"],
+        precision_percent=_number(precision.get("targetPercent")),
+        precision_operation_count=int(_number(precision.get("operationCount"))),
         current_slot_set_point=current_body["tuneSetPoint"],
         target_slot_set_point=target_body["tuneSetPoint"],
         current_equipment_set_point=current_set_point,

@@ -48,6 +48,7 @@ import { createEnchantBufferRecommendation } from './enchantBufferRecommendation
 import { createEnchantDealerRecommendation } from './enchantDealerRecommendation.js';
 import { createEnchantDealerSimulatorCalculation } from './enchantDealerSimulatorCalculation.js';
 import {
+  isEquipmentBodyReplacementSource,
   replaceEquipmentBodyInRows,
   replaceEquipmentBodyPreservingState,
   resolveCanonicalEquipmentSlotId,
@@ -737,6 +738,8 @@ const {
 } = createEnchantSimulatorIdentity({
   effectOrder: EFFECT_ORDER,
   blackFangSimulatorSlots: BLACK_FANG_SIMULATOR_SLOTS,
+  resolveCanonicalEquipmentSlotId,
+  resolveCanonicalEquipmentSlotName,
 });
 
 const {
@@ -855,9 +858,12 @@ function getBlackFangRows(recommendations = []) {
 function getRelicCraftRows(recommendations = [], equipmentUpgrades = []) {
   return (recommendations || []).flatMap((candidate) => {
     const targetEquipmentBody = candidate.targetEquipmentBody || null;
+    const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || {});
+    const targetSlotName = resolveCanonicalEquipmentSlotName(targetEquipmentBody || {});
     if (
       candidate.sourceType !== 'relicCraft'
-      || resolveCanonicalEquipmentSlotId(targetEquipmentBody || {}) !== 'MAGIC_STON'
+      || !targetSlotId
+      || !targetSlotName
       || !targetEquipmentBody?.itemId
       || !Object.keys(targetEquipmentBody.effects || {}).length
     ) return [];
@@ -879,11 +885,11 @@ function getRelicCraftRows(recommendations = [], equipmentUpgrades = []) {
     return [{
       ...candidate,
       sourceType: 'relicCraft',
-      slot: resolveCanonicalEquipmentSlotName(targetEquipmentBody),
-      targetSlotId: 'MAGIC_STON',
-      tier: candidate.tier || '태초',
+      slot: targetSlotName,
+      targetSlotId,
+      tier: candidate.tier || targetEquipmentBody.itemRarity || '',
       cardTitle: candidate.cardTitle || '유물 제작',
-      cardSubtitle: candidate.cardSubtitle || '마법석',
+      cardSubtitle: candidate.cardSubtitle || targetSlotName,
       effects: subtractEffects(targetEffects, currentEffects),
       currentEffects,
       targetEffects,
@@ -901,10 +907,10 @@ function getRelicCraftRows(recommendations = [], equipmentUpgrades = []) {
   });
 }
 
-function attachBlackFangBaseBodyData(equipmentRows = [], recommendations = []) {
+function attachEquipmentBodyBaseData(equipmentRows = [], recommendations = []) {
   const recommendationBySlotId = new Map(
     (recommendations || [])
-      .filter((row) => ['blackFang', 'relicCraft'].includes(row?.sourceType))
+      .filter((row) => isEquipmentBodyReplacementSource(row))
       .map((row) => [
         resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row),
         row,
@@ -1116,6 +1122,8 @@ const {
   getCreatureArtifactType,
   upgradeSlotLabels: UPGRADE_SLOT_LABELS,
   getEquipmentProgressionType,
+  resolveCanonicalEquipmentSlotId,
+  resolveCanonicalEquipmentSlotName,
 });
 
 const {
@@ -1625,7 +1633,7 @@ function applyEquipmentTuneDisplayStep(
         referenceEquipmentTuneChanges,
         referenceOathTuneChanges,
         bufferSimulator.oathAcquisitionChangesBySource,
-        bufferSimulator.blackFangChangesBySlot,
+        bufferSimulator.equipmentBodyChangesBySlot,
         bufferSimulator.creatureChangesBySource,
         bufferSimulator.auraChangesBySource,
         bufferSimulator.titleChangesBySource,
@@ -1656,7 +1664,7 @@ function applyEquipmentTuneDisplayStep(
           }
           : referenceOathTuneChanges,
         bufferSimulator.oathAcquisitionChangesBySource,
-        bufferSimulator.blackFangChangesBySlot,
+        bufferSimulator.equipmentBodyChangesBySlot,
         bufferSimulator.creatureChangesBySource,
         bufferSimulator.auraChangesBySource,
         bufferSimulator.titleChangesBySource,
@@ -2208,15 +2216,15 @@ export function installEnchantView(ctx) {
         ),
       );
     });
-    const blackFangReferenceBaselineBySlot = new Map();
+    const equipmentBodyReferenceBaselineBySlot = new Map();
     candidateRows.forEach((row) => {
-      if (!['blackFang', 'relicCraft'].includes(row.sourceType) || blackFangReferenceBaselineBySlot.has(row.slot)) return;
+      if (!isEquipmentBodyReplacementSource(row) || equipmentBodyReferenceBaselineBySlot.has(row.slot)) return;
       const referenceEquipment = simulator.simulatedEquipmentUpgrades.map((equipment) => (
         equipment?.slot === row.slot && baseEquipmentBySlot.has(row.slot)
           ? cloneSimulatorValue(baseEquipmentBySlot.get(row.slot))
           : cloneSimulatorValue(equipment)
       ));
-      blackFangReferenceBaselineBySlot.set(
+      equipmentBodyReferenceBaselineBySlot.set(
         row.slot,
         buildSimulatedDamageBaseline(
           simulator.baseDamageBaseline,
@@ -2342,7 +2350,7 @@ export function installEnchantView(ctx) {
         referenceTitle: simulator.baseTitle,
         titleReferenceBaseline,
         progressionReferenceBaselineBySlot,
-        blackFangReferenceBaselineBySlot,
+        equipmentBodyReferenceBaselineBySlot,
         avatarReferenceBaselineBySlotId,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
       },
@@ -2375,7 +2383,7 @@ export function installEnchantView(ctx) {
       const baseCreatureArtifacts = getCanonicalCurrentCreatureArtifacts();
       const baseTitle = cloneSimulatorValue(state.currentTitle || {});
       const baseBuffLoadout = cloneSimulatorValue(state.currentBuffLoadout || {});
-      const baseEquipmentUpgrades = attachBlackFangBaseBodyData(
+      const baseEquipmentUpgrades = attachEquipmentBodyBaseData(
         state.currentEquipmentUpgrades || [],
         [
           ...(state.currentBlackFangRecommendations || []),
@@ -2428,7 +2436,7 @@ export function installEnchantView(ctx) {
         simulatedOathUpgrades: cloneSimulatorValue(baseOathUpgrades),
         oathTuneChangesBySource: {},
         oathAcquisitionChangesBySource: {},
-        blackFangChangesBySlot: {},
+        equipmentBodyChangesBySlot: {},
         oathTuneDb: cloneSimulatorValue(state.oathTuneStageDb || {}),
         upgradeDb: cloneSimulatorValue(state.upgradeExpectedDb || {}),
         bufferSkillContexts: cloneSimulatorValue(bufferSkillContexts),
@@ -2449,7 +2457,7 @@ export function installEnchantView(ctx) {
       return;
     }
     const baseEnchants = cloneSimulatorValue(state.currentEnchants || []);
-    const baseEquipmentUpgrades = attachBlackFangBaseBodyData(
+    const baseEquipmentUpgrades = attachEquipmentBodyBaseData(
       state.currentEquipmentUpgrades || [],
       [
         ...(state.currentBlackFangRecommendations || []),
@@ -2661,7 +2669,7 @@ export function installEnchantView(ctx) {
         applyType: 'replaceEquipmentProgression',
       };
     }
-    if (['blackFang', 'relicCraft'].includes(row.sourceType)) {
+    if (isEquipmentBodyReplacementSource(row)) {
       const targetEquipmentBody = row.targetEquipmentBody || {};
       const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || row);
       const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
@@ -3042,7 +3050,7 @@ export function installEnchantView(ctx) {
         baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
       };
     }
-    if (['blackFang', 'relicCraft'].includes(row.sourceType)) {
+    if (isEquipmentBodyReplacementSource(row)) {
       const targetEquipmentBody = row.targetEquipmentBody || {};
       const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || row);
       const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
@@ -3092,7 +3100,7 @@ export function installEnchantView(ctx) {
         simulator.equipmentTuneChangesBySource,
         simulator.oathTuneChangesBySource,
         simulator.oathAcquisitionChangesBySource,
-        simulator.blackFangChangesBySlot,
+        simulator.equipmentBodyChangesBySlot,
         simulator.creatureChangesBySource,
         simulator.auraChangesBySource,
         simulator.titleChangesBySource,
@@ -3197,7 +3205,7 @@ export function installEnchantView(ctx) {
     'equipmentTuneChangesBySource',
     'oathTuneChangesBySource',
     'oathAcquisitionChangesBySource',
-    'blackFangChangesBySlot',
+    'equipmentBodyChangesBySlot',
     'creatureChangesBySource',
     'auraChangesBySource',
     'titleChangesBySource',
@@ -3759,7 +3767,7 @@ export function installEnchantView(ctx) {
       ),
     );
     if (simulator.role === 'buffer') {
-      simulator.blackFangChangesBySlot[target.targetSlot] = cloneSimulatorValue(
+      simulator.equipmentBodyChangesBySlot[target.targetSlot] = cloneSimulatorValue(
         target.baseRelativeChanges,
       );
       rebuildBufferSimulatorCalculationState();
@@ -4811,7 +4819,7 @@ export function installEnchantView(ctx) {
       ),
     );
     if (simulator.role === 'buffer') {
-      delete simulator.blackFangChangesBySlot[targetSlot];
+      delete simulator.equipmentBodyChangesBySlot[targetSlot];
       rebuildBufferSimulatorCalculationState();
     } else {
       rebuildDealerSimulatorCalculationState();
@@ -5997,7 +6005,7 @@ export function installEnchantView(ctx) {
           ? getMaterialEnchantMaterialParts(row)
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? getBlackFangMaterialParts(row.materials)
-        : row.sourceType === 'blackFang' || row.sourceType === 'relicCraft'
+        : isEquipmentBodyReplacementSource(row)
           ? getBlackFangMaterialParts(row.materials)
           : [];
       const rowGold = getRecommendationGold(row, includeMaterialCosts);

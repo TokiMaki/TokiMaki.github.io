@@ -9,6 +9,8 @@ export function createEnchantBufferSimulatorSourceIdentity(deps) {
     getCreatureArtifactType,
     upgradeSlotLabels: UPGRADE_SLOT_LABELS,
     getEquipmentProgressionType,
+    resolveCanonicalEquipmentSlotId,
+    resolveCanonicalEquipmentSlotName,
   } = deps;
 
   function getBufferEnchantExclusiveGroupKey(row = {}) {
@@ -44,10 +46,19 @@ export function createEnchantBufferSimulatorSourceIdentity(deps) {
   }
 
   function getBufferRelicCraftExclusiveGroupKey(row = {}) {
+    const targetBody = row.targetEquipmentBody || row;
+    const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody);
+    const targetSlotName = resolveCanonicalEquipmentSlotName(targetBody);
+    const declaredTargetSlotId = resolveCanonicalEquipmentSlotId({
+      slotId: row.targetSlotId,
+      slot: row.slot,
+    });
+    if (declaredTargetSlotId && targetSlotId !== declaredTargetSlotId) return '';
     return row.bufferSimulatorSupported
       && row.sourceType === 'relicCraft'
-      && String(row.slot || '').trim() === '마법석'
-      ? 'bufferRelicCraft:마법석'
+      && targetSlotId
+      && targetSlotName
+      ? `bufferRelicCraft:${targetSlotName}`
       : '';
   }
 

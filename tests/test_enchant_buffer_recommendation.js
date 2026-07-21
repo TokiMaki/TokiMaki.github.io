@@ -499,15 +499,19 @@ function testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly() {
       slotId: 'MAGIC_STON',
       itemId: 'current-magic-stone',
       effects: { finalDamage: 25, buffPower: 11220 },
-      skillLevels: { 버프: 1, 각성: 0 },
+      itemBuff: {
+        explain: '30레벨 버프 스킬 Lv +1\n50레벨 액티브 스킬 Lv +2',
+      },
     },
     targetEquipmentBody: {
       slotId: 'MAGIC_STON',
       itemId: 'df77236c51ea1274a3deb79c3e470695',
       effects: { finalDamage: 70.67376612, buffPower: 17580 },
-      skillLevels: { 버프: 2, 각성: 1 },
+      itemBuff: {
+        explain: '30레벨 버프 스킬 Lv +1\n50레벨 액티브 스킬 Lv +2',
+      },
     },
-    equipmentTuneBuffPowerDelta: 400,
+    equipmentTuneBuffPowerDelta: 0,
     expectedGold: 1000,
     auction: { minUnitPrice: 1000 },
   };
@@ -520,7 +524,7 @@ function testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly() {
     deepFreeze(baseline),
   );
   assert.ok(result);
-  assert.equal(result.bufferBuffPowerDelta, 6760);
+  assert.equal(result.bufferBuffPowerDelta, 6360);
   assert.equal(result.targetEffects.finalDamage, 70.67376612);
   assert.ok(result.incrementalBuffScore > 0);
 }
