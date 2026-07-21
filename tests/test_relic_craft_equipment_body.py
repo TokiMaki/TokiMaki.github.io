@@ -63,7 +63,10 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertNotEqual(body["effects"]["finalDamage"], 62.5)
         self.assertEqual(body["effects"]["buffPower"], 17580.0)
         self.assertEqual(body["effects"]["attackIncrease"], 3729.0)
+        self.assertEqual(body["tuneLevel"], 0)
         self.assertEqual(body["tuneSetPoint"], 145)
+        self.assertFalse(body["tuneUpgradeable"])
+        self.assertEqual(body["tuneRemaining"], 0)
 
         aggregated_body, aggregated_reason = self.build_body(
             normalized_status={

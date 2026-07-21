@@ -21,6 +21,7 @@ const base = {
   itemBuff: { explain: 'current buff' },
   tuneSetPoint: 215,
   tuneLevel: 2,
+  tuneUpgradeable: true,
   tuneRemaining: 1,
   reinforce: 12,
   refine: 8,
@@ -40,7 +41,10 @@ const perfume = {
   itemExplain: 'perfume explain',
   itemReinforceSkill: [{ jobName: '공통', skills: [{ name: '버프', value: 1 }] }],
   itemBuff: { explain: 'perfume buff' },
+  tuneLevel: 0,
   tuneSetPoint: 145,
+  tuneUpgradeable: false,
+  tuneRemaining: 0,
 };
 
 assert.equal(resolveCanonicalEquipmentSlotId({ slotName: '마법석' }), 'MAGIC_STON');
@@ -50,12 +54,24 @@ const applied = replaceEquipmentBodyPreservingState(base, perfume);
 assert.equal(applied.itemId, perfume.itemId);
 assert.deepEqual(applied.bodyEffects, perfume.effects);
 assert.equal(applied.tuneSetPoint, 145);
+assert.equal(applied.tuneLevel, 0);
+assert.equal(applied.tuneUpgradeable, false);
+assert.equal(applied.tuneRemaining, 0);
 for (const key of [
-  'tuneLevel', 'tuneRemaining', 'reinforce', 'refine', 'isAmplified',
-  'amplificationName', 'enchant', 'activeActionMarker',
+  'reinforce', 'refine', 'isAmplified', 'amplificationName', 'enchant', 'activeActionMarker',
 ]) {
   assert.deepEqual(applied[key], base[key], `${key} is preserved`);
 }
+const tunableReplacement = replaceEquipmentBodyPreservingState(base, {
+  ...perfume,
+  itemRarity: '에픽',
+  tuneLevel: undefined,
+  tuneUpgradeable: true,
+  tuneRemaining: undefined,
+});
+assert.equal(tunableReplacement.tuneLevel, base.tuneLevel);
+assert.equal(tunableReplacement.tuneRemaining, base.tuneRemaining);
+assert.equal(tunableReplacement.tuneUpgradeable, true);
 
 const bodyThenProgression = { ...applied, reinforce: 13, activeActionMarker: 'other-action' };
 const progressionThenBody = replaceEquipmentBodyPreservingState(
@@ -75,10 +91,16 @@ const restored = replaceEquipmentBodyPreservingState(bodyThenProgression, {
   itemExplain: base.bodyExplain,
   itemReinforceSkill: base.itemReinforceSkill,
   itemBuff: base.itemBuff,
+  tuneLevel: base.tuneLevel,
   tuneSetPoint: base.tuneSetPoint,
+  tuneUpgradeable: base.tuneUpgradeable,
+  tuneRemaining: base.tuneRemaining,
 });
 assert.equal(restored.itemId, base.itemId);
 assert.deepEqual(restored.bodyEffects, base.bodyEffects);
+assert.equal(restored.tuneLevel, base.tuneLevel);
+assert.equal(restored.tuneUpgradeable, base.tuneUpgradeable);
+assert.equal(restored.tuneRemaining, base.tuneRemaining);
 assert.equal(restored.reinforce, 13, 'removal preserves other active progression state');
 assert.equal(restored.activeActionMarker, 'other-action');
 
@@ -101,6 +123,10 @@ assert.doesNotMatch(viewSource, /replaceRelicCraftBody|replaceBlackFangBody/);
 assert.match(viewSource, /applyType:\s*'replaceEquipmentBody'/);
 assert.match(viewSource, /replaceEquipmentBodyInRows\(/);
 assert.match(viewSource, /replaceEquipmentBody:\s*\{/);
+assert.match(viewSource, /function getEquipmentTuneRecommendationUpgrades\(\)/);
+assert.match(viewSource, /getEquipmentTuneRows\(getEquipmentTuneRecommendationUpgrades\(\)/);
+assert.match(viewSource, /function invalidateActiveEquipmentTuneSelectionForBodyChange\(\)/);
+assert.match(viewSource, /delete simulator\.activeSelectionByGroup\.equipmentTune/);
 const removeTuneStart = viewSource.indexOf('function removeSimulatedEquipmentTuneSelection');
 const removeTuneEnd = viewSource.indexOf('function removeSimulatorAction', removeTuneStart);
 const removeTuneSource = viewSource.slice(removeTuneStart, removeTuneEnd);

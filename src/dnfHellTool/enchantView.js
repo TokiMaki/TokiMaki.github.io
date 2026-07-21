@@ -1933,6 +1933,13 @@ export function installEnchantView(ctx) {
       : state.currentEquipmentUpgrades;
   }
 
+  function getEquipmentTuneRecommendationUpgrades() {
+    const activeTune = state.dealerSimulator?.activeSelectionByGroup?.equipmentTune;
+    return activeTune?.actionType === 'equipmentTunePlan' && activeTune.beforeTuneSnapshot
+      ? activeTune.beforeTuneSnapshot
+      : getActiveEquipmentUpgrades();
+  }
+
   function getActiveOathUpgrades() {
     return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedOathUpgrades
@@ -3740,9 +3747,20 @@ export function installEnchantView(ctx) {
     );
   }
 
+  function invalidateActiveEquipmentTuneSelectionForBodyChange() {
+    const simulator = state.dealerSimulator;
+    const activeTune = simulator?.activeSelectionByGroup?.equipmentTune;
+    if (!activeTune || activeTune.actionType !== 'equipmentTunePlan') return true;
+    const removed = removeSimulatedEquipmentTuneSelection(activeTune);
+    if (!removed) return false;
+    delete simulator.activeSelectionByGroup.equipmentTune;
+    return true;
+  }
+
   function replaceSimulatedEquipmentBody(row, target) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'replaceEquipmentBody') return false;
+    if (!invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
     const targetSlotId = target.targetSlotId
       || resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row);
     const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
@@ -4790,6 +4808,7 @@ export function installEnchantView(ctx) {
     const targetSlotId = selection.targetSlotId
       || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot });
     if (!simulator || !targetSlotId) return false;
+    if (!invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
     const baseEquipment = simulator.baseEquipmentUpgrades.find((equipment) => (
       resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
     ));
@@ -4814,7 +4833,10 @@ export function installEnchantView(ctx) {
           itemExplain: baseEquipment.bodyExplain,
           itemReinforceSkill: baseEquipment.itemReinforceSkill,
           itemBuff: baseEquipment.itemBuff,
+          tuneLevel: baseEquipment.tuneLevel,
           tuneSetPoint: baseEquipment.tuneSetPoint,
+          tuneUpgradeable: baseEquipment.tuneUpgradeable,
+          tuneRemaining: baseEquipment.tuneRemaining,
         },
       ),
     );
@@ -5005,7 +5027,10 @@ export function installEnchantView(ctx) {
         itemRarity: currentEquipment.itemRarity,
         effects: currentEquipment.bodyEffects,
         itemExplain: currentEquipment.bodyExplain,
+        tuneLevel: currentEquipment.tuneLevel,
         tuneSetPoint: currentEquipment.tuneSetPoint,
+        tuneUpgradeable: currentEquipment.tuneUpgradeable,
+        tuneRemaining: currentEquipment.tuneRemaining,
       });
     });
     if (simulator.role === 'buffer') {
@@ -5528,7 +5553,7 @@ export function installEnchantView(ctx) {
         els.safeAmplificationModeSelect?.value === 'event',
         state.upgradeMaterialPrices,
       ),
-      ...getEquipmentTuneRows(state.currentEquipmentUpgrades, state.upgradeMaterialPrices, state.currentBufferBaseline),
+      ...getEquipmentTuneRows(getEquipmentTuneRecommendationUpgrades(), state.upgradeMaterialPrices, state.currentBufferBaseline),
       ...getOathTuneRows(getOathTuneRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, getActiveEquipmentUpgrades(), state.currentBufferBaseline),
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),
@@ -6760,7 +6785,7 @@ export function installEnchantView(ctx) {
     if (sourceType === 'oathTune') {
       return getOathTuneRows(getOathTuneRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, getActiveEquipmentUpgrades(), state.currentBufferBaseline);
     }
-    return getEquipmentTuneRows(state.currentEquipmentUpgrades, state.upgradeMaterialPrices, state.currentBufferBaseline);
+    return getEquipmentTuneRows(getEquipmentTuneRecommendationUpgrades(), state.upgradeMaterialPrices, state.currentBufferBaseline);
   }
 
   function getEquipmentTuneVariantRow(stepIndex) {
@@ -6822,7 +6847,10 @@ export function installEnchantView(ctx) {
         itemExplain: currentEquipment.bodyExplain,
         itemReinforceSkill: currentEquipment.itemReinforceSkill,
         itemBuff: currentEquipment.itemBuff,
+        tuneLevel: currentEquipment.tuneLevel,
         tuneSetPoint: currentEquipment.tuneSetPoint,
+        tuneUpgradeable: currentEquipment.tuneUpgradeable,
+        tuneRemaining: currentEquipment.tuneRemaining,
       });
     });
     const updatedSelection = {

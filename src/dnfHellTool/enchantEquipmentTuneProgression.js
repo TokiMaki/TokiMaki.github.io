@@ -147,9 +147,11 @@ export function createEnchantEquipmentTuneProgression({
       const count = Number(change?.count);
       if (
         !equipment ||
+        !isEquipmentTuneCandidate(equipment) ||
         Number(equipment.tuneLevel || 0) !== fromTuneLevel ||
         !Number.isInteger(count) ||
         count <= 0 ||
+        count > Number(equipment.tuneRemaining || 0) ||
         toTuneLevel !== fromTuneLevel + count ||
         toTuneLevel > EQUIPMENT_TUNE_MAX_LEVEL
       ) return null;

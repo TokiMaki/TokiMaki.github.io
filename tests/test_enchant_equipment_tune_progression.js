@@ -562,6 +562,30 @@ for (const invalidPlan of [
   assert.deepEqual(equipment, equipmentBefore);
 }
 
+const perfumeEquipment = [{
+  slot: '마법석',
+  itemRarity: '태초',
+  itemName: '우아한 기품의 향수',
+  tuneLevel: 0,
+  tuneUpgradeable: false,
+  tuneRemaining: 0,
+  tuneSetPoint: 145,
+}];
+const stalePerfumeTunePlan = {
+  slotChanges: [{ slot: '마법석', fromTuneLevel: 0, toTuneLevel: 1, count: 1 }],
+  steps: [{ slot: '마법석', fromTuneLevel: 0, toTuneLevel: 1 }],
+};
+assert.equal(progression.applyEquipmentTunePlan(perfumeEquipment, stalePerfumeTunePlan), null);
+assert.deepEqual(perfumeEquipment[0], {
+  slot: '마법석',
+  itemRarity: '태초',
+  itemName: '우아한 기품의 향수',
+  tuneLevel: 0,
+  tuneUpgradeable: false,
+  tuneRemaining: 0,
+  tuneSetPoint: 145,
+});
+
 const previousRows = [
   { slot: 'A', tuneLevel: 0 },
   { slot: 'B', tuneLevel: 1 },

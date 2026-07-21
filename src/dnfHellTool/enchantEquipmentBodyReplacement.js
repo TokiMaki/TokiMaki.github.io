@@ -61,6 +61,19 @@ export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targe
   if (Number.isFinite(Number(targetBody.tuneSetPoint))) {
     nextEquipment.tuneSetPoint = Number(targetBody.tuneSetPoint);
   }
+  if (targetBody.tuneUpgradeable === false) {
+    nextEquipment.tuneLevel = 0;
+    nextEquipment.tuneUpgradeable = false;
+    nextEquipment.tuneRemaining = 0;
+  } else if (targetBody.tuneUpgradeable === true) {
+    nextEquipment.tuneUpgradeable = true;
+    if (Number.isFinite(Number(targetBody.tuneLevel))) {
+      nextEquipment.tuneLevel = Number(targetBody.tuneLevel);
+    }
+    if (Number.isFinite(Number(targetBody.tuneRemaining))) {
+      nextEquipment.tuneRemaining = Number(targetBody.tuneRemaining);
+    }
+  }
   return nextEquipment;
 }
 
