@@ -23,11 +23,12 @@ def _number(value) -> float:
     return number if math.isfinite(number) else 0.0
 
 
-def _find_recipe() -> dict:
-    for recipe in load_relic_craft_db().get("crafts") or []:
-        if recipe.get("enabled") and recipe.get("sourceType") == "relicCraft":
-            return recipe
-    return {}
+def _get_enabled_recipes() -> list:
+    return [
+        recipe
+        for recipe in load_relic_craft_db().get("crafts") or []
+        if recipe.get("enabled") and recipe.get("sourceType") == "relicCraft"
+    ]
 
 
 def _get_equipment_set_point(equipment_rows: list) -> float:
@@ -64,7 +65,7 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
             label = clean_text(material.get("label"))
             item = resolve_exact_item_by_name(label) if label else {}
             label = clean_text(item.get("itemName")) or label
-            item_id = clean_text(item.get("itemId"))
+            item_id = clean_text(material.get("itemId") or item.get("itemId"))
         else:
             price_row = material_prices.get(key) or {}
             auction = dict(price_row.get("auction") or {})
@@ -100,46 +101,57 @@ def _build_current_equipment_body(current: dict, current_detail: dict, current_e
     }
 
 
-def build_relic_craft_recommendations_debug(
-    equipment_rows: list,
-    material_prices: dict | None = None,
-) -> dict:
-    started_at = time.perf_counter()
-    recipe = _find_recipe()
-    target_config = recipe.get("target") or {}
-    target_item_id = clean_text(target_config.get("itemId"))
-    target_slot_id = resolve_canonical_equipment_slot_id(target_config)
-    current = next((
-        row for row in equipment_rows or []
-        if resolve_canonical_equipment_slot_id(row) == target_slot_id
-    ), {})
-    if not recipe or not target_item_id or not target_slot_id:
-        return {"recommendations": [], "steps": [{"reason": "missing_relic_craft_target_item"}]}
-    if not current or clean_text(current.get("itemId")) == target_item_id:
-        return {"recommendations": [], "steps": []}
+def _build_recipe_contexts(recipes: list, equipment_rows: list, current_set_point: float) -> tuple[list, list]:
+    contexts = []
+    steps = []
+    for recipe in recipes:
+        target_config = recipe.get("target") or {}
+        target_item_id = clean_text(target_config.get("itemId"))
+        target_slot_id = resolve_canonical_equipment_slot_id(target_config)
+        if not target_item_id or not target_slot_id:
+            # Item ids intentionally left blank in the DB are inactive until filled.
+            continue
+        current = next((
+            row for row in equipment_rows or []
+            if resolve_canonical_equipment_slot_id(row) == target_slot_id
+        ), {})
+        if not current or clean_text(current.get("itemId")) == target_item_id:
+            continue
 
-    current_set_point = _get_equipment_set_point(equipment_rows)
-    minimum_current_set_point = _number(
-        ((recipe.get("eligibility") or {}).get("minimumCurrentEquipmentSetPoint"))
-    )
-    if current_set_point < minimum_current_set_point:
-        return {
-            "recommendations": [],
-            "steps": [{
+        minimum_current_set_point = _number(
+            ((recipe.get("eligibility") or {}).get("minimumCurrentEquipmentSetPoint"))
+        )
+        if current_set_point < minimum_current_set_point:
+            steps.append({
                 "reason": "below_relic_craft_minimum_equipment_set_point",
                 "currentEquipmentSetPoint": current_set_point,
                 "minimumEquipmentSetPoint": minimum_current_set_point,
-            }],
-        }
+            })
+            continue
+        contexts.append({
+            "recipe": recipe,
+            "targetConfig": target_config,
+            "targetItemId": target_item_id,
+            "current": current,
+        })
+    return contexts, steps
 
-    details = {
-        clean_text(detail.get("itemId")): detail
-        for detail in fetch_item_details([current.get("itemId"), target_item_id])
-    }
+
+def _build_recipe_recommendation(
+    *,
+    context: dict,
+    details: dict,
+    material_prices: dict,
+    current_set_point: float,
+) -> tuple[dict, dict]:
+    recipe = context["recipe"]
+    target_config = context["targetConfig"]
+    target_item_id = context["targetItemId"]
+    current = context["current"]
     current_detail = details.get(clean_text(current.get("itemId"))) or {}
     target_detail = details.get(target_item_id) or {}
     if not current_detail:
-        return {"recommendations": [], "steps": [{"reason": "missing_or_invalid_relic_craft_item_detail"}]}
+        return {}, {"reason": "missing_or_invalid_relic_craft_item_detail"}
 
     precision = recipe.get("precision100") or {}
     target_body, target_reason = normalize_relic_craft_target_equipment_body(
@@ -152,14 +164,14 @@ def build_relic_craft_recommendations_debug(
         item_explain=get_item_explain(target_detail),
     )
     if target_reason:
-        return {"recommendations": [], "steps": [{"reason": target_reason}]}
+        return {}, {"reason": target_reason}
 
     current_effects = normalize_enchant_status(current_detail.get("itemStatus") or [])
     current_body = _build_current_equipment_body(current, current_detail, current_effects)
     target_effects = target_body["effects"]
     effects = subtract_effects(target_effects, current_effects)
     if not effects:
-        return {"recommendations": [], "steps": [{"reason": "no_relic_craft_effect_delta"}]}
+        return {}, {"reason": "no_relic_craft_effect_delta"}
 
     target_set_point = (
         current_set_point
@@ -167,15 +179,15 @@ def build_relic_craft_recommendations_debug(
         + _number(target_body.get("tuneSetPoint"))
     )
 
-    materials = _build_materials(recipe, material_prices or {})
+    materials = _build_materials(recipe, material_prices)
     if not materials:
-        return {"recommendations": [], "steps": [{"reason": "missing_relic_craft_material_price"}]}
+        return {}, {"reason": "missing_relic_craft_material_price"}
 
     fixed_gold = _number((recipe.get("baseCraft") or {}).get("fixedGold")) + _number(
         precision.get("fixedGold")
     )
     if fixed_gold <= 0:
-        return {"recommendations": [], "steps": [{"reason": "missing_relic_craft_fixed_gold"}]}
+        return {}, {"reason": "missing_relic_craft_fixed_gold"}
 
     display = recipe.get("display") or {}
     row = build_relic_craft_recommendation_row(
@@ -218,12 +230,53 @@ def build_relic_craft_recommendations_debug(
         current_equipment_set_point=current_set_point,
         target_equipment_set_point=target_set_point,
     )
+    return row, {
+        "name": "build_relic_craft_recommendation",
+        "currentEquipmentSetPoint": current_set_point,
+        "targetEquipmentSetPoint": target_set_point,
+    }
+
+
+def build_relic_craft_recommendations_debug(
+    equipment_rows: list,
+    material_prices: dict | None = None,
+) -> dict:
+    started_at = time.perf_counter()
+    recipes = _get_enabled_recipes()
+    if not recipes:
+        return {"recommendations": [], "steps": [{"reason": "missing_relic_craft_target_item"}]}
+
+    current_set_point = _get_equipment_set_point(equipment_rows)
+    contexts, steps = _build_recipe_contexts(recipes, equipment_rows, current_set_point)
+    if not contexts:
+        return {"recommendations": [], "steps": steps}
+
+    detail_ids = []
+    for context in contexts:
+        detail_ids.extend([
+            context["current"].get("itemId"),
+            context["targetItemId"],
+        ])
+    details = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(detail_ids)
+    }
+
+    recommendations = []
+    for context in contexts:
+        row, step = _build_recipe_recommendation(
+            context=context,
+            details=details,
+            material_prices=material_prices or {},
+            current_set_point=current_set_point,
+        )
+        if row:
+            recommendations.append(row)
+            step["ms"] = round((time.perf_counter() - started_at) * 1000, 1)
+        if step:
+            steps.append(step)
+
     return {
-        "recommendations": [row],
-        "steps": [{
-            "name": "build_relic_craft_recommendation",
-            "ms": round((time.perf_counter() - started_at) * 1000, 1),
-            "currentEquipmentSetPoint": current_set_point,
-            "targetEquipmentSetPoint": target_set_point,
-        }],
+        "recommendations": recommendations,
+        "steps": steps,
     }

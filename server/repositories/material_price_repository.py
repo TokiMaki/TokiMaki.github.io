@@ -22,6 +22,7 @@ UPGRADE_MATERIAL_PRICE_ITEMS = {
     "highElementalCrystal": {"label": "상급 원소결정", "itemId": "b682af8902d22554c7b90386abd18762"},
     "primordialSoul": {"label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888"},
     "behemothTear": {"label": "베히모스의 눈물(1회 교환 가능)", "itemId": ""},
+    "ignoranceDream": {"label": "무지의 꿈(1회 교환 가능)", "itemId": "56b00a8dfeda29398997e7b378effcb6"},
     "historiaQuartz": {"label": "히스토리아 쿼츠", "itemId": ""},
     "pilgrimSeal": {"label": "순례의 인장(1회 교환 가능)", "itemId": "d7e9443a19fe81a9cc8364c201f6ab55"},
 }

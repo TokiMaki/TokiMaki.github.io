@@ -18,9 +18,11 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         database = json.loads((ROOT / "Docs/relic_craft_db.json").read_text(encoding="utf-8"))
+        cls.database = database
         cls.recipe = database["crafts"][0]
         cls.target = cls.recipe["target"]
         cls.authoritative_effects = cls.recipe["authoritativeEffects"]
+        cls.cube_recipe = database["crafts"][1]
 
     def build_body(self, *, tune_set_point=145, normalized_status=None, authoritative_effects=None):
         detail = {
@@ -78,6 +80,72 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertEqual(aggregated_reason, "")
         self.assertEqual(aggregated_body["effects"]["buffPower"], 17580.0)
 
+    def test_weather_cube_authoritative_effect_and_recipe_contract(self):
+        recipe = self.cube_recipe
+        target = dict(recipe["target"], itemId="weather-cube-target")
+        authoritative_effects = recipe["authoritativeEffects"]
+        expected_final_damage = 78.86166335323423
+
+        self.assertTrue(recipe["target"]["itemId"])
+        self.assertEqual(recipe["target"]["slotId"], "EARRING")
+        self.assertEqual(recipe["manualPrices"]["weatherCubeShell"]["unitPrice"], 3500000000)
+        self.assertTrue(math.isclose(
+            get_relic_craft_final_damage_percent(authoritative_effects),
+            expected_final_damage,
+            abs_tol=1e-10,
+        ))
+        self.assertEqual(
+            authoritative_effects["finalDamage"]["additionalMultipliers"][0],
+            {
+                "type": "fixedFinalDamageMultiplier",
+                "sourceCooldownReductionPercent": 4,
+                "equivalentFinalDamagePercent": 1.59935,
+                "count": 5,
+            },
+        )
+        self.assertEqual(
+            authoritative_effects["buffPower"]["body"]
+            + authoritative_effects["buffPower"]["precision"],
+            17580,
+        )
+
+        material_amounts = {}
+        for group_name in ("baseCraft", "precision100"):
+            for material in recipe[group_name]["materials"]:
+                material_amounts[material["key"]] = (
+                    material_amounts.get(material["key"], 0) + material["amount"]
+                )
+        self.assertEqual(material_amounts, {
+            "weatherCubeShell": 1,
+            "ignoranceDream": 1200,
+            "historiaQuartz": 2500,
+            "primordialSoul": 5,
+        })
+        self.assertEqual(
+            recipe["baseCraft"]["fixedGold"] + recipe["precision100"]["fixedGold"],
+            200000000,
+        )
+
+        detail = {
+            **target,
+            "tune": [{"level": 0, "setPoint": 145, "upgrade": False}],
+            "itemReinforceSkill": [],
+            "itemBuff": {},
+        }
+        body, reason = normalize_relic_craft_target_equipment_body(
+            target_config=target,
+            target_detail=detail,
+            normalized_status={"finalDamage": 62.5, "attackIncrease": 4000, "buffPower": 12930},
+            precision=recipe["precision100"],
+            authoritative_effects=authoritative_effects,
+            icon_url="cube-icon",
+            item_explain="cube explain",
+        )
+        self.assertEqual(reason, "")
+        self.assertTrue(math.isclose(body["effects"]["finalDamage"], expected_final_damage, abs_tol=1e-10))
+        self.assertEqual(body["effects"]["buffPower"], 17580)
+        self.assertFalse(body["tuneUpgradeable"])
+
     def test_uses_detail_tune_set_point_without_local_fallback(self):
         body, reason = self.build_body(tune_set_point=187)
         self.assertEqual(reason, "")
@@ -89,7 +157,9 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
 
     def test_rejects_missing_authoritative_effect_contract(self):
         malformed = json.loads(json.dumps(self.authoritative_effects))
-        malformed["finalDamage"]["objectDamagePerFinalDamagePercent"] = 0
+        malformed["finalDamage"]["additionalMultipliers"][0][
+            "objectDamagePerFinalDamagePercent"
+        ] = 0
         body, reason = self.build_body(authoritative_effects=malformed)
         self.assertEqual(body, {})
         self.assertEqual(reason, "invalid_relic_craft_final_damage")
@@ -204,6 +274,121 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertEqual(row["materials"], materials)
         self.assertEqual(row["targetPrecisionPercent"], 100.0)
         self.assertEqual(row["precisionOperationCount"], 25)
+
+    def test_builds_perfume_and_cube_recommendations_together_when_ids_are_filled(self):
+        database = json.loads(json.dumps(self.database))
+        cube_recipe = database["crafts"][1]
+        cube_recipe["target"]["itemId"] = "weather-cube-target"
+        equipment_rows = [
+            {
+                "slotId": "MAGIC_STON",
+                "slotName": "마법석",
+                "itemId": "current-magic-stone",
+                "itemName": "현재 마법석",
+                "itemRarity": "에픽",
+                "tune": [{"level": 0, "setPoint": 215}],
+            },
+            {
+                "slotId": "EARRING",
+                "slotName": "귀걸이",
+                "itemId": "current-earring",
+                "itemName": "현재 귀걸이",
+                "itemRarity": "에픽",
+                "tune": [{"level": 0, "setPoint": 215}],
+            },
+            {
+                "slotId": "WEAPON",
+                "slotName": "무기",
+                "itemId": "set-point-host",
+                "itemName": "세트포인트 장비",
+                "itemRarity": "에픽",
+                "tune": [{"level": 0, "setPoint": 2190}],
+            },
+        ]
+        shared_buff = {"explain": "", "reinforceSkill": []}
+        details = [
+            {
+                "itemId": "current-magic-stone",
+                "itemName": "현재 마법석",
+                "itemRarity": "에픽",
+                "itemTypeDetail": "마법석",
+                "itemStatus": [
+                    {"name": "공격력 증가", "value": "3100%"},
+                    {"name": "버프력", "value": 11000},
+                    {"name": "최종 데미지 증가", "value": "35%"},
+                ],
+                "itemBuff": shared_buff,
+            },
+            {
+                "itemId": "current-earring",
+                "itemName": "현재 귀걸이",
+                "itemRarity": "에픽",
+                "itemTypeDetail": "귀걸이",
+                "itemStatus": [
+                    {"name": "공격력 증가", "value": "3200%"},
+                    {"name": "버프력", "value": 11100},
+                    {"name": "최종 데미지 증가", "value": "36%"},
+                ],
+                "itemBuff": shared_buff,
+            },
+            {
+                "itemId": self.target["itemId"],
+                "itemName": self.target["itemName"],
+                "itemRarity": self.target["itemRarity"],
+                "itemTypeDetail": self.target["itemTypeDetail"],
+                "tune": [{"level": 0, "setPoint": 145, "upgrade": False}],
+                "itemStatus": [{"name": "공격력 증가", "value": "3729%"}],
+                "itemBuff": shared_buff,
+            },
+            {
+                "itemId": "weather-cube-target",
+                "itemName": cube_recipe["target"]["itemName"],
+                "itemRarity": cube_recipe["target"]["itemRarity"],
+                "itemTypeDetail": cube_recipe["target"]["itemTypeDetail"],
+                "tune": [{"level": 0, "setPoint": 145, "upgrade": False}],
+                "itemStatus": [{"name": "공격력 증가", "value": "3800%"}],
+                "itemBuff": shared_buff,
+            },
+        ]
+
+        def build_materials(recipe, _material_prices):
+            return [{
+                "key": recipe["key"],
+                "label": recipe["key"],
+                "amount": 1,
+                "auction": {"minUnitPrice": 1},
+            }]
+
+        with patch(
+            "server.candidates.relic_craft.load_relic_craft_db",
+            return_value=database,
+        ), patch(
+            "server.candidates.relic_craft.fetch_item_details",
+            return_value=details,
+        ) as fetch_details, patch(
+            "server.candidates.relic_craft._build_materials",
+            side_effect=build_materials,
+        ):
+            result = build_relic_craft_recommendations_debug(equipment_rows, {})
+
+        self.assertEqual([row["slot"] for row in result["recommendations"]], ["마법석", "귀걸이"])
+        self.assertEqual([row["targetSlotId"] for row in result["recommendations"]], ["MAGIC_STON", "EARRING"])
+        self.assertEqual(fetch_details.call_count, 1)
+        self.assertEqual(set(fetch_details.call_args.args[0]), {
+            "current-magic-stone",
+            "current-earring",
+            self.target["itemId"],
+            "weather-cube-target",
+        })
+        cube_row = result["recommendations"][1]
+        self.assertTrue(math.isclose(
+            cube_row["targetEffects"]["finalDamage"],
+            78.86166335323423,
+            abs_tol=1e-10,
+        ))
+        self.assertEqual(cube_row["targetEffects"]["buffPower"], 17580.0)
+        self.assertEqual(cube_row["targetEquipmentBody"]["tuneUpgradeable"], False)
+        self.assertEqual(cube_row["targetEquipmentSetPoint"], 2550.0)
 
     def test_calculation_constants_have_one_authoritative_source(self):
         helper_source = (ROOT / "server/equipment_body.py").read_text(encoding="utf-8")

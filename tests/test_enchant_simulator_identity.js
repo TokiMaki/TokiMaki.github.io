@@ -338,6 +338,21 @@ function testDealerSourceIdentityMatrix() {
     identity.getRelicCraftCandidateSignature(relicCraft),
     'relicCraft:마법석:perfume-1:finalDamage:70.67376612|attack:3729',
   );
+  const relicCube = {
+    ...relicCraft,
+    targetSlotId: 'EARRING',
+    targetEquipmentBody: {
+      slotId: 'EARRING',
+      slotName: '귀걸이',
+      itemId: 'weather-cube-1',
+      effects: { finalDamage: 78.86166335323423, attack: 3800 },
+    },
+  };
+  assert.equal(identity.getRelicCraftExclusiveGroupKey(relicCube), 'relicCraft:귀걸이');
+  assert.notEqual(
+    identity.getRelicCraftExclusiveGroupKey(relicCraft),
+    identity.getRelicCraftExclusiveGroupKey(relicCube),
+  );
   assert.equal(identity.getRelicCraftExclusiveGroupKey({
     ...relicCraft,
     targetEquipmentBody: {

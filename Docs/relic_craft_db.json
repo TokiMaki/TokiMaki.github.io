@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "crafts": [
     {
       "key": "elegantDignityPerfume",
@@ -47,9 +47,76 @@
         "finalDamage": {
           "bodyPercent": 48.9,
           "precisionPercent": 13.1,
-          "objectDamagePercentPerHit": 90900,
-          "objectHitCount": 4,
-          "objectDamagePerFinalDamagePercent": 270000
+          "additionalMultipliers": [
+            {
+              "type": "objectDamageConversion",
+              "objectDamagePercentPerHit": 90900,
+              "hitCount": 4,
+              "objectDamagePerFinalDamagePercent": 270000
+            }
+          ]
+        },
+        "buffPower": {
+          "body": 12930,
+          "precision": 4650
+        },
+        "requiredBaseEffectKeys": ["attackIncrease"]
+      }
+    },
+    {
+      "key": "radiantWeatherCube",
+      "enabled": true,
+      "sourceType": "relicCraft",
+      "display": {
+        "cardTitle": "유물 제작",
+        "cardSubtitle": "귀걸이"
+      },
+      "target": {
+        "itemId": "14449881bc371352c250502e7b201506",
+        "itemName": "영롱한 날씨의 큐브",
+        "itemRarity": "태초",
+        "slotId": "EARRING",
+        "itemTypeDetail": "귀걸이"
+      },
+      "eligibility": {
+        "minimumCurrentEquipmentSetPoint": 2620
+      },
+      "manualPrices": {
+        "weatherCubeShell": {
+          "unitPrice": 3500000000,
+          "editable": true
+        }
+      },
+      "baseCraft": {
+        "fixedGold": 100000000,
+        "materials": [
+          { "key": "weatherCubeShell", "label": "힘을 잃은 날씨의 큐브", "itemId": "5a6fffbe89d6d4ffc92b606dfce09b77", "amount": 1, "priceSource": "localManual" },
+          { "key": "ignoranceDream", "label": "무지의 꿈(1회 교환 가능)", "itemId": "56b00a8dfeda29398997e7b378effcb6", "amount": 1000, "priceSource": "materialResolver" },
+          { "key": "historiaQuartz", "label": "히스토리아 쿼츠", "itemId": "c1e1dd70d4dbdf410fe715b339000821", "amount": 2000, "priceSource": "materialResolver" },
+          { "key": "primordialSoul", "label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888", "amount": 5, "priceSource": "materialResolver" }
+        ]
+      },
+      "precision100": {
+        "targetPercent": 100,
+        "operationCount": 25,
+        "fixedGold": 100000000,
+        "materials": [
+          { "key": "ignoranceDream", "amount": 200 },
+          { "key": "historiaQuartz", "amount": 500 }
+        ]
+      },
+      "authoritativeEffects": {
+        "finalDamage": {
+          "bodyPercent": 50.2,
+          "precisionPercent": 10.0,
+          "additionalMultipliers": [
+            {
+              "type": "fixedFinalDamageMultiplier",
+              "sourceCooldownReductionPercent": 4,
+              "equivalentFinalDamagePercent": 1.59935,
+              "count": 5
+            }
+          ]
         },
         "buffPower": {
           "body": 12930,

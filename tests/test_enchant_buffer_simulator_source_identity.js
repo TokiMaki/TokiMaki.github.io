@@ -180,6 +180,17 @@ assert.equal(
   identity.getBufferRelicCraftCandidateSignature(relicCraftRow),
   'bufferRelicCraft:마법석:perfume-1:effect:{"buffPower":17580}',
 );
+const relicCubeRow = {
+  ...relicCraftRow,
+  slot: '귀걸이',
+  targetSlotId: 'EARRING',
+  targetItemId: 'weather-cube-1',
+};
+assert.equal(identity.getBufferRelicCraftExclusiveGroupKey(relicCubeRow), 'bufferRelicCraft:귀걸이');
+assert.notEqual(
+  identity.getBufferRelicCraftExclusiveGroupKey(relicCraftRow),
+  identity.getBufferRelicCraftExclusiveGroupKey(relicCubeRow),
+);
 assert.equal(identity.getBufferRelicCraftExclusiveGroupKey({ ...relicCraftRow, slot: '보조장비' }), '');
 assert.equal(identity.getBufferRelicCraftCandidateSignature({ ...relicCraftRow, targetItemId: '' }), '');
 

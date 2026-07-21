@@ -57,15 +57,47 @@ def get_relic_craft_final_damage_percent(authoritative_effects: dict) -> float:
     config = (authoritative_effects or {}).get("finalDamage") or {}
     body_multiplier = 1 + _number(config.get("bodyPercent")) / 100
     precision_multiplier = 1 + _number(config.get("precisionPercent")) / 100
-    object_damage_per_final_damage = _number(config.get("objectDamagePerFinalDamagePercent"))
-    if object_damage_per_final_damage <= 0:
+    if body_multiplier <= 1 or precision_multiplier <= 1:
         return 0.0
-    object_multiplier = 1 + (
-        _number(config.get("objectDamagePercentPerHit"))
-        * _number(config.get("objectHitCount"))
-        / object_damage_per_final_damage
-    ) / 100
-    return (body_multiplier * precision_multiplier * object_multiplier - 1) * 100
+
+    additional_multiplier = 1.0
+    for row in config.get("additionalMultipliers") or []:
+        multiplier_type = _clean_text(row.get("type"))
+        count = _number(row.get("count")) or 1
+        if count <= 0:
+            return 0.0
+        if multiplier_type == "objectDamageConversion":
+            object_damage_per_final_damage = _number(
+                row.get("objectDamagePerFinalDamagePercent")
+            )
+            if object_damage_per_final_damage <= 0:
+                return 0.0
+            converted_final_damage_percent = (
+                _number(row.get("objectDamagePercentPerHit"))
+                * _number(row.get("hitCount"))
+                / object_damage_per_final_damage
+            )
+            if converted_final_damage_percent <= 0:
+                return 0.0
+            additional_multiplier *= 1 + converted_final_damage_percent / 100
+        elif multiplier_type == "fixedFinalDamageMultiplier":
+            equivalent_final_damage_percent = _number(
+                row.get("equivalentFinalDamagePercent")
+            )
+            if equivalent_final_damage_percent <= 0:
+                return 0.0
+            additional_multiplier *= (
+                1 + equivalent_final_damage_percent / 100
+            ) ** count
+        else:
+            return 0.0
+
+    return (
+        body_multiplier
+        * precision_multiplier
+        * additional_multiplier
+        - 1
+    ) * 100
 
 
 def normalize_relic_craft_target_equipment_body(
