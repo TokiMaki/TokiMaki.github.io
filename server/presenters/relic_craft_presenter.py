@@ -3,6 +3,7 @@ def build_relic_craft_recommendation_row(**values) -> dict:
     current_body = values["current_equipment_body"]
     return {
         "sourceType": values["source_type"],
+        "relicCraftMode": values.get("relic_craft_mode") or "craft",
         "slot": values["slot"],
         "targetSlotId": values["target_slot_id"],
         "tier": values["tier"],
@@ -16,6 +17,8 @@ def build_relic_craft_recommendation_row(**values) -> dict:
         "effects": values["effects"],
         "currentEffects": values["current_effects"],
         "targetEffects": values["target_effects"],
+        "currentPrecisionEffects": values.get("current_precision_effects") or {},
+        "targetPrecisionEffects": values.get("target_precision_effects") or {},
         "currentEquipmentBody": current_body,
         "targetEquipmentBody": target_body,
         "auction": values["auction"],
@@ -25,7 +28,9 @@ def build_relic_craft_recommendation_row(**values) -> dict:
         "materials": values["materials"],
         "materialText": values["material_text"],
         "priceComplete": True,
+        "currentPrecisionPercent": values.get("current_precision_percent") or 0,
         "targetPrecisionPercent": values["precision_percent"],
+        "fullPrecisionOperationCount": values.get("full_precision_operation_count") or values["precision_operation_count"],
         "precisionOperationCount": values["precision_operation_count"],
         "currentSlotSetPoint": values["current_slot_set_point"],
         "targetSlotSetPoint": values["target_slot_set_point"],

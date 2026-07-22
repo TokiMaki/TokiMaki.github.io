@@ -201,7 +201,7 @@ function formatKoreanGoldUnits(value) {
 
 function formatMaterialAmount(value) {
   if (!Number.isFinite(value) || value <= 0) return '';
-  if (value >= 100) return Math.round(value).toLocaleString('ko-KR');
+  if (Number.isInteger(value)) return value.toLocaleString('ko-KR');
   return value.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 }
 
@@ -400,6 +400,22 @@ function formatBlackFangEffect(row, isBuffer = false) {
     .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
   const baseText = parts.length ? parts.join(' / ') : formatEffects(changedEffects);
   return [baseText, row.conditionalEffectText].filter(Boolean).join(' / ');
+}
+
+function formatRelicCraftEffect(row, isBuffer = false) {
+  if (row && row.relicCraftMode !== 'precision') return formatBlackFangEffect(row, isBuffer);
+  const currentEffects = row.currentPrecisionEffects || {};
+  const targetEffects = row.targetPrecisionEffects || {};
+  const effectKey = isBuffer ? 'buffPower' : 'finalDamage';
+  if (
+    !Number.isFinite(Number(currentEffects[effectKey]))
+    || !Number.isFinite(Number(targetEffects[effectKey]))
+  ) return '';
+  return formatEffectTransitionValue(
+    effectKey,
+    Number(currentEffects[effectKey]),
+    Number(targetEffects[effectKey]),
+  );
 }
 
 function getBufferPrimaryStatKey(baseline = {}) {
@@ -948,6 +964,8 @@ function attachEquipmentBodyBaseData(equipmentRows = [], recommendations = []) {
       bodyEffects: cloneSimulatorValue(
         currentBody.effects || recommendation.currentEffects || {},
       ),
+      precisionPercent: Number(currentBody.precisionPercent || 0),
+      precisionAdventureFame: Number(currentBody.precisionAdventureFame || 0),
       bodyExplain: currentBody.itemExplain || '',
       itemReinforceSkill: cloneSimulatorValue(currentBody.itemReinforceSkill || []),
       itemBuff: cloneSimulatorValue(currentBody.itemBuff || {}),
@@ -5974,7 +5992,7 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'blackFang'
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'relicCraft'
-          ? formatBlackFangEffect(row, isBufferMetric)
+          ? formatRelicCraftEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
           ? formatEnchantTransitionEffect(row, isBufferMetric, activeDamageBaseline)
         : row.sourceType === 'creatureArtifact'
@@ -6100,7 +6118,7 @@ export function installEnchantView(ctx) {
       const relicCraftMaterialsMarkup = hasRelicCraftMaterialGroups
         ? [
           formatRelicCraftMaterialGroup('제작 재료', 'craftAmount'),
-          formatRelicCraftMaterialGroup('조율 재료 (' + Number(row.precisionOperationCount || RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT) + '회 기준)', 'tuneAmount'),
+          formatRelicCraftMaterialGroup('정밀 재료 (' + formatMaterialAmount(Number(row.precisionOperationCount || RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT)) + '회 상당)', 'tuneAmount'),
         ].filter(Boolean).join('')
         : '';
       const formatCombinedAcquisitionMaterials = (label, variant) => {

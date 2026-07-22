@@ -39,6 +39,8 @@ const perfume = {
   itemRarity: '태초',
   iconUrl: 'perfume-icon',
   effects: { finalDamage: 70.67376612, attackIncrease: 45, buffPower: 17580 },
+  precisionPercent: 100,
+  precisionAdventureFame: 1000,
   itemExplain: 'perfume explain',
   itemReinforceSkill: [{ jobName: '공통', skills: [{ name: '버프', value: 1 }] }],
   itemBuff: { explain: 'perfume buff' },
@@ -66,6 +68,8 @@ assert.equal(isRelicCraftEquipmentSetPointEligible({ sourceType: 'relicCraft' })
 const applied = replaceEquipmentBodyPreservingState(base, perfume);
 assert.equal(applied.itemId, perfume.itemId);
 assert.deepEqual(applied.bodyEffects, perfume.effects);
+assert.equal(applied.precisionPercent, 100);
+assert.equal(applied.precisionAdventureFame, 1000);
 assert.equal(applied.tuneSetPoint, 145);
 assert.equal(applied.tuneLevel, 0);
 assert.equal(applied.tuneUpgradeable, false);

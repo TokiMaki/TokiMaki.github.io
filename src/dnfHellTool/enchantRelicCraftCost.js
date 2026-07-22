@@ -23,7 +23,15 @@ export function normalizeRelicCraftTuneAttempts(value, fallback = RELIC_CRAFT_TU
 
 export function applyRelicCraftTuneAttemptCosts(row = {}, tuneAttempts = RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT) {
   if (row?.sourceType !== 'relicCraft') return row;
-  const attempts = normalizeRelicCraftTuneAttempts(tuneAttempts, row.precisionOperationCount);
+  const fullAttempts = normalizeRelicCraftTuneAttempts(
+    tuneAttempts,
+    row.fullPrecisionOperationCount || row.precisionOperationCount,
+  );
+  const currentPrecisionPercent = Math.min(100, Math.max(0, finiteNumber(row.currentPrecisionPercent)));
+  const remainingRatio = row.relicCraftMode === 'precision'
+    ? (100 - currentPrecisionPercent) / 100
+    : 1;
+  const attempts = fullAttempts * remainingRatio;
   const craftFixedGold = finiteNumber(row.craftFixedGold);
   const tuneFixedGoldPerAttempt = finiteNumber(row.tuneFixedGoldPerAttempt);
   const hasSplitFixedGold = craftFixedGold > 0 || tuneFixedGoldPerAttempt > 0;
@@ -53,6 +61,7 @@ export function applyRelicCraftTuneAttemptCosts(row = {}, tuneAttempts = RELIC_C
       averagePrice: expectedGold,
     },
     materials,
+    fullPrecisionOperationCount: fullAttempts,
     precisionOperationCount: attempts,
   };
 }

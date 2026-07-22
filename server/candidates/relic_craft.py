@@ -5,7 +5,9 @@ from ..data_store import load_relic_craft_db
 from ..effects import normalize_enchant_status, subtract_effects
 from ..equipment_body import (
     get_equipment_tune_set_point,
+    get_relic_precision_effects,
     normalize_relic_craft_target_equipment_body,
+    resolve_relic_precision_percent,
     resolve_canonical_equipment_slot_id,
     resolve_canonical_equipment_slot_name,
 )
@@ -35,10 +37,25 @@ def _get_equipment_set_point(equipment_rows: list) -> float:
     return sum(get_equipment_tune_set_point(equipment) for equipment in equipment_rows or [])
 
 
-def _build_materials(recipe: dict, material_prices: dict) -> list:
+def _material_number(value):
+    number = _number(value)
+    return int(number) if number.is_integer() else number
+
+
+def _build_materials(
+    recipe: dict,
+    material_prices: dict,
+    *,
+    operation_count=None,
+    include_craft: bool = True,
+) -> list:
     by_key = {}
     precision = recipe.get("precision100") or {}
-    operation_count = int(_number(precision.get("operationCount")))
+    resolved_operation_count = (
+        _number(precision.get("operationCount"))
+        if operation_count is None
+        else max(0.0, _number(operation_count))
+    )
     for group_name, group in (
         ("craft", recipe.get("baseCraft") or {}),
         ("tune", precision),
@@ -57,9 +74,13 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
                     tuneAmountPerAttempt=0,
                 ),
             )
+            for metadata_key in ("label", "itemId", "priceSource"):
+                if not clean_text(merged.get(metadata_key)) and clean_text(material.get(metadata_key)):
+                    merged[metadata_key] = material.get(metadata_key)
             if group_name == "craft":
-                craft_amount = _number(material.get("amount"))
-                merged["craftAmount"] = _number(merged.get("craftAmount")) + craft_amount
+                if include_craft:
+                    craft_amount = _number(material.get("amount"))
+                    merged["craftAmount"] = _number(merged.get("craftAmount")) + craft_amount
             else:
                 tune_amount_per_attempt = _number(material.get("amountPerAttempt"))
                 merged["tuneAmountPerAttempt"] = (
@@ -67,14 +88,16 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
                 )
 
     for material in by_key.values():
-        material["tuneAmount"] = _number(material.get("tuneAmountPerAttempt")) * operation_count
+        material["tuneAmount"] = (
+            _number(material.get("tuneAmountPerAttempt")) * resolved_operation_count
+        )
         material["amount"] = _number(material.get("craftAmount")) + _number(material.get("tuneAmount"))
 
     rows = []
     for key, material in by_key.items():
         amount = _number(material.get("amount"))
         if amount <= 0:
-            return []
+            continue
         price_source = clean_text(material.get("priceSource"))
         if price_source == "displayOnly":
             auction = {
@@ -114,10 +137,10 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
             "key": key,
             "label": label,
             "itemId": item_id,
-            "amount": int(amount),
-            "craftAmount": int(_number(material.get("craftAmount"))),
-            "tuneAmount": int(_number(material.get("tuneAmount"))),
-            "tuneAmountPerAttempt": int(_number(material.get("tuneAmountPerAttempt"))),
+            "amount": _material_number(amount),
+            "craftAmount": _material_number(material.get("craftAmount")),
+            "tuneAmount": _material_number(material.get("tuneAmount")),
+            "tuneAmountPerAttempt": _material_number(material.get("tuneAmountPerAttempt")),
             "auction": auction,
         })
     return build_upgrade_material_display_rows(rows)
@@ -155,13 +178,31 @@ def _build_recipe_contexts(recipes: list, equipment_rows: list, current_set_poin
             row for row in equipment_rows or []
             if resolve_canonical_equipment_slot_id(row) == target_slot_id
         ), {})
-        if not current or clean_text(current.get("itemId")) == target_item_id:
+        if not current:
             continue
 
+        same_item = clean_text(current.get("itemId")) == target_item_id
+        current_precision_percent = None
+        mode = "craft"
         minimum_current_set_point = _number(
             ((recipe.get("eligibility") or {}).get("minimumCurrentEquipmentSetPoint"))
         )
-        if current_set_point < minimum_current_set_point:
+        if same_item:
+            mode = "precision"
+            current_precision_percent = resolve_relic_precision_percent(
+                current.get("potency"),
+            )
+            if current_precision_percent is None:
+                steps.append({
+                    "reason": "unresolved_unique_precision_percent",
+                    "itemId": target_item_id,
+                    "potency": current.get("potency"),
+                })
+                continue
+            if current_precision_percent >= 100:
+                continue
+            minimum_current_set_point = 0.0
+        elif current_set_point < minimum_current_set_point:
             steps.append({
                 "reason": "below_relic_craft_minimum_equipment_set_point",
                 "currentEquipmentSetPoint": current_set_point,
@@ -173,6 +214,8 @@ def _build_recipe_contexts(recipes: list, equipment_rows: list, current_set_poin
             "targetConfig": target_config,
             "targetItemId": target_item_id,
             "current": current,
+            "mode": mode,
+            "currentPrecisionPercent": current_precision_percent,
             "minimumCurrentEquipmentSetPoint": minimum_current_set_point,
         })
     return contexts, steps
@@ -189,26 +232,46 @@ def _build_recipe_recommendation(
     target_config = context["targetConfig"]
     target_item_id = context["targetItemId"]
     current = context["current"]
+    mode = context.get("mode") or "craft"
+    current_precision_percent = context.get("currentPrecisionPercent")
     current_detail = details.get(clean_text(current.get("itemId"))) or {}
     target_detail = details.get(target_item_id) or {}
-    if not current_detail:
+    if not current_detail or not target_detail:
         return {}, {"reason": "missing_or_invalid_relic_craft_item_detail"}
 
     precision = recipe.get("precision100") or {}
+    authoritative_effects = recipe.get("authoritativeEffects") or {}
+    normalized_target_status = normalize_enchant_status(target_detail.get("itemStatus") or [])
     target_body, target_reason = normalize_relic_craft_target_equipment_body(
         target_config=target_config,
         target_detail=target_detail,
-        normalized_status=normalize_enchant_status(target_detail.get("itemStatus") or []),
+        normalized_status=normalized_target_status,
         precision=precision,
-        authoritative_effects=recipe.get("authoritativeEffects") or {},
+        authoritative_effects=authoritative_effects,
         icon_url=get_item_icon_url(target_item_id),
         item_explain=get_item_explain(target_detail),
     )
     if target_reason:
         return {}, {"reason": target_reason}
 
-    current_effects = normalize_enchant_status(current_detail.get("itemStatus") or [])
-    current_body = _build_current_equipment_body(current, current_detail, current_effects)
+    if mode == "precision":
+        current_body, current_reason = normalize_relic_craft_target_equipment_body(
+            target_config=target_config,
+            target_detail=target_detail,
+            normalized_status=normalized_target_status,
+            precision=precision,
+            authoritative_effects=authoritative_effects,
+            icon_url=get_item_icon_url(target_item_id),
+            item_explain=get_item_explain(target_detail),
+            precision_percent=current_precision_percent,
+        )
+        if current_reason:
+            return {}, {"reason": current_reason}
+        current_effects = current_body["effects"]
+    else:
+        current_effects = normalize_enchant_status(current_detail.get("itemStatus") or [])
+        current_body = _build_current_equipment_body(current, current_detail, current_effects)
+
     target_effects = target_body["effects"]
     effects = subtract_effects(target_effects, current_effects)
     if not effects:
@@ -220,18 +283,57 @@ def _build_recipe_recommendation(
         + _number(target_body.get("tuneSetPoint"))
     )
 
-    materials = _build_materials(recipe, material_prices)
+    full_precision_operation_count = _number(precision.get("operationCount"))
+    remaining_ratio = (
+        max(0.0, 100.0 - _number(current_precision_percent)) / 100.0
+        if mode == "precision"
+        else 1.0
+    )
+    precision_operation_count = full_precision_operation_count * remaining_ratio
+    materials = (
+        _build_materials(
+            recipe,
+            material_prices,
+            operation_count=precision_operation_count,
+            include_craft=False,
+        )
+        if mode == "precision"
+        else _build_materials(recipe, material_prices)
+    )
     if not materials:
         return {}, {"reason": "missing_relic_craft_material_price"}
 
-    craft_fixed_gold = _number((recipe.get("baseCraft") or {}).get("fixedGold"))
+    craft_fixed_gold = (
+        _number((recipe.get("baseCraft") or {}).get("fixedGold"))
+        if mode == "craft"
+        else 0.0
+    )
     tune_fixed_gold_per_attempt = _number(precision.get("fixedGoldPerAttempt"))
-    precision_operation_count = int(_number(precision.get("operationCount")))
     fixed_gold = craft_fixed_gold + tune_fixed_gold_per_attempt * precision_operation_count
     if fixed_gold <= 0:
         return {}, {"reason": "missing_relic_craft_fixed_gold"}
 
     display = recipe.get("display") or {}
+    target_precision_percent = _number(precision.get("targetPercent"))
+    current_precision_effects = (
+        get_relic_precision_effects(precision, current_precision_percent)
+        if mode == "precision"
+        else {}
+    )
+    target_precision_effects = (
+        get_relic_precision_effects(precision, target_precision_percent)
+        if mode == "precision"
+        else {}
+    )
+    item_explain = (
+        f"{target_body['itemName']} 정밀도 {int(_number(current_precision_percent))}% -> "
+        f"{int(target_precision_percent)}%"
+        if mode == "precision"
+        else (
+            f"{current_body['itemName']} -> {target_body['itemName']} "
+            f"(정밀도 {int(target_precision_percent)}%)"
+        )
+    )
     row = build_relic_craft_recommendation_row(
         slot=target_body["slot"],
         target_slot_id=target_body["slotId"],
@@ -239,13 +341,12 @@ def _build_recipe_recommendation(
         item_name=target_body["itemName"],
         item_rarity=target_body["itemRarity"],
         icon_url=target_body["iconUrl"],
-        item_explain=(
-            f"{current_body['itemName']} -> {target_body['itemName']} "
-            f"(정밀도 {int(_number(precision.get('targetPercent')))}%)"
-        ),
+        item_explain=item_explain,
         effects=effects,
         current_effects=current_effects,
         target_effects=target_effects,
+        current_precision_effects=current_precision_effects,
+        target_precision_effects=target_precision_effects,
         current_equipment_body=current_body,
         target_equipment_body=target_body,
         auction={
@@ -263,11 +364,18 @@ def _build_recipe_recommendation(
         material_text=" / ".join(
             f"{material['label']} {material['amount']:,}개" for material in materials
         ),
-        card_title=display.get("cardTitle") or "유일 제작",
+        card_title=(
+            display.get("precisionCardTitle") or "유일 정밀"
+            if mode == "precision"
+            else display.get("cardTitle") or "유일 제작"
+        ),
         card_subtitle=display.get("cardSubtitle") or target_body["slot"],
         source_type=recipe.get("sourceType") or "relicCraft",
+        relic_craft_mode=mode,
         tier=target_body["itemRarity"],
-        precision_percent=_number(precision.get("targetPercent")),
+        current_precision_percent=_number(current_precision_percent),
+        precision_percent=target_precision_percent,
+        full_precision_operation_count=full_precision_operation_count,
         precision_operation_count=precision_operation_count,
         current_slot_set_point=current_body["tuneSetPoint"],
         target_slot_set_point=target_body["tuneSetPoint"],
@@ -277,6 +385,8 @@ def _build_recipe_recommendation(
     )
     return row, {
         "name": "build_relic_craft_recommendation",
+        "mode": mode,
+        "currentPrecisionPercent": current_precision_percent,
         "currentEquipmentSetPoint": current_set_point,
         "targetEquipmentSetPoint": target_set_point,
     }

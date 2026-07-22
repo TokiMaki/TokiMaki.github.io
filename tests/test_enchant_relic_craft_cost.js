@@ -55,6 +55,33 @@ assert.deepEqual(adjusted.materials.map(({ amount, craftAmount, tuneAmount, tune
 assert.equal(baseRow.expectedGold, 200000000);
 assert.equal(baseRow.materials[0].amount, 1500);
 
+const precisionOnlyRow = {
+  sourceType: 'relicCraft',
+  relicCraftMode: 'precision',
+  currentPrecisionPercent: 25,
+  fullPrecisionOperationCount: 25,
+  precisionOperationCount: 18.75,
+  expectedGold: 75000000,
+  craftFixedGold: 0,
+  tuneFixedGoldPerAttempt: 4000000,
+  auction: { minUnitPrice: 75000000, averagePrice: 75000000 },
+  materials: [{
+    key: 'precision-only',
+    craftAmount: 0,
+    tuneAmountPerAttempt: 20,
+    tuneAmount: 375,
+    amount: 375,
+    auction: { minUnitPrice: 10 },
+  }],
+};
+const precisionAdjusted = applyRelicCraftTuneAttemptCosts(precisionOnlyRow, 50);
+assert.equal(precisionAdjusted.fullPrecisionOperationCount, 50);
+assert.equal(precisionAdjusted.precisionOperationCount, 37.5);
+assert.equal(precisionAdjusted.expectedGold, 150000000);
+assert.equal(precisionAdjusted.materials[0].craftAmount, 0);
+assert.equal(precisionAdjusted.materials[0].tuneAmount, 750);
+assert.equal(precisionAdjusted.materials[0].amount, 750);
+
 const normalRow = { sourceType: 'upgrade', expectedGold: 123 };
 assert.strictEqual(applyRelicCraftTuneAttemptCosts(normalRow, 50), normalRow);
 

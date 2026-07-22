@@ -38,6 +38,18 @@
         "targetPercent": 100,
         "operationCount": 25,
         "fixedGoldPerAttempt": 4000000,
+        "progression": {
+          "perPercent": { "finalDamage": 0.1, "buffPower": 30, "adventureFame": 5 },
+          "milestones": [
+            { "percent": 25, "finalDamage": 0.5, "buffPower": 390, "adventureFame": 100 },
+            { "percent": 50, "finalDamage": 0.6, "buffPower": 420, "adventureFame": 100 },
+            { "percent": 75, "finalDamage": 0.6, "buffPower": 420, "adventureFame": 100 },
+            { "percent": 100, "finalDamage": 1.8, "buffPower": 540, "adventureFame": 220 }
+          ],
+          "additionalMultiplierCounts": [
+            { "index": 0, "baseCount": 0, "countPerMilestone": 1, "milestonePercent": 25, "maxCount": 4 }
+          ]
+        },
         "materials": [
           { "key": "behemothTear", "amountPerAttempt": 8 },
           { "key": "historiaQuartz", "amountPerAttempt": 20 }
@@ -100,6 +112,18 @@
         "targetPercent": 100,
         "operationCount": 25,
         "fixedGoldPerAttempt": 4000000,
+        "progression": {
+          "perPercent": { "finalDamage": 0.1, "buffPower": 30, "adventureFame": 5 },
+          "milestones": [
+            { "percent": 25, "finalDamage": 0.1, "buffPower": 390, "adventureFame": 190 },
+            { "percent": 50, "finalDamage": 0.1, "buffPower": 420, "adventureFame": 190 },
+            { "percent": 75, "finalDamage": 0.1, "buffPower": 420, "adventureFame": 190 },
+            { "percent": 100, "finalDamage": 0.1, "buffPower": 540, "adventureFame": 320 }
+          ],
+          "additionalMultiplierCounts": [
+            { "index": 0, "baseCount": 1, "countPerMilestone": 1, "milestonePercent": 25, "maxCount": 5 }
+          ]
+        },
         "materials": [
           { "key": "ignoranceDream", "amountPerAttempt": 8 },
           { "key": "historiaQuartz", "amountPerAttempt": 20 }
@@ -156,6 +180,16 @@
         "targetPercent": 100,
         "operationCount": 25,
         "fixedGoldPerAttempt": 4000000,
+        "progression": {
+          "perPercent": { "finalDamage": 0.1, "buffPower": 30, "adventureFame": 5 },
+          "milestones": [
+            { "percent": 25, "finalDamage": 0.1, "buffPower": 350, "adventureFame": 190 },
+            { "percent": 50, "finalDamage": 0.1, "buffPower": 380, "adventureFame": 190 },
+            { "percent": 75, "finalDamage": 0.1, "buffPower": 380, "adventureFame": 190 },
+            { "percent": 100, "finalDamage": 0.1, "buffPower": 510, "adventureFame": 320 }
+          ],
+          "additionalMultiplierCounts": []
+        },
         "materials": [
           { "key": "plagueSeed", "amountPerAttempt": 30 },
           { "key": "epicSoul", "amountPerAttempt": 40 }

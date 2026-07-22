@@ -53,34 +53,122 @@ def get_equipment_tune_set_point(row: dict | None) -> float:
     )
 
 
-def get_relic_craft_final_damage_percent(authoritative_effects: dict) -> float:
+def _clamp_precision_percent(value) -> int:
+    return max(0, min(100, int(round(_number(value)))))
+
+
+def get_relic_precision_effects(precision: dict, precision_percent) -> dict:
+    progression = (precision or {}).get("progression") or {}
+    per_percent = progression.get("perPercent") or {}
+    milestone_by_percent = {
+        _clamp_precision_percent(row.get("percent")): row
+        for row in progression.get("milestones") or []
+        if isinstance(row, dict) and _number(row.get("percent")) > 0
+    }
+    result = {
+        "finalDamage": 0.0,
+        "buffPower": 0.0,
+        "adventureFame": 0.0,
+    }
+    for percent in range(1, _clamp_precision_percent(precision_percent) + 1):
+        increment = milestone_by_percent.get(percent) or per_percent
+        for key in result:
+            result[key] += _number(increment.get(key))
+    return result
+
+
+def resolve_relic_precision_percent(potency: dict | None) -> int | None:
+    if not isinstance(potency, dict) or "value" not in potency:
+        return None
+    try:
+        precision_value = float(potency.get("value"))
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(precision_value) or not precision_value.is_integer():
+        return None
+    precision_percent = int(precision_value)
+    if precision_percent < 0 or precision_percent > 100:
+        return None
+    return precision_percent
+
+
+def _get_precision_multiplier_count(
+    precision: dict,
+    multiplier_index: int,
+    precision_percent,
+    fallback,
+) -> float:
+    progression = (precision or {}).get("progression") or {}
+    rule = next((
+        row
+        for row in progression.get("additionalMultiplierCounts") or []
+        if isinstance(row, dict) and int(_number(row.get("index"))) == multiplier_index
+    ), None)
+    if not rule:
+        return _number(fallback)
+    milestone_percent = _number(rule.get("milestonePercent"))
+    if milestone_percent <= 0:
+        return _number(fallback)
+    count = (
+        _number(rule.get("baseCount"))
+        + math.floor(_clamp_precision_percent(precision_percent) / milestone_percent)
+        * _number(rule.get("countPerMilestone"))
+    )
+    max_count = _number(rule.get("maxCount"))
+    return min(count, max_count) if max_count > 0 else count
+
+
+def get_relic_craft_final_damage_percent(
+    authoritative_effects: dict,
+    precision: dict | None = None,
+    precision_percent=100,
+) -> float:
     config = (authoritative_effects or {}).get("finalDamage") or {}
     body_multiplier = 1 + _number(config.get("bodyPercent")) / 100
-    precision_multiplier = 1 + _number(config.get("precisionPercent")) / 100
-    if body_multiplier <= 1 or precision_multiplier <= 1:
+    precision_effects = get_relic_precision_effects(precision or {}, precision_percent)
+    precision_final_damage = precision_effects["finalDamage"] or (
+        _number(config.get("precisionPercent"))
+        if _clamp_precision_percent(precision_percent) >= 100
+        else 0.0
+    )
+    precision_multiplier = 1 + precision_final_damage / 100
+    if body_multiplier <= 1 or precision_multiplier <= 0:
         return 0.0
 
     additional_multiplier = 1.0
-    for row in config.get("additionalMultipliers") or []:
+    for multiplier_index, row in enumerate(config.get("additionalMultipliers") or []):
         multiplier_type = _clean_text(row.get("type"))
-        count = _number(row.get("count")) or 1
-        if count <= 0:
-            return 0.0
+        count = _get_precision_multiplier_count(
+            precision or {},
+            multiplier_index,
+            precision_percent,
+            row.get("count") or 1,
+        )
         if multiplier_type == "objectDamageConversion":
             object_damage_per_final_damage = _number(
                 row.get("objectDamagePerFinalDamagePercent")
             )
             if object_damage_per_final_damage <= 0:
                 return 0.0
+            hit_count = _get_precision_multiplier_count(
+                precision or {},
+                multiplier_index,
+                precision_percent,
+                row.get("hitCount"),
+            )
+            if hit_count <= 0:
+                continue
             converted_final_damage_percent = (
                 _number(row.get("objectDamagePercentPerHit"))
-                * _number(row.get("hitCount"))
+                * hit_count
                 / object_damage_per_final_damage
             )
             if converted_final_damage_percent <= 0:
                 return 0.0
             additional_multiplier *= 1 + converted_final_damage_percent / 100
         elif multiplier_type == "fixedFinalDamageMultiplier":
+            if count <= 0:
+                continue
             equivalent_final_damage_percent = _number(
                 row.get("equivalentFinalDamagePercent")
             )
@@ -109,6 +197,7 @@ def normalize_relic_craft_target_equipment_body(
     authoritative_effects: dict,
     icon_url: str,
     item_explain: str,
+    precision_percent=None,
 ) -> tuple[dict, str]:
     target_item_id = _clean_text(target_config.get("itemId"))
     if not target_item_id:
@@ -128,6 +217,9 @@ def normalize_relic_craft_target_equipment_body(
         return {}, "invalid_relic_craft_target_slot"
     if _number(precision.get("targetPercent")) <= 0 or _number(precision.get("operationCount")) <= 0:
         return {}, "invalid_relic_craft_precision_contract"
+    resolved_precision_percent = _clamp_precision_percent(
+        precision.get("targetPercent") if precision_percent is None else precision_percent
+    )
 
     target_set_point = get_equipment_tune_set_point(target_detail)
     if target_set_point <= 0:
@@ -146,9 +238,17 @@ def normalize_relic_craft_target_equipment_body(
                 f"missing_relic_craft_{effect_key}",
             )
 
-    final_damage = get_relic_craft_final_damage_percent(authoritative_effects)
+    final_damage = get_relic_craft_final_damage_percent(
+        authoritative_effects,
+        precision,
+        resolved_precision_percent,
+    )
     buff_power_config = authoritative_effects.get("buffPower") or {}
-    buff_power = _number(buff_power_config.get("body")) + _number(buff_power_config.get("precision"))
+    precision_effects = get_relic_precision_effects(precision, resolved_precision_percent)
+    precision_buff_power = precision_effects["buffPower"] or (
+        _number(buff_power_config.get("precision")) if resolved_precision_percent >= 100 else 0.0
+    )
+    buff_power = _number(buff_power_config.get("body")) + precision_buff_power
     if final_damage <= 0:
         return {}, "invalid_relic_craft_final_damage"
     if buff_power <= 0:
@@ -165,6 +265,8 @@ def normalize_relic_craft_target_equipment_body(
         "itemRarity": _clean_text(target_detail.get("itemRarity")),
         "iconUrl": icon_url,
         "effects": effects,
+        "precisionPercent": resolved_precision_percent,
+        "precisionAdventureFame": precision_effects["adventureFame"],
         "conditionalEffects": dict(authoritative_effects.get("conditionalEffects") or {}),
         "tuneLevel": 0,
         "tuneSetPoint": target_set_point,
