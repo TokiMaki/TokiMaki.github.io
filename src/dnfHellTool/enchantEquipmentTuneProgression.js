@@ -118,6 +118,21 @@ export function createEnchantEquipmentTuneProgression({
     };
   }
 
+  function getEquipmentTuneCandidates(currentEquipmentUpgrades = []) {
+    return (currentEquipmentUpgrades || [])
+      .filter(isEquipmentTuneCandidate)
+      .map((equipment) => ({
+        ...equipment,
+        tuneRemaining: Math.max(0, Math.min(
+          EQUIPMENT_TUNE_MAX_LEVEL - Number(equipment.tuneLevel || 0),
+          Number.isFinite(Number(equipment.tuneRemaining))
+            ? Number(equipment.tuneRemaining)
+            : EQUIPMENT_TUNE_MAX_LEVEL - Number(equipment.tuneLevel || 0),
+        )),
+      }))
+      .filter((equipment) => equipment.tuneRemaining > 0);
+  }
+
   function getEquipmentTuneSetPoint(currentEquipmentUpgrades = []) {
     return (currentEquipmentUpgrades || []).reduce((sum, equipment) => {
       const setPoint = Number(equipment.tuneSetPoint || 0);
@@ -176,18 +191,7 @@ export function createEnchantEquipmentTuneProgression({
   function getEquipmentTuneRows(currentEquipmentUpgrades = [], materialPrices = {}, bufferBaseline = null) {
     const totalSetPoint = getEquipmentTuneSetPoint(currentEquipmentUpgrades);
     if (totalSetPoint < EQUIPMENT_TUNE_MIN_SET_POINT) return [];
-    const candidates = (currentEquipmentUpgrades || [])
-      .filter(isEquipmentTuneCandidate)
-      .map((equipment) => ({
-        ...equipment,
-        tuneRemaining: Math.max(0, Math.min(
-          EQUIPMENT_TUNE_MAX_LEVEL - Number(equipment.tuneLevel || 0),
-          Number.isFinite(Number(equipment.tuneRemaining))
-            ? Number(equipment.tuneRemaining)
-            : EQUIPMENT_TUNE_MAX_LEVEL - Number(equipment.tuneLevel || 0),
-        )),
-      }))
-      .filter((equipment) => equipment.tuneRemaining > 0);
+    const candidates = getEquipmentTuneCandidates(currentEquipmentUpgrades);
     const maxTuneCount = candidates.reduce((sum, equipment) => sum + Number(equipment.tuneRemaining || 0), 0);
     if (maxTuneCount <= 0) return [];
     const currentStage = getEquipmentTuneStage(totalSetPoint);
@@ -258,14 +262,72 @@ export function createEnchantEquipmentTuneProgression({
     }];
   }
 
+  function getRequiredEquipmentTuneRow(currentEquipmentUpgrades = [], materialPrices = {}) {
+    const totalSetPoint = getEquipmentTuneSetPoint(currentEquipmentUpgrades);
+    if (totalSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) return null;
+    const tuneCount = Math.ceil(
+      (EQUIPMENT_TUNE_MIN_SET_POINT - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT,
+    );
+    if (!Number.isFinite(tuneCount) || tuneCount <= 0) return null;
+    const candidates = getEquipmentTuneCandidates(currentEquipmentUpgrades);
+    const cost = allocateEquipmentTuneCost(candidates, tuneCount);
+    if (!cost || cost.gold <= 0) return null;
+    const targetSetPoint = totalSetPoint + tuneCount * EQUIPMENT_TUNE_STEP_POINT;
+    const expectedMaterials = applyUpgradeMaterialPrices(cost.materials, 'equipmentTune', materialPrices)
+      .map((material) => ({
+        ...material,
+        itemName: material.label || material.itemName,
+      }));
+    const currentStage = getEquipmentTuneStage(totalSetPoint);
+    const targetStage = getEquipmentTuneStage(targetSetPoint);
+    const iconEquipment = candidates.find((equipment) => equipment.iconUrl) || {};
+    return {
+      sourceType: 'equipmentTune',
+      requiredForRelicCraft: true,
+      simulatorRemovalLocked: true,
+      recommendationPriority: -1000000,
+      slot: '장비 조율',
+      tier: '필수 조율',
+      itemName: '장비 조율',
+      itemRarity: '',
+      iconUrl: iconEquipment.iconUrl || '',
+      itemExplain: '유일 장비 장착으로 태초 세트포인트를 유지하기 위해 자동 적용된 조율',
+      effects: {},
+      auction: { minUnitPrice: cost.gold },
+      expectedGold: cost.gold,
+      expectedMaterials,
+      tunePlan: cloneSimulatorValue(cost.tunePlan),
+      tuneSteps: [],
+      selectedTuneStepIndex: 0,
+      currentSetPoint: totalSetPoint,
+      targetSetPoint,
+      currentTuneFinalDamage: currentStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
+      targetTuneFinalDamage: targetStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
+      currentTuneBuffPower: currentStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
+      targetTuneBuffPower: targetStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
+      tuneCount,
+    };
+  }
+
   function getEquipmentTuneExclusiveGroupKey(row = {}) {
-    return row.sourceType === 'equipmentTune' ? 'equipmentTune' : '';
+    if (row.sourceType !== 'equipmentTune') return '';
+    return row.requiredForRelicCraft === true
+      ? 'equipmentTuneRequired'
+      : 'equipmentTune';
   }
 
   function getEquipmentTuneCandidateSignature(row = {}) {
     const groupKey = getEquipmentTuneExclusiveGroupKey(row);
     if (!groupKey) return '';
     const steps = Array.isArray(row.tuneSteps) ? row.tuneSteps : [];
+    if (row.requiredForRelicCraft === true) {
+      return [
+        groupKey,
+        Number(row.currentSetPoint || 0),
+        Number(row.targetSetPoint || 0),
+        Number(row.tuneCount || 0),
+      ].join(':');
+    }
     return [
       groupKey,
       Number(row.currentSetPoint || steps[0]?.currentSetPoint || 0),
@@ -281,6 +343,7 @@ export function createEnchantEquipmentTuneProgression({
     applyEquipmentTunePlan,
     getChangedEquipmentTuneSlots,
     getEquipmentTuneRows,
+    getRequiredEquipmentTuneRow,
     getEquipmentTuneExclusiveGroupKey,
     getEquipmentTuneCandidateSignature,
   };

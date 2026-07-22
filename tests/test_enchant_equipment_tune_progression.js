@@ -64,6 +64,7 @@ assert.deepEqual(Object.keys(progression), [
   'applyEquipmentTunePlan',
   'getChangedEquipmentTuneSlots',
   'getEquipmentTuneRows',
+  'getRequiredEquipmentTuneRow',
   'getEquipmentTuneExclusiveGroupKey',
   'getEquipmentTuneCandidateSignature',
 ]);
@@ -438,6 +439,147 @@ assert.deepEqual(
   ]),
   [],
 );
+
+const requiredTuneEquipment = [
+  {
+    slot: '상의',
+    itemRarity: '에픽',
+    itemName: '에픽 상의',
+    iconUrl: 'required.png',
+    tuneLevel: 0,
+    tuneRemaining: 3,
+    tuneSetPoint: 2485,
+  },
+  {
+    slot: '하의',
+    itemRarity: '에픽',
+    itemName: '에픽 하의',
+    tuneLevel: 0,
+    tuneRemaining: 3,
+    tuneSetPoint: 0,
+  },
+  {
+    slot: '벨트',
+    itemRarity: '에픽',
+    itemName: '에픽 벨트',
+    tuneLevel: 0,
+    tuneRemaining: 3,
+    tuneSetPoint: 0,
+  },
+];
+const requiredTuneRow = progression.getRequiredEquipmentTuneRow(
+  deepFreeze(clone(requiredTuneEquipment)),
+  deepFreeze(clone(materialPrices)),
+);
+assert.ok(requiredTuneRow);
+assert.deepEqual({
+  sourceType: requiredTuneRow.sourceType,
+  requiredForRelicCraft: requiredTuneRow.requiredForRelicCraft,
+  simulatorRemovalLocked: requiredTuneRow.simulatorRemovalLocked,
+  recommendationPriority: requiredTuneRow.recommendationPriority,
+  tier: requiredTuneRow.tier,
+  itemName: requiredTuneRow.itemName,
+  currentSetPoint: requiredTuneRow.currentSetPoint,
+  targetSetPoint: requiredTuneRow.targetSetPoint,
+  tuneCount: requiredTuneRow.tuneCount,
+  expectedGold: requiredTuneRow.expectedGold,
+  effects: requiredTuneRow.effects,
+  slotChanges: requiredTuneRow.tunePlan.slotChanges,
+}, {
+  sourceType: 'equipmentTune',
+  requiredForRelicCraft: true,
+  simulatorRemovalLocked: true,
+  recommendationPriority: -1000000,
+  tier: '필수 조율',
+  itemName: '장비 조율',
+  currentSetPoint: 2485,
+  targetSetPoint: 2555,
+  tuneCount: 7,
+  expectedGold: 7000000,
+  effects: {},
+  slotChanges: [
+    { slot: '상의', fromTuneLevel: 0, toTuneLevel: 3, count: 3 },
+    { slot: '하의', fromTuneLevel: 0, toTuneLevel: 3, count: 3 },
+    { slot: '벨트', fromTuneLevel: 0, toTuneLevel: 1, count: 1 },
+  ],
+});
+assert.deepEqual(
+  requiredTuneRow.expectedMaterials.map((material) => ({ key: material.key, amount: material.amount })),
+  [{ key: 'epicSoul', amount: 70 }],
+);
+const requiredTuneApplied = progression.applyEquipmentTunePlan(
+  requiredTuneEquipment,
+  requiredTuneRow.tunePlan,
+);
+assert.ok(requiredTuneApplied);
+assert.equal(progression.getEquipmentTuneSetPoint(requiredTuneApplied), 2555);
+assert.equal(
+  progression.getEquipmentTuneExclusiveGroupKey(requiredTuneRow),
+  'equipmentTuneRequired',
+);
+assert.equal(
+  progression.getEquipmentTuneCandidateSignature(requiredTuneRow),
+  'equipmentTuneRequired:2485:2555:7',
+);
+assert.equal(
+  progression.getRequiredEquipmentTuneRow([
+    { slot: '상의', itemRarity: '에픽', tuneLevel: 0, tuneRemaining: 3, tuneSetPoint: 2550 },
+  ], materialPrices),
+  null,
+);
+assert.equal(
+  progression.getRequiredEquipmentTuneRow([
+    { slot: '상의', itemRarity: '에픽', tuneLevel: 3, tuneRemaining: 0, tuneSetPoint: 2485 },
+  ], materialPrices),
+  null,
+);
+
+const shrinkingTuneEquipment = [
+  { slot: '보조장비', itemRarity: '태초', tuneLevel: 0, tuneRemaining: 0, tuneSetPoint: 2550 },
+  ...['상의', '하의', '머리어깨', '벨트', '신발'].map((slot) => ({
+    slot,
+    itemRarity: '에픽',
+    itemName: `에픽 ${slot}`,
+    tuneLevel: 0,
+    tuneRemaining: 3,
+    tuneSetPoint: 0,
+  })),
+];
+const twoStepTuneRow = progression.getEquipmentTuneRows(shrinkingTuneEquipment, materialPrices)[0];
+assert.ok(twoStepTuneRow);
+assert.equal(twoStepTuneRow.tuneSteps.length, 2);
+const previouslySelectedTuneStepIndex = 1;
+const relicChangedEquipment = clone(shrinkingTuneEquipment);
+relicChangedEquipment[0].tuneSetPoint = 2480;
+const shrinkingRequiredRow = progression.getRequiredEquipmentTuneRow(
+  relicChangedEquipment,
+  materialPrices,
+);
+assert.ok(shrinkingRequiredRow);
+assert.equal(shrinkingRequiredRow.tuneCount, 7);
+const equipmentAfterRequiredTune = progression.applyEquipmentTunePlan(
+  relicChangedEquipment,
+  shrinkingRequiredRow.tunePlan,
+);
+assert.ok(equipmentAfterRequiredTune);
+assert.equal(progression.getEquipmentTuneSetPoint(equipmentAfterRequiredTune), 2550);
+const oneStepTuneRow = progression.getEquipmentTuneRows(
+  equipmentAfterRequiredTune,
+  materialPrices,
+)[0];
+assert.ok(oneStepTuneRow);
+assert.equal(oneStepTuneRow.tuneSteps.length, 1);
+const clampedTuneStepIndex = Math.max(
+  0,
+  Math.min(oneStepTuneRow.tuneSteps.length - 1, previouslySelectedTuneStepIndex),
+);
+assert.equal(clampedTuneStepIndex, 0);
+const equipmentAfterReappliedTune = progression.applyEquipmentTunePlan(
+  equipmentAfterRequiredTune,
+  oneStepTuneRow.tuneSteps[clampedTuneStepIndex].tunePlan,
+);
+assert.ok(equipmentAfterReappliedTune);
+assert.equal(progression.getEquipmentTuneSetPoint(equipmentAfterReappliedTune), 2620);
 
 const anniversaryEquipment = [
   { slot: '상의', itemRarity: '태초', tuneLevel: 0, tuneRemaining: 0, tuneSetPoint: 2120 },

@@ -532,6 +532,7 @@ function formatUpgradeEffect(row) {
 
 function formatEquipmentTuneEffect(row) {
   const pointText = `태초 ${formatEffectNumber(row.currentSetPoint)} -> 태초 ${formatEffectNumber(row.targetSetPoint)}`;
+  if (row.requiredForRelicCraft === true) return pointText;
   if (row.metricType === 'buffer') {
     const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
     return `${pointText} / ${buffPowerText}`;
@@ -598,6 +599,7 @@ function formatEquipmentTuneEffectHtml(row, escapeHtml) {
   const currentPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.currentSetPoint)}`, escape);
   const targetPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.targetSetPoint)}`, escape);
   const pointHtml = `${currentPoint} <span class="enchant-oath-stage-arrow">-&gt;</span> ${targetPoint}`;
+  if (row.requiredForRelicCraft === true) return pointHtml;
   const tuneText = row.metricType === 'buffer'
     ? `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`
     : `최종뎀 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
@@ -1035,6 +1037,7 @@ const {
   applyEquipmentTunePlan,
   getChangedEquipmentTuneSlots,
   getEquipmentTuneRows,
+  getRequiredEquipmentTuneRow,
   getEquipmentTuneExclusiveGroupKey,
   getEquipmentTuneCandidateSignature,
 } = createEnchantEquipmentTuneProgression({
@@ -3789,6 +3792,10 @@ export function installEnchantView(ctx) {
     );
   }
 
+  function isRelicCraftPrecisionBodyChange(row = {}) {
+    return row.sourceType === 'relicCraft' && row.relicCraftMode === 'precision';
+  }
+
   function invalidateActiveEquipmentTuneSelectionForBodyChange() {
     const simulator = state.dealerSimulator;
     const activeTune = simulator?.activeSelectionByGroup?.equipmentTune;
@@ -3799,10 +3806,86 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function invalidateRequiredEquipmentTuneSelectionForBodyChange() {
+    const simulator = state.dealerSimulator;
+    const activeTune = simulator?.activeSelectionByGroup?.equipmentTuneRequired;
+    if (!activeTune || activeTune.actionType !== 'equipmentTunePlan') return true;
+    const removed = removeSimulatedEquipmentTuneSelection(activeTune);
+    if (!removed) return false;
+    delete simulator.activeSelectionByGroup.equipmentTuneRequired;
+    return true;
+  }
+
+  function applyRequiredEquipmentTuneAfterBodyChange() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return null;
+    const currentSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades || []);
+    if (currentSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) return { changedSlots: [] };
+    const row = getRequiredEquipmentTuneRow(
+      simulator.simulatedEquipmentUpgrades || [],
+      state.upgradeMaterialPrices,
+    );
+    if (!row) return null;
+    const beforeTuneSnapshot = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+    const nextEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, row.tunePlan);
+    if (
+      !nextEquipment
+      || getEquipmentTuneSetPoint(nextEquipment) < EQUIPMENT_TUNE_MIN_SET_POINT
+    ) return null;
+    const changedSlots = getChangedEquipmentTuneSlots(beforeTuneSnapshot, nextEquipment);
+    simulator.simulatedEquipmentUpgrades = nextEquipment;
+    const target = {
+      targetTab: 'equipment',
+      targetSlot: '장비 조율',
+      applyType: 'applyEquipmentTunePlan',
+      beforeTuneSnapshot,
+      changedSlots,
+    };
+    const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+    const selection = createActiveSimulatorSelection({
+      row,
+      target,
+      candidateSignature: getSimulatorCandidateSignature(row),
+      previousSelection: null,
+      goldWithoutMaterials: getRecommendationGold(row, false),
+      goldWithMaterials: getRecommendationGold(row, true),
+      includeMaterialCosts,
+    });
+    if (!selection?.candidateSignature) return null;
+    simulator.activeSelectionByGroup.equipmentTuneRequired = selection;
+    return { changedSlots };
+  }
+
+  function getEquipmentTuneSelectionForBodyChangeReapply(
+    previousEquipmentTune = null,
+    previousRequiredTune = null,
+  ) {
+    if (previousEquipmentTune?.actionType === 'equipmentTunePlan') {
+      return previousEquipmentTune;
+    }
+    const simulator = state.dealerSimulator;
+    if (
+      previousRequiredTune?.actionType === 'equipmentTunePlan'
+      && !simulator?.activeSelectionByGroup?.equipmentTuneRequired
+    ) {
+      return previousRequiredTune;
+    }
+    return null;
+  }
+
   function replaceSimulatedEquipmentBody(row, target) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'replaceEquipmentBody') return false;
-    if (!invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
+    const isPrecisionChange = isRelicCraftPrecisionBodyChange(row);
+    const hadRequiredTune = Boolean(simulator.activeSelectionByGroup?.equipmentTuneRequired);
+    const previousEquipmentTune = isPrecisionChange
+      ? null
+      : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTune || null);
+    const previousRequiredTune = isPrecisionChange
+      ? null
+      : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTuneRequired || null);
+    if (!isPrecisionChange && !invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
+    if (!isPrecisionChange && !invalidateRequiredEquipmentTuneSelectionForBodyChange()) return false;
     const targetSlotId = target.targetSlotId
       || resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row);
     const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
@@ -3826,6 +3909,24 @@ export function installEnchantView(ctx) {
         },
       ),
     );
+    let requiredTuneResult = { changedSlots: [] };
+    if (!isPrecisionChange && (hadRequiredTune || row.sourceType === 'relicCraft')) {
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange();
+      if (!requiredTuneResult) return false;
+    }
+    const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
+      previousEquipmentTune,
+      previousRequiredTune,
+    );
+    const reappliedTuneResult = !isPrecisionChange && previousTuneForReapply
+      ? reapplyEquipmentTuneSelectionToCurrentState(previousTuneForReapply)
+      : { changedSlots: [] };
+    if (!reappliedTuneResult) return false;
+    target.changedSlots = [...new Set([
+      target.targetSlot,
+      ...(requiredTuneResult.changedSlots || []),
+      ...(reappliedTuneResult.changedSlots || []),
+    ])];
     if (simulator.role === 'buffer') {
       simulator.equipmentBodyChangesBySlot[target.targetSlot] = cloneSimulatorValue(
         target.baseRelativeChanges,
@@ -3877,6 +3978,47 @@ export function installEnchantView(ctx) {
       rebuildDealerSimulatorCalculationState();
     }
     return true;
+  }
+
+  function reapplyEquipmentTuneSelectionToCurrentState(previousSelection = null) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || previousSelection?.actionType !== 'equipmentTunePlan') {
+      return { changedSlots: [] };
+    }
+    const beforeTuneSnapshot = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
+    const baseRow = getEquipmentTuneRows(
+      beforeTuneSnapshot,
+      state.upgradeMaterialPrices,
+      state.currentBufferBaseline,
+    )[0];
+    const variants = baseRow?.tuneSteps || [];
+    if (!baseRow || !variants.length) {
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        equipmentTune: 0,
+      };
+      state.equipmentTuneStepIndex = 0;
+      return { changedSlots: [] };
+    }
+    const selectedVariantIndex = Math.max(
+      0,
+      Math.min(variants.length - 1, Number(previousSelection.selectedVariantIndex || 0)),
+    );
+    const row = applyEquipmentTuneDisplayStep(
+      simulator.role === 'buffer' ? { ...baseRow, metricType: 'buffer' } : baseRow,
+      selectedVariantIndex,
+      els.enchantMaterialCostToggle?.checked === true,
+      getActiveDamageBaseline(),
+      state.currentBufferBaseline,
+      simulator.role === 'buffer' ? simulator : null,
+    );
+    return replaceAppliedEquipmentTuneVariant(selectedVariantIndex, {
+      selectionOverride: previousSelection,
+      rowOverride: row,
+      beforeTuneSnapshotOverride: beforeTuneSnapshot,
+      allowSameVariant: true,
+      finishUi: false,
+    });
   }
 
   function applySimulatedOathTunePlan(row, target) {
@@ -4857,10 +4999,20 @@ export function installEnchantView(ctx) {
 
   function restoreSimulatedEquipmentBodyToBase(selection = {}) {
     const simulator = state.dealerSimulator;
+    const appliedSnapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
+    const isPrecisionChange = isRelicCraftPrecisionBodyChange(appliedSnapshot);
+    const hadRequiredTune = Boolean(simulator?.activeSelectionByGroup?.equipmentTuneRequired);
+    const previousEquipmentTune = isPrecisionChange
+      ? null
+      : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTune || null);
+    const previousRequiredTune = isPrecisionChange
+      ? null
+      : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTuneRequired || null);
     const targetSlotId = selection.targetSlotId
       || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot });
     if (!simulator || !targetSlotId) return false;
-    if (!invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
+    if (!isPrecisionChange && !invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
+    if (!isPrecisionChange && !invalidateRequiredEquipmentTuneSelectionForBodyChange()) return false;
     const baseEquipment = simulator.baseEquipmentUpgrades.find((equipment) => (
       resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
     ));
@@ -4892,13 +5044,32 @@ export function installEnchantView(ctx) {
         },
       ),
     );
+    let requiredTuneResult = { changedSlots: [] };
+    if (!isPrecisionChange && (hadRequiredTune || appliedSnapshot.sourceType === 'relicCraft')) {
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange();
+      if (!requiredTuneResult) return false;
+    }
+    const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
+      previousEquipmentTune,
+      previousRequiredTune,
+    );
+    const reappliedTuneResult = !isPrecisionChange && previousTuneForReapply
+      ? reapplyEquipmentTuneSelectionToCurrentState(previousTuneForReapply)
+      : { changedSlots: [] };
+    if (!reappliedTuneResult) return false;
     if (simulator.role === 'buffer') {
       delete simulator.equipmentBodyChangesBySlot[targetSlot];
       rebuildBufferSimulatorCalculationState();
     } else {
       rebuildDealerSimulatorCalculationState();
     }
-    return true;
+    return {
+      changedSlots: [...new Set([
+        targetSlot,
+        ...(requiredTuneResult.changedSlots || []),
+        ...(reappliedTuneResult.changedSlots || []),
+      ])],
+    };
   }
 
   function restoreSimulatedBuffSelectionToBase(selection = {}) {
@@ -5742,6 +5913,7 @@ export function installEnchantView(ctx) {
     if (row.sourceType === 'oathAcquisitionCombined') {
       return `oathCombined:${row.oathAcquisitionPairKey}`;
     }
+    if (row.requiredForRelicCraft === true) return 'tune:equipmentTuneRequired';
     if (TUNE_SOURCE_TYPES.has(row.sourceType)) return `tune:${row.sourceType}`;
     if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && row.variantGroupKey) {
       return `oathDecision:${row.variantGroupKey}`;
@@ -5884,6 +6056,8 @@ export function installEnchantView(ctx) {
 
     els.enchantRecommendList.innerHTML = displayRecommendations.map((row, index) => {
       const isApplied = row.isApplied === true;
+      const isRequiredEquipmentTune = row.requiredForRelicCraft === true;
+      const isRemovalLocked = isApplied && row.simulatorRemovalLocked === true;
       const isCombinedOathAcquisition = row.sourceType === 'oathAcquisitionCombined';
       const isCombinedPreviewOnly = isCombinedOathAcquisition && row.previewOnly === true;
       if (isCombinedOathAcquisition) {
@@ -5892,7 +6066,7 @@ export function installEnchantView(ctx) {
       const hasOathDecisionVariants = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         && Array.isArray(row.oathDecisionVariants)
         && row.oathDecisionVariants.length > 1;
-      const hasVariantActions = TUNE_SOURCE_TYPES.has(row.sourceType)
+      const hasVariantActions = (TUNE_SOURCE_TYPES.has(row.sourceType) && !isRequiredEquipmentTune)
         || hasOathDecisionVariants
         || isCombinedOathAcquisition;
       const variantPopoverSource = isCombinedOathAcquisition
@@ -6047,6 +6221,8 @@ export function installEnchantView(ctx) {
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
+        : isRequiredEquipmentTune
+          ? `유일 필수 조율 ${Number(row.tuneCount || 0).toLocaleString('ko-KR')}회`
         : TUNE_SOURCE_TYPES.has(row.sourceType)
           ? `${row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'} ${Number(row.tuneCount || 0).toLocaleString('ko-KR')}회`
         : row.sourceType === 'switchingTitle'
@@ -6066,7 +6242,9 @@ export function installEnchantView(ctx) {
             : row.sourceType === 'avatar'
               ? `${row.itemName}${row.needCount > 1 ? ` x${row.needCount}` : ''}`
             : row.itemName;
-      const displayTitle = TUNE_SOURCE_TYPES.has(row.sourceType)
+      const displayTitle = isRequiredEquipmentTune
+        ? row.itemName
+        : TUNE_SOURCE_TYPES.has(row.sourceType)
         ? row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? '서약 결정'
@@ -6094,6 +6272,10 @@ export function installEnchantView(ctx) {
           : [];
       const rowGold = getRecommendationGold(row, includeMaterialCosts);
       const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
+      const cardMetricValue = isRequiredEquipmentTune
+        ? rowGold
+        : isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent;
+      const cardMetricLabel = isRequiredEquipmentTune ? '필수 비용' : isBufferMetric ? '100점당' : '0.1%당';
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
         : includeMaterialCosts && ['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
@@ -6192,11 +6374,11 @@ export function installEnchantView(ctx) {
         { html: relicCraftMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { html: combinedAcquisitionMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { text: !isCombinedOathAcquisition && !materialPartsMarkup && !relicCraftMaterialsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
-        { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
-        { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
-        { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { text: isRequiredEquipmentTune ? '태초 세트 포인트 유지' : isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
+        { text: !isRequiredEquipmentTune && isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
+        { text: isRequiredEquipmentTune || legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
-        { text: isApplied ? '한 번 더 눌러 시뮬레이터 적용 해제' : '', className: 'enchant-simulator-touch-hint' },
+        { text: isRemovalLocked ? '유일 장비 구성에 따라 자동 적용되는 조율입니다.' : isApplied ? '한 번 더 눌러 시뮬레이터 적용 해제' : '', className: 'enchant-simulator-touch-hint' },
         { text: simulatorTarget ? '한 번 더 눌러 시뮬레이터에 적용' : '', className: 'enchant-simulator-touch-hint' },
       ].filter((item) => item.text || item.html);
       const popover = `
@@ -6212,7 +6394,7 @@ export function installEnchantView(ctx) {
         ? combinedCardAttributes
         : isApplied && oathAcquisitionRecommendationId
           ? ` data-applied-oath-acquisition-id="${escapeHtml(oathAcquisitionRecommendationId)}"`
-          : isApplied
+          : isApplied && !isRemovalLocked
             ? ` data-applied-simulator-group="${escapeHtml(row.exclusiveGroupKey)}"`
             : '';
       return `
@@ -6226,8 +6408,8 @@ export function installEnchantView(ctx) {
               <span class="enchant-recommend-sub">${escapeHtml(tierLabel)}</span>
             </span>
             <span class="enchant-recommend-metric">
-              <strong>${acquisitionMarkup || escapeHtml(isFreeActionRecommendation(row) ? '0' : formatCompactGold(isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent))}</strong>
-              ${legacyAcquisitionLabel || isMaterialEnchant ? '' : `<span>${isBufferMetric ? '100점당' : '0.1%당'}</span>`}
+              <strong>${acquisitionMarkup || escapeHtml(isFreeActionRecommendation(row) ? '0' : formatCompactGold(cardMetricValue))}</strong>
+              ${legacyAcquisitionLabel || isMaterialEnchant ? '' : `<span>${cardMetricLabel}</span>`}
             </span>
             ${popover}
           </button>
@@ -6890,13 +7072,19 @@ export function installEnchantView(ctx) {
     );
   }
 
-  function replaceAppliedEquipmentTuneVariant(stepIndex) {
+  function replaceAppliedEquipmentTuneVariant(stepIndex, options = {}) {
     const simulator = state.dealerSimulator;
-    const selection = simulator?.activeSelectionByGroup?.equipmentTune;
+    const selection = options.selectionOverride
+      || simulator?.activeSelectionByGroup?.equipmentTune;
     if (!simulator || !selection || selection.actionType !== 'equipmentTunePlan') return false;
-    const row = getEquipmentTuneVariantRow(stepIndex);
-    if (!row || Number(row.selectedTuneStepIndex || 0) === Number(selection.selectedVariantIndex || 0)) return false;
-    const plannedEquipment = applyEquipmentTunePlan(selection.beforeTuneSnapshot || [], row.tunePlan);
+    const row = options.rowOverride || getEquipmentTuneVariantRow(stepIndex);
+    const isSameVariant = Number(row?.selectedTuneStepIndex || 0)
+      === Number(selection.selectedVariantIndex || 0);
+    if (!row || (!options.allowSameVariant && isSameVariant)) return false;
+    const beforeTuneSnapshot = cloneSimulatorValue(
+      options.beforeTuneSnapshotOverride || selection.beforeTuneSnapshot || [],
+    );
+    const plannedEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, row.tunePlan);
     if (!plannedEquipment) return false;
     const rollbackSnapshot = createSimulatorSnapshot();
     const previousEquipment = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
@@ -6932,6 +7120,7 @@ export function installEnchantView(ctx) {
     const updatedSelection = {
       ...selection,
       candidateSignature: getSimulatorCandidateSignature(row),
+      beforeTuneSnapshot,
       appliedGold: getRecommendationGold(row, els.enchantMaterialCostToggle?.checked === true),
       includeMaterialCost: els.enchantMaterialCostToggle?.checked === true,
       goldWithoutMaterials: getRecommendationGold(row, false),
@@ -6951,19 +7140,29 @@ export function installEnchantView(ctx) {
           row.bufferBaseRelativeChanges,
         );
       }
-      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
-      simulator.lastChangedTarget = {
-        targetTab: 'equipment',
-        targetSlot: '장비 조율',
-        applyType: 'applyEquipmentTunePlan',
+      const selectedVariantIndex = Number(row.selectedTuneStepIndex || 0);
+      const changedSlots = getChangedEquipmentTuneSlots(previousEquipment, nextEquipment);
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        equipmentTune: selectedVariantIndex,
       };
+      state.equipmentTuneStepIndex = selectedVariantIndex;
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
       if (simulator.role === 'buffer') rebuildBufferSimulatorCalculationState();
       else rebuildDealerSimulatorCalculationState();
-      getChangedEquipmentTuneSlots(previousEquipment, nextEquipment).forEach(triggerDealerSimulatorSweep);
-      state.enchantLoadoutTab = 'equipment';
-      renderEnchantCharacterPortrait();
-      renderEnchantTable();
-      return true;
+      if (options.finishUi !== false) {
+        simulator.lastChangedTarget = {
+          targetTab: 'equipment',
+          targetSlot: '장비 조율',
+          applyType: 'applyEquipmentTunePlan',
+        };
+        changedSlots.forEach(triggerDealerSimulatorSweep);
+        state.enchantLoadoutTab = 'equipment';
+        renderEnchantCharacterPortrait();
+        renderEnchantTable();
+        return true;
+      }
+      return { changedSlots };
     } catch {
       restoreSimulatorSnapshot(rollbackSnapshot);
       return false;
