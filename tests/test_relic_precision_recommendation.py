@@ -152,7 +152,7 @@ class RelicPrecisionRecommendationTest(unittest.TestCase):
         self.assertEqual(len(result["recommendations"]), 1)
         row = result["recommendations"][0]
         self.assertEqual(row["relicCraftMode"], "precision")
-        self.assertEqual(row["cardTitle"], "유일 정밀")
+        self.assertEqual(row["cardTitle"], "향수 정밀")
         self.assertEqual(row["currentPrecisionPercent"], 25)
         self.assertEqual(row["targetPrecisionPercent"], 100)
         self.assertEqual(row["fullPrecisionOperationCount"], 25)

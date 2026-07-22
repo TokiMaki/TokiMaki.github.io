@@ -6,7 +6,8 @@
       "enabled": true,
       "sourceType": "relicCraft",
       "display": {
-        "cardTitle": "유일 제작",
+        "cardTitle": "향수 제작",
+        "precisionCardTitle": "향수 정밀",
         "cardSubtitle": "마법석"
       },
       "target": {
@@ -80,7 +81,8 @@
       "enabled": true,
       "sourceType": "relicCraft",
       "display": {
-        "cardTitle": "유일 제작",
+        "cardTitle": "큐브 제작",
+        "precisionCardTitle": "큐브 정밀",
         "cardSubtitle": "귀걸이"
       },
       "target": {
@@ -154,7 +156,8 @@
       "enabled": true,
       "sourceType": "relicCraft",
       "display": {
-        "cardTitle": "유일 제작",
+        "cardTitle": "심장 제작",
+        "precisionCardTitle": "심장 정밀",
         "cardSubtitle": "보조장비"
       },
       "target": {
