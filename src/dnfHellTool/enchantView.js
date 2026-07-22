@@ -3186,7 +3186,7 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (simulator?.role !== 'buffer' || target?.applyType !== 'replaceBufferEquipmentProgression') return false;
     const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex((equipment) => (
-      resolveCanonicalEquipmentSlotId(equipment) === target.targetSlotId
+      equipment?.slot === target.targetSlot
     ));
     if (equipmentIndex < 0) return false;
     const targetLevel = Number(target.targetLevel);

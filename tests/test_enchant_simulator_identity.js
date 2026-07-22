@@ -542,6 +542,12 @@ function testViewAssemblyDispatchersAndOathBoundary() {
     CANDIDATE_DISPATCH_ORDER,
   );
 
+  const bufferProgressionApply = getFunctionSource(
+    view,
+    'replaceSimulatedBufferEquipmentProgression',
+  );
+  assert.match(bufferProgressionApply, /equipment\?\.slot === target\.targetSlot/);
+  assert.doesNotMatch(bufferProgressionApply, /target\.targetSlotId/);
   const oathCallIndex = view.indexOf('} = createEnchantOathAcquisition({');
   assert.ok(oathCallIndex >= 0, 'oath acquisition factory is assembled');
   const oathAssembly = view.slice(
