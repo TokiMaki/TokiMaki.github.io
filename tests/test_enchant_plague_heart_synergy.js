@@ -6,6 +6,7 @@ import {
   getPlagueHeartConditionalEffectText,
   getPlagueHeartDealerMultiplier,
   getPlagueHeartDealerRecommendationMultiplier,
+  getPlagueHeartEquipmentScoreMultiplier,
 } from '../src/dnfHellTool/enchantPlagueHeartSynergy.js';
 
 const heartBody = {
@@ -17,6 +18,7 @@ const heartBody = {
   conditionalEffects: {
     blackFangSynergy: {
       dealerFinalDamagePercentPerItem: 3,
+      dealerEquipmentScoreMultiplier: 1.092552,
       bufferBuffPowerPerItem: 75,
       maxCount: 3,
       aggregation: 'multiplicative',
@@ -58,10 +60,12 @@ function testCountAndStandaloneSynergy() {
   assert.equal(countBlackFangEquipment([normalSupport, ...blackRows]), 3);
   assert.equal(countBlackFangEquipment([normalSupport, ...blackRows, blackFang('AMULET', '목걸이', 4)]), 3);
   assert.equal(getPlagueHeartDealerMultiplier([normalSupport, ...blackRows]), 1);
+  assert.equal(getPlagueHeartEquipmentScoreMultiplier([normalSupport, ...blackRows]), 1);
   assert.equal(getPlagueHeartBufferPower([normalSupport, ...blackRows]), 0);
   for (let count = 0; count <= 3; count += 1) {
     const equipment = [heartBody, ...blackRows.slice(0, count)];
     assertClose(getPlagueHeartDealerMultiplier(equipment), 1.03 ** count);
+    assertClose(getPlagueHeartEquipmentScoreMultiplier(equipment), 1.092552);
     assert.equal(getPlagueHeartBufferPower(equipment), 75 * count);
   }
 }

@@ -508,6 +508,7 @@ function testCumulativePlagueHeartUsesCurrentBlackFangCount() {
         conditionalEffects: {
           blackFangSynergy: {
             dealerFinalDamagePercentPerItem: 3,
+            dealerEquipmentScoreMultiplier: 1.092552,
             bufferBuffPowerPerItem: 75,
             maxCount: 3,
           },
@@ -517,9 +518,14 @@ function testCumulativePlagueHeartUsesCurrentBlackFangCount() {
     ],
   };
   const actual = harness.calculation.getSimulatorCumulativeDamageMultiplier(simulator, 'actual');
+  const equipmentScore = harness.calculation.getSimulatorCumulativeDamageMultiplier(
+    simulator,
+    'equipmentScore',
+  );
   const common = 1.01 * 1.02 * 1.03 * 1.04 * 1.05 * 1.06 * 1.07
     * 1.08 * 1.20 * 1.09 * 1.10 * 1.11 * 1.12 * 1.13;
   assertClose(actual, common * (1.03 ** 2) * 1.14 * 1.16);
+  assertClose(equipmentScore, common * 1.092552 * 1.15 * 1.16);
 }
 
 function testCumulativeTitleFallbackAndMissingBaseShortCircuit() {

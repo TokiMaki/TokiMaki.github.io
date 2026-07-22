@@ -166,6 +166,7 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             authoritative_effects["conditionalEffects"]["blackFangSynergy"],
             {
                 "dealerFinalDamagePercentPerItem": 3,
+                "dealerEquipmentScoreMultiplier": 1.092552,
                 "bufferBuffPowerPerItem": 75,
                 "maxCount": 3,
                 "aggregation": "multiplicative",

@@ -8,6 +8,7 @@ export const PLAGUE_HEART_ITEM_NAME = '만병을 잉태한 역병의 심장';
 const BLACK_FANG_SLOT_IDS = new Set(['AMULET', 'WRIST', 'RING']);
 const DEFAULT_SYNERGY = {
   dealerFinalDamagePercentPerItem: 3,
+  dealerEquipmentScoreMultiplier: 1.092552,
   bufferBuffPowerPerItem: 75,
   maxCount: 3,
 };
@@ -37,6 +38,10 @@ function getSynergyConfig(heart = {}) {
     config.bufferBuffPowerPerItem
       ?? DEFAULT_SYNERGY.bufferBuffPowerPerItem,
   );
+  const dealerEquipmentScoreMultiplier = Number(
+    config.dealerEquipmentScoreMultiplier
+      ?? DEFAULT_SYNERGY.dealerEquipmentScoreMultiplier,
+  );
   const maxCount = Number(config.maxCount ?? DEFAULT_SYNERGY.maxCount);
   return {
     dealerFinalDamagePercentPerItem: Number.isFinite(dealerFinalDamagePercentPerItem)
@@ -45,6 +50,10 @@ function getSynergyConfig(heart = {}) {
     bufferBuffPowerPerItem: Number.isFinite(bufferBuffPowerPerItem)
       ? bufferBuffPowerPerItem
       : DEFAULT_SYNERGY.bufferBuffPowerPerItem,
+    dealerEquipmentScoreMultiplier: Number.isFinite(dealerEquipmentScoreMultiplier)
+      && dealerEquipmentScoreMultiplier > 0
+      ? dealerEquipmentScoreMultiplier
+      : DEFAULT_SYNERGY.dealerEquipmentScoreMultiplier,
     maxCount: Number.isFinite(maxCount) && maxCount > 0
       ? Math.floor(maxCount)
       : DEFAULT_SYNERGY.maxCount,
@@ -75,6 +84,12 @@ export function getPlagueHeartDealerMultiplier(equipmentRows = []) {
   const config = getSynergyConfig(heart);
   const count = countBlackFangEquipment(equipmentRows, config.maxCount);
   return (1 + config.dealerFinalDamagePercentPerItem / 100) ** count;
+}
+
+export function getPlagueHeartEquipmentScoreMultiplier(equipmentRows = []) {
+  const heart = getPlagueHeart(equipmentRows);
+  if (!heart) return 1;
+  return getSynergyConfig(heart).dealerEquipmentScoreMultiplier;
 }
 
 export function getPlagueHeartBufferPower(equipmentRows = []) {

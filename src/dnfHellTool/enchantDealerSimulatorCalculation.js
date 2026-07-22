@@ -1,4 +1,7 @@
-import { getPlagueHeartDealerMultiplier } from './enchantPlagueHeartSynergy.js';
+import {
+  getPlagueHeartDealerMultiplier,
+  getPlagueHeartEquipmentScoreMultiplier,
+} from './enchantPlagueHeartSynergy.js';
 
 export function createEnchantDealerSimulatorCalculation(deps) {
   const {
@@ -291,8 +294,12 @@ export function createEnchantDealerSimulatorCalculation(deps) {
         simulator.baseOathUpgrades,
         simulator.simulatedOathUpgrades,
       )
-      * (getPlagueHeartDealerMultiplier(simulator.simulatedEquipmentUpgrades)
-        / getPlagueHeartDealerMultiplier(simulator.baseEquipmentUpgrades))
+      * ((avatarEmblemMode === 'equipmentScore'
+        ? getPlagueHeartEquipmentScoreMultiplier(simulator.simulatedEquipmentUpgrades)
+        : getPlagueHeartDealerMultiplier(simulator.simulatedEquipmentUpgrades))
+        / (avatarEmblemMode === 'equipmentScore'
+          ? getPlagueHeartEquipmentScoreMultiplier(simulator.baseEquipmentUpgrades)
+          : getPlagueHeartDealerMultiplier(simulator.baseEquipmentUpgrades)))
       * getOathTuneDamageMultiplier(
         simulator.oathTuneDb,
         simulator.baseOathUpgrades,
