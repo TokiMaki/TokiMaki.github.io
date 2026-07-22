@@ -30,6 +30,14 @@ export function isEquipmentBodyReplacementSource(rowOrSourceType = '') {
   return EQUIPMENT_BODY_REPLACEMENT_SOURCE_TYPES.has(String(sourceType || '').trim());
 }
 
+export function isRelicCraftEquipmentSetPointEligible(row = {}) {
+  if (row?.sourceType !== 'relicCraft') return true;
+  const minimumSetPoint = Number(row.minimumCurrentEquipmentSetPoint);
+  if (!Number.isFinite(minimumSetPoint) || minimumSetPoint <= 0) return true;
+  const currentSetPoint = Number(row.currentEquipmentSetPoint);
+  return Number.isFinite(currentSetPoint) && currentSetPoint >= minimumSetPoint;
+}
+
 export function resolveCanonicalEquipmentSlotId(row = {}) {
   const slotId = String(row?.slotId || '').trim();
   if (EQUIPMENT_SLOT_NAME_BY_ID[slotId]) return slotId;

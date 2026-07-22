@@ -1,4 +1,7 @@
-import { isEquipmentBodyReplacementSource } from './enchantEquipmentBodyReplacement.js';
+import {
+  isEquipmentBodyReplacementSource,
+  isRelicCraftEquipmentSetPointEligible,
+} from './enchantEquipmentBodyReplacement.js';
 import { getPlagueHeartBufferPower, getPlagueHeartBufferRecommendationPower, getPlagueHeartConditionalEffectText } from './enchantPlagueHeartSynergy.js';
 
 export function createEnchantBufferRecommendation(deps) {
@@ -253,6 +256,7 @@ export function createEnchantBufferRecommendation(deps) {
     });
     const bySlotTier = new Map();
     (rows || []).forEach((row) => {
+      if (!isRelicCraftEquipmentSetPointEligible(row)) return;
       if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
       if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft'].includes(row.sourceType)) return;
       if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && simulator?.role === 'buffer') {

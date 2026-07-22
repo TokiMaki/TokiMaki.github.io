@@ -489,6 +489,8 @@ function testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly() {
   };
   const row = {
     sourceType: 'relicCraft',
+    currentEquipmentSetPoint: 2620,
+    minimumCurrentEquipmentSetPoint: 2620,
     slot: '마법석',
     itemId: 'df77236c51ea1274a3deb79c3e470695',
     itemName: '우아한 기품의 향수',
@@ -526,6 +528,15 @@ function testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly() {
   assert.ok(result);
   assert.equal(result.bufferBuffPowerDelta, 6360);
   assert.equal(result.targetEffects.finalDamage, 70.67376612);
+  const belowMinimum = getBufferRecommendationRows(
+    [{ ...row, currentEquipmentSetPoint: 2619 }],
+    [],
+    null,
+    null,
+    null,
+    baseline,
+  );
+  assert.deepEqual(belowMinimum, []);
   assert.ok(result.incrementalBuffScore > 0);
 }
 

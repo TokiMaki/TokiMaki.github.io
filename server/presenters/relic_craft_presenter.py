@@ -29,6 +29,7 @@ def build_relic_craft_recommendation_row(**values) -> dict:
         "targetSlotSetPoint": values["target_slot_set_point"],
         "currentEquipmentSetPoint": values["current_equipment_set_point"],
         "targetEquipmentSetPoint": values["target_equipment_set_point"],
+        "minimumCurrentEquipmentSetPoint": values["minimum_current_equipment_set_point"],
         # Compatibility aliases are derived from the normalized bodies only.
         "currentItemId": current_body["itemId"],
         "currentItemName": current_body["itemName"],

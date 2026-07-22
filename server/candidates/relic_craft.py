@@ -155,6 +155,7 @@ def _build_recipe_contexts(recipes: list, equipment_rows: list, current_set_poin
             "targetConfig": target_config,
             "targetItemId": target_item_id,
             "current": current,
+            "minimumCurrentEquipmentSetPoint": minimum_current_set_point,
         })
     return contexts, steps
 
@@ -251,6 +252,7 @@ def _build_recipe_recommendation(
         target_slot_set_point=target_body["tuneSetPoint"],
         current_equipment_set_point=current_set_point,
         target_equipment_set_point=target_set_point,
+        minimum_current_equipment_set_point=context["minimumCurrentEquipmentSetPoint"],
     )
     return row, {
         "name": "build_relic_craft_recommendation",

@@ -416,6 +416,8 @@ function testRelicCraftUsesNormalizedEquipmentBodies() {
   };
   const row = {
     sourceType: 'relicCraft',
+    currentEquipmentSetPoint: 2620,
+    minimumCurrentEquipmentSetPoint: 2620,
     slot: '마법석',
     itemId: targetEquipmentBody.itemId,
     itemName: '우아한 기품의 향수',
@@ -449,6 +451,15 @@ function testRelicCraftUsesNormalizedEquipmentBodies() {
   assert.ok(result);
   assertClose(result.incrementalDamagePercent, expected, 1e-12);
   assert.notEqual(result.incrementalDamagePercent, legacyAliasValue);
+  const belowMinimum = getRepresentativeRecommendationRows(
+    [{ ...row, currentEquipmentSetPoint: 2619 }],
+    [],
+    {},
+    {},
+    {},
+    baseline,
+  );
+  assert.deepEqual(belowMinimum, []);
 }
 
 function testPlagueHeartSynergyStaysActualDamageOnly() {
@@ -535,7 +546,7 @@ function testPlagueHeartSynergyStaysActualDamageOnly() {
   assert.notEqual(result.incrementalDamagePercent, bodyOnly);
   assert.equal(result.skillDamageMultiplier, undefined);
   assert.equal(result.plagueHeartActualDamageMultiplier, 1.03);
-  assert.equal(result.conditionalEffectText, '심장 연동 최종 데미지 +3%');
+  assert.equal(result.conditionalEffectText, '[검은 숨결] 최종 데미지 +3%');
   assert.equal(result.targetEquipmentBody.effects.finalDamage, 30);
 }
 

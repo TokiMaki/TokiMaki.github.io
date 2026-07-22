@@ -97,11 +97,11 @@ function testHeartFirstThenBlackFang() {
   assert.equal(getPlagueHeartBufferRecommendationPower(blackFangRow, equipment, true), 225);
   assert.equal(
     getPlagueHeartConditionalEffectText(blackFangRow, equipment, false),
-    '심장 연동 최종 데미지 +3%',
+    '[검은 숨결] 최종 데미지 +3%',
   );
   assert.equal(
     getPlagueHeartConditionalEffectText(blackFangRow, equipment, true),
-    '심장 연동 버프력 +75',
+    '[검은 숨결] 버프력 +75',
   );
 }
 

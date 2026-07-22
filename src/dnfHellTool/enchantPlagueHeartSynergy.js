@@ -134,10 +134,10 @@ export function getPlagueHeartConditionalEffectText(row = {}, equipmentRows = []
   if (!referenceHeart) return '';
   if (isBuffer) {
     const delta = getPlagueHeartBufferPower(targetRows) - getPlagueHeartBufferPower(referenceRows);
-    return delta > 0 ? `심장 연동 버프력 +${delta}` : '';
+    return delta > 0 ? `[검은 숨결] 버프력 +${delta}` : '';
   }
   const multiplier = getPlagueHeartDealerMultiplier(targetRows)
     / getPlagueHeartDealerMultiplier(referenceRows);
   const percent = (multiplier - 1) * 100;
-  return percent > 0.000001 ? `심장 연동 최종 데미지 +${percent.toFixed(0)}%` : '';
+  return percent > 0.000001 ? `[검은 숨결] 최종 데미지 +${percent.toFixed(0)}%` : '';
 }

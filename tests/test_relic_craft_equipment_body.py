@@ -365,6 +365,7 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         row = result["recommendations"][0]
         self.assertEqual(row["currentEquipmentSetPoint"], 2620.0)
         self.assertEqual(row["targetEquipmentSetPoint"], 2550.0)
+        self.assertEqual(row["minimumCurrentEquipmentSetPoint"], 2620.0)
         self.assertEqual(row["targetEquipmentBody"]["tuneSetPoint"], 145.0)
         self.assertEqual(row["targetEquipmentBody"]["effects"]["buffPower"], 17580.0)
         self.assertTrue(math.isclose(

@@ -1,4 +1,7 @@
-import { isEquipmentBodyReplacementSource } from './enchantEquipmentBodyReplacement.js';
+import {
+  isEquipmentBodyReplacementSource,
+  isRelicCraftEquipmentSetPointEligible,
+} from './enchantEquipmentBodyReplacement.js';
 import {
   getPlagueHeartConditionalEffectText,
   getPlagueHeartDealerRecommendationMultiplier,
@@ -586,6 +589,7 @@ export function createEnchantDealerRecommendation(deps) {
     );
     const bySlotTier = new Map();
     rows.forEach((row) => {
+      if (!isRelicCraftEquipmentSetPointEligible(row)) return;
       if (shouldSkipByElementAlignmentOverride(row, elementAlignmentOverride, currentTitle)) return;
       const plagueHeartMultiplier = getPlagueHeartDealerRecommendationMultiplier(row, equipmentRows);
       const conditionalEffectText = getPlagueHeartConditionalEffectText(row, equipmentRows, false);

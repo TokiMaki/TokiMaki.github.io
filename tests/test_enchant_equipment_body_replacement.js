@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  isRelicCraftEquipmentSetPointEligible,
   replaceEquipmentBodyInRows,
   replaceEquipmentBodyPreservingState,
   resolveCanonicalEquipmentSlotId,
@@ -49,6 +50,18 @@ const perfume = {
 
 assert.equal(resolveCanonicalEquipmentSlotId({ slotName: '마법석' }), 'MAGIC_STON');
 assert.equal(resolveCanonicalEquipmentSlotName({ slotId: 'MAGIC_STON' }), '마법석');
+assert.equal(isRelicCraftEquipmentSetPointEligible({ sourceType: 'blackFang' }), true);
+assert.equal(isRelicCraftEquipmentSetPointEligible({
+  sourceType: 'relicCraft',
+  currentEquipmentSetPoint: 2620,
+  minimumCurrentEquipmentSetPoint: 2620,
+}), true);
+assert.equal(isRelicCraftEquipmentSetPointEligible({
+  sourceType: 'relicCraft',
+  currentEquipmentSetPoint: 2619,
+  minimumCurrentEquipmentSetPoint: 2620,
+}), false);
+assert.equal(isRelicCraftEquipmentSetPointEligible({ sourceType: 'relicCraft' }), true);
 
 const applied = replaceEquipmentBodyPreservingState(base, perfume);
 assert.equal(applied.itemId, perfume.itemId);
