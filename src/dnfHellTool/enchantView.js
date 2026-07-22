@@ -384,7 +384,8 @@ function formatBlackFangEffect(row, isBuffer = false) {
     .filter((key) => !(Number.isFinite(changedEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
   const parts = changedKeys
     .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
-  return parts.length ? parts.join(' / ') : formatEffects(changedEffects);
+  const baseText = parts.length ? parts.join(' / ') : formatEffects(changedEffects);
+  return [baseText, row.conditionalEffectText].filter(Boolean).join(' / ');
 }
 
 function getBufferPrimaryStatKey(baseline = {}) {
@@ -2359,6 +2360,7 @@ export function installEnchantView(ctx) {
         progressionReferenceBaselineBySlot,
         equipmentBodyReferenceBaselineBySlot,
         avatarReferenceBaselineBySlotId,
+        simulatedEquipmentRows: simulator.simulatedEquipmentUpgrades,
         preserveEligibleEnchantCandidates: eligibleSignatures.size > 0,
       },
     };
@@ -2682,7 +2684,7 @@ export function installEnchantView(ctx) {
       const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
       const isSupportedSlot = row.sourceType === 'blackFang'
         ? BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)
-        : targetSlotId === 'MAGIC_STON';
+        : ['보조장비', '마법석', '귀걸이'].includes(targetSlot);
       if (
         !isSupportedSlot
         || !targetEquipmentBody.itemId
@@ -3063,7 +3065,7 @@ export function installEnchantView(ctx) {
       const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
       const isSupportedSlot = row.sourceType === 'blackFang'
         ? BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)
-        : targetSlotId === 'MAGIC_STON';
+        : ['보조장비', '마법석', '귀걸이'].includes(targetSlot);
       if (
         !isSupportedSlot
         || !targetEquipmentBody.itemId
@@ -5762,6 +5764,7 @@ export function installEnchantView(ctx) {
         simulator?.role === 'buffer' ? simulator.baseBaseline : state.currentBufferBaseline,
         includeMaterialCosts,
         simulator,
+        simulator?.simulatedEquipmentUpgrades || state.currentEquipmentUpgrades,
       )
       : getRepresentativeRecommendationRows(
         simulatorRecommendationContext.rows,
@@ -5773,6 +5776,7 @@ export function installEnchantView(ctx) {
         includeMaterialCosts,
         simulatorRecommendationContext.options,
         getActiveCreature(),
+        simulator?.simulatedEquipmentUpgrades || state.currentEquipmentUpgrades,
       );
     if (simulator) recommendations = mergeAppliedSimulatorSnapshots(recommendations, simulator);
     recommendations = collapseOathDecisionRecommendationVariants(

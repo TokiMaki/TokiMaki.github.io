@@ -485,6 +485,43 @@ function testCumulativeMultiplierAllSentinelsTitleAdjustedAndMetricBranches() {
   assert.equal(scoreBuffCall.args[1], 'equipmentScore');
 }
 
+function testCumulativePlagueHeartUsesCurrentBlackFangCount() {
+  const harness = createCumulativeHarness({ adjusted: true });
+  const blackFangRows = [
+    { slotId: 'WRIST', slot: '팔찌', itemName: '흑아 : 팔찌', bodyEffects: {} },
+    { slotId: 'RING', slot: '반지', itemName: '흑아 : 반지', bodyEffects: {} },
+  ];
+  const simulator = {
+    ...harness.simulator,
+    baseEquipmentUpgrades: [
+      ...harness.simulator.baseEquipmentUpgrades,
+      { slotId: 'SUPPORT', slot: '보조장비', itemName: '일반 보조장비', bodyEffects: {} },
+      ...blackFangRows,
+    ],
+    simulatedEquipmentUpgrades: [
+      ...harness.simulator.simulatedEquipmentUpgrades,
+      {
+        slotId: 'SUPPORT',
+        slot: '보조장비',
+        itemName: '만병을 잉태한 역병의 심장',
+        bodyEffects: {},
+        conditionalEffects: {
+          blackFangSynergy: {
+            dealerFinalDamagePercentPerItem: 3,
+            bufferBuffPowerPerItem: 75,
+            maxCount: 3,
+          },
+        },
+      },
+      ...blackFangRows,
+    ],
+  };
+  const actual = harness.calculation.getSimulatorCumulativeDamageMultiplier(simulator, 'actual');
+  const common = 1.01 * 1.02 * 1.03 * 1.04 * 1.05 * 1.06 * 1.07
+    * 1.08 * 1.20 * 1.09 * 1.10 * 1.11 * 1.12 * 1.13;
+  assertClose(actual, common * (1.03 ** 2) * 1.14 * 1.16);
+}
+
 function testCumulativeTitleFallbackAndMissingBaseShortCircuit() {
   const fallbackHarness = createCumulativeHarness({ adjusted: false });
   const fallback = fallbackHarness.calculation.getSimulatorCumulativeDamageMultiplier(
@@ -540,6 +577,7 @@ const tests = [
   testFactoryDependencyReadAndPublicPrivateContract,
   testBuildSimulatedDamageBaselineAllSourcesAdjustedFallbackAndImmutability,
   testCumulativeMultiplierAllSentinelsTitleAdjustedAndMetricBranches,
+  testCumulativePlagueHeartUsesCurrentBlackFangCount,
   testCumulativeTitleFallbackAndMissingBaseShortCircuit,
   testEnchantViewImportAndAssemblyContract,
 ];

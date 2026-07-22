@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from server.candidates.relic_craft import build_relic_craft_recommendations_debug
+from server.candidates.relic_craft import _build_materials, build_relic_craft_recommendations_debug
 from server.equipment_body import (
     get_relic_craft_final_damage_percent,
     normalize_relic_craft_target_equipment_body,
@@ -23,6 +23,7 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         cls.target = cls.recipe["target"]
         cls.authoritative_effects = cls.recipe["authoritativeEffects"]
         cls.cube_recipe = database["crafts"][1]
+        cls.heart_recipe = database["crafts"][2]
 
     def build_body(self, *, tune_set_point=145, normalized_status=None, authoritative_effects=None):
         detail = {
@@ -145,6 +146,85 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertTrue(math.isclose(body["effects"]["finalDamage"], expected_final_damage, abs_tol=1e-10))
         self.assertEqual(body["effects"]["buffPower"], 17580)
         self.assertFalse(body["tuneUpgradeable"])
+
+    def test_plague_heart_authoritative_effect_material_and_synergy_contract(self):
+        recipe = self.heart_recipe
+        authoritative_effects = recipe["authoritativeEffects"]
+
+        self.assertEqual(recipe["target"]["itemId"], "")
+        self.assertEqual(recipe["target"]["slotId"], "SUPPORT")
+        self.assertTrue(math.isclose(
+            get_relic_craft_final_damage_percent(authoritative_effects),
+            65.22,
+            abs_tol=1e-10,
+        ))
+        self.assertEqual(
+            authoritative_effects["buffPower"]["body"]
+            + authoritative_effects["buffPower"]["precision"],
+            17430,
+        )
+        self.assertEqual(
+            authoritative_effects["conditionalEffects"]["blackFangSynergy"],
+            {
+                "dealerFinalDamagePercentPerItem": 3,
+                "bufferBuffPowerPerItem": 75,
+                "maxCount": 3,
+                "aggregation": "multiplicative",
+            },
+        )
+
+        materials = _build_materials(recipe, {
+            "epicSoul": {
+                "label": "에픽 소울 결정",
+                "itemId": "epic-soul",
+                "auction": {"minUnitPrice": 10, "averagePrice": 10, "listingCount": 1},
+            },
+            "primordialSoul": {
+                "label": "태초 소울 결정",
+                "itemId": "primordial-soul",
+                "auction": {"minUnitPrice": 20, "averagePrice": 20, "listingCount": 1},
+            },
+        })
+        material_by_key = {material["key"]: material for material in materials}
+        self.assertEqual({key: row["amount"] for key, row in material_by_key.items()}, {
+            "blackHeartPulse": 1,
+            "plagueSeed": 1950,
+            "epicSoul": 1500,
+            "primordialSoul": 25,
+        })
+        self.assertEqual(material_by_key["blackHeartPulse"]["itemId"], "")
+        self.assertEqual(material_by_key["plagueSeed"]["itemId"], "")
+        self.assertEqual(material_by_key["blackHeartPulse"]["auction"]["priceSource"], "displayOnly")
+        self.assertEqual(material_by_key["plagueSeed"]["auction"]["minUnitPrice"], 0)
+        self.assertEqual(
+            recipe["baseCraft"]["fixedGold"] + recipe["precision100"]["fixedGold"],
+            200000000,
+        )
+        self.assertNotIn("pilgrimSeal", material_by_key)
+
+        target = dict(recipe["target"], itemId="plague-heart-target")
+        detail = {
+            **target,
+            "tune": [{"level": 0, "setPoint": 145, "upgrade": False}],
+            "itemReinforceSkill": [],
+            "itemBuff": {},
+        }
+        body, reason = normalize_relic_craft_target_equipment_body(
+            target_config=target,
+            target_detail=detail,
+            normalized_status={"attackIncrease": 4000},
+            precision=recipe["precision100"],
+            authoritative_effects=authoritative_effects,
+            icon_url="heart-icon",
+            item_explain="heart explain",
+        )
+        self.assertEqual(reason, "")
+        self.assertTrue(math.isclose(body["effects"]["finalDamage"], 65.22, abs_tol=1e-10))
+        self.assertEqual(body["effects"]["buffPower"], 17430)
+        self.assertEqual(
+            body["conditionalEffects"]["blackFangSynergy"]["bufferBuffPowerPerItem"],
+            75,
+        )
 
     def test_uses_detail_tune_set_point_without_local_fallback(self):
         body, reason = self.build_body(tune_set_point=187)
@@ -275,10 +355,12 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertEqual(row["targetPrecisionPercent"], 100.0)
         self.assertEqual(row["precisionOperationCount"], 25)
 
-    def test_builds_perfume_and_cube_recommendations_together_when_ids_are_filled(self):
+    def test_builds_all_relic_craft_recommendations_together_when_ids_are_filled(self):
         database = json.loads(json.dumps(self.database))
         cube_recipe = database["crafts"][1]
         cube_recipe["target"]["itemId"] = "weather-cube-target"
+        heart_recipe = database["crafts"][2]
+        heart_recipe["target"]["itemId"] = "plague-heart-target"
         equipment_rows = [
             {
                 "slotId": "MAGIC_STON",
@@ -297,12 +379,20 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
                 "tune": [{"level": 0, "setPoint": 215}],
             },
             {
+                "slotId": "SUPPORT",
+                "slotName": "보조장비",
+                "itemId": "current-support",
+                "itemName": "현재 보조장비",
+                "itemRarity": "에픽",
+                "tune": [{"level": 0, "setPoint": 215}],
+            },
+            {
                 "slotId": "WEAPON",
                 "slotName": "무기",
                 "itemId": "set-point-host",
                 "itemName": "세트포인트 장비",
                 "itemRarity": "에픽",
-                "tune": [{"level": 0, "setPoint": 2190}],
+                "tune": [{"level": 0, "setPoint": 1975}],
             },
         ]
         shared_buff = {"explain": "", "reinforceSkill": []}
@@ -332,6 +422,18 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
                 "itemBuff": shared_buff,
             },
             {
+                "itemId": "current-support",
+                "itemName": "현재 보조장비",
+                "itemRarity": "에픽",
+                "itemTypeDetail": "보조장비",
+                "itemStatus": [
+                    {"name": "공격력 증가", "value": "3300%"},
+                    {"name": "버프력", "value": 11200},
+                    {"name": "최종 데미지 증가", "value": "37%"},
+                ],
+                "itemBuff": shared_buff,
+            },
+            {
                 "itemId": self.target["itemId"],
                 "itemName": self.target["itemName"],
                 "itemRarity": self.target["itemRarity"],
@@ -347,6 +449,15 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
                 "itemTypeDetail": cube_recipe["target"]["itemTypeDetail"],
                 "tune": [{"level": 0, "setPoint": 145, "upgrade": False}],
                 "itemStatus": [{"name": "공격력 증가", "value": "3800%"}],
+                "itemBuff": shared_buff,
+            },
+            {
+                "itemId": "plague-heart-target",
+                "itemName": heart_recipe["target"]["itemName"],
+                "itemRarity": heart_recipe["target"]["itemRarity"],
+                "itemTypeDetail": heart_recipe["target"]["itemTypeDetail"],
+                "tune": [{"level": 0, "setPoint": 145, "upgrade": False}],
+                "itemStatus": [{"name": "공격력 증가", "value": "3900%"}],
                 "itemBuff": shared_buff,
             },
         ]
@@ -371,14 +482,22 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         ):
             result = build_relic_craft_recommendations_debug(equipment_rows, {})
 
-        self.assertEqual([row["slot"] for row in result["recommendations"]], ["마법석", "귀걸이"])
-        self.assertEqual([row["targetSlotId"] for row in result["recommendations"]], ["MAGIC_STON", "EARRING"])
+        self.assertEqual(
+            [row["slot"] for row in result["recommendations"]],
+            ["마법석", "귀걸이", "보조장비"],
+        )
+        self.assertEqual(
+            [row["targetSlotId"] for row in result["recommendations"]],
+            ["MAGIC_STON", "EARRING", "SUPPORT"],
+        )
         self.assertEqual(fetch_details.call_count, 1)
         self.assertEqual(set(fetch_details.call_args.args[0]), {
             "current-magic-stone",
             "current-earring",
+            "current-support",
             self.target["itemId"],
             "weather-cube-target",
+            "plague-heart-target",
         })
         cube_row = result["recommendations"][1]
         self.assertTrue(math.isclose(
@@ -389,6 +508,18 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertEqual(cube_row["targetEffects"]["buffPower"], 17580.0)
         self.assertEqual(cube_row["targetEquipmentBody"]["tuneUpgradeable"], False)
         self.assertEqual(cube_row["targetEquipmentSetPoint"], 2550.0)
+        heart_row = result["recommendations"][2]
+        self.assertTrue(math.isclose(
+            heart_row["targetEffects"]["finalDamage"],
+            65.22,
+            abs_tol=1e-10,
+        ))
+        self.assertEqual(heart_row["targetEffects"]["buffPower"], 17430.0)
+        self.assertEqual(
+            heart_row["targetEquipmentBody"]["conditionalEffects"]["blackFangSynergy"],
+            heart_recipe["authoritativeEffects"]["conditionalEffects"]["blackFangSynergy"],
+        )
+        self.assertEqual(heart_row["targetEquipmentSetPoint"], 2550.0)
 
     def test_calculation_constants_have_one_authoritative_source(self):
         helper_source = (ROOT / "server/equipment_body.py").read_text(encoding="utf-8")

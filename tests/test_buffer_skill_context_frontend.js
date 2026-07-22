@@ -522,6 +522,51 @@ assert.strictEqual(
   noOpSimulator,
 );
 
+const plagueHeartScopeSimulator = {
+  baseEquipmentUpgrades: [
+    { slotId: 'SUPPORT', slot: '보조장비', itemName: '일반 보조장비' },
+    { slotId: 'AMULET', slot: '목걸이', itemName: '흑아 : 목걸이' },
+    { slotId: 'WRIST', slot: '팔찌', itemName: '흑아 : 팔찌' },
+  ],
+  simulatedEquipmentUpgrades: [
+    { slotId: 'SUPPORT', slot: '보조장비', itemName: '일반 보조장비' },
+    { slotId: 'AMULET', slot: '목걸이', itemName: '흑아 : 목걸이' },
+    { slotId: 'WRIST', slot: '팔찌', itemName: '흑아 : 팔찌' },
+  ],
+};
+const plagueHeartRecommendation = {
+  sourceType: 'relicCraft',
+  currentEquipmentBody: {
+    slotId: 'SUPPORT',
+    slot: '보조장비',
+    itemName: '일반 보조장비',
+  },
+  targetEquipmentBody: {
+    slotId: 'SUPPORT',
+    slot: '보조장비',
+    itemName: '만병을 잉태한 역병의 심장',
+    conditionalEffects: {
+      blackFangSynergy: {
+        dealerFinalDamagePercentPerItem: 3,
+        bufferBuffPowerPerItem: 75,
+        maxCount: 3,
+      },
+    },
+  },
+};
+const plagueHeartReference = calculation.getBufferRecommendationScopeSimulator(
+  plagueHeartScopeSimulator,
+  plagueHeartRecommendation,
+  false,
+);
+const plagueHeartCandidate = calculation.getBufferRecommendationScopeSimulator(
+  plagueHeartScopeSimulator,
+  plagueHeartRecommendation,
+  true,
+);
+assert.equal(resolveWith({ scopeSimulator: plagueHeartReference }).buffPowerDelta, 0);
+assert.equal(resolveWith({ scopeSimulator: plagueHeartCandidate }).buffPowerDelta, 150);
+
 function assertScopeSimulation(row, inspectReference, inspectCandidate) {
   const simulator = createScopeSimulator();
   const before = clone(simulator);

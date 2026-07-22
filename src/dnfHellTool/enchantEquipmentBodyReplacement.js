@@ -55,6 +55,7 @@ export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targe
   nextEquipment.iconUrl = targetBody.iconUrl || '';
   nextEquipment.itemRarity = targetBody.itemRarity || nextEquipment.itemRarity || '';
   nextEquipment.bodyEffects = cloneValue(targetBody.effects || {});
+  nextEquipment.conditionalEffects = cloneValue(targetBody.conditionalEffects || {});
   nextEquipment.bodyExplain = targetBody.itemExplain || '';
   nextEquipment.itemReinforceSkill = cloneValue(targetBody.itemReinforceSkill || []);
   nextEquipment.itemBuff = cloneValue(targetBody.itemBuff || {});

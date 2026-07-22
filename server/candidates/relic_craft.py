@@ -50,7 +50,19 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
         amount = _number(material.get("amount"))
         if amount <= 0:
             return []
-        if material.get("priceSource") == "localManual":
+        price_source = clean_text(material.get("priceSource"))
+        if price_source == "displayOnly":
+            auction = {
+                "listingCount": 0,
+                "minUnitPrice": 0,
+                "averagePrice": 0,
+                "auctionNo": None,
+                "priceSource": "displayOnly",
+                "isSynthetic": True,
+            }
+            label = clean_text(material.get("label"))
+            item_id = clean_text(material.get("itemId"))
+        elif price_source == "localManual":
             price = _number(((recipe.get("manualPrices") or {}).get(key) or {}).get("unitPrice"))
             if price <= 0:
                 return []

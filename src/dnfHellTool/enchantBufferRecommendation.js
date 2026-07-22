@@ -1,4 +1,5 @@
 import { isEquipmentBodyReplacementSource } from './enchantEquipmentBodyReplacement.js';
+import { getPlagueHeartBufferPower, getPlagueHeartBufferRecommendationPower, getPlagueHeartConditionalEffectText } from './enchantPlagueHeartSynergy.js';
 
 export function createEnchantBufferRecommendation(deps) {
   const {
@@ -241,11 +242,15 @@ export function createEnchantBufferRecommendation(deps) {
     baseline,
     includeMaterialCosts = false,
     simulator = null,
+    currentEquipmentRows = [],
   ) {
     if (!baseline?.isBuffer) return [];
     const currentBySlot = new Map((currentEnchants || []).map((enchant) => [enchant.slot, enchant]));
     const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
-    const baseScore = calculateBufferScore(baseline);
+    const equipmentRows = simulator?.simulatedEquipmentUpgrades || currentEquipmentRows || [];
+    const baseScore = calculateBufferScore(baseline, {
+      buffPowerDelta: getPlagueHeartBufferPower(equipmentRows),
+    });
     const bySlotTier = new Map();
     (rows || []).forEach((row) => {
       if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
@@ -264,6 +269,18 @@ export function createEnchantBufferRecommendation(deps) {
           },
         }
       : row;
+      const conditionalEffectText = getPlagueHeartConditionalEffectText(row, equipmentRows, true);
+      if (conditionalEffectText) row = { ...row, conditionalEffectText };
+      const currentPlagueHeartBuffPower = getPlagueHeartBufferRecommendationPower(
+        row,
+        equipmentRows,
+        false,
+      );
+      const targetPlagueHeartBuffPower = getPlagueHeartBufferRecommendationPower(
+        row,
+        equipmentRows,
+        true,
+      );
       const current = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? {}
         : isEquipmentBodyReplacementSource(row)
@@ -321,12 +338,16 @@ export function createEnchantBufferRecommendation(deps) {
       const equipmentTuneBuffPowerDelta = isEquipmentBodyReplacementSource(row)
         ? Number(row.equipmentTuneBuffPowerDelta || 0)
         : 0;
-      const buffPowerDelta = row.sourceType === 'upgrade'
+      const baseBuffPowerDelta = row.sourceType === 'upgrade'
         ? 0
         : Number(scoringTargetEffects?.buffPower || 0)
           - Number(scoringCurrentEffects?.buffPower || 0)
           + oathSetBuffPowerDelta
           + equipmentTuneBuffPowerDelta;
+      const buffPowerDelta = baseBuffPowerDelta
+        + targetPlagueHeartBuffPower
+        - currentPlagueHeartBuffPower;
+      const candidateBuffPowerChange = baseBuffPowerDelta + targetPlagueHeartBuffPower;
       const buffAmplificationChanges = row.sourceType === 'title' && !titleAppliesToSwitching
         ? { currentBuffAmplificationDelta: buffAmplificationDelta }
         : {
@@ -362,7 +383,7 @@ export function createEnchantBufferRecommendation(deps) {
         statDelta: Number(replacementStatChanges.statDelta || 0)
           + Number(avatarStatChanges.statDelta || 0)
           + Number(itemSkillChanges.statDelta || 0),
-        buffPowerDelta,
+        buffPowerDelta: candidateBuffPowerChange,
         ...buffAmplificationChanges,
         switchingBuffAmplificationDelta: Number(buffAmplificationChanges.switchingBuffAmplificationDelta || 0)
           + Number(itemSkillChanges.switchingBuffAmplificationDelta || 0),
@@ -485,7 +506,7 @@ export function createEnchantBufferRecommendation(deps) {
                 : row.sourceType === 'avatar' && row.kind === 'platinumEmblem'
                   ? { [row.targetSlotId]: bufferBaseRelativeChanges }
                   : {},
-              simulator,
+              getBufferRecommendationScopeSimulator(simulator, row, true),
             ),
           );
         } catch {

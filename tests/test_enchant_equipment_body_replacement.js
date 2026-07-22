@@ -72,6 +72,24 @@ const tunableReplacement = replaceEquipmentBodyPreservingState(base, {
 assert.equal(tunableReplacement.tuneLevel, base.tuneLevel);
 assert.equal(tunableReplacement.tuneRemaining, base.tuneRemaining);
 assert.equal(tunableReplacement.tuneUpgradeable, true);
+const conditionalReplacement = replaceEquipmentBodyPreservingState(base, {
+  ...perfume,
+  conditionalEffects: {
+    blackFangSynergy: {
+      dealerFinalDamagePercentPerItem: 3,
+      bufferBuffPowerPerItem: 75,
+      maxCount: 3,
+    },
+  },
+});
+assert.deepEqual(conditionalReplacement.conditionalEffects, {
+  blackFangSynergy: {
+    dealerFinalDamagePercentPerItem: 3,
+    bufferBuffPowerPerItem: 75,
+    maxCount: 3,
+  },
+});
+assert.deepEqual(applied.conditionalEffects, {});
 
 const bodyThenProgression = { ...applied, reinforce: 13, activeActionMarker: 'other-action' };
 const progressionThenBody = replaceEquipmentBodyPreservingState(
@@ -123,6 +141,8 @@ assert.doesNotMatch(viewSource, /replaceRelicCraftBody|replaceBlackFangBody/);
 assert.match(viewSource, /applyType:\s*'replaceEquipmentBody'/);
 assert.match(viewSource, /replaceEquipmentBodyInRows\(/);
 assert.match(viewSource, /replaceEquipmentBody:\s*\{/);
+assert.match(viewSource, /row\.conditionalEffectText/);
+assert.match(viewSource, /\['보조장비', '마법석', '귀걸이'\]\.includes\(targetSlot\)/);
 assert.match(viewSource, /function getEquipmentTuneRecommendationUpgrades\(\)/);
 assert.match(viewSource, /getEquipmentTuneRows\(getEquipmentTuneRecommendationUpgrades\(\)/);
 assert.match(viewSource, /function invalidateActiveEquipmentTuneSelectionForBodyChange\(\)/);

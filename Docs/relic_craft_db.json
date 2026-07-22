@@ -124,6 +124,63 @@
         },
         "requiredBaseEffectKeys": ["attackIncrease"]
       }
+    },
+    {
+      "key": "plagueHeart",
+      "enabled": true,
+      "sourceType": "relicCraft",
+      "display": {
+        "cardTitle": "유물 제작",
+        "cardSubtitle": "보조장비"
+      },
+      "target": {
+        "itemId": "6e1fcf6e59ed8d5a95dc152b84fe93ce",
+        "itemName": "만병을 잉태한 역병의 심장",
+        "itemRarity": "태초",
+        "slotId": "SUPPORT",
+        "itemTypeDetail": "보조장비"
+      },
+      "eligibility": {
+        "minimumCurrentEquipmentSetPoint": 2620
+      },
+      "baseCraft": {
+        "fixedGold": 100000000,
+        "materials": [
+          { "key": "blackHeartPulse", "label": "검은 심장의 맥박", "itemId": "165e92536134e83a5f58db786ede0c66", "amount": 1, "priceSource": "displayOnly" },
+          { "key": "plagueSeed", "label": "역병의 씨앗", "itemId": "f4404a61f4522fa0a2a280366104033b", "amount": 1200, "priceSource": "displayOnly" },
+          { "key": "epicSoul", "label": "에픽 소울 결정", "itemId": "c7d845c65ab9dbcff6e55dc910fbea87", "amount": 500, "priceSource": "materialResolver" },
+          { "key": "primordialSoul", "label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888", "amount": 25, "priceSource": "materialResolver" }
+        ]
+      },
+      "precision100": {
+        "targetPercent": 100,
+        "operationCount": 25,
+        "fixedGold": 100000000,
+        "materials": [
+          { "key": "plagueSeed", "amount": 750 },
+          { "key": "epicSoul", "amount": 1000 }
+        ]
+      },
+      "authoritativeEffects": {
+        "finalDamage": {
+          "bodyPercent": 50.2,
+          "precisionPercent": 10.0,
+          "additionalMultipliers": []
+        },
+        "buffPower": {
+          "body": 12930,
+          "precision": 4500
+        },
+        "conditionalEffects": {
+          "blackFangSynergy": {
+            "dealerFinalDamagePercentPerItem": 3,
+            "bufferBuffPowerPerItem": 75,
+            "maxCount": 3,
+            "aggregation": "multiplicative"
+          }
+        },
+        "requiredBaseEffectKeys": ["attackIncrease"]
+      }
     }
   ]
 }

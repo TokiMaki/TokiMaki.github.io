@@ -165,6 +165,7 @@ def normalize_relic_craft_target_equipment_body(
         "itemRarity": _clean_text(target_detail.get("itemRarity")),
         "iconUrl": icon_url,
         "effects": effects,
+        "conditionalEffects": dict(authoritative_effects.get("conditionalEffects") or {}),
         "tuneLevel": 0,
         "tuneSetPoint": target_set_point,
         "tuneUpgradeable": False,

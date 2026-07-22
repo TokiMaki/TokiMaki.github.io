@@ -1,4 +1,8 @@
 import { isEquipmentBodyReplacementSource } from './enchantEquipmentBodyReplacement.js';
+import {
+  getPlagueHeartConditionalEffectText,
+  getPlagueHeartDealerRecommendationMultiplier,
+} from './enchantPlagueHeartSynergy.js';
 
 export function createEnchantDealerRecommendation(deps) {
   const {
@@ -566,9 +570,11 @@ export function createEnchantDealerRecommendation(deps) {
     includeMaterialCosts = false,
     simulationOptions = null,
     currentCreatureBody = currentCreature,
+    currentEquipmentRows = [],
   ) {
     const currentBySlot = getCurrentEnchantBySlot(currentEnchants, baseline);
     const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
+    const equipmentRows = simulationOptions?.simulatedEquipmentRows || currentEquipmentRows || [];
     const preferredArtifactElement = getPreferredElementForElementalUpgrades(rows, baseline, currentCreature, currentTitle);
     const elementAlignmentOverride = getElementAlignmentOverride(
       rows,
@@ -581,6 +587,15 @@ export function createEnchantDealerRecommendation(deps) {
     const bySlotTier = new Map();
     rows.forEach((row) => {
       if (shouldSkipByElementAlignmentOverride(row, elementAlignmentOverride, currentTitle)) return;
+      const plagueHeartMultiplier = getPlagueHeartDealerRecommendationMultiplier(row, equipmentRows);
+      const conditionalEffectText = getPlagueHeartConditionalEffectText(row, equipmentRows, false);
+      if (Math.abs(plagueHeartMultiplier - 1) > 0.000001 || conditionalEffectText) {
+        row = {
+          ...row,
+          skillDamageMultiplier: getSkillDamageMultiplier(row) * plagueHeartMultiplier,
+          conditionalEffectText,
+        };
+      }
       const evaluationBaseline = row.sourceType === 'enchant'
         ? simulationOptions?.referenceBaselineBySlot?.get(row.slot) || baseline
         : row.sourceType === 'avatar' && row.kind === 'brilliantEmblem'

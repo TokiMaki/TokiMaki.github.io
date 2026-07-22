@@ -1,3 +1,9 @@
+import {
+  isEquipmentBodyReplacementSource,
+  replaceEquipmentBodyInRows,
+} from './enchantEquipmentBodyReplacement.js';
+import { getPlagueHeartBufferPower } from './enchantPlagueHeartSynergy.js';
+
 const BUFF_LOADOUT_SLOT_NAME_ALIASES = {
   벨트: '허리',
 };
@@ -354,6 +360,9 @@ export function createEnchantBufferSimulatorCalculation(deps) {
         }
       });
     });
+    total.buffPowerDelta += getPlagueHeartBufferPower(
+      scopeSimulator?.simulatedEquipmentUpgrades || scopeSimulator?.baseEquipmentUpgrades || [],
+    );
     return total;
   }
 
@@ -368,6 +377,14 @@ export function createEnchantBufferSimulatorCalculation(deps) {
 
   function getBufferRecommendationScopeSimulator(simulator = {}, row = {}, useCandidate = false) {
     const targetSlotId = getBuffSimulatorTargetSlotId(row);
+    if (isEquipmentBodyReplacementSource(row)) {
+      const equipmentRows = simulator.simulatedEquipmentUpgrades || simulator.baseEquipmentUpgrades || [];
+      const body = useCandidate ? row.targetEquipmentBody : row.currentEquipmentBody;
+      const simulatedEquipmentUpgrades = body
+        ? replaceEquipmentBodyInRows(equipmentRows, body) || equipmentRows
+        : equipmentRows;
+      return { ...simulator, simulatedEquipmentUpgrades };
+    }
     const changesSwitchingSource = row.sourceType === 'switchingTitle'
       || row.sourceType === 'switchingCreature'
       || row.sourceType === 'switchingFragment'
