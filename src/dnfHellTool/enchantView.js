@@ -663,7 +663,7 @@ function getEnchantIncludeGroups(row = {}) {
     return [`아바타:${row.kind === 'platinumEmblem' ? '플래티넘 엠블렘' : '엠블렘'}`];
   }
   if (row.sourceType === 'blackFang') return ['흑아:흑아'];
-  if (row.sourceType === 'relicCraft') return ['장비:유물'];
+  if (row.sourceType === 'relicCraft') return ['장비:유일'];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
   if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return ['서약:초월/정가'];
@@ -908,7 +908,7 @@ function getRelicCraftRows(
       slot: targetSlotName,
       targetSlotId,
       tier: candidate.tier || targetEquipmentBody.itemRarity || '',
-      cardTitle: candidate.cardTitle || '유물 제작',
+      cardTitle: candidate.cardTitle || '유일 제작',
       cardSubtitle: candidate.cardSubtitle || targetSlotName,
       effects: subtractEffects(targetEffects, currentEffects),
       currentEffects,
@@ -6055,7 +6055,7 @@ export function installEnchantView(ctx) {
         : row.sourceType === 'oathAcquisitionCombined'
           ? '서약 결정'
         : row.sourceType === 'relicCraft'
-          ? row.cardTitle || '유물 제작'
+          ? row.cardTitle || '유일 제작'
         : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
       const isMaterialEnchant = isMaterialEnchantRecommendation(row);

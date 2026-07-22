@@ -5,7 +5,7 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '아바타'], breakBefore: true },
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
-  { title: '장비', items: ['조율', '유물'] },
+  { title: '장비', items: ['조율', '유일'] },
   { title: '서약', items: ['조율', '초월/정가'] },
   { title: '흑아', items: ['흑아'] },
 ];
@@ -54,7 +54,7 @@ export function createEnchantRecommendationControls({
       legacyOathKeys.forEach((key) => storedChecked.delete(key));
       if (hadLegacyOathSelection) storedChecked.add('서약:초월/정가');
       const legacyRelicKey = '유일:제작';
-      const currentRelicKey = '장비:유물';
+      const currentRelicKey = '장비:유일';
       const hadLegacyRelicSelection = storedChecked.has(legacyRelicKey);
       storedChecked.delete(legacyRelicKey);
       if (hadLegacyRelicSelection) storedChecked.add(currentRelicKey);

@@ -6,7 +6,7 @@
       "enabled": true,
       "sourceType": "relicCraft",
       "display": {
-        "cardTitle": "유물 제작",
+        "cardTitle": "유일 제작",
         "cardSubtitle": "마법석"
       },
       "target": {
@@ -68,7 +68,7 @@
       "enabled": true,
       "sourceType": "relicCraft",
       "display": {
-        "cardTitle": "유물 제작",
+        "cardTitle": "유일 제작",
         "cardSubtitle": "귀걸이"
       },
       "target": {
@@ -130,7 +130,7 @@
       "enabled": true,
       "sourceType": "relicCraft",
       "display": {
-        "cardTitle": "유물 제작",
+        "cardTitle": "유일 제작",
         "cardSubtitle": "보조장비"
       },
       "target": {

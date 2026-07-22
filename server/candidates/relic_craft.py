@@ -263,7 +263,7 @@ def _build_recipe_recommendation(
         material_text=" / ".join(
             f"{material['label']} {material['amount']:,}개" for material in materials
         ),
-        card_title=display.get("cardTitle") or "유물 제작",
+        card_title=display.get("cardTitle") or "유일 제작",
         card_subtitle=display.get("cardSubtitle") or target_body["slot"],
         source_type=recipe.get("sourceType") or "relicCraft",
         tier=target_body["itemRarity"],

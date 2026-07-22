@@ -241,6 +241,7 @@
       background: #11100d;
     }
     .enchant-relic-tune-attempt-control {
+      position: relative;
       display: inline-flex;
       align-items: center;
       gap: 7px;
@@ -267,7 +268,8 @@
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
-    .enchant-route-option[data-tooltip]::after {
+    .enchant-route-option[data-tooltip]::after,
+    .enchant-relic-tune-attempt-control[data-tooltip]::after {
       content: attr(data-tooltip);
       position: absolute;
       left: 50%;
@@ -295,7 +297,9 @@
       transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
     }
     .enchant-route-option[data-tooltip]:hover::after,
-    .enchant-route-option[data-tooltip]:focus-within::after {
+    .enchant-route-option[data-tooltip]:focus-within::after,
+    .enchant-relic-tune-attempt-control[data-tooltip]:hover::after,
+    .enchant-relic-tune-attempt-control[data-tooltip]:focus-within::after {
       opacity: 1;
       visibility: visible;
       transform: translateX(-50%) translateY(0);

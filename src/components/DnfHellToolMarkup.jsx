@@ -110,8 +110,11 @@ export default function DnfHellToolMarkup() {
               <input id={'enchantMaterialCostToggle'} type={'checkbox'} defaultChecked />
               재료값 포함
             </label>
-            <label className={'enchant-relic-tune-attempt-control'}>
-              <span>조율 시도</span>
+            <label
+              className={'enchant-relic-tune-attempt-control'}
+              data-tooltip={'유일 장비의 정밀도 100% 달성까지의 정밀 시도 횟수입니다. 선택한 횟수만큼 재료와 비용이 계산됩니다.'}
+            >
+              <span>정밀 시도</span>
               <input
                 id={'enchantRelicTuneAttemptRange'}
                 type={'range'}
@@ -119,7 +122,7 @@ export default function DnfHellToolMarkup() {
                 max={'100'}
                 step={'5'}
                 defaultValue={'25'}
-                aria-label={'유물 조율 시도 횟수'}
+                aria-label={'유일 정밀 시도 횟수'}
               />
               <output id={'enchantRelicTuneAttemptValue'} htmlFor={'enchantRelicTuneAttemptRange'}>25회</output>
             </label>
