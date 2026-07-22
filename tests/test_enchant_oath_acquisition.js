@@ -202,18 +202,28 @@ const simulatorSnapshot = cloneSimulatorValue(simulator);
 const adapted = acquisition.adaptOathAcquisitionRecommendation(candidateRow, simulator);
 assert.ok(adapted);
 assert.equal(adapted.decisionPlan.length, 1);
-assert.equal(adapted.decisionPlan[0].slotIndex, 1);
-assert.equal(adapted.itemId, 'epic-b');
+assert.equal(adapted.decisionPlan[0].slotIndex, 0);
+assert.equal(adapted.itemId, 'epic-a');
 assert.equal(adapted.currentSetPoint, 190);
 assert.equal(adapted.targetSetPoint, 220);
 assert.deepEqual(candidateRow, candidateSnapshot);
 assert.deepEqual(simulator, simulatorSnapshot);
 
 const descriptors = acquisition.getOathAcquisitionSelectionDescriptors(adapted);
-assert.deepEqual(descriptors.map((descriptor) => descriptor.exclusiveGroupKey), ['oathAcquire:1']);
+assert.deepEqual(descriptors.map((descriptor) => descriptor.exclusiveGroupKey), ['oathAcquire:0']);
 assert.equal(
   acquisition.getOathAcquisitionCandidateSignature(adapted),
-  'oathAcquire:1:transcend:epic-b',
+  'oathAcquire:0:transcend:epic-a',
+);
+
+const adaptedTwoDecisions = acquisition.adaptOathAcquisitionRecommendation({
+  ...candidateRow,
+  variantCount: 2,
+}, simulator);
+assert.deepEqual(
+  adaptedTwoDecisions.decisionPlan.map((entry) => entry.slotIndex),
+  [0, 1],
+  '2/2는 유니크를 먼저, 레전더리를 다음으로 교체한다',
 );
 
 const bufferSimulator = {
@@ -299,5 +309,273 @@ assert.equal(
   appliedDescriptor.candidateSignature,
 );
 assert.deepEqual(appliedSimulator, appliedSimulatorSnapshot);
+
+
+const protectedEpicDecision = {
+  slotIndex: 0,
+  targetItemId: 'epic-from-legend',
+  targetItemName: '초월 에픽',
+  targetRarity: '에픽',
+  targetEffects: { finalDamage: 8 },
+  targetSlotSetPoint: 130,
+};
+const crossRarityBaseCrystals = [
+  { index: 0, itemId: 'legend-a', itemName: '레전더리 A', itemRarity: '레전더리', effects: { finalDamage: 1 }, setPoint: 90 },
+  { index: 1, itemId: 'native-epic-b', itemName: '기존 에픽 B', itemRarity: '에픽', effects: { finalDamage: 4 }, setPoint: 120 },
+  { index: 2, itemId: 'legend-c', itemName: '레전더리 C', itemRarity: '레전더리', effects: { finalDamage: 2 }, setPoint: 95 },
+];
+const crossRaritySimulatedCrystals = crossRarityBaseCrystals.map((crystal) => (
+  crystal.index === 0
+    ? acquisition.replaceOathDecisionBody(crystal, protectedEpicDecision, 3)
+    : cloneSimulatorValue(crystal)
+));
+const sumSetPoint = (crystals) => crystals.reduce(
+  (sum, crystal) => sum + Number(crystal.setPoint || 0),
+  0,
+);
+const crossRaritySimulator = {
+  role: 'dealer',
+  oathTuneDb: { maxTuneLevel: 3, uniqueCrystalNameKeyword: '안개 결정' },
+  baseOathUpgrades: {
+    setPoint: sumSetPoint(crossRarityBaseCrystals),
+    crystals: cloneSimulatorValue(crossRarityBaseCrystals),
+  },
+  simulatedOathUpgrades: {
+    setPoint: sumSetPoint(crossRaritySimulatedCrystals),
+    crystals: cloneSimulatorValue(crossRaritySimulatedCrystals),
+  },
+  activeSelectionByGroup: {
+    'oathAcquire:0': {
+      applyType: 'acquireOathDecision',
+      candidateSignature: 'oathAcquire:0:transcend:epic-from-legend',
+      acquisitionVariantGroupKey: 'oathTranscend:에픽',
+      acquisitionTargetGroupKey: 'oathAcquireTarget:에픽',
+      acquisitionMethod: 'transcend',
+      targetDecision: cloneSimulatorValue(protectedEpicDecision),
+    },
+  },
+};
+const primevalAfterEpicRow = {
+  sourceType: 'oathTranscend',
+  targetRarity: '태초',
+  itemRarity: '태초',
+  variantGroupKey: 'oathTranscend:태초',
+  variantCount: 1,
+  decisionCandidatePool: [
+    {
+      slotIndex: 0,
+      targetItemId: 'primeval-protected-slot',
+      targetItemName: '태초 보호 슬롯',
+      targetRarity: '태초',
+      targetEffects: { finalDamage: 40 },
+      targetSlotSetPoint: 145,
+      expectedGold: 1000,
+    },
+    {
+      slotIndex: 2,
+      targetItemId: 'primeval-legend',
+      targetItemName: '태초 레전더리',
+      targetRarity: '태초',
+      targetEffects: { finalDamage: 20 },
+      targetSlotSetPoint: 145,
+      expectedGold: 1000,
+    },
+  ],
+};
+const adaptedPrimevalAfterEpic = acquisition.adaptOathAcquisitionRecommendation(
+  primevalAfterEpicRow,
+  crossRaritySimulator,
+);
+assert.ok(adaptedPrimevalAfterEpic);
+assert.equal(
+  adaptedPrimevalAfterEpic.decisionPlan[0].slotIndex,
+  2,
+  '태초는 에픽보다 남아 있는 레전더리를 먼저 교체한다',
+);
+
+const recompositionBaseCrystals = [
+  { index: 0, itemId: 'unique-weak', itemName: '유니크 약', itemRarity: '유니크', effects: { finalDamage: 1 }, setPoint: 80 },
+  { index: 1, itemId: 'legend-mid', itemName: '레전더리 중', itemRarity: '레전더리', effects: { finalDamage: 2 }, setPoint: 90 },
+  { index: 2, itemId: 'legend-high', itemName: '레전더리 강', itemRarity: '레전더리', effects: { finalDamage: 3 }, setPoint: 95 },
+];
+const recompositionSimulator = {
+  role: 'dealer',
+  oathTuneDb: { maxTuneLevel: 3, uniqueCrystalNameKeyword: '안개 결정' },
+  baseOathUpgrades: {
+    setPoint: sumSetPoint(recompositionBaseCrystals),
+    crystals: cloneSimulatorValue(recompositionBaseCrystals),
+  },
+  simulatedOathUpgrades: {
+    setPoint: sumSetPoint(recompositionBaseCrystals),
+    crystals: cloneSimulatorValue(recompositionBaseCrystals),
+  },
+  activeSelectionByGroup: {},
+};
+const recompositionEpicRow = {
+  sourceType: 'oathTranscend',
+  targetRarity: '에픽',
+  itemRarity: '에픽',
+  variantGroupKey: 'oathTranscend:에픽',
+  variantCount: 1,
+  decisionCandidatePool: [
+    { slotIndex: 0, targetItemId: 'epic-slot-0', targetItemName: '에픽 0', targetRarity: '에픽', targetEffects: { finalDamage: 10 }, targetSlotSetPoint: 120 },
+    { slotIndex: 1, targetItemId: 'epic-slot-1', targetItemName: '에픽 1', targetRarity: '에픽', targetEffects: { finalDamage: 20 }, targetSlotSetPoint: 130 },
+  ],
+};
+const recompositionPrimevalRow = {
+  sourceType: 'oathTranscend',
+  targetRarity: '태초',
+  itemRarity: '태초',
+  variantGroupKey: 'oathTranscend:태초',
+  variantCount: 1,
+  decisionCandidatePool: [
+    { slotIndex: 0, targetItemId: 'primeval-slot-0', targetItemName: '태초 0', targetRarity: '태초', targetEffects: { finalDamage: 40 }, targetSlotSetPoint: 145 },
+    { slotIndex: 1, targetItemId: 'primeval-slot-1', targetItemName: '태초 1', targetRarity: '태초', targetEffects: { finalDamage: 30 }, targetSlotSetPoint: 145 },
+    { slotIndex: 2, targetItemId: 'primeval-slot-2', targetItemName: '태초 2', targetRarity: '태초', targetEffects: { finalDamage: 20 }, targetSlotSetPoint: 145 },
+  ],
+};
+const recomposedPlans = acquisition.rebuildOathAcquisitionPlansFromBase(
+  recompositionSimulator,
+  [recompositionPrimevalRow, recompositionEpicRow],
+);
+assert.ok(recomposedPlans);
+assert.deepEqual(
+  recomposedPlans.recommendations.map((row) => row.targetRarity),
+  ['에픽', '태초'],
+  '전체 계획은 입력 순서와 관계없이 에픽 다음 태초로 배치한다',
+);
+assert.equal(recomposedPlans.oathUpgrades.crystals[0].itemId, 'epic-slot-0');
+assert.equal(recomposedPlans.oathUpgrades.crystals[1].itemId, 'primeval-slot-1');
+assert.equal(recomposedPlans.oathUpgrades.crystals[2].itemId, 'legend-high');
+assert.deepEqual(recompositionSimulator.simulatedOathUpgrades.crystals, recompositionBaseCrystals);
+
+const recomposedFullPlans = acquisition.rebuildOathAcquisitionPlansFromBase(
+  recompositionSimulator,
+  [
+    { ...recompositionEpicRow, variantCount: 2 },
+    recompositionPrimevalRow,
+  ],
+);
+assert.deepEqual(
+  recomposedFullPlans.oathUpgrades.crystals.map((crystal) => crystal.itemRarity),
+  ['에픽', '에픽', '태초'],
+  '에픽 2개를 먼저 배치하고 남은 슬롯에 태초 1개를 배치한다',
+);
+const recomposedPrimevalOnly = acquisition.rebuildOathAcquisitionPlansFromBase(
+  recompositionSimulator,
+  [recompositionPrimevalRow],
+);
+assert.deepEqual(
+  recomposedPrimevalOnly.oathUpgrades.crystals.map((crystal) => crystal.itemId),
+  ['primeval-slot-0', 'legend-mid', 'legend-high'],
+  '에픽 계획을 제거하면 이전 배치를 유지하지 않고 base에서 태초 계획만 다시 선택한다',
+);
+
+const surplusEpicCrystals = Array.from({ length: 11 }, (_, index) => ({
+  index,
+  itemId: `surplus-epic-${index}`,
+  itemName: `기존 에픽 ${index}`,
+  itemRarity: '에픽',
+  effects: { finalDamage: 4 + index / 10 },
+  setPoint: 120,
+}));
+const surplusEpicSimulator = {
+  role: 'dealer',
+  oathTuneDb: { maxTuneLevel: 3, uniqueCrystalNameKeyword: '안개 결정' },
+  baseOathUpgrades: {
+    setPoint: sumSetPoint(surplusEpicCrystals),
+    crystals: cloneSimulatorValue(surplusEpicCrystals),
+  },
+  simulatedOathUpgrades: {
+    setPoint: sumSetPoint(surplusEpicCrystals),
+    crystals: cloneSimulatorValue(surplusEpicCrystals),
+  },
+  activeSelectionByGroup: {},
+};
+const surplusPrimevalRow = {
+  sourceType: 'oathTranscend',
+  targetRarity: '태초',
+  itemRarity: '태초',
+  variantGroupKey: 'oathTranscend:태초',
+  variantCount: 1,
+  decisionCandidatePool: [{
+    slotIndex: 0,
+    targetItemId: 'primeval-from-surplus-epic',
+    targetItemName: '태초 잉여 에픽',
+    targetRarity: '태초',
+    targetEffects: { finalDamage: 20 },
+    targetSlotSetPoint: 145,
+    expectedGold: 1000,
+  }],
+};
+const adaptedSurplusPrimeval = acquisition.adaptOathAcquisitionRecommendation(
+  surplusPrimevalRow,
+  surplusEpicSimulator,
+);
+assert.ok(adaptedSurplusPrimeval);
+assert.equal(
+  adaptedSurplusPrimeval.decisionPlan[0].slotIndex,
+  0,
+  '처음부터 장착 중인 일반 에픽은 기존 선택 기준대로 태초 후보가 될 수 있다',
+);
+
+const protectedPrimevalDecision = {
+  slotIndex: 2,
+  targetItemId: 'primeval-from-legend',
+  targetItemName: '초월 태초',
+  targetRarity: '태초',
+  targetEffects: { finalDamage: 25 },
+  targetSlotSetPoint: 145,
+};
+const reverseSimulator = cloneSimulatorValue(crossRaritySimulator);
+reverseSimulator.simulatedOathUpgrades.crystals = crossRarityBaseCrystals.map((crystal) => (
+  crystal.index === 2
+    ? acquisition.replaceOathDecisionBody(crystal, protectedPrimevalDecision, 3)
+    : cloneSimulatorValue(crystal)
+));
+reverseSimulator.simulatedOathUpgrades.setPoint = sumSetPoint(reverseSimulator.simulatedOathUpgrades.crystals);
+reverseSimulator.activeSelectionByGroup = {
+  'oathAcquire:2': {
+    applyType: 'acquireOathDecision',
+    candidateSignature: 'oathAcquire:2:transcend:primeval-from-legend',
+    acquisitionVariantGroupKey: 'oathTranscend:태초',
+    acquisitionTargetGroupKey: 'oathAcquireTarget:태초',
+    acquisitionMethod: 'transcend',
+    targetDecision: cloneSimulatorValue(protectedPrimevalDecision),
+  },
+};
+const epicAfterPrimevalRow = {
+  sourceType: 'oathTranscend',
+  targetRarity: '에픽',
+  itemRarity: '에픽',
+  variantGroupKey: 'oathTranscend:에픽',
+  variantCount: 1,
+  decisionCandidatePool: [
+    {
+      slotIndex: 2,
+      targetItemId: 'epic-protected-primeval',
+      targetItemName: '에픽 보호 태초',
+      targetRarity: '에픽',
+      targetEffects: { finalDamage: 35 },
+      targetSlotSetPoint: 130,
+      expectedGold: 1000,
+    },
+    {
+      slotIndex: 0,
+      targetItemId: 'epic-legend-a',
+      targetItemName: '에픽 레전더리 A',
+      targetRarity: '에픽',
+      targetEffects: { finalDamage: 10 },
+      targetSlotSetPoint: 130,
+      expectedGold: 1000,
+    },
+  ],
+};
+const adaptedEpicAfterPrimeval = acquisition.adaptOathAcquisitionRecommendation(
+  epicAfterPrimevalRow,
+  reverseSimulator,
+);
+assert.ok(adaptedEpicAfterPrimeval);
+assert.equal(adaptedEpicAfterPrimeval.decisionPlan[0].slotIndex, 0);
 
 console.log('test_enchant_oath_acquisition: ok');
