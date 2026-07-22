@@ -54,6 +54,11 @@ import {
   resolveCanonicalEquipmentSlotId,
   resolveCanonicalEquipmentSlotName,
 } from './enchantEquipmentBodyReplacement.js';
+import {
+  RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT,
+  applyRelicCraftTuneAttemptCosts,
+  normalizeRelicCraftTuneAttempts,
+} from './enchantRelicCraftCost.js';
 
 const EFFECT_LABELS = {
   finalDamage: '최종뎀',
@@ -865,8 +870,13 @@ function getBlackFangRows(recommendations = []) {
   });
 }
 
-function getRelicCraftRows(recommendations = [], equipmentUpgrades = []) {
-  return (recommendations || []).flatMap((candidate) => {
+function getRelicCraftRows(
+  recommendations = [],
+  equipmentUpgrades = [],
+  tuneAttempts = RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT,
+) {
+  return (recommendations || []).flatMap((rawCandidate) => {
+    const candidate = applyRelicCraftTuneAttemptCosts(rawCandidate, tuneAttempts);
     const targetEquipmentBody = candidate.targetEquipmentBody || null;
     const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || {});
     const targetSlotName = resolveCanonicalEquipmentSlotName(targetEquipmentBody || {});
@@ -1743,6 +1753,9 @@ export function installEnchantView(ctx) {
     parseApiJsonResponse,
   } = ctx.constants;
   const { bindCharacterAvatars, escapeHtml, getCharacterAvatarUrl, getCharacterPortraitMarkup } = ctx.deps;
+  const getRelicCraftTuneAttempts = () => normalizeRelicCraftTuneAttempts(
+    els.enchantRelicTuneAttemptRange?.value,
+  );
 
   const { renderEfficiencyLegend } = createEnchantEfficiencyLegend({
     escapeHtml,
@@ -4399,7 +4412,17 @@ export function installEnchantView(ctx) {
     const simulator = getActiveSimulator();
     if (!simulator) return;
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
+    const relicTuneAttempts = getRelicCraftTuneAttempts();
     Object.values(simulator.activeSelectionByGroup || {}).forEach((selection) => {
+      if (selection.appliedRecommendationSnapshot?.sourceType === 'relicCraft') {
+        const adjustedSnapshot = applyRelicCraftTuneAttemptCosts(
+          selection.appliedRecommendationSnapshot,
+          relicTuneAttempts,
+        );
+        selection.appliedRecommendationSnapshot = adjustedSnapshot;
+        selection.goldWithoutMaterials = getRecommendationGold(adjustedSnapshot, false);
+        selection.goldWithMaterials = getRecommendationGold(adjustedSnapshot, true);
+      }
       selection.includeMaterialCost = includeMaterialCosts;
       selection.appliedGold = getDealerSimulatorSelectionGold(selection, includeMaterialCosts);
     });
@@ -5572,6 +5595,7 @@ export function installEnchantView(ctx) {
       ...getRelicCraftRows(
         state.currentRelicCraftRecommendations,
         getActiveEquipmentUpgrades(),
+        getRelicCraftTuneAttempts(),
       ),
     ].map((row) => adaptBuffEnhancementRecommendation(row, state.dealerSimulator));
     renderEnchantFilters(allRows);
@@ -6076,7 +6100,7 @@ export function installEnchantView(ctx) {
       const relicCraftMaterialsMarkup = hasRelicCraftMaterialGroups
         ? [
           formatRelicCraftMaterialGroup('제작 재료', 'craftAmount'),
-          formatRelicCraftMaterialGroup('조율 재료', 'tuneAmount'),
+          formatRelicCraftMaterialGroup('조율 재료 (' + Number(row.precisionOperationCount || RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT) + '회 기준)', 'tuneAmount'),
         ].filter(Boolean).join('')
         : '';
       const formatCombinedAcquisitionMaterials = (label, variant) => {

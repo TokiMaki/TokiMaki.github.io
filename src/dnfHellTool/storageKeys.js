@@ -80,6 +80,7 @@ export const ACTIVE_TAB_STORAGE_KEY = 'dnf-hell-info:active-tab';
 export const ENCHANT_INCLUDE_FILTER_STORAGE_KEY = 'dnf-hell-info:enchant-include-filter';
 export const ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY = 'dnf-hell-info:enchant-include-known-filter-keys';
 export const ENCHANT_MATERIAL_COST_STORAGE_KEY = 'dnf-hell-info:enchant-material-cost';
+export const ENCHANT_RELIC_TUNE_ATTEMPT_STORAGE_KEY = 'dnf-hell-info:enchant-relic-tune-attempts';
 export const SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY = 'dnf-hell-info:supply-soul-excluded-keys';
 export const SUPPLY_SOUL_USAGE_RATES_STORAGE_KEY = 'dnf-hell-info:supply-soul-usage-rates';
 export const STORAGE_SCOPE_LABEL = '이 컴퓨터 저장소';

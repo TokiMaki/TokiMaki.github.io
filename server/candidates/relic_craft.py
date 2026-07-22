@@ -37,9 +37,11 @@ def _get_equipment_set_point(equipment_rows: list) -> float:
 
 def _build_materials(recipe: dict, material_prices: dict) -> list:
     by_key = {}
-    for amount_key, group in (
-        ("craftAmount", recipe.get("baseCraft") or {}),
-        ("tuneAmount", recipe.get("precision100") or {}),
+    precision = recipe.get("precision100") or {}
+    operation_count = int(_number(precision.get("operationCount")))
+    for group_name, group in (
+        ("craft", recipe.get("baseCraft") or {}),
+        ("tune", precision),
     ):
         for material in group.get("materials") or []:
             key = clean_text(material.get("key"))
@@ -47,11 +49,26 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
                 return []
             merged = by_key.setdefault(
                 key,
-                dict(material, amount=0, craftAmount=0, tuneAmount=0),
+                dict(
+                    material,
+                    amount=0,
+                    craftAmount=0,
+                    tuneAmount=0,
+                    tuneAmountPerAttempt=0,
+                ),
             )
-            material_amount = _number(material.get("amount"))
-            merged["amount"] = _number(merged.get("amount")) + material_amount
-            merged[amount_key] = _number(merged.get(amount_key)) + material_amount
+            if group_name == "craft":
+                craft_amount = _number(material.get("amount"))
+                merged["craftAmount"] = _number(merged.get("craftAmount")) + craft_amount
+            else:
+                tune_amount_per_attempt = _number(material.get("amountPerAttempt"))
+                merged["tuneAmountPerAttempt"] = (
+                    _number(merged.get("tuneAmountPerAttempt")) + tune_amount_per_attempt
+                )
+
+    for material in by_key.values():
+        material["tuneAmount"] = _number(material.get("tuneAmountPerAttempt")) * operation_count
+        material["amount"] = _number(material.get("craftAmount")) + _number(material.get("tuneAmount"))
 
     rows = []
     for key, material in by_key.items():
@@ -100,6 +117,7 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
             "amount": int(amount),
             "craftAmount": int(_number(material.get("craftAmount"))),
             "tuneAmount": int(_number(material.get("tuneAmount"))),
+            "tuneAmountPerAttempt": int(_number(material.get("tuneAmountPerAttempt"))),
             "auction": auction,
         })
     return build_upgrade_material_display_rows(rows)
@@ -206,9 +224,10 @@ def _build_recipe_recommendation(
     if not materials:
         return {}, {"reason": "missing_relic_craft_material_price"}
 
-    fixed_gold = _number((recipe.get("baseCraft") or {}).get("fixedGold")) + _number(
-        precision.get("fixedGold")
-    )
+    craft_fixed_gold = _number((recipe.get("baseCraft") or {}).get("fixedGold"))
+    tune_fixed_gold_per_attempt = _number(precision.get("fixedGoldPerAttempt"))
+    precision_operation_count = int(_number(precision.get("operationCount")))
+    fixed_gold = craft_fixed_gold + tune_fixed_gold_per_attempt * precision_operation_count
     if fixed_gold <= 0:
         return {}, {"reason": "missing_relic_craft_fixed_gold"}
 
@@ -238,6 +257,8 @@ def _build_recipe_recommendation(
             "isSynthetic": True,
         },
         expected_gold=fixed_gold,
+        craft_fixed_gold=craft_fixed_gold,
+        tune_fixed_gold_per_attempt=tune_fixed_gold_per_attempt,
         materials=materials,
         material_text=" / ".join(
             f"{material['label']} {material['amount']:,}개" for material in materials
@@ -247,7 +268,7 @@ def _build_recipe_recommendation(
         source_type=recipe.get("sourceType") or "relicCraft",
         tier=target_body["itemRarity"],
         precision_percent=_number(precision.get("targetPercent")),
-        precision_operation_count=int(_number(precision.get("operationCount"))),
+        precision_operation_count=precision_operation_count,
         current_slot_set_point=current_body["tuneSetPoint"],
         target_slot_set_point=target_body["tuneSetPoint"],
         current_equipment_set_point=current_set_point,

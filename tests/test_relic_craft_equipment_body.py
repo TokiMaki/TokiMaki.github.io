@@ -112,9 +112,11 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
 
         material_amounts = {}
         for group_name in ("baseCraft", "precision100"):
+            operation_count = recipe[group_name].get("operationCount", 1)
             for material in recipe[group_name]["materials"]:
+                amount = material.get("amount", 0) + material.get("amountPerAttempt", 0) * operation_count
                 material_amounts[material["key"]] = (
-                    material_amounts.get(material["key"], 0) + material["amount"]
+                    material_amounts.get(material["key"], 0) + amount
                 )
         self.assertEqual(material_amounts, {
             "weatherCubeShell": 1,
@@ -123,7 +125,9 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             "primordialSoul": 5,
         })
         self.assertEqual(
-            recipe["baseCraft"]["fixedGold"] + recipe["precision100"]["fixedGold"],
+            recipe["baseCraft"]["fixedGold"]
+            + recipe["precision100"]["fixedGoldPerAttempt"]
+            * recipe["precision100"]["operationCount"],
             200000000,
         )
 
@@ -204,6 +208,12 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             "epicSoul": 1000,
             "primordialSoul": 0,
         })
+        self.assertEqual({key: row["tuneAmountPerAttempt"] for key, row in material_by_key.items()}, {
+            "blackHeartPulse": 0,
+            "plagueSeed": 30,
+            "epicSoul": 40,
+            "primordialSoul": 0,
+        })
         base_material_by_key = {
             material["key"]: material
             for material in recipe["baseCraft"]["materials"]
@@ -219,7 +229,9 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertEqual(material_by_key["blackHeartPulse"]["auction"]["priceSource"], "displayOnly")
         self.assertEqual(material_by_key["plagueSeed"]["auction"]["minUnitPrice"], 0)
         self.assertEqual(
-            recipe["baseCraft"]["fixedGold"] + recipe["precision100"]["fixedGold"],
+            recipe["baseCraft"]["fixedGold"]
+            + recipe["precision100"]["fixedGoldPerAttempt"]
+            * recipe["precision100"]["operationCount"],
             200000000,
         )
         self.assertNotIn("pilgrimSeal", material_by_key)
@@ -374,6 +386,8 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             abs_tol=1e-8,
         ))
         self.assertEqual(row["expectedGold"], 200000000.0)
+        self.assertEqual(row["craftFixedGold"], 100000000.0)
+        self.assertEqual(row["tuneFixedGoldPerAttempt"], 4000000.0)
         self.assertEqual(row["materials"], materials)
         self.assertEqual(row["targetPrecisionPercent"], 100.0)
         self.assertEqual(row["precisionOperationCount"], 25)
@@ -563,6 +577,8 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertIn("조율 재료", frontend_source)
         self.assertIn("craftAmount", frontend_source)
         self.assertIn("tuneAmount", frontend_source)
+        self.assertIn("tuneAmountPerAttempt", (ROOT / "server/candidates/relic_craft.py").read_text(encoding="utf-8"))
+        self.assertIn("조율 재료 (", frontend_source)
         black_fang_presenter_source = (ROOT / "server/presenters/black_fang_presenter.py").read_text(encoding="utf-8")
         self.assertIn('"sourceType": "blackFang"', black_fang_presenter_source)
 

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "crafts": [
     {
       "key": "elegantDignityPerfume",
@@ -37,10 +37,10 @@
       "precision100": {
         "targetPercent": 100,
         "operationCount": 25,
-        "fixedGold": 100000000,
+        "fixedGoldPerAttempt": 4000000,
         "materials": [
-          { "key": "behemothTear", "amount": 200 },
-          { "key": "historiaQuartz", "amount": 500 }
+          { "key": "behemothTear", "amountPerAttempt": 8 },
+          { "key": "historiaQuartz", "amountPerAttempt": 20 }
         ]
       },
       "authoritativeEffects": {
@@ -99,10 +99,10 @@
       "precision100": {
         "targetPercent": 100,
         "operationCount": 25,
-        "fixedGold": 100000000,
+        "fixedGoldPerAttempt": 4000000,
         "materials": [
-          { "key": "ignoranceDream", "amount": 200 },
-          { "key": "historiaQuartz", "amount": 500 }
+          { "key": "ignoranceDream", "amountPerAttempt": 8 },
+          { "key": "historiaQuartz", "amountPerAttempt": 20 }
         ]
       },
       "authoritativeEffects": {
@@ -155,10 +155,10 @@
       "precision100": {
         "targetPercent": 100,
         "operationCount": 25,
-        "fixedGold": 100000000,
+        "fixedGoldPerAttempt": 4000000,
         "materials": [
-          { "key": "plagueSeed", "amount": 750 },
-          { "key": "epicSoul", "amount": 1000 }
+          { "key": "plagueSeed", "amountPerAttempt": 30 },
+          { "key": "epicSoul", "amountPerAttempt": 40 }
         ]
       },
       "authoritativeEffects": {

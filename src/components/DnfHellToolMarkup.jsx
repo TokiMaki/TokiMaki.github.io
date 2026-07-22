@@ -110,6 +110,19 @@ export default function DnfHellToolMarkup() {
               <input id={'enchantMaterialCostToggle'} type={'checkbox'} defaultChecked />
               재료값 포함
             </label>
+            <label className={'enchant-relic-tune-attempt-control'}>
+              <span>조율 시도</span>
+              <input
+                id={'enchantRelicTuneAttemptRange'}
+                type={'range'}
+                min={'10'}
+                max={'100'}
+                step={'5'}
+                defaultValue={'25'}
+                aria-label={'유물 조율 시도 횟수'}
+              />
+              <output id={'enchantRelicTuneAttemptValue'} htmlFor={'enchantRelicTuneAttemptRange'}>25회</output>
+            </label>
           </div>
           <label className={'enchant-amplification-mode'}>
             <span>안전 증폭</span>

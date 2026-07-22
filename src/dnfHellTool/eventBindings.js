@@ -47,6 +47,7 @@ export function bindToolEvents(ctx) {
     DEV_MODE_STORAGE_KEY,
     ENCHANT_INCLUDE_FILTER_STORAGE_KEY,
     ENCHANT_MATERIAL_COST_STORAGE_KEY,
+    ENCHANT_RELIC_TUNE_ATTEMPT_STORAGE_KEY,
     normalizeApiErrorMessage,
     STORAGE_NAMESPACE_KEY,
     STORAGE_SCOPE_LABEL,
@@ -528,6 +529,41 @@ if (els.enchantMaterialCostToggle) {
     } catch {
       // 설정 저장이 막혀도 현재 선택값으로 계산한다.
     }
+    ctx.actions.renderEnchantTable?.();
+    ctx.actions.renderEnchantCharacterPortrait?.();
+  });
+}
+if (els.enchantRelicTuneAttemptRange) {
+  const normalizeRelicTuneAttempts = (value) => {
+    const requested = value === null || value === '' ? 25 : Number(value);
+    const finite = Number.isFinite(requested) ? requested : 25;
+    return Math.min(100, Math.max(10, Math.round(finite / 5) * 5));
+  };
+  try {
+    els.enchantRelicTuneAttemptRange.value = String(normalizeRelicTuneAttempts(
+      localStorage.getItem(ENCHANT_RELIC_TUNE_ATTEMPT_STORAGE_KEY),
+    ));
+  } catch {
+    els.enchantRelicTuneAttemptRange.value = '25';
+  }
+  const syncRelicTuneAttemptControl = (persist = false) => {
+    const attempts = normalizeRelicTuneAttempts(els.enchantRelicTuneAttemptRange.value);
+    els.enchantRelicTuneAttemptRange.value = String(attempts);
+    if (els.enchantRelicTuneAttemptValue) {
+      els.enchantRelicTuneAttemptValue.value = String(attempts);
+      els.enchantRelicTuneAttemptValue.textContent = String(attempts) + '회';
+    }
+    if (persist) {
+      try {
+        localStorage.setItem(ENCHANT_RELIC_TUNE_ATTEMPT_STORAGE_KEY, String(attempts));
+      } catch {
+        // 설정 저장이 막혀도 현재 선택값으로 계산한다.
+      }
+    }
+  };
+  syncRelicTuneAttemptControl(false);
+  els.enchantRelicTuneAttemptRange.addEventListener('input', () => {
+    syncRelicTuneAttemptControl(true);
     ctx.actions.renderEnchantTable?.();
     ctx.actions.renderEnchantCharacterPortrait?.();
   });

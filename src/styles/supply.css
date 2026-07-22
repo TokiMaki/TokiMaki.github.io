@@ -240,6 +240,33 @@
       border-color: rgb(94 74 43 / 0.78);
       background: #11100d;
     }
+    .enchant-relic-tune-attempt-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      padding: 4px 8px;
+      border: 1px solid rgb(94 74 43 / 0.78);
+      border-radius: 4px;
+      background: #11100d;
+      color: var(--text);
+      font-size: 11.5px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .enchant-relic-tune-attempt-control input[type='range'] {
+      width: 112px;
+      margin: 0;
+      accent-color: var(--accent-2);
+      cursor: pointer;
+    }
+    .enchant-relic-tune-attempt-control output {
+      min-width: 34px;
+      color: var(--accent-2);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
     .enchant-route-option[data-tooltip]::after {
       content: attr(data-tooltip);
       position: absolute;

@@ -20,6 +20,8 @@ def build_relic_craft_recommendation_row(**values) -> dict:
         "targetEquipmentBody": target_body,
         "auction": values["auction"],
         "expectedGold": values["expected_gold"],
+        "craftFixedGold": values["craft_fixed_gold"],
+        "tuneFixedGoldPerAttempt": values["tune_fixed_gold_per_attempt"],
         "materials": values["materials"],
         "materialText": values["material_text"],
         "priceComplete": True,
