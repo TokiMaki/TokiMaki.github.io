@@ -37,13 +37,21 @@ def _get_equipment_set_point(equipment_rows: list) -> float:
 
 def _build_materials(recipe: dict, material_prices: dict) -> list:
     by_key = {}
-    for group in (recipe.get("baseCraft") or {}, recipe.get("precision100") or {}):
+    for amount_key, group in (
+        ("craftAmount", recipe.get("baseCraft") or {}),
+        ("tuneAmount", recipe.get("precision100") or {}),
+    ):
         for material in group.get("materials") or []:
             key = clean_text(material.get("key"))
             if not key:
                 return []
-            merged = by_key.setdefault(key, dict(material, amount=0))
-            merged["amount"] = _number(merged.get("amount")) + _number(material.get("amount"))
+            merged = by_key.setdefault(
+                key,
+                dict(material, amount=0, craftAmount=0, tuneAmount=0),
+            )
+            material_amount = _number(material.get("amount"))
+            merged["amount"] = _number(merged.get("amount")) + material_amount
+            merged[amount_key] = _number(merged.get(amount_key)) + material_amount
 
     rows = []
     for key, material in by_key.items():
@@ -90,6 +98,8 @@ def _build_materials(recipe: dict, material_prices: dict) -> list:
             "label": label,
             "itemId": item_id,
             "amount": int(amount),
+            "craftAmount": int(_number(material.get("craftAmount"))),
+            "tuneAmount": int(_number(material.get("tuneAmount"))),
             "auction": auction,
         })
     return build_upgrade_material_display_rows(rows)

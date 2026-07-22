@@ -151,7 +151,6 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         recipe = self.heart_recipe
         authoritative_effects = recipe["authoritativeEffects"]
 
-        self.assertEqual(recipe["target"]["itemId"], "")
         self.assertEqual(recipe["target"]["slotId"], "SUPPORT")
         self.assertTrue(math.isclose(
             get_relic_craft_final_damage_percent(authoritative_effects),
@@ -192,8 +191,30 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             "epicSoul": 1500,
             "primordialSoul": 25,
         })
-        self.assertEqual(material_by_key["blackHeartPulse"]["itemId"], "")
-        self.assertEqual(material_by_key["plagueSeed"]["itemId"], "")
+        self.assertEqual({key: row["craftAmount"] for key, row in material_by_key.items()}, {
+            "blackHeartPulse": 1,
+            "plagueSeed": 1200,
+            "epicSoul": 500,
+            "primordialSoul": 25,
+        })
+        self.assertEqual({key: row["tuneAmount"] for key, row in material_by_key.items()}, {
+            "blackHeartPulse": 0,
+            "plagueSeed": 750,
+            "epicSoul": 1000,
+            "primordialSoul": 0,
+        })
+        base_material_by_key = {
+            material["key"]: material
+            for material in recipe["baseCraft"]["materials"]
+        }
+        self.assertEqual(
+            material_by_key["blackHeartPulse"]["itemId"],
+            base_material_by_key["blackHeartPulse"]["itemId"],
+        )
+        self.assertEqual(
+            material_by_key["plagueSeed"]["itemId"],
+            base_material_by_key["plagueSeed"]["itemId"],
+        )
         self.assertEqual(material_by_key["blackHeartPulse"]["auction"]["priceSource"], "displayOnly")
         self.assertEqual(material_by_key["plagueSeed"]["auction"]["minUnitPrice"], 0)
         self.assertEqual(
@@ -536,6 +557,10 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertNotIn('"calculator"', (ROOT / "Docs/relic_craft_db.json").read_text(encoding="utf-8"))
         self.assertIn("replaceEquipmentBodyInRows", relic_source)
         self.assertNotIn("targetSlotId: 'MAGIC_STON'", relic_source)
+        self.assertIn("제작 재료", frontend_source)
+        self.assertIn("조율 재료", frontend_source)
+        self.assertIn("craftAmount", frontend_source)
+        self.assertIn("tuneAmount", frontend_source)
         black_fang_presenter_source = (ROOT / "server/presenters/black_fang_presenter.py").read_text(encoding="utf-8")
         self.assertIn('"sourceType": "blackFang"', black_fang_presenter_source)
 

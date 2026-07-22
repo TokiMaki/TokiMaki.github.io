@@ -315,6 +315,15 @@ function getBlackFangMaterialParts(materials = []) {
     .filter(Boolean);
 }
 
+function getRelicCraftMaterialParts(materials = [], amountKey = '') {
+  return getBlackFangMaterialParts((materials || [])
+    .filter((material) => Number(material?.[amountKey] || 0) > 0)
+    .map((material) => ({
+      ...material,
+      amount: Number(material?.[amountKey] || 0),
+    })));
+}
+
 function isMaterialEnchantRecommendation(row) {
   if (row?.sourceType !== 'enchant') return false;
   const acquisition = row.acquisition || {};
@@ -6028,6 +6037,10 @@ export function installEnchantView(ctx) {
       const isMaterialEnchant = isMaterialEnchantRecommendation(row);
       const legacyAcquisitionLabel = isMaterialEnchant ? '' : acquisitionLabel;
       const acquisitionMarkup = legacyAcquisitionLabel || isMaterialEnchant ? getAcquisitionMarkup(row.acquisition, escapeHtml) : '';
+      const hasRelicCraftMaterialGroups = row.sourceType === 'relicCraft'
+        && (row.materials || []).some((material) => (
+          Number(material?.craftAmount || 0) > 0 || Number(material?.tuneAmount || 0) > 0
+        ));
       const materialParts = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? getUpgradeMaterialParts(row.expectedMaterials, row.upgradeMode)
         : isMaterialEnchant
@@ -6045,10 +6058,26 @@ export function installEnchantView(ctx) {
         ? '재료 포함'
         : ['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
-      const materialPartsMarkup = materialParts.length
+      const materialPartsMarkup = materialParts.length && !hasRelicCraftMaterialGroups
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
           .map((part) => `<span class="enchant-popover-material-part" title="${escapeHtml(part.label)}">${part.iconUrl ? `<img src="${escapeHtml(part.iconUrl)}" alt="${escapeHtml(part.label)}" loading="lazy" />` : ''}<span>${escapeHtml(part.amount)}</span></span>`)
           .join('')}`
+        : '';
+      const formatRelicCraftMaterialGroup = (label, amountKey) => {
+        const parts = getRelicCraftMaterialParts(row.materials, amountKey);
+        if (!parts.length) return '';
+        return `<span class="enchant-oath-combined-material-group">
+          <strong>${escapeHtml(label)}</strong>
+          <span class="enchant-popover-material-list">${parts
+            .map((part) => `<span class="enchant-popover-material-part" title="${escapeHtml(part.label)}">${part.iconUrl ? `<img src="${escapeHtml(part.iconUrl)}" alt="${escapeHtml(part.label)}" loading="lazy" />` : ''}<span>${escapeHtml(part.amount)}</span></span>`)
+            .join('')}</span>
+        </span>`;
+      };
+      const relicCraftMaterialsMarkup = hasRelicCraftMaterialGroups
+        ? [
+          formatRelicCraftMaterialGroup('제작 재료', 'craftAmount'),
+          formatRelicCraftMaterialGroup('조율 재료', 'tuneAmount'),
+        ].filter(Boolean).join('')
         : '';
       const formatCombinedAcquisitionMaterials = (label, variant) => {
         if (!variant) return '';
@@ -6118,8 +6147,9 @@ export function installEnchantView(ctx) {
         { text: legacyAcquisitionLabel, className: 'enchant-popover-material' },
         { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : `${priceLabel} ${rowGoldText}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
+        { html: relicCraftMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { html: combinedAcquisitionMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
-        { text: !isCombinedOathAcquisition && !materialPartsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
+        { text: !isCombinedOathAcquisition && !materialPartsMarkup && !relicCraftMaterialsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
         { text: isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
         { text: isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
         { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
