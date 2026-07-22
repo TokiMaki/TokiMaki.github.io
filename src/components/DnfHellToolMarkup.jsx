@@ -1,11 +1,27 @@
 import logoImage from '../../이미지/로고/logo.png';
 import gmailImage from '../../이미지/로고/Gmail.svg';
+import relicCraftDb from '../../Docs/relic_craft_db.json';
 
 import HellCalculatorTab from './HellCalculatorTab';
 import RevelationManagerTab from './RevelationManagerTab';
 import SiteLegalFooter from './SiteLegalFooter';
 const ENABLE_DEV_MODE = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_MODE === '1';
 const FEEDBACK_EMAIL = import.meta.env.VITE_FEEDBACK_EMAIL?.trim() || 'dunpilot.feedback@gmail.com';
+function formatUniqueCraftBasePrice(value) {
+  const eok = Number(value) / 100_000_000;
+  return `${Number.isInteger(eok) ? eok : eok.toLocaleString('ko-KR')}억`;
+}
+
+const UNIQUE_CRAFT_BASE_PRICE_ITEMS = (relicCraftDb.crafts || []).flatMap((craft) => (
+  Object.entries(craft.manualPrices || {}).map(([materialKey, price]) => {
+    const material = craft.baseCraft?.materials?.find((candidate) => candidate.key === materialKey);
+    return {
+      itemId: material?.itemId || '',
+      itemName: material?.label || '',
+      priceLabel: formatUniqueCraftBasePrice(price.unitPrice),
+    };
+  })
+)).filter((item) => item.itemId && item.itemName);
 
 export default function DnfHellToolMarkup() {
   return (
@@ -106,10 +122,41 @@ export default function DnfHellToolMarkup() {
               <input id={'enchantTitleBeadOnlyToggle'} type={'checkbox'} defaultChecked />
               칭호 보주 포함 추천
             </label>
-            <label className={'enchant-include-option enchant-route-option'} data-tooltip={'경매장에서 구매할 수 있는 모든 재료들를 경매장가로 비용에 포함합니다.'}>
-              <input id={'enchantMaterialCostToggle'} type={'checkbox'} defaultChecked />
-              재료값 포함
-            </label>
+            <div className={'enchant-material-cost-option-wrap'}>
+              <label className={'enchant-include-option enchant-route-option'}>
+                <input
+                  id={'enchantMaterialCostToggle'}
+                  type={'checkbox'}
+                  defaultChecked
+                  aria-describedby={'enchantMaterialCostTooltip'}
+                />
+                재료값 포함
+              </label>
+              <div className={'enchant-material-cost-tooltip'} id={'enchantMaterialCostTooltip'} role={'tooltip'}>
+                <span className={'enchant-material-cost-tooltip-copy'}>
+                  경매장에서 구매할 수 있는 모든 재료를 경매장가로 비용에 포함합니다.
+                </span>
+                <strong>유일 제작 재료 기준가</strong>
+                <span className={'enchant-material-cost-base-prices'}>
+                  {UNIQUE_CRAFT_BASE_PRICE_ITEMS.map((item) => (
+                    <span
+                      className={'enchant-material-cost-base-price'}
+                      key={item.itemId}
+                      title={`${item.itemName} ${item.priceLabel}`}
+                      aria-label={`${item.itemName} 기준가 ${item.priceLabel}`}
+                    >
+                      <img
+                        src={`https://img-api.neople.co.kr/df/items/${encodeURIComponent(item.itemId)}`}
+                        alt={''}
+                        loading={'lazy'}
+                        decoding={'async'}
+                      />
+                      <span>{item.priceLabel}</span>
+                    </span>
+                  ))}
+                </span>
+              </div>
+            </div>
             <label
               className={'enchant-relic-tune-attempt-control'}
               data-tooltip={'유일 장비의 정밀도 100% 달성까지의 정밀 시도 횟수입니다. 선택한 횟수만큼 재료와 비용이 계산됩니다.'}

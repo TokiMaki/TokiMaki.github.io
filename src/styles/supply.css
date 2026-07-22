@@ -240,6 +240,72 @@
       border-color: rgb(94 74 43 / 0.78);
       background: #11100d;
     }
+    .enchant-material-cost-option-wrap {
+      position: relative;
+      width: fit-content;
+    }
+    .enchant-material-cost-tooltip {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 6px);
+      z-index: 20;
+      display: grid;
+      gap: 6px;
+      width: max-content;
+      max-width: 260px;
+      box-sizing: border-box;
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--panel-2) 98%, var(--bg-deep));
+      box-shadow: 0 8px 20px rgb(0 0 0 / 0.4);
+      color: var(--text);
+      font-size: 11px;
+      line-height: 1.35;
+      white-space: normal;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      transform: translateX(-50%) translateY(2px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+    }
+    .enchant-material-cost-tooltip-copy {
+      max-width: 240px;
+      font-weight: 600;
+    }
+    .enchant-material-cost-tooltip strong {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 800;
+    }
+    .enchant-material-cost-base-prices {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .enchant-material-cost-base-price {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--accent-2);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .enchant-material-cost-base-price img {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      border-radius: 3px;
+    }
+    .enchant-material-cost-option-wrap:hover .enchant-material-cost-tooltip,
+    .enchant-material-cost-option-wrap:focus-within .enchant-material-cost-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0);
+    }
     .enchant-relic-tune-attempt-control {
       position: relative;
       display: inline-flex;
