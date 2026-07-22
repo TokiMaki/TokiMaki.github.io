@@ -658,7 +658,7 @@ function getEnchantIncludeGroups(row = {}) {
     return [`아바타:${row.kind === 'platinumEmblem' ? '플래티넘 엠블렘' : '엠블렘'}`];
   }
   if (row.sourceType === 'blackFang') return ['흑아:흑아'];
-  if (row.sourceType === 'relicCraft') return ['유일:제작'];
+  if (row.sourceType === 'relicCraft') return ['장비:유물'];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
   if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return ['서약:초월/정가'];
