@@ -592,7 +592,7 @@ export function createEnchantDealerRecommendation(deps) {
       if (Math.abs(plagueHeartMultiplier - 1) > 0.000001 || conditionalEffectText) {
         row = {
           ...row,
-          skillDamageMultiplier: getSkillDamageMultiplier(row) * plagueHeartMultiplier,
+          plagueHeartActualDamageMultiplier: plagueHeartMultiplier,
           conditionalEffectText,
         };
       }
@@ -725,21 +725,32 @@ export function createEnchantDealerRecommendation(deps) {
       if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
       const isReplacement = !['upgrade', 'equipmentTune', 'oathTune', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
       const damageEffects = getRecommendationDamageEffects(row, current);
+      const replacementEvaluationRow = isEquipmentBodyReplacementSource(row)
+        ? {
+          ...row,
+          effects: row.targetEquipmentBody?.effects
+            || row.targetEffects
+            || addEffects(row.currentEffects, row.effects),
+        }
+        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+          ? { ...row, effects: row.targetEffects || row.effects || {} }
+          : row;
+      const plagueHeartActualDamageMultiplier = Number(row.plagueHeartActualDamageMultiplier || 1);
+      const actualDamageEvaluationRow = Number.isFinite(plagueHeartActualDamageMultiplier)
+        && plagueHeartActualDamageMultiplier > 0
+        && Math.abs(plagueHeartActualDamageMultiplier - 1) > 0.000001
+        ? {
+          ...replacementEvaluationRow,
+          skillDamageMultiplier: getSkillDamageMultiplier(replacementEvaluationRow)
+            * plagueHeartActualDamageMultiplier,
+        }
+        : replacementEvaluationRow;
       const estimatedDamagePercent = isReplacement
         ? (
           adjustedElementBaseline
             ? getElementAdjustedReplacementIncrementalDamagePercent(row, current, evaluationBaseline, adjustedElementBaseline)
             : getReplacementIncrementalDamagePercent(
-              isEquipmentBodyReplacementSource(row)
-                ? {
-                  ...row,
-                  effects: row.targetEquipmentBody?.effects
-                    || row.targetEffects
-                    || addEffects(row.currentEffects, row.effects),
-                }
-                : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
-                  ? { ...row, effects: row.targetEffects || row.effects || {} }
-                : row,
+              actualDamageEvaluationRow,
               isEquipmentBodyReplacementSource(row)
                 ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
                 : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'

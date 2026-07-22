@@ -451,6 +451,94 @@ function testRelicCraftUsesNormalizedEquipmentBodies() {
   assert.notEqual(result.incrementalDamagePercent, legacyAliasValue);
 }
 
+function testPlagueHeartSynergyStaysActualDamageOnly() {
+  const recommendation = createRecommendation();
+  const { getRepresentativeRecommendationRows, getReplacementIncrementalDamagePercent } = recommendation;
+  const baseline = {
+    stat: 6500,
+    statName: '힘',
+    baseStat: 800,
+    element: 330,
+    elementName: 'fire',
+    elementNames: ['fire'],
+    elementValues: { fire: 330, water: 300, light: 0, dark: 0 },
+    elementDamage: 153.5,
+    attack: 4000,
+    finalDamage: 0,
+    attackIncrease: 0,
+    attackAmplification: 0,
+  };
+  const heart = {
+    slotId: 'SUPPORT',
+    slot: '보조장비',
+    itemName: '만병을 잉태한 역병의 심장',
+    conditionalEffects: {
+      blackFangSynergy: {
+        dealerFinalDamagePercentPerItem: 3,
+        dealerEquipmentScoreMultiplier: 1.092552,
+        bufferBuffPowerPerItem: 75,
+        maxCount: 3,
+      },
+    },
+  };
+  const currentNecklace = {
+    slotId: 'AMULET',
+    slot: '목걸이',
+    itemId: 'current-necklace',
+    itemName: '일반 목걸이',
+    effects: { finalDamage: 20 },
+  };
+  const targetNecklace = {
+    slotId: 'AMULET',
+    slot: '목걸이',
+    itemId: 'black-necklace',
+    itemName: '흑아 : 목걸이',
+    effects: { finalDamage: 30 },
+  };
+  const row = {
+    sourceType: 'blackFang',
+    slot: '목걸이',
+    itemId: targetNecklace.itemId,
+    itemName: targetNecklace.itemName,
+    currentEquipmentBody: currentNecklace,
+    targetEquipmentBody: targetNecklace,
+    currentEffects: currentNecklace.effects,
+    targetEffects: targetNecklace.effects,
+    effects: { finalDamage: 10 },
+    expectedGold: 1000,
+    auction: { minUnitPrice: 1000 },
+  };
+  const [result] = getRepresentativeRecommendationRows(
+    [deepFreeze(row)],
+    [],
+    {},
+    {},
+    {},
+    deepFreeze(baseline),
+    false,
+    null,
+    {},
+    [heart, currentNecklace],
+  );
+  const bodyOnly = getReplacementIncrementalDamagePercent(
+    { ...row, effects: targetNecklace.effects },
+    currentNecklace,
+    baseline,
+  );
+  const actualWithHeart = getReplacementIncrementalDamagePercent(
+    { ...row, effects: targetNecklace.effects, skillDamageMultiplier: 1.03 },
+    currentNecklace,
+    baseline,
+  );
+  assert.ok(result);
+  assertClose(result.incrementalDamagePercent, actualWithHeart, 1e-12);
+  assert.notEqual(result.incrementalDamagePercent, bodyOnly);
+  assert.equal(result.skillDamageMultiplier, undefined);
+  assert.equal(result.plagueHeartActualDamageMultiplier, 1.03);
+  assert.equal(result.conditionalEffectText, '심장 연동 최종 데미지 +3%');
+  assert.equal(result.targetEquipmentBody.effects.finalDamage, 30);
+}
+
 function testCreatureArtifactCalculations() {
   const {
     getCreatureArtifactEffectsTotal,
@@ -827,6 +915,7 @@ const tests = [
   testFactoryContract,
   testReplacementDamageFormulas,
   testRelicCraftUsesNormalizedEquipmentBodies,
+  testPlagueHeartSynergyStaysActualDamageOnly,
   testCreatureArtifactCalculations,
   testRepresentativeRowsAndSimulatorReferences,
   testComparatorPolicyAndStableSort,
