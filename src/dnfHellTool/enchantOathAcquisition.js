@@ -153,6 +153,40 @@ export function createEnchantOathAcquisition({
       .find((variant) => Number(variant.variantCount || 1) === requestedCount) || null;
   }
 
+  function createOathAcquisitionCombinedSnapshot(
+    row = {},
+    transcendCount = 0,
+    craftCount = 0,
+    preservedBaselineSnapshot = null,
+    recalculatedEffectSnapshot = null,
+  ) {
+    const baselineSnapshot = preservedBaselineSnapshot || row;
+    const totalCount = Number(transcendCount || 0) + Number(craftCount || 0);
+    const effectSnapshot = recalculatedEffectSnapshot
+      || getOathAcquisitionVariantFromRecommendations(
+        baselineSnapshot.transcendRecommendations || [baselineSnapshot.transcendRecommendation],
+        totalCount,
+      )
+      || getOathAcquisitionVariantFromRecommendations(
+        baselineSnapshot.craftRecommendations || [baselineSnapshot.craftRecommendation],
+        totalCount,
+      )
+      || baselineSnapshot;
+    return {
+      ...cloneSimulatorValue(effectSnapshot),
+      oathAcquisitionPairKey: row.oathAcquisitionPairKey
+        || baselineSnapshot.oathAcquisitionPairKey
+        || '',
+      transcendRecommendation: cloneSimulatorValue(baselineSnapshot.transcendRecommendation),
+      craftRecommendation: cloneSimulatorValue(baselineSnapshot.craftRecommendation),
+      transcendRecommendations: cloneSimulatorValue(baselineSnapshot.transcendRecommendations),
+      craftRecommendations: cloneSimulatorValue(baselineSnapshot.craftRecommendations),
+      transcendCount,
+      craftCount,
+      variantCount: totalCount,
+    };
+  }
+
   function getActiveOathAcquisitionSelectionEntries(simulator = {}) {
     const entries = [];
     Object.entries(simulator?.activeSelectionByGroup || {}).forEach(([
@@ -808,7 +842,7 @@ export function createEnchantOathAcquisition({
       .slice()
       .sort((a, b) => {
         const getPriority = (row) => (
-          String(row?.targetRarity || row?.itemRarity || '').trim() === '에픽' ? 0 : 1
+          String(row?.targetRarity || row?.itemRarity || '').trim() === '태초' ? 0 : 1
         );
         return getPriority(a) - getPriority(b);
       });
@@ -918,6 +952,7 @@ export function createEnchantOathAcquisition({
     getOathAcquisitionVariantRows,
     getOathAcquisitionCombinedPairKey,
     getOathAcquisitionVariantFromRecommendations,
+    createOathAcquisitionCombinedSnapshot,
     getActiveOathAcquisitionSelectionEntries,
     getActiveOathAcquisitionSelections,
     getActiveOathAcquisitionMethodCounts,

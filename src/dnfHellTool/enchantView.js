@@ -1241,6 +1241,7 @@ const {
   getOathAcquisitionVariantRows,
   getOathAcquisitionCombinedPairKey,
   getOathAcquisitionVariantFromRecommendations,
+  createOathAcquisitionCombinedSnapshot,
   getActiveOathAcquisitionSelectionEntries,
   getActiveOathAcquisitionSelections,
   getActiveOathAcquisitionMethodCounts,
@@ -7565,11 +7566,43 @@ export function installEnchantView(ctx) {
     );
   }
 
+  function evaluateRebuiltOathAcquisitionSnapshot(row, includeMaterialCosts) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !row) return row;
+    if (simulator.role === 'buffer') {
+      return getBufferRecommendationRows(
+        [row],
+        state.currentEnchants,
+        state.currentCreature,
+        state.currentTitle,
+        state.currentAura,
+        simulator.baseBaseline,
+        includeMaterialCosts,
+        simulator,
+        simulator.simulatedEquipmentUpgrades,
+      )[0] || row;
+    }
+    const context = getDealerSimulatorRecommendationContext([row]);
+    return getRepresentativeRecommendationRows(
+      context.rows,
+      getActiveEnchants(),
+      getActiveCreatureWithArtifacts(),
+      getActiveTitle(),
+      getActiveAura(),
+      getActiveDamageBaseline(),
+      includeMaterialCosts,
+      context.options,
+      getActiveCreature(),
+      simulator.simulatedEquipmentUpgrades,
+    )[0] || row;
+  }
+
   function storeAppliedOathAcquisitionCombinedSnapshot(
     row,
     transcendCount,
     craftCount,
     preservedBaselineSnapshot = null,
+    recalculatedEffectSnapshot = null,
   ) {
     const simulator = state.dealerSimulator;
     const pairKey = row?.oathAcquisitionPairKey || '';
@@ -7587,26 +7620,13 @@ export function installEnchantView(ctx) {
     const previousCombinedSnapshot = activeSelections
       .map((selection) => selection.appliedCombinedRecommendationSnapshot)
       .find((snapshot) => snapshot?.oathAcquisitionPairKey === pairKey);
-    const baselineSnapshot = preservedBaselineSnapshot || previousCombinedSnapshot || row;
-    const totalCount = Number(transcendCount || 0) + Number(craftCount || 0);
-    const effectSnapshot = getOathAcquisitionVariantFromRecommendations(
-      baselineSnapshot.transcendRecommendations || [baselineSnapshot.transcendRecommendation],
-      totalCount,
-    ) || getOathAcquisitionVariantFromRecommendations(
-      baselineSnapshot.craftRecommendations || [baselineSnapshot.craftRecommendation],
-      totalCount,
-    ) || baselineSnapshot;
-    const snapshot = {
-      ...cloneSimulatorValue(effectSnapshot),
-      oathAcquisitionPairKey: pairKey,
-      transcendRecommendation: cloneSimulatorValue(baselineSnapshot.transcendRecommendation),
-      craftRecommendation: cloneSimulatorValue(baselineSnapshot.craftRecommendation),
-      transcendRecommendations: cloneSimulatorValue(baselineSnapshot.transcendRecommendations),
-      craftRecommendations: cloneSimulatorValue(baselineSnapshot.craftRecommendations),
+    const snapshot = createOathAcquisitionCombinedSnapshot(
+      row,
       transcendCount,
       craftCount,
-      variantCount: totalCount,
-    };
+      preservedBaselineSnapshot || previousCombinedSnapshot || row,
+      recalculatedEffectSnapshot,
+    );
     activeSelections.forEach((selection) => {
       selection.appliedCombinedRecommendationSnapshot = cloneSimulatorValue(snapshot);
     });
@@ -7777,7 +7797,7 @@ export function installEnchantView(ctx) {
     const activeOathTune = cloneSimulatorValue(
       simulator.activeSelectionByGroup?.oathTune || null,
     );
-    const pairKeys = ['oathDecision:에픽', 'oathDecision:태초'];
+    const pairKeys = ['oathDecision:태초', 'oathDecision:에픽'];
     const planConfigs = pairKeys.map((pairKey) => getOathAcquisitionPlanConfig(
       pairKey,
       pairKey === row.oathAcquisitionPairKey ? row : null,
@@ -7821,12 +7841,6 @@ export function installEnchantView(ctx) {
         config.transcendCount,
         config.craftCount,
       )) return false;
-      storeAppliedOathAcquisitionCombinedSnapshot(
-        config.sourceRow,
-        config.transcendCount,
-        config.craftCount,
-        config.appliedSnapshot,
-      );
     }
     if (
       activeOathTune?.actionType === 'oathTunePlan'
@@ -7837,6 +7851,21 @@ export function installEnchantView(ctx) {
       rebuildBufferSimulatorCalculationState();
     } else {
       rebuildDealerSimulatorCalculationState();
+    }
+    const rebuiltRecommendationByPairKey = new Map(
+      rebuilt.recommendations.map((plannedRow) => [
+        getOathAcquisitionCombinedPairKey(plannedRow),
+        evaluateRebuiltOathAcquisitionSnapshot(plannedRow, includeMaterialCosts),
+      ]),
+    );
+    for (const config of planConfigs) {
+      storeAppliedOathAcquisitionCombinedSnapshot(
+        config.sourceRow,
+        config.transcendCount,
+        config.craftCount,
+        config.appliedSnapshot,
+        rebuiltRecommendationByPairKey.get(config.pairKey) || null,
+      );
     }
     syncOathAcquisitionVariantIndexes(true);
     simulator.totalGold = getDealerSimulatorTotalGold(simulator, includeMaterialCosts);

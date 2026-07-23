@@ -487,6 +487,7 @@ const recompositionEpicRow = {
   decisionCandidatePool: [
     { slotIndex: 0, targetItemId: 'epic-slot-0', targetItemName: '에픽 0', targetRarity: '에픽', targetEffects: { finalDamage: 10 }, targetSlotSetPoint: 120 },
     { slotIndex: 1, targetItemId: 'epic-slot-1', targetItemName: '에픽 1', targetRarity: '에픽', targetEffects: { finalDamage: 20 }, targetSlotSetPoint: 130 },
+    { slotIndex: 2, targetItemId: 'epic-slot-2', targetItemName: '에픽 2', targetRarity: '에픽', targetEffects: { finalDamage: 15 }, targetSlotSetPoint: 125 },
   ],
 };
 const recompositionPrimevalRow = {
@@ -508,11 +509,11 @@ const recomposedPlans = acquisition.rebuildOathAcquisitionPlansFromBase(
 assert.ok(recomposedPlans);
 assert.deepEqual(
   recomposedPlans.recommendations.map((row) => row.targetRarity),
-  ['에픽', '태초'],
-  '전체 계획은 입력 순서와 관계없이 에픽 다음 태초로 배치한다',
+  ['태초', '에픽'],
+  '전체 계획은 입력 순서와 관계없이 태초 다음 에픽으로 배치한다',
 );
-assert.equal(recomposedPlans.oathUpgrades.crystals[0].itemId, 'epic-slot-0');
-assert.equal(recomposedPlans.oathUpgrades.crystals[1].itemId, 'primeval-slot-1');
+assert.equal(recomposedPlans.oathUpgrades.crystals[0].itemId, 'primeval-slot-0');
+assert.equal(recomposedPlans.oathUpgrades.crystals[1].itemId, 'epic-slot-1');
 assert.equal(recomposedPlans.oathUpgrades.crystals[2].itemId, 'legend-high');
 assert.deepEqual(recompositionSimulator.simulatedOathUpgrades.crystals, recompositionBaseCrystals);
 
@@ -525,8 +526,47 @@ const recomposedFullPlans = acquisition.rebuildOathAcquisitionPlansFromBase(
 );
 assert.deepEqual(
   recomposedFullPlans.oathUpgrades.crystals.map((crystal) => crystal.itemRarity),
-  ['에픽', '에픽', '태초'],
-  '에픽 2개를 먼저 배치하고 남은 슬롯에 태초 1개를 배치한다',
+  ['태초', '에픽', '에픽'],
+  '태초 1개를 먼저 배치하고 남은 슬롯에 에픽 2개를 배치한다',
+);
+const recomposedTwoPrimevalPlans = acquisition.rebuildOathAcquisitionPlansFromBase(
+  recompositionSimulator,
+  [{ ...recompositionPrimevalRow, variantCount: 2 }, recompositionEpicRow],
+);
+const recomposedOnePrimevalPlans = acquisition.rebuildOathAcquisitionPlansFromBase(
+  recompositionSimulator,
+  [recompositionPrimevalRow, recompositionEpicRow],
+);
+const twoPrimevalEpicRecommendation = recomposedTwoPrimevalPlans.recommendations[1];
+const onePrimevalEpicRecommendation = recomposedOnePrimevalPlans.recommendations[1];
+assert.notEqual(
+  twoPrimevalEpicRecommendation.currentSetPoint,
+  onePrimevalEpicRecommendation.currentSetPoint,
+  '선행 태초 수량이 바뀌면 후행 에픽 추천을 새 선행 상태 기준으로 다시 계산한다',
+);
+const preservedEpicSnapshot = {
+  oathAcquisitionPairKey: 'oathDecision:에픽',
+  transcendRecommendation: recompositionEpicRow,
+  craftRecommendation: { ...recompositionEpicRow, sourceType: 'oathCraft' },
+  transcendRecommendations: [recompositionEpicRow],
+  craftRecommendations: [{ ...recompositionEpicRow, sourceType: 'oathCraft' }],
+};
+const refreshedEpicSnapshot = acquisition.createOathAcquisitionCombinedSnapshot(
+  preservedEpicSnapshot,
+  1,
+  0,
+  preservedEpicSnapshot,
+  onePrimevalEpicRecommendation,
+);
+assert.equal(
+  refreshedEpicSnapshot.currentSetPoint,
+  onePrimevalEpicRecommendation.currentSetPoint,
+  '후행 적용 카드에는 재구성된 현재 상승량을 표시한다',
+);
+assert.deepEqual(
+  refreshedEpicSnapshot.transcendRecommendations,
+  preservedEpicSnapshot.transcendRecommendations,
+  '후행 카드의 초월·정가 수량 조작용 원본 variant는 유지한다',
 );
 const recomposedPrimevalOnly = acquisition.rebuildOathAcquisitionPlansFromBase(
   recompositionSimulator,
