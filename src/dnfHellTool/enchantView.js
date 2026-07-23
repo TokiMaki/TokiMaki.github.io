@@ -898,6 +898,8 @@ function getRelicCraftRows(
   recommendations = [],
   equipmentUpgrades = [],
   tuneAttempts = RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT,
+  materialPrices = {},
+  bufferBaseline = null,
 ) {
   return (recommendations || []).flatMap((rawCandidate) => {
     const candidate = applyRelicCraftTuneAttemptCosts(rawCandidate, tuneAttempts);
@@ -917,7 +919,24 @@ function getRelicCraftRows(
     );
     if (!targetEquipmentUpgrades) return [];
     const currentSetPoint = getEquipmentTuneSetPoint(equipmentUpgrades);
-    const targetSetPoint = getEquipmentTuneSetPoint(targetEquipmentUpgrades);
+    const bodyTargetSetPoint = getEquipmentTuneSetPoint(targetEquipmentUpgrades);
+    const minimumSetPoint = Number(candidate.minimumCurrentEquipmentSetPoint || 0);
+    const requiredTuneRow = minimumSetPoint > 0 && bodyTargetSetPoint < minimumSetPoint
+      ? getRequiredEquipmentTuneRow(
+        targetEquipmentUpgrades,
+        materialPrices,
+        bufferBaseline,
+        minimumSetPoint,
+      )
+      : null;
+    const requiredEquipmentTuneReachable = minimumSetPoint <= 0
+      || bodyTargetSetPoint >= minimumSetPoint
+      || Boolean(requiredTuneRow);
+    const effectiveTargetEquipmentUpgrades = requiredTuneRow
+      ? applyEquipmentTunePlan(targetEquipmentUpgrades, requiredTuneRow.tunePlan)
+      : targetEquipmentUpgrades;
+    if (!effectiveTargetEquipmentUpgrades) return [];
+    const targetSetPoint = getEquipmentTuneSetPoint(effectiveTargetEquipmentUpgrades);
     const currentTuneBuffPower = getEquipmentTuneStage(currentSetPoint)
       * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
     const targetTuneBuffPower = getEquipmentTuneStage(targetSetPoint)
@@ -940,10 +959,14 @@ function getRelicCraftRows(
       targetEquipmentBody,
       currentEquipmentSetPoint: currentSetPoint,
       targetEquipmentSetPoint: targetSetPoint,
+      bodyTargetEquipmentSetPoint: bodyTargetSetPoint,
+      requiredEquipmentTuneReachable,
+      requiredEquipmentTuneCount: Number(requiredTuneRow?.tuneCount || 0),
+      requiredEquipmentTuneTargetSetPoint: minimumSetPoint,
       equipmentTuneBuffPowerDelta: targetTuneBuffPower - currentTuneBuffPower,
       skillDamageMultiplier: getEquipmentTuneDamageMultiplier(
         equipmentUpgrades,
-        targetEquipmentUpgrades,
+        effectiveTargetEquipmentUpgrades,
       ),
       materials: Array.isArray(candidate.materials) ? candidate.materials : [],
       simulatorSupported: true,
@@ -3827,11 +3850,39 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function applyRequiredEquipmentTuneAfterBodyChange() {
+  function getActiveRelicCraftRequiredTuneSetPoint(excludedGroupKey = '') {
+    const simulator = state.dealerSimulator;
+    return Object.entries(simulator?.activeSelectionByGroup || {})
+      .reduce((minimumSetPoint, [groupKey, selection]) => {
+        if (groupKey === excludedGroupKey) return minimumSetPoint;
+        const snapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
+        if (
+          snapshot.sourceType !== 'relicCraft'
+          || snapshot.relicCraftMode === 'precision'
+        ) return minimumSetPoint;
+        const candidateMinimum = Number(
+          snapshot.requiredEquipmentTuneTargetSetPoint
+          || snapshot.minimumCurrentEquipmentSetPoint
+          || 0,
+        );
+        return Number.isFinite(candidateMinimum)
+          ? Math.max(minimumSetPoint, candidateMinimum)
+          : minimumSetPoint;
+      }, 0);
+  }
+
+  function applyRequiredEquipmentTuneAfterBodyChange(
+    minimumSetPoint = EQUIPMENT_TUNE_MIN_SET_POINT,
+  ) {
     const simulator = state.dealerSimulator;
     if (!simulator) return null;
+    const requiredSetPoint = Number(minimumSetPoint);
+    if (
+      !Number.isFinite(requiredSetPoint)
+      || requiredSetPoint < EQUIPMENT_TUNE_MIN_SET_POINT
+    ) return null;
     const currentSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades || []);
-    if (currentSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) {
+    if (currentSetPoint >= requiredSetPoint) {
       state.tuneStepIndexBySource = {
         ...(state.tuneStepIndexBySource || {}),
         equipmentTune: 0,
@@ -3843,6 +3894,7 @@ export function installEnchantView(ctx) {
       simulator.simulatedEquipmentUpgrades || [],
       state.upgradeMaterialPrices,
       state.currentBufferBaseline,
+      requiredSetPoint,
     );
     if (!row) return null;
     const displayRow = applyEquipmentTuneDisplayStep(
@@ -3857,7 +3909,7 @@ export function installEnchantView(ctx) {
     const nextEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, displayRow.tunePlan);
     if (
       !nextEquipment
-      || getEquipmentTuneSetPoint(nextEquipment) < EQUIPMENT_TUNE_MIN_SET_POINT
+      || getEquipmentTuneSetPoint(nextEquipment) < requiredSetPoint
     ) return null;
     const changedSlots = getChangedEquipmentTuneSlots(beforeTuneSnapshot, nextEquipment);
     simulator.simulatedEquipmentUpgrades = nextEquipment;
@@ -3903,7 +3955,24 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'replaceEquipmentBody') return false;
     const isPrecisionChange = isRelicCraftPrecisionBodyChange(row);
-    const hadRequiredTune = Boolean(simulator.activeSelectionByGroup?.equipmentTuneRequired);
+    const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
+    const retainedRequiredTuneSetPoint = getActiveRelicCraftRequiredTuneSetPoint(
+      exclusiveGroupKey,
+    );
+    const rowRequiredTuneSetPoint = (
+      row.sourceType === 'relicCraft'
+      && row.relicCraftMode !== 'precision'
+    )
+      ? Number(
+        row.requiredEquipmentTuneTargetSetPoint
+        || row.minimumCurrentEquipmentSetPoint
+        || 0,
+      )
+      : 0;
+    const requiredTuneSetPoint = Math.max(
+      retainedRequiredTuneSetPoint,
+      Number.isFinite(rowRequiredTuneSetPoint) ? rowRequiredTuneSetPoint : 0,
+    );
     const previousEquipmentTune = isPrecisionChange
       ? null
       : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTune || null);
@@ -3933,8 +4002,8 @@ export function installEnchantView(ctx) {
       ),
     );
     let requiredTuneResult = { changedSlots: [] };
-    if (!isPrecisionChange && (hadRequiredTune || row.sourceType === 'relicCraft')) {
-      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange();
+    if (!isPrecisionChange && requiredTuneSetPoint > 0) {
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(requiredTuneSetPoint);
       if (!requiredTuneResult) return false;
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
@@ -5023,7 +5092,8 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     const appliedSnapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
     const isPrecisionChange = isRelicCraftPrecisionBodyChange(appliedSnapshot);
-    const hadRequiredTune = Boolean(simulator?.activeSelectionByGroup?.equipmentTuneRequired);
+    const exclusiveGroupKey = getSimulatorExclusiveGroupKey(appliedSnapshot);
+    const requiredTuneSetPoint = getActiveRelicCraftRequiredTuneSetPoint(exclusiveGroupKey);
     const previousEquipmentTune = isPrecisionChange
       ? null
       : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTune || null);
@@ -5064,8 +5134,8 @@ export function installEnchantView(ctx) {
       ),
     );
     let requiredTuneResult = { changedSlots: [] };
-    if (!isPrecisionChange && (hadRequiredTune || appliedSnapshot.sourceType === 'relicCraft')) {
-      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange();
+    if (!isPrecisionChange && requiredTuneSetPoint > 0) {
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(requiredTuneSetPoint);
       if (!requiredTuneResult) return false;
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
@@ -5801,8 +5871,10 @@ export function installEnchantView(ctx) {
       ...getBlackFangRows(state.currentBlackFangRecommendations),
       ...getRelicCraftRows(
         state.currentRelicCraftRecommendations,
-        getActiveEquipmentUpgrades(),
+        getEquipmentTuneRecommendationUpgrades(),
         getRelicCraftTuneAttempts(),
+        state.upgradeMaterialPrices,
+        state.currentBufferBaseline,
       ),
     ].map((row) => adaptBuffEnhancementRecommendation(row, state.dealerSimulator));
     renderEnchantFilters(allRows);

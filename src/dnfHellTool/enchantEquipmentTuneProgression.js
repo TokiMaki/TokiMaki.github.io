@@ -266,11 +266,16 @@ export function createEnchantEquipmentTuneProgression({
     currentEquipmentUpgrades = [],
     materialPrices = {},
     bufferBaseline = null,
+    minimumSetPoint = EQUIPMENT_TUNE_MIN_SET_POINT,
   ) {
     const totalSetPoint = getEquipmentTuneSetPoint(currentEquipmentUpgrades);
-    if (totalSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) return null;
+    const requiredSetPoint = Number(minimumSetPoint);
+    if (!Number.isFinite(requiredSetPoint) || requiredSetPoint < EQUIPMENT_TUNE_MIN_SET_POINT) {
+      return null;
+    }
+    if (totalSetPoint >= requiredSetPoint) return null;
     const requiredTuneCount = Math.ceil(
-      (EQUIPMENT_TUNE_MIN_SET_POINT - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT,
+      (requiredSetPoint - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT,
     );
     if (!Number.isFinite(requiredTuneCount) || requiredTuneCount <= 0) return null;
     const candidates = getEquipmentTuneCandidates(currentEquipmentUpgrades);
@@ -294,7 +299,7 @@ export function createEnchantEquipmentTuneProgression({
     const tuneSteps = targetStages
       .map((stage) => {
         const threshold = stage === requiredTargetStage
-          ? EQUIPMENT_TUNE_MIN_SET_POINT
+          ? requiredSetPoint
           : EQUIPMENT_TUNE_MIN_SET_POINT + stage * EQUIPMENT_TUNE_MEMORY_POINT;
         const tuneCount = Math.ceil((threshold - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT);
         if (tuneCount < requiredTuneCount || tuneCount > maxTuneCount) return null;
@@ -366,6 +371,7 @@ export function createEnchantEquipmentTuneProgression({
       currentTuneBuffPower: currentStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
       targetTuneBuffPower: first.targetBuffPower,
       tuneCount: first.tuneCount,
+      requiredMinimumSetPoint: requiredSetPoint,
     };
   }
 

@@ -63,6 +63,18 @@ assert.equal(isRelicCraftEquipmentSetPointEligible({
   currentEquipmentSetPoint: 2619,
   minimumCurrentEquipmentSetPoint: 2620,
 }), false);
+assert.equal(isRelicCraftEquipmentSetPointEligible({
+  sourceType: 'relicCraft',
+  currentEquipmentSetPoint: 2619,
+  minimumCurrentEquipmentSetPoint: 2620,
+  requiredEquipmentTuneReachable: true,
+}), true);
+assert.equal(isRelicCraftEquipmentSetPointEligible({
+  sourceType: 'relicCraft',
+  currentEquipmentSetPoint: 2620,
+  minimumCurrentEquipmentSetPoint: 2620,
+  requiredEquipmentTuneReachable: false,
+}), false);
 assert.equal(isRelicCraftEquipmentSetPointEligible({ sourceType: 'relicCraft' }), true);
 
 const applied = replaceEquipmentBodyPreservingState(base, perfume);

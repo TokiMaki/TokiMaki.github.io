@@ -557,6 +557,7 @@ const shrinkingRequiredRow = progression.getRequiredEquipmentTuneRow(
 assert.ok(shrinkingRequiredRow);
 assert.equal(shrinkingRequiredRow.tuneCount, 7);
 assert.equal(shrinkingRequiredRow.tuneSteps.length, 2);
+assert.equal(shrinkingRequiredRow.requiredMinimumSetPoint, 2550);
 const shrinkingRequiredBufferRow = progression.getRequiredEquipmentTuneRow(
   relicChangedEquipment,
   materialPrices,
@@ -579,6 +580,39 @@ const equipmentAfterOptionalTune = progression.applyEquipmentTunePlan(
 );
 assert.ok(equipmentAfterOptionalTune);
 assert.equal(progression.getEquipmentTuneSetPoint(equipmentAfterOptionalTune), 2620);
+const relicEligibilityTuneRow = progression.getRequiredEquipmentTuneRow(
+  relicChangedEquipment,
+  materialPrices,
+  null,
+  2620,
+);
+assert.ok(relicEligibilityTuneRow);
+assert.equal(relicEligibilityTuneRow.requiredMinimumSetPoint, 2620);
+assert.equal(relicEligibilityTuneRow.tuneCount, 14);
+assert.equal(relicEligibilityTuneRow.targetSetPoint, 2620);
+assert.equal(relicEligibilityTuneRow.tuneSteps.length, 1);
+assert.equal(
+  progression.getEquipmentTuneSetPoint(
+    progression.applyEquipmentTunePlan(
+      relicChangedEquipment,
+      relicEligibilityTuneRow.tunePlan,
+    ),
+  ),
+  2620,
+);
+assert.equal(
+  progression.getRequiredEquipmentTuneRow(
+    relicChangedEquipment.map((equipment, index) => (
+      index === relicChangedEquipment.length - 1
+        ? { ...equipment, tuneRemaining: 1 }
+        : equipment
+    )),
+    materialPrices,
+    null,
+    2620,
+  ),
+  null,
+);
 
 const anniversaryEquipment = [
   { slot: '상의', itemRarity: '태초', tuneLevel: 0, tuneRemaining: 0, tuneSetPoint: 2120 },
