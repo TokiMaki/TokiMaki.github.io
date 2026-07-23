@@ -378,9 +378,9 @@
     "id": "2026-07-23-uniqueEquipmentRecommendation",
     "date": "2026-07-23",
     "type": "update",
-    "title": "태초/에픽 초월/정가 오류 수정",
+    "title": "서약 결정 초월/정가 오류 수정",
     "content": [
-      "-  태초/에픽 초월/정가 추천 오류 의심 부분을 수정했습니다."
+      "-  서약 결정 초월/정가 추천 오류 의심 부분을 수정했습니다."
     ],
     "visible": true
   }
