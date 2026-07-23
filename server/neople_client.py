@@ -7,7 +7,7 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 from .api_fanout_trace import record_neople_api_call
-from .ops_log import sanitize_url, write_ops_log
+from .ops_log import redact_text, sanitize_url, write_ops_log
 
 API_KEY = os.environ.get("NEOPLE_API_KEY", "").strip()
 REQUEST_TIMEOUT = 30
@@ -39,6 +39,10 @@ def require_api_key() -> str:
 
 def clean_text(value: Any) -> str:
     return " ".join(str(value or "").replace("\u00a0", " ").split()).strip()
+
+
+def build_request_error(url: str, error: Exception | None) -> RuntimeError:
+    return RuntimeError(f"API 요청 실패: {sanitize_url(url)}\n{redact_text(error)}")
 
 
 def request_json(url: str) -> dict[str, Any]:
@@ -88,17 +92,17 @@ def request_json(url: str) -> dict[str, Any]:
                 time.sleep(1)
             else:
                 write_ops_log("neople_api_http_error", status=exc.code, url=sanitize_url(url), error=str(exc), body=error_text[:500])
-                raise RuntimeError(f"API 요청 실패: {url}\n{exc}") from exc
+                raise build_request_error(url, exc) from exc
         except (URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
             last_error = exc
             if attempt < MAX_RETRIES:
                 time.sleep(1)
             else:
                 write_ops_log("neople_api_error", url=sanitize_url(url), error=repr(exc))
-                raise RuntimeError(f"API 요청 실패: {url}\n{exc}") from exc
+                raise build_request_error(url, exc) from exc
 
     write_ops_log("neople_api_error", url=sanitize_url(url), error=repr(last_error))
-    raise RuntimeError(f"API 요청 실패: {url}\n{last_error}")
+    raise build_request_error(url, last_error)
 
 
 def get_auction_rows_from_api(item_id: str, min_fame=None, max_fame=None, limit: int = 100, offset: int = 0) -> list:
@@ -156,7 +160,7 @@ def get_item_explain(detail: dict) -> str:
 def search_items_by_name_from_api(item_name: str, word_type: str = "full", limit: int = 100, offset: int = 0) -> list:
     url = (
         "https://api.neople.co.kr/df/items"
-        f"?itemName={quote(item_name)}&wordType={quote(word_type)}&limit={limit}&offset={offset}&apikey={API_KEY}"
+        f"?itemName={quote(item_name)}&wordType={quote(word_type)}&limit={limit}&offset={offset}"
     )
     return request_json(url).get("rows") or []
 
@@ -164,24 +168,24 @@ def search_items_by_name_from_api(item_name: str, word_type: str = "full", limit
 def fetch_item_details_from_api(item_ids: list) -> list:
     if not item_ids:
         return []
-    url = f"https://api.neople.co.kr/df/multi/items?itemIds={','.join(item_ids)}&apikey={API_KEY}"
+    url = f"https://api.neople.co.kr/df/multi/items?itemIds={','.join(item_ids)}"
     return request_json(url).get("rows") or []
 
 
 def fetch_skill_detail_from_api(job_id: str, skill_id: str) -> dict[str, Any]:
-    url = f"https://api.neople.co.kr/df/skills/{clean_text(job_id)}/{clean_text(skill_id)}?apikey={API_KEY}"
+    url = f"https://api.neople.co.kr/df/skills/{clean_text(job_id)}/{clean_text(skill_id)}"
     return request_json(url)
 
 
 def fetch_character_skill_style_from_api(server_id: str, character_id: str) -> dict[str, Any]:
-    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/skill/style?apikey={API_KEY}"
+    url = f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/skill/style"
     return request_json(url)
 
 
 def fetch_job_skills_from_api(job_id: str, job_grow_id: str) -> dict[str, Any]:
     url = (
         f"https://api.neople.co.kr/df/skills/{clean_text(job_id)}"
-        f"?jobGrowId={quote(clean_text(job_grow_id))}&apikey={API_KEY}"
+        f"?jobGrowId={quote(clean_text(job_grow_id))}"
     )
     return request_json(url)
 
@@ -248,8 +252,8 @@ def fetch_character_detail_from_api(server_id: str, character_id: str) -> dict[s
 def fetch_character_payload_from_api(server_id: str, character_id: str, path: str) -> dict[str, Any]:
     resource_path = clean_text(path).strip("/")
     url = (
-        f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/{resource_path}?apikey={API_KEY}"
+        f"https://api.neople.co.kr/df/servers/{server_id}/characters/{character_id}/{resource_path}"
         if resource_path
-        else f"{build_character_detail_url(server_id, character_id)}?apikey={API_KEY}"
+        else build_character_detail_url(server_id, character_id)
     )
     return request_json(url)

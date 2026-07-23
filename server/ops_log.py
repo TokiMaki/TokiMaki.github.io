@@ -1,4 +1,6 @@
 import json
+import os
+import re
 import time
 from pathlib import Path
 from threading import Lock
@@ -21,12 +23,32 @@ def sanitize_url(url: str) -> str:
         return str(url or "").replace("apikey=", "apikey=***")
 
 
+def redact_text(value) -> str:
+    text = str(value or "")
+    api_key = os.environ.get("NEOPLE_API_KEY", "").strip()
+    if api_key:
+        text = text.replace(api_key, "***")
+    return re.sub(r"(?i)(apikey=)[^&\s]+", r"\1***", text)
+
+
+def redact_log_value(value):
+    if isinstance(value, str) or isinstance(value, Exception):
+        return redact_text(value)
+    if isinstance(value, dict):
+        return {key: redact_log_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_log_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_log_value(item) for item in value)
+    return value
+
+
 def write_ops_log(event: str, **fields):
     now = time.localtime()
     payload = {
         "ts": time.strftime("%Y-%m-%d %H:%M:%S", now),
         "event": event,
-        **fields,
+        **{key: redact_log_value(value) for key, value in fields.items()},
     }
     log_path = LOG_DIR / f"{time.strftime('%Y-%m-%d', now)}.log"
     line = json.dumps(payload, ensure_ascii=False, default=str)
