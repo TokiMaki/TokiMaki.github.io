@@ -46,7 +46,6 @@ class CharacterRepositoryCacheCleanupTest(unittest.TestCase):
                 )
             )
             self.assertNotIn(expired_key, character_repository._CHARACTER_RESPONSE_CACHE)
-
             result = character_repository.get_character_cached_payload(
                 "cain",
                 "valid",
