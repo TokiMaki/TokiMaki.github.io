@@ -12,12 +12,15 @@ from ..neople_client import clean_text, fetch_character_payload_from_api
 ROOT = Path(__file__).resolve().parents[2]
 CHARACTER_CACHE_DIR = ROOT / "cache"
 CHARACTER_RESPONSE_CACHE_TTL_SECONDS = 15
+CHARACTER_RESPONSE_CACHE_MAX_ENTRIES = 512
 CHARACTER_SQLITE_CACHE_TTL_MS = 60 * 1000
+CHARACTER_SQLITE_CACHE_CLEANUP_INTERVAL_SAVES = 100
 CHARACTER_SQLITE_CACHE_PATH = CHARACTER_CACHE_DIR / "character-response-cache.sqlite"
 _CHARACTER_RESPONSE_CACHE_LOCK = threading.Lock()
 _CHARACTER_RESPONSE_CACHE = {}
 _CHARACTER_SQLITE_CACHE_LOCK = threading.Lock()
 _CHARACTER_SQLITE_CACHE_INITIALIZED = False
+_CHARACTER_SQLITE_CACHE_SAVE_COUNT = 0
 
 
 def normalize_character_search_name(character_name: str) -> str:
@@ -154,6 +157,13 @@ def _get_character_sqlite_cached_payload(cache_key: tuple, now_ms: int) -> dict 
     return payload if isinstance(payload, dict) else None
 
 
+def _record_character_sqlite_cache_save_locked() -> bool:
+    global _CHARACTER_SQLITE_CACHE_SAVE_COUNT
+    _CHARACTER_SQLITE_CACHE_SAVE_COUNT += 1
+    interval = max(1, int(CHARACTER_SQLITE_CACHE_CLEANUP_INTERVAL_SAVES))
+    return _CHARACTER_SQLITE_CACHE_SAVE_COUNT % interval == 0
+
+
 def _save_character_sqlite_cached_payload(cache_key: tuple, payload: dict, now_ms: int):
     if not isinstance(payload, dict):
         return
@@ -196,17 +206,50 @@ def _save_character_sqlite_cached_payload(cache_key: tuple, payload: dict, now_m
                         now_ms,
                     ),
                 )
+                if _record_character_sqlite_cache_save_locked():
+                    try:
+                        conn.execute(
+                            "DELETE FROM character_response_cache WHERE expires_at_ms <= ?",
+                            (now_ms,),
+                        )
+                    except sqlite3.Error:
+                        pass
                 conn.commit()
     except Exception:
         return
+
+
+def _prune_character_memory_cache_locked(now: float):
+    expired_keys = [
+        key
+        for key, cached in _CHARACTER_RESPONSE_CACHE.items()
+        if float(cached.get("expires_at") or 0) <= now
+    ]
+    for key in expired_keys:
+        _CHARACTER_RESPONSE_CACHE.pop(key, None)
+
+    overflow = len(_CHARACTER_RESPONSE_CACHE) - CHARACTER_RESPONSE_CACHE_MAX_ENTRIES
+    if overflow <= 0:
+        return
+    oldest_keys = [
+        key
+        for key, _cached in sorted(
+            _CHARACTER_RESPONSE_CACHE.items(),
+            key=lambda item: float(item[1].get("stored_at") or item[1].get("expires_at") or 0),
+        )[:overflow]
+    ]
+    for key in oldest_keys:
+        _CHARACTER_RESPONSE_CACHE.pop(key, None)
 
 
 def _save_character_memory_cached_payload(cache_key: tuple, payload: dict, now: float):
     with _CHARACTER_RESPONSE_CACHE_LOCK:
         _CHARACTER_RESPONSE_CACHE[cache_key] = {
             "payload": payload,
+            "stored_at": now,
             "expires_at": now + CHARACTER_RESPONSE_CACHE_TTL_SECONDS,
         }
+        _prune_character_memory_cache_locked(now)
 
 
 def get_character_cached_payload(server_id: str, character_id: str, resource: str, path: str) -> dict:
@@ -218,6 +261,8 @@ def get_character_cached_payload(server_id: str, character_id: str, resource: st
             record_cache_event("character_payload", "hit")
             record_character_response_cache_source("mem")
             return cached.get("payload") or {}
+        if cached:
+            _CHARACTER_RESPONSE_CACHE.pop(cache_key, None)
 
     sqlite_payload = _get_character_sqlite_cached_payload(cache_key, int(now * 1000))
     if sqlite_payload is not None:
@@ -244,6 +289,8 @@ def get_character_cached_computed_payload(server_id: str, character_id: str, res
             record_character_response_cache_source("mem")
             payload = cached.get("payload")
             return payload if isinstance(payload, dict) else None
+        if cached:
+            _CHARACTER_RESPONSE_CACHE.pop(cache_key, None)
 
     sqlite_payload = _get_character_sqlite_cached_payload(cache_key, int(now * 1000))
     if sqlite_payload is not None:

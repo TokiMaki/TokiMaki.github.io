@@ -6,6 +6,7 @@ from .neople_client import clean_text, fetch_character_detail_from_api, fetch_ch
 from .repositories.skill_repository import get_skill_detail
 
 _CHARACTER_SKILL_CONTEXT_TTL_SECONDS = 60
+_CHARACTER_SKILL_CONTEXT_MAX_ENTRIES = 256
 _CHARACTER_SKILL_CONTEXT_LOCK = Lock()
 _CHARACTER_SKILL_CONTEXT_CACHE = {}
 
@@ -39,6 +40,29 @@ def _build_character_skill_context(server_id: str, character_id: str) -> dict:
     }
 
 
+def _prune_character_skill_context_cache_locked(now: float):
+    expired_keys = [
+        key
+        for key, cached in _CHARACTER_SKILL_CONTEXT_CACHE.items()
+        if float(cached.get("expires_at") or 0) <= now
+    ]
+    for key in expired_keys:
+        _CHARACTER_SKILL_CONTEXT_CACHE.pop(key, None)
+
+    overflow = len(_CHARACTER_SKILL_CONTEXT_CACHE) - _CHARACTER_SKILL_CONTEXT_MAX_ENTRIES
+    if overflow <= 0:
+        return
+    oldest_keys = [
+        key
+        for key, _cached in sorted(
+            _CHARACTER_SKILL_CONTEXT_CACHE.items(),
+            key=lambda item: float(item[1].get("stored_at") or item[1].get("expires_at") or 0),
+        )[:overflow]
+    ]
+    for key in oldest_keys:
+        _CHARACTER_SKILL_CONTEXT_CACHE.pop(key, None)
+
+
 def get_character_skill_context(server_id: str, character_id: str) -> dict:
     cache_key = (clean_text(server_id).lower(), clean_text(character_id))
     now = time.time()
@@ -46,13 +70,17 @@ def get_character_skill_context(server_id: str, character_id: str) -> dict:
         cached = _CHARACTER_SKILL_CONTEXT_CACHE.get(cache_key)
         if cached and float(cached.get("expires_at") or 0) > now:
             return cached.get("context") or {}
+        if cached:
+            _CHARACTER_SKILL_CONTEXT_CACHE.pop(cache_key, None)
 
     context = _build_character_skill_context(cache_key[0], cache_key[1])
     with _CHARACTER_SKILL_CONTEXT_LOCK:
         _CHARACTER_SKILL_CONTEXT_CACHE[cache_key] = {
             "context": context,
+            "stored_at": now,
             "expires_at": now + _CHARACTER_SKILL_CONTEXT_TTL_SECONDS,
         }
+        _prune_character_skill_context_cache_locked(now)
     return context
 
 
