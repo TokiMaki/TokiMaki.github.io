@@ -920,17 +920,25 @@ function getRelicCraftRows(
     if (!targetEquipmentUpgrades) return [];
     const currentSetPoint = getEquipmentTuneSetPoint(equipmentUpgrades);
     const bodyTargetSetPoint = getEquipmentTuneSetPoint(targetEquipmentUpgrades);
-    const minimumSetPoint = Number(candidate.minimumCurrentEquipmentSetPoint || 0);
-    const requiredTuneRow = minimumSetPoint > 0 && bodyTargetSetPoint < minimumSetPoint
+    const hasRelicCraftSetPointRequirement = Number(
+      candidate.minimumCurrentEquipmentSetPoint || 0,
+    ) > 0;
+    const requiredTuneTargetSetPoint = hasRelicCraftSetPointRequirement
+      ? EQUIPMENT_TUNE_MIN_SET_POINT
+      : 0;
+    const requiredTuneRow = (
+      requiredTuneTargetSetPoint > 0
+      && bodyTargetSetPoint < requiredTuneTargetSetPoint
+    )
       ? getRequiredEquipmentTuneRow(
         targetEquipmentUpgrades,
         materialPrices,
         bufferBaseline,
-        minimumSetPoint,
+        requiredTuneTargetSetPoint,
       )
       : null;
-    const requiredEquipmentTuneReachable = minimumSetPoint <= 0
-      || bodyTargetSetPoint >= minimumSetPoint
+    const requiredEquipmentTuneReachable = requiredTuneTargetSetPoint <= 0
+      || bodyTargetSetPoint >= requiredTuneTargetSetPoint
       || Boolean(requiredTuneRow);
     const effectiveTargetEquipmentUpgrades = requiredTuneRow
       ? applyEquipmentTunePlan(targetEquipmentUpgrades, requiredTuneRow.tunePlan)
@@ -962,7 +970,7 @@ function getRelicCraftRows(
       bodyTargetEquipmentSetPoint: bodyTargetSetPoint,
       requiredEquipmentTuneReachable,
       requiredEquipmentTuneCount: Number(requiredTuneRow?.tuneCount || 0),
-      requiredEquipmentTuneTargetSetPoint: minimumSetPoint,
+      requiredEquipmentTuneTargetSetPoint: requiredTuneTargetSetPoint,
       equipmentTuneBuffPowerDelta: targetTuneBuffPower - currentTuneBuffPower,
       skillDamageMultiplier: getEquipmentTuneDamageMultiplier(
         equipmentUpgrades,
@@ -2013,6 +2021,15 @@ export function installEnchantView(ctx) {
     return activeTune?.actionType === 'equipmentTunePlan' && activeTune.beforeTuneSnapshot
       ? activeTune.beforeTuneSnapshot
       : getActiveEquipmentUpgrades();
+  }
+
+  function getVisibleEquipmentTuneRows() {
+    if (state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired) return [];
+    return getEquipmentTuneRows(
+      getEquipmentTuneRecommendationUpgrades(),
+      state.upgradeMaterialPrices,
+      state.currentBufferBaseline,
+    );
   }
 
   function getActiveOathUpgrades() {
@@ -3873,6 +3890,7 @@ export function installEnchantView(ctx) {
 
   function applyRequiredEquipmentTuneAfterBodyChange(
     minimumSetPoint = EQUIPMENT_TUNE_MIN_SET_POINT,
+    preferredVariantIndex = 0,
   ) {
     const simulator = state.dealerSimulator;
     if (!simulator) return null;
@@ -3897,9 +3915,16 @@ export function installEnchantView(ctx) {
       requiredSetPoint,
     );
     if (!row) return null;
+    const selectedVariantIndex = Math.max(
+      0,
+      Math.min(
+        row.tuneSteps.length - 1,
+        Number(preferredVariantIndex || 0),
+      ),
+    );
     const displayRow = applyEquipmentTuneDisplayStep(
       simulator.role === 'buffer' ? { ...row, metricType: 'buffer' } : row,
-      0,
+      selectedVariantIndex,
       els.enchantMaterialCostToggle?.checked === true,
       getActiveDamageBaseline(),
       state.currentBufferBaseline,
@@ -3926,17 +3951,17 @@ export function installEnchantView(ctx) {
       target,
       candidateSignature: getSimulatorCandidateSignature(displayRow),
       previousSelection: null,
-      goldWithoutMaterials: getRecommendationGold(row, false),
-      goldWithMaterials: getRecommendationGold(row, true),
+      goldWithoutMaterials: getRecommendationGold(displayRow, false),
+      goldWithMaterials: getRecommendationGold(displayRow, true),
       includeMaterialCosts,
     });
     if (!selection?.candidateSignature) return null;
     simulator.activeSelectionByGroup.equipmentTuneRequired = selection;
     state.tuneStepIndexBySource = {
       ...(state.tuneStepIndexBySource || {}),
-      equipmentTune: 0,
+      equipmentTune: selectedVariantIndex,
     };
-    state.equipmentTuneStepIndex = 0;
+    state.equipmentTuneStepIndex = selectedVariantIndex;
     return { changedSlots };
   }
 
@@ -3975,7 +4000,11 @@ export function installEnchantView(ctx) {
     );
     const previousEquipmentTune = isPrecisionChange
       ? null
-      : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTune || null);
+      : cloneSimulatorValue(
+        simulator.activeSelectionByGroup?.equipmentTune
+        || simulator.activeSelectionByGroup?.equipmentTuneRequired
+        || null,
+      );
     if (!isPrecisionChange && !invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
     if (!isPrecisionChange && !invalidateRequiredEquipmentTuneSelectionForBodyChange()) return false;
     const targetSlotId = target.targetSlotId
@@ -4003,7 +4032,10 @@ export function installEnchantView(ctx) {
     );
     let requiredTuneResult = { changedSlots: [] };
     if (!isPrecisionChange && requiredTuneSetPoint > 0) {
-      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(requiredTuneSetPoint);
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(
+        requiredTuneSetPoint,
+        previousEquipmentTune?.selectedVariantIndex,
+      );
       if (!requiredTuneResult) return false;
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
@@ -5096,7 +5128,11 @@ export function installEnchantView(ctx) {
     const requiredTuneSetPoint = getActiveRelicCraftRequiredTuneSetPoint(exclusiveGroupKey);
     const previousEquipmentTune = isPrecisionChange
       ? null
-      : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTune || null);
+      : cloneSimulatorValue(
+        simulator?.activeSelectionByGroup?.equipmentTune
+        || simulator?.activeSelectionByGroup?.equipmentTuneRequired
+        || null,
+      );
     const targetSlotId = selection.targetSlotId
       || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot });
     if (!simulator || !targetSlotId) return false;
@@ -5135,7 +5171,10 @@ export function installEnchantView(ctx) {
     );
     let requiredTuneResult = { changedSlots: [] };
     if (!isPrecisionChange && requiredTuneSetPoint > 0) {
-      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(requiredTuneSetPoint);
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(
+        requiredTuneSetPoint,
+        previousEquipmentTune?.selectedVariantIndex,
+      );
       if (!requiredTuneResult) return false;
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
@@ -5864,7 +5903,7 @@ export function installEnchantView(ctx) {
         els.safeAmplificationModeSelect?.value === 'event',
         state.upgradeMaterialPrices,
       ),
-      ...getEquipmentTuneRows(getEquipmentTuneRecommendationUpgrades(), state.upgradeMaterialPrices, state.currentBufferBaseline),
+      ...getVisibleEquipmentTuneRows(),
       ...getOathTuneRows(getOathTuneRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, getActiveEquipmentUpgrades(), state.currentBufferBaseline),
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),

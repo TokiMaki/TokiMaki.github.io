@@ -580,36 +580,13 @@ const equipmentAfterOptionalTune = progression.applyEquipmentTunePlan(
 );
 assert.ok(equipmentAfterOptionalTune);
 assert.equal(progression.getEquipmentTuneSetPoint(equipmentAfterOptionalTune), 2620);
-const relicEligibilityTuneRow = progression.getRequiredEquipmentTuneRow(
-  relicChangedEquipment,
-  materialPrices,
-  null,
-  2620,
-);
-assert.ok(relicEligibilityTuneRow);
-assert.equal(relicEligibilityTuneRow.requiredMinimumSetPoint, 2620);
-assert.equal(relicEligibilityTuneRow.tuneCount, 14);
-assert.equal(relicEligibilityTuneRow.targetSetPoint, 2620);
-assert.equal(relicEligibilityTuneRow.tuneSteps.length, 1);
-assert.equal(
-  progression.getEquipmentTuneSetPoint(
-    progression.applyEquipmentTunePlan(
-      relicChangedEquipment,
-      relicEligibilityTuneRow.tunePlan,
-    ),
-  ),
-  2620,
-);
 assert.equal(
   progression.getRequiredEquipmentTuneRow(
     relicChangedEquipment.map((equipment, index) => (
-      index === relicChangedEquipment.length - 1
-        ? { ...equipment, tuneRemaining: 1 }
-        : equipment
+      { ...equipment, tuneRemaining: index < 2 ? 3 : 0 }
     )),
     materialPrices,
     null,
-    2620,
   ),
   null,
 );

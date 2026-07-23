@@ -36,6 +36,13 @@ assert.match(viewSource, /return replaceAppliedEquipmentTuneVariant\(selectedVar
 assert.match(viewSource, /beforeTuneSnapshotOverride: beforeTuneSnapshot/);
 assert.match(viewSource, /function replaceAppliedEquipmentTuneVariant\(stepIndex, options = \{\}\)/);
 assert.match(viewSource, /function getEquipmentTuneSelectionForBodyChangeReapply/);
+assert.match(viewSource, /preferredVariantIndex = 0/);
+assert.match(viewSource, /Math\.min\(\s*row\.tuneSteps\.length - 1,\s*Number\(preferredVariantIndex/);
+assert.match(viewSource, /getRecommendationGold\(displayRow, false\)/);
+assert.match(viewSource, /activeSelectionByGroup\?\.equipmentTune\s*\|\|\s*simulator(?:\?)?\.activeSelectionByGroup\?\.equipmentTuneRequired/);
+assert.match(viewSource, /function getVisibleEquipmentTuneRows\(\)/);
+assert.match(viewSource, /activeSelectionByGroup\?\.equipmentTuneRequired\) return \[\]/);
+assert.match(viewSource, /\.\.\.getVisibleEquipmentTuneRows\(\)/);
 assert.match(viewSource, /!simulator\?\.activeSelectionByGroup\?\.equipmentTuneRequired/);
 assert.match(viewSource, /activeSelectionByGroup\?\.equipmentTuneRequired/);
 assert.match(viewSource, /isRequiredTune \? 'equipmentTuneRequired' : 'equipmentTune'/);
