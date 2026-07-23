@@ -548,7 +548,6 @@ const shrinkingTuneEquipment = [
 const twoStepTuneRow = progression.getEquipmentTuneRows(shrinkingTuneEquipment, materialPrices)[0];
 assert.ok(twoStepTuneRow);
 assert.equal(twoStepTuneRow.tuneSteps.length, 2);
-const previouslySelectedTuneStepIndex = 1;
 const relicChangedEquipment = clone(shrinkingTuneEquipment);
 relicChangedEquipment[0].tuneSetPoint = 2480;
 const shrinkingRequiredRow = progression.getRequiredEquipmentTuneRow(
@@ -557,29 +556,40 @@ const shrinkingRequiredRow = progression.getRequiredEquipmentTuneRow(
 );
 assert.ok(shrinkingRequiredRow);
 assert.equal(shrinkingRequiredRow.tuneCount, 7);
+assert.equal(shrinkingRequiredRow.tuneSteps.length, 2);
+assert.equal(shrinkingRequiredRow.requiredMinimumSetPoint, 2550);
+const shrinkingRequiredBufferRow = progression.getRequiredEquipmentTuneRow(
+  relicChangedEquipment,
+  materialPrices,
+  { isBuffer: true },
+);
+assert.deepEqual(
+  shrinkingRequiredBufferRow.tuneSteps.map((step) => step.effects),
+  [{}, { buffPower: 400 }],
+);
 const equipmentAfterRequiredTune = progression.applyEquipmentTunePlan(
   relicChangedEquipment,
-  shrinkingRequiredRow.tunePlan,
+  shrinkingRequiredRow.tuneSteps[0].tunePlan,
 );
 assert.ok(equipmentAfterRequiredTune);
 assert.equal(progression.getEquipmentTuneSetPoint(equipmentAfterRequiredTune), 2550);
-const oneStepTuneRow = progression.getEquipmentTuneRows(
-  equipmentAfterRequiredTune,
-  materialPrices,
-)[0];
-assert.ok(oneStepTuneRow);
-assert.equal(oneStepTuneRow.tuneSteps.length, 1);
-const clampedTuneStepIndex = Math.max(
-  0,
-  Math.min(oneStepTuneRow.tuneSteps.length - 1, previouslySelectedTuneStepIndex),
+assert.equal(shrinkingRequiredRow.tuneSteps[1].tuneCount, 14);
+const equipmentAfterOptionalTune = progression.applyEquipmentTunePlan(
+  relicChangedEquipment,
+  shrinkingRequiredRow.tuneSteps[1].tunePlan,
 );
-assert.equal(clampedTuneStepIndex, 0);
-const equipmentAfterReappliedTune = progression.applyEquipmentTunePlan(
-  equipmentAfterRequiredTune,
-  oneStepTuneRow.tuneSteps[clampedTuneStepIndex].tunePlan,
+assert.ok(equipmentAfterOptionalTune);
+assert.equal(progression.getEquipmentTuneSetPoint(equipmentAfterOptionalTune), 2620);
+assert.equal(
+  progression.getRequiredEquipmentTuneRow(
+    relicChangedEquipment.map((equipment, index) => (
+      { ...equipment, tuneRemaining: index < 2 ? 3 : 0 }
+    )),
+    materialPrices,
+    null,
+  ),
+  null,
 );
-assert.ok(equipmentAfterReappliedTune);
-assert.equal(progression.getEquipmentTuneSetPoint(equipmentAfterReappliedTune), 2620);
 
 const anniversaryEquipment = [
   { slot: '상의', itemRarity: '태초', tuneLevel: 0, tuneRemaining: 0, tuneSetPoint: 2120 },

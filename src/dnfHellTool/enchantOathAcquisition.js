@@ -153,6 +153,40 @@ export function createEnchantOathAcquisition({
       .find((variant) => Number(variant.variantCount || 1) === requestedCount) || null;
   }
 
+  function createOathAcquisitionCombinedSnapshot(
+    row = {},
+    transcendCount = 0,
+    craftCount = 0,
+    preservedBaselineSnapshot = null,
+    recalculatedEffectSnapshot = null,
+  ) {
+    const baselineSnapshot = preservedBaselineSnapshot || row;
+    const totalCount = Number(transcendCount || 0) + Number(craftCount || 0);
+    const effectSnapshot = recalculatedEffectSnapshot
+      || getOathAcquisitionVariantFromRecommendations(
+        baselineSnapshot.transcendRecommendations || [baselineSnapshot.transcendRecommendation],
+        totalCount,
+      )
+      || getOathAcquisitionVariantFromRecommendations(
+        baselineSnapshot.craftRecommendations || [baselineSnapshot.craftRecommendation],
+        totalCount,
+      )
+      || baselineSnapshot;
+    return {
+      ...cloneSimulatorValue(effectSnapshot),
+      oathAcquisitionPairKey: row.oathAcquisitionPairKey
+        || baselineSnapshot.oathAcquisitionPairKey
+        || '',
+      transcendRecommendation: cloneSimulatorValue(baselineSnapshot.transcendRecommendation),
+      craftRecommendation: cloneSimulatorValue(baselineSnapshot.craftRecommendation),
+      transcendRecommendations: cloneSimulatorValue(baselineSnapshot.transcendRecommendations),
+      craftRecommendations: cloneSimulatorValue(baselineSnapshot.craftRecommendations),
+      transcendCount,
+      craftCount,
+      variantCount: totalCount,
+    };
+  }
+
   function getActiveOathAcquisitionSelectionEntries(simulator = {}) {
     const entries = [];
     Object.entries(simulator?.activeSelectionByGroup || {}).forEach(([
@@ -614,7 +648,10 @@ export function createEnchantOathAcquisition({
       .map((groupKey) => [groupKey, simulator.activeSelectionByGroup?.[groupKey]])
       .filter(([, selection]) => selection)
       .forEach(restoreSelection);
-    return { referenceOath, replacedAcquisitionGroupKeys };
+    return {
+      referenceOath,
+      replacedAcquisitionGroupKeys,
+    };
   }
 
   function isOathAcquisitionCandidateForTarget(crystal = {}, targetRarity = '', db = {}) {
@@ -631,7 +668,24 @@ export function createEnchantOathAcquisition({
     return false;
   }
 
-  function getOathAcquisitionCandidateScore(entry = {}, currentCrystal = {}, referenceOath = {}, db = {}) {
+  function getOathAcquisitionCurrentRarityPriority(crystal = {}, db = {}) {
+    const currentRarity = String(crystal.itemRarity || '').trim();
+    const itemName = String(crystal.itemName || '').trim();
+    const uniqueKeyword = String(db.uniqueCrystalNameKeyword || '안개 결정').trim();
+    if (currentRarity === '유니크') return 0;
+    if (currentRarity === '레전더리') return 1;
+    if (currentRarity === '에픽' && uniqueKeyword && itemName.includes(uniqueKeyword)) return 2;
+    if (currentRarity === '에픽') return 3;
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  function getOathAcquisitionCandidateScore(
+    entry = {},
+    currentCrystal = {},
+    referenceOath = {},
+    db = {},
+    role = 'dealer',
+  ) {
     const currentEffects = currentCrystal.effects || entry.currentEffects || {};
     const targetEffects = entry.targetEffects || {};
     const effectDelta = getOathDecisionEffectDelta(targetEffects, currentEffects);
@@ -641,12 +695,23 @@ export function createEnchantOathAcquisition({
     const targetSetPoint = currentSetPoint - currentSlotSetPoint + targetSlotSetPoint;
     const currentState = getOathTuneState(db, currentSetPoint);
     const targetState = getOathTuneState(db, targetSetPoint);
-    const skillDamageMultiplier = currentState?.damageMultiplier > 0
-      ? Number(targetState?.damageMultiplier || 0) / currentState.damageMultiplier
-      : 1;
-    const finalDamageMultiplier = 1 + Number(effectDelta.finalDamage || 0) / 100;
+    const currentSetBuffPower = Number(currentState?.blessingBuffPower || 0)
+      + Number(currentState?.stageBuffPower || 0);
+    const targetSetBuffPower = Number(targetState?.blessingBuffPower || 0)
+      + Number(targetState?.stageBuffPower || 0);
+    let score;
+    if (role === 'buffer') {
+      score = Number(targetEffects.buffPower || 0) - Number(currentEffects.buffPower || 0)
+        + targetSetBuffPower - currentSetBuffPower;
+    } else {
+      const skillDamageMultiplier = currentState?.damageMultiplier > 0
+        ? Number(targetState?.damageMultiplier || 0) / currentState.damageMultiplier
+        : 1;
+      const finalDamageMultiplier = 1 + Number(effectDelta.finalDamage || 0) / 100;
+      score = (finalDamageMultiplier * skillDamageMultiplier - 1) * 100;
+    }
     return {
-      score: (finalDamageMultiplier * skillDamageMultiplier - 1) * 100,
+      score,
       setPointDelta: targetSlotSetPoint - currentSlotSetPoint,
     };
   }
@@ -686,6 +751,7 @@ export function createEnchantOathAcquisition({
             currentCrystal,
             referenceOath,
             simulator.oathTuneDb,
+            simulator.role,
           ),
         };
       })
@@ -693,6 +759,8 @@ export function createEnchantOathAcquisition({
         isOathAcquisitionCandidateForTarget(currentCrystal, targetRarity, simulator.oathTuneDb)
       ))
       .sort((a, b) => (
+        getOathAcquisitionCurrentRarityPriority(a.currentCrystal, simulator.oathTuneDb)
+          - getOathAcquisitionCurrentRarityPriority(b.currentCrystal, simulator.oathTuneDb) ||
         b.score - a.score ||
         b.setPointDelta - a.setPointDelta ||
         a.poolIndex - b.poolIndex
@@ -758,6 +826,58 @@ export function createEnchantOathAcquisition({
       expectedMaterials,
       decisionPlan,
       replacedAcquisitionGroupKeys,
+    };
+  }
+
+  function rebuildOathAcquisitionPlansFromBase(simulator = {}, recommendationRows = []) {
+    const baseOath = cloneSimulatorValue(simulator.baseOathUpgrades || {});
+    if (!Array.isArray(baseOath.crystals)) return null;
+    const planningSimulator = {
+      ...simulator,
+      simulatedOathUpgrades: baseOath,
+      activeSelectionByGroup: {},
+    };
+    const orderedRows = recommendationRows
+      .filter(Boolean)
+      .slice()
+      .sort((a, b) => {
+        const getPriority = (row) => (
+          String(row?.targetRarity || row?.itemRarity || '').trim() === '태초' ? 0 : 1
+        );
+        return getPriority(a) - getPriority(b);
+      });
+    const plannedRecommendations = [];
+    const plannedSlotIndexes = new Set();
+    const maxTuneLevel = Number(simulator.oathTuneDb?.maxTuneLevel || 3);
+    for (const row of orderedRows) {
+      const adaptedRow = adaptOathAcquisitionRecommendation(row, planningSimulator);
+      if (!adaptedRow) return null;
+      const nextOath = cloneSimulatorValue(planningSimulator.simulatedOathUpgrades);
+      const crystals = Array.isArray(nextOath.crystals) ? nextOath.crystals : [];
+      for (const entry of adaptedRow.decisionPlan || []) {
+        const slotIndex = Number(entry?.slotIndex);
+        if (plannedSlotIndexes.has(slotIndex)) return null;
+        const crystalIndex = crystals.findIndex(
+          (crystal) => Number(crystal?.index) === slotIndex,
+        );
+        if (crystalIndex < 0) return null;
+        const currentSetPoint = Number(crystals[crystalIndex]?.setPoint || 0);
+        const targetSetPoint = Number(entry.targetSlotSetPoint || 0);
+        nextOath.setPoint = Number(nextOath.setPoint || 0) - currentSetPoint + targetSetPoint;
+        crystals.splice(
+          crystalIndex,
+          1,
+          replaceOathDecisionBody(crystals[crystalIndex], entry, maxTuneLevel),
+        );
+        plannedSlotIndexes.add(slotIndex);
+      }
+      syncOathTuneStageDisplay(nextOath, simulator.oathTuneDb);
+      planningSimulator.simulatedOathUpgrades = nextOath;
+      plannedRecommendations.push(adaptedRow);
+    }
+    return {
+      oathUpgrades: cloneSimulatorValue(planningSimulator.simulatedOathUpgrades),
+      recommendations: plannedRecommendations,
     };
   }
 
@@ -832,6 +952,7 @@ export function createEnchantOathAcquisition({
     getOathAcquisitionVariantRows,
     getOathAcquisitionCombinedPairKey,
     getOathAcquisitionVariantFromRecommendations,
+    createOathAcquisitionCombinedSnapshot,
     getActiveOathAcquisitionSelectionEntries,
     getActiveOathAcquisitionSelections,
     getActiveOathAcquisitionMethodCounts,
@@ -845,6 +966,7 @@ export function createEnchantOathAcquisition({
     getOathAcquisitionCandidateSignature,
     getOathAcquisitionTargetGroupKey,
     adaptOathAcquisitionRecommendation,
+    rebuildOathAcquisitionPlansFromBase,
     isAppliedOathAcquisitionRecommendation,
     getActiveOathAcquisitionCountByVariantGroup,
     mergeAppliedOathAcquisitionSnapshots,

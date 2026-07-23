@@ -386,6 +386,20 @@ def get_oath_transcend_score(row: dict, is_buffer: bool) -> float:
     return ((1 + final_damage / 100) * skill_damage_multiplier - 1) * 100
 
 
+def get_oath_acquisition_current_rarity_priority(row: dict, unique_keyword: str = "") -> int:
+    current_rarity = clean_text(row.get("currentRarity"))
+    current_item_name = clean_text(row.get("currentItemName"))
+    if current_rarity == "유니크":
+        return 0
+    if current_rarity == "레전더리":
+        return 1
+    if current_rarity == "에픽" and is_oath_unique_crystal_name(current_item_name, unique_keyword):
+        return 2
+    if current_rarity == "에픽":
+        return 3
+    return 99
+
+
 def build_oath_transcend_recommendations_debug(
     oath_payload: dict,
     buffer_baseline: dict | None = None,
@@ -553,6 +567,7 @@ def build_oath_decision_recommendations_debug(
     epic_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "에픽"]
     primeval_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "태초"]
     row_rank_key = lambda row: (
+        get_oath_acquisition_current_rarity_priority(row, unique_keyword),
         -float(row.get("_score") or 0),
         -(parse_percent_or_number(row.get("targetSetPoint")) - parse_percent_or_number(row.get("currentSetPoint"))),
         int(row.get("expectedGold") or 0),

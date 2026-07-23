@@ -4,7 +4,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from server.candidates.relic_craft import _build_materials, build_relic_craft_recommendations_debug
+from server.candidates.relic_craft import (
+    _build_materials,
+    _build_recipe_contexts,
+    build_relic_craft_recommendations_debug,
+)
 from server.equipment_body import (
     get_relic_craft_final_damage_percent,
     normalize_relic_craft_target_equipment_body,
@@ -282,7 +286,7 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertEqual(body, {})
         self.assertEqual(reason, "missing_relic_craft_attack_increase")
 
-    def test_keeps_existing_2620_eligibility_boundary(self):
+    def test_defers_2620_eligibility_to_exact_frontend_tune_plan(self):
         equipment_rows = [
             {
                 "slotId": "MAGIC_STON",
@@ -302,13 +306,10 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             },
         ]
 
-        result = build_relic_craft_recommendations_debug(equipment_rows, {})
-        self.assertEqual(result["recommendations"], [])
-        self.assertEqual(result["steps"], [{
-            "reason": "below_relic_craft_minimum_equipment_set_point",
-            "currentEquipmentSetPoint": 2615.0,
-            "minimumEquipmentSetPoint": 2620.0,
-        }])
+        contexts, steps = _build_recipe_contexts([self.recipe], equipment_rows, 2615.0)
+        self.assertEqual(steps, [])
+        self.assertEqual(len(contexts), 1)
+        self.assertEqual(contexts[0]["minimumCurrentEquipmentSetPoint"], 2620.0)
 
     def test_eligible_candidate_keeps_effects_cost_and_set_point_contract(self):
         equipment_rows = [

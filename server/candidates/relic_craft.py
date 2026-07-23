@@ -202,13 +202,6 @@ def _build_recipe_contexts(recipes: list, equipment_rows: list, current_set_poin
             if current_precision_percent >= 100:
                 continue
             minimum_current_set_point = 0.0
-        elif current_set_point < minimum_current_set_point:
-            steps.append({
-                "reason": "below_relic_craft_minimum_equipment_set_point",
-                "currentEquipmentSetPoint": current_set_point,
-                "minimumEquipmentSetPoint": minimum_current_set_point,
-            })
-            continue
         contexts.append({
             "recipe": recipe,
             "targetConfig": target_config,

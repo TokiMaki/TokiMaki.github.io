@@ -32,6 +32,9 @@ export function isEquipmentBodyReplacementSource(rowOrSourceType = '') {
 
 export function isRelicCraftEquipmentSetPointEligible(row = {}) {
   if (row?.sourceType !== 'relicCraft') return true;
+  if (typeof row.requiredEquipmentTuneReachable === 'boolean') {
+    return row.requiredEquipmentTuneReachable;
+  }
   const minimumSetPoint = Number(row.minimumCurrentEquipmentSetPoint);
   if (!Number.isFinite(minimumSetPoint) || minimumSetPoint <= 0) return true;
   const currentSetPoint = Number(row.currentEquipmentSetPoint);

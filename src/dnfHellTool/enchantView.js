@@ -532,7 +532,10 @@ function formatUpgradeEffect(row) {
 
 function formatEquipmentTuneEffect(row) {
   const pointText = `태초 ${formatEffectNumber(row.currentSetPoint)} -> 태초 ${formatEffectNumber(row.targetSetPoint)}`;
-  if (row.requiredForRelicCraft === true) return pointText;
+  if (
+    row.requiredForRelicCraft === true
+    && Number(row.selectedTuneStepIndex || 0) === 0
+  ) return pointText;
   if (row.metricType === 'buffer') {
     const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
     return `${pointText} / ${buffPowerText}`;
@@ -599,7 +602,10 @@ function formatEquipmentTuneEffectHtml(row, escapeHtml) {
   const currentPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.currentSetPoint)}`, escape);
   const targetPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.targetSetPoint)}`, escape);
   const pointHtml = `${currentPoint} <span class="enchant-oath-stage-arrow">-&gt;</span> ${targetPoint}`;
-  if (row.requiredForRelicCraft === true) return pointHtml;
+  if (
+    row.requiredForRelicCraft === true
+    && Number(row.selectedTuneStepIndex || 0) === 0
+  ) return pointHtml;
   const tuneText = row.metricType === 'buffer'
     ? `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`
     : `최종뎀 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
@@ -892,6 +898,8 @@ function getRelicCraftRows(
   recommendations = [],
   equipmentUpgrades = [],
   tuneAttempts = RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT,
+  materialPrices = {},
+  bufferBaseline = null,
 ) {
   return (recommendations || []).flatMap((rawCandidate) => {
     const candidate = applyRelicCraftTuneAttemptCosts(rawCandidate, tuneAttempts);
@@ -911,7 +919,32 @@ function getRelicCraftRows(
     );
     if (!targetEquipmentUpgrades) return [];
     const currentSetPoint = getEquipmentTuneSetPoint(equipmentUpgrades);
-    const targetSetPoint = getEquipmentTuneSetPoint(targetEquipmentUpgrades);
+    const bodyTargetSetPoint = getEquipmentTuneSetPoint(targetEquipmentUpgrades);
+    const hasRelicCraftSetPointRequirement = Number(
+      candidate.minimumCurrentEquipmentSetPoint || 0,
+    ) > 0;
+    const requiredTuneTargetSetPoint = hasRelicCraftSetPointRequirement
+      ? EQUIPMENT_TUNE_MIN_SET_POINT
+      : 0;
+    const requiredTuneRow = (
+      requiredTuneTargetSetPoint > 0
+      && bodyTargetSetPoint < requiredTuneTargetSetPoint
+    )
+      ? getRequiredEquipmentTuneRow(
+        targetEquipmentUpgrades,
+        materialPrices,
+        bufferBaseline,
+        requiredTuneTargetSetPoint,
+      )
+      : null;
+    const requiredEquipmentTuneReachable = requiredTuneTargetSetPoint <= 0
+      || bodyTargetSetPoint >= requiredTuneTargetSetPoint
+      || Boolean(requiredTuneRow);
+    const effectiveTargetEquipmentUpgrades = requiredTuneRow
+      ? applyEquipmentTunePlan(targetEquipmentUpgrades, requiredTuneRow.tunePlan)
+      : targetEquipmentUpgrades;
+    if (!effectiveTargetEquipmentUpgrades) return [];
+    const targetSetPoint = getEquipmentTuneSetPoint(effectiveTargetEquipmentUpgrades);
     const currentTuneBuffPower = getEquipmentTuneStage(currentSetPoint)
       * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
     const targetTuneBuffPower = getEquipmentTuneStage(targetSetPoint)
@@ -934,10 +967,14 @@ function getRelicCraftRows(
       targetEquipmentBody,
       currentEquipmentSetPoint: currentSetPoint,
       targetEquipmentSetPoint: targetSetPoint,
+      bodyTargetEquipmentSetPoint: bodyTargetSetPoint,
+      requiredEquipmentTuneReachable,
+      requiredEquipmentTuneCount: Number(requiredTuneRow?.tuneCount || 0),
+      requiredEquipmentTuneTargetSetPoint: requiredTuneTargetSetPoint,
       equipmentTuneBuffPowerDelta: targetTuneBuffPower - currentTuneBuffPower,
       skillDamageMultiplier: getEquipmentTuneDamageMultiplier(
         equipmentUpgrades,
-        targetEquipmentUpgrades,
+        effectiveTargetEquipmentUpgrades,
       ),
       materials: Array.isArray(candidate.materials) ? candidate.materials : [],
       simulatorSupported: true,
@@ -1204,6 +1241,7 @@ const {
   getOathAcquisitionVariantRows,
   getOathAcquisitionCombinedPairKey,
   getOathAcquisitionVariantFromRecommendations,
+  createOathAcquisitionCombinedSnapshot,
   getActiveOathAcquisitionSelectionEntries,
   getActiveOathAcquisitionSelections,
   getActiveOathAcquisitionMethodCounts,
@@ -1217,6 +1255,7 @@ const {
   getOathAcquisitionCandidateSignature,
   getOathAcquisitionTargetGroupKey,
   adaptOathAcquisitionRecommendation,
+  rebuildOathAcquisitionPlansFromBase,
   isAppliedOathAcquisitionRecommendation,
   getActiveOathAcquisitionCountByVariantGroup,
   mergeAppliedOathAcquisitionSnapshots,
@@ -1978,10 +2017,20 @@ export function installEnchantView(ctx) {
   }
 
   function getEquipmentTuneRecommendationUpgrades() {
-    const activeTune = state.dealerSimulator?.activeSelectionByGroup?.equipmentTune;
+    const activeTune = state.dealerSimulator?.activeSelectionByGroup?.equipmentTune
+      || state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired;
     return activeTune?.actionType === 'equipmentTunePlan' && activeTune.beforeTuneSnapshot
       ? activeTune.beforeTuneSnapshot
       : getActiveEquipmentUpgrades();
+  }
+
+  function getVisibleEquipmentTuneRows() {
+    if (state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired) return [];
+    return getEquipmentTuneRows(
+      getEquipmentTuneRecommendationUpgrades(),
+      state.upgradeMaterialPrices,
+      state.currentBufferBaseline,
+    );
   }
 
   function getActiveOathUpgrades() {
@@ -3299,7 +3348,10 @@ export function installEnchantView(ctx) {
     simulator.totalGold = getDealerSimulatorTotalGold(simulator);
     syncOathAcquisitionVariantIndexes(true);
     const equipmentTuneStepIndex = Number(
-      simulator.activeSelectionByGroup.equipmentTune?.selectedVariantIndex || 0,
+      (
+        simulator.activeSelectionByGroup.equipmentTune
+        || simulator.activeSelectionByGroup.equipmentTuneRequired
+      )?.selectedVariantIndex || 0,
     );
     const oathTuneStepIndex = Number(
       simulator.activeSelectionByGroup.oathTune?.selectedVariantIndex || 0,
@@ -3816,21 +3868,74 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function applyRequiredEquipmentTuneAfterBodyChange() {
+  function getActiveRelicCraftRequiredTuneSetPoint(excludedGroupKey = '') {
+    const simulator = state.dealerSimulator;
+    return Object.entries(simulator?.activeSelectionByGroup || {})
+      .reduce((minimumSetPoint, [groupKey, selection]) => {
+        if (groupKey === excludedGroupKey) return minimumSetPoint;
+        const snapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
+        if (
+          snapshot.sourceType !== 'relicCraft'
+          || snapshot.relicCraftMode === 'precision'
+        ) return minimumSetPoint;
+        const candidateMinimum = Number(
+          snapshot.requiredEquipmentTuneTargetSetPoint
+          || snapshot.minimumCurrentEquipmentSetPoint
+          || 0,
+        );
+        return Number.isFinite(candidateMinimum)
+          ? Math.max(minimumSetPoint, candidateMinimum)
+          : minimumSetPoint;
+      }, 0);
+  }
+
+  function applyRequiredEquipmentTuneAfterBodyChange(
+    minimumSetPoint = EQUIPMENT_TUNE_MIN_SET_POINT,
+    preferredVariantIndex = 0,
+  ) {
     const simulator = state.dealerSimulator;
     if (!simulator) return null;
+    const requiredSetPoint = Number(minimumSetPoint);
+    if (
+      !Number.isFinite(requiredSetPoint)
+      || requiredSetPoint < EQUIPMENT_TUNE_MIN_SET_POINT
+    ) return null;
     const currentSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades || []);
-    if (currentSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) return { changedSlots: [] };
+    if (currentSetPoint >= requiredSetPoint) {
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        equipmentTune: 0,
+      };
+      state.equipmentTuneStepIndex = 0;
+      return { changedSlots: [] };
+    }
     const row = getRequiredEquipmentTuneRow(
       simulator.simulatedEquipmentUpgrades || [],
       state.upgradeMaterialPrices,
+      state.currentBufferBaseline,
+      requiredSetPoint,
     );
     if (!row) return null;
+    const selectedVariantIndex = Math.max(
+      0,
+      Math.min(
+        row.tuneSteps.length - 1,
+        Number(preferredVariantIndex || 0),
+      ),
+    );
+    const displayRow = applyEquipmentTuneDisplayStep(
+      simulator.role === 'buffer' ? { ...row, metricType: 'buffer' } : row,
+      selectedVariantIndex,
+      els.enchantMaterialCostToggle?.checked === true,
+      getActiveDamageBaseline(),
+      state.currentBufferBaseline,
+      simulator.role === 'buffer' ? simulator : null,
+    );
     const beforeTuneSnapshot = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
-    const nextEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, row.tunePlan);
+    const nextEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, displayRow.tunePlan);
     if (
       !nextEquipment
-      || getEquipmentTuneSetPoint(nextEquipment) < EQUIPMENT_TUNE_MIN_SET_POINT
+      || getEquipmentTuneSetPoint(nextEquipment) < requiredSetPoint
     ) return null;
     const changedSlots = getChangedEquipmentTuneSlots(beforeTuneSnapshot, nextEquipment);
     simulator.simulatedEquipmentUpgrades = nextEquipment;
@@ -3843,32 +3948,31 @@ export function installEnchantView(ctx) {
     };
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
     const selection = createActiveSimulatorSelection({
-      row,
+      row: displayRow,
       target,
-      candidateSignature: getSimulatorCandidateSignature(row),
+      candidateSignature: getSimulatorCandidateSignature(displayRow),
       previousSelection: null,
-      goldWithoutMaterials: getRecommendationGold(row, false),
-      goldWithMaterials: getRecommendationGold(row, true),
+      goldWithoutMaterials: getRecommendationGold(displayRow, false),
+      goldWithMaterials: getRecommendationGold(displayRow, true),
       includeMaterialCosts,
     });
     if (!selection?.candidateSignature) return null;
     simulator.activeSelectionByGroup.equipmentTuneRequired = selection;
+    state.tuneStepIndexBySource = {
+      ...(state.tuneStepIndexBySource || {}),
+      equipmentTune: selectedVariantIndex,
+    };
+    state.equipmentTuneStepIndex = selectedVariantIndex;
     return { changedSlots };
   }
 
-  function getEquipmentTuneSelectionForBodyChangeReapply(
-    previousEquipmentTune = null,
-    previousRequiredTune = null,
-  ) {
-    if (previousEquipmentTune?.actionType === 'equipmentTunePlan') {
-      return previousEquipmentTune;
-    }
+  function getEquipmentTuneSelectionForBodyChangeReapply(previousEquipmentTune = null) {
     const simulator = state.dealerSimulator;
     if (
-      previousRequiredTune?.actionType === 'equipmentTunePlan'
+      previousEquipmentTune?.actionType === 'equipmentTunePlan'
       && !simulator?.activeSelectionByGroup?.equipmentTuneRequired
     ) {
-      return previousRequiredTune;
+      return previousEquipmentTune;
     }
     return null;
   }
@@ -3877,13 +3981,31 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator || target?.applyType !== 'replaceEquipmentBody') return false;
     const isPrecisionChange = isRelicCraftPrecisionBodyChange(row);
-    const hadRequiredTune = Boolean(simulator.activeSelectionByGroup?.equipmentTuneRequired);
+    const exclusiveGroupKey = getSimulatorExclusiveGroupKey(row);
+    const retainedRequiredTuneSetPoint = getActiveRelicCraftRequiredTuneSetPoint(
+      exclusiveGroupKey,
+    );
+    const rowRequiredTuneSetPoint = (
+      row.sourceType === 'relicCraft'
+      && row.relicCraftMode !== 'precision'
+    )
+      ? Number(
+        row.requiredEquipmentTuneTargetSetPoint
+        || row.minimumCurrentEquipmentSetPoint
+        || 0,
+      )
+      : 0;
+    const requiredTuneSetPoint = Math.max(
+      retainedRequiredTuneSetPoint,
+      Number.isFinite(rowRequiredTuneSetPoint) ? rowRequiredTuneSetPoint : 0,
+    );
     const previousEquipmentTune = isPrecisionChange
       ? null
-      : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTune || null);
-    const previousRequiredTune = isPrecisionChange
-      ? null
-      : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTuneRequired || null);
+      : cloneSimulatorValue(
+        simulator.activeSelectionByGroup?.equipmentTune
+        || simulator.activeSelectionByGroup?.equipmentTuneRequired
+        || null,
+      );
     if (!isPrecisionChange && !invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
     if (!isPrecisionChange && !invalidateRequiredEquipmentTuneSelectionForBodyChange()) return false;
     const targetSlotId = target.targetSlotId
@@ -3910,13 +4032,15 @@ export function installEnchantView(ctx) {
       ),
     );
     let requiredTuneResult = { changedSlots: [] };
-    if (!isPrecisionChange && (hadRequiredTune || row.sourceType === 'relicCraft')) {
-      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange();
+    if (!isPrecisionChange && requiredTuneSetPoint > 0) {
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(
+        requiredTuneSetPoint,
+        previousEquipmentTune?.selectedVariantIndex,
+      );
       if (!requiredTuneResult) return false;
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
       previousEquipmentTune,
-      previousRequiredTune,
     );
     const reappliedTuneResult = !isPrecisionChange && previousTuneForReapply
       ? reapplyEquipmentTuneSelectionToCurrentState(previousTuneForReapply)
@@ -5001,13 +5125,15 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     const appliedSnapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
     const isPrecisionChange = isRelicCraftPrecisionBodyChange(appliedSnapshot);
-    const hadRequiredTune = Boolean(simulator?.activeSelectionByGroup?.equipmentTuneRequired);
+    const exclusiveGroupKey = getSimulatorExclusiveGroupKey(appliedSnapshot);
+    const requiredTuneSetPoint = getActiveRelicCraftRequiredTuneSetPoint(exclusiveGroupKey);
     const previousEquipmentTune = isPrecisionChange
       ? null
-      : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTune || null);
-    const previousRequiredTune = isPrecisionChange
-      ? null
-      : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTuneRequired || null);
+      : cloneSimulatorValue(
+        simulator?.activeSelectionByGroup?.equipmentTune
+        || simulator?.activeSelectionByGroup?.equipmentTuneRequired
+        || null,
+      );
     const targetSlotId = selection.targetSlotId
       || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot });
     if (!simulator || !targetSlotId) return false;
@@ -5045,13 +5171,15 @@ export function installEnchantView(ctx) {
       ),
     );
     let requiredTuneResult = { changedSlots: [] };
-    if (!isPrecisionChange && (hadRequiredTune || appliedSnapshot.sourceType === 'relicCraft')) {
-      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange();
+    if (!isPrecisionChange && requiredTuneSetPoint > 0) {
+      requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(
+        requiredTuneSetPoint,
+        previousEquipmentTune?.selectedVariantIndex,
+      );
       if (!requiredTuneResult) return false;
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
       previousEquipmentTune,
-      previousRequiredTune,
     );
     const reappliedTuneResult = !isPrecisionChange && previousTuneForReapply
       ? reapplyEquipmentTuneSelectionToCurrentState(previousTuneForReapply)
@@ -5776,15 +5904,17 @@ export function installEnchantView(ctx) {
         els.safeAmplificationModeSelect?.value === 'event',
         state.upgradeMaterialPrices,
       ),
-      ...getEquipmentTuneRows(getEquipmentTuneRecommendationUpgrades(), state.upgradeMaterialPrices, state.currentBufferBaseline),
+      ...getVisibleEquipmentTuneRows(),
       ...getOathTuneRows(getOathTuneRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, getActiveEquipmentUpgrades(), state.currentBufferBaseline),
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),
       ...getBlackFangRows(state.currentBlackFangRecommendations),
       ...getRelicCraftRows(
         state.currentRelicCraftRecommendations,
-        getActiveEquipmentUpgrades(),
+        getEquipmentTuneRecommendationUpgrades(),
         getRelicCraftTuneAttempts(),
+        state.upgradeMaterialPrices,
+        state.currentBufferBaseline,
       ),
     ].map((row) => adaptBuffEnhancementRecommendation(row, state.dealerSimulator));
     renderEnchantFilters(allRows);
@@ -6057,6 +6187,8 @@ export function installEnchantView(ctx) {
     els.enchantRecommendList.innerHTML = displayRecommendations.map((row, index) => {
       const isApplied = row.isApplied === true;
       const isRequiredEquipmentTune = row.requiredForRelicCraft === true;
+      const isRequiredEquipmentTuneBaseVariant = isRequiredEquipmentTune
+        && Number(row.selectedTuneStepIndex || 0) === 0;
       const isRemovalLocked = isApplied && row.simulatorRemovalLocked === true;
       const isCombinedOathAcquisition = row.sourceType === 'oathAcquisitionCombined';
       const isCombinedPreviewOnly = isCombinedOathAcquisition && row.previewOnly === true;
@@ -6066,7 +6198,7 @@ export function installEnchantView(ctx) {
       const hasOathDecisionVariants = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         && Array.isArray(row.oathDecisionVariants)
         && row.oathDecisionVariants.length > 1;
-      const hasVariantActions = (TUNE_SOURCE_TYPES.has(row.sourceType) && !isRequiredEquipmentTune)
+      const hasVariantActions = TUNE_SOURCE_TYPES.has(row.sourceType)
         || hasOathDecisionVariants
         || isCombinedOathAcquisition;
       const variantPopoverSource = isCombinedOathAcquisition
@@ -6272,10 +6404,12 @@ export function installEnchantView(ctx) {
           : [];
       const rowGold = getRecommendationGold(row, includeMaterialCosts);
       const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
-      const cardMetricValue = isRequiredEquipmentTune
+      const cardMetricValue = isRequiredEquipmentTuneBaseVariant
         ? rowGold
         : isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent;
-      const cardMetricLabel = isRequiredEquipmentTune ? '필수 비용' : isBufferMetric ? '100점당' : '0.1%당';
+      const cardMetricLabel = isRequiredEquipmentTuneBaseVariant
+        ? '필수 비용'
+        : isBufferMetric ? '100점당' : '0.1%당';
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
         : includeMaterialCosts && ['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
@@ -6374,9 +6508,9 @@ export function installEnchantView(ctx) {
         { html: relicCraftMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { html: combinedAcquisitionMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { text: !isCombinedOathAcquisition && !materialPartsMarkup && !relicCraftMaterialsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
-        { text: isRequiredEquipmentTune ? '태초 세트 포인트 유지' : isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
-        { text: !isRequiredEquipmentTune && isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
-        { text: isRequiredEquipmentTune || legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { text: isRequiredEquipmentTuneBaseVariant ? '태초 세트 포인트 유지' : isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
+        { text: !isRequiredEquipmentTuneBaseVariant && isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
+        { text: isRequiredEquipmentTuneBaseVariant || legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
         { text: isRemovalLocked ? '유일 장비 구성에 따라 자동 적용되는 조율입니다.' : isApplied ? '한 번 더 눌러 시뮬레이터 적용 해제' : '', className: 'enchant-simulator-touch-hint' },
         { text: simulatorTarget ? '한 번 더 눌러 시뮬레이터에 적용' : '', className: 'enchant-simulator-touch-hint' },
@@ -7075,9 +7209,23 @@ export function installEnchantView(ctx) {
   function replaceAppliedEquipmentTuneVariant(stepIndex, options = {}) {
     const simulator = state.dealerSimulator;
     const selection = options.selectionOverride
-      || simulator?.activeSelectionByGroup?.equipmentTune;
+      || simulator?.activeSelectionByGroup?.equipmentTune
+      || simulator?.activeSelectionByGroup?.equipmentTuneRequired;
     if (!simulator || !selection || selection.actionType !== 'equipmentTunePlan') return false;
-    const row = options.rowOverride || getEquipmentTuneVariantRow(stepIndex);
+    const selectionSnapshot = getAppliedSelectionRecommendationSnapshot(selection);
+    const isRequiredTune = selectionSnapshot?.requiredForRelicCraft === true;
+    const row = options.rowOverride || (
+      isRequiredTune
+        ? applyEquipmentTuneDisplayStep(
+          selectionSnapshot,
+          stepIndex,
+          els.enchantMaterialCostToggle?.checked === true,
+          getActiveDamageBaseline(),
+          state.currentBufferBaseline,
+          simulator.role === 'buffer' ? simulator : null,
+        )
+        : getEquipmentTuneVariantRow(stepIndex)
+    );
     const isSameVariant = Number(row?.selectedTuneStepIndex || 0)
       === Number(selection.selectedVariantIndex || 0);
     if (!row || (!options.allowSameVariant && isSameVariant)) return false;
@@ -7092,6 +7240,7 @@ export function installEnchantView(ctx) {
       previousEquipment.map((equipment) => [equipment?.slot, equipment]),
     );
     const nextEquipment = plannedEquipment.map((equipment) => {
+      if (isRequiredTune) return equipment;
       const currentEquipment = currentEquipmentBySlot.get(equipment?.slot);
       const equipmentBodySelection = Object.values(
         simulator.activeSelectionByGroup || {},
@@ -7134,11 +7283,16 @@ export function installEnchantView(ctx) {
     };
     try {
       simulator.simulatedEquipmentUpgrades = nextEquipment;
-      simulator.activeSelectionByGroup.equipmentTune = updatedSelection;
+      const selectionGroupKey = isRequiredTune ? 'equipmentTuneRequired' : 'equipmentTune';
+      simulator.activeSelectionByGroup[selectionGroupKey] = updatedSelection;
       if (simulator.role === 'buffer') {
-        simulator.equipmentTuneChangesBySource.equipmentTune = cloneSimulatorValue(
-          row.bufferBaseRelativeChanges,
-        );
+        if (row.bufferBaseRelativeChanges) {
+          simulator.equipmentTuneChangesBySource.equipmentTune = cloneSimulatorValue(
+            row.bufferBaseRelativeChanges,
+          );
+        } else {
+          delete simulator.equipmentTuneChangesBySource.equipmentTune;
+        }
       }
       const selectedVariantIndex = Number(row.selectedTuneStepIndex || 0);
       const changedSlots = getChangedEquipmentTuneSlots(previousEquipment, nextEquipment);
@@ -7302,9 +7456,15 @@ export function installEnchantView(ctx) {
     const value = Number(delta || 0);
     if (!Number.isFinite(value) || value === 0) return;
     freezeRecommendationOrderWhileEditing(sourceType);
+    const activeRequiredTune = sourceType === 'equipmentTune'
+      ? state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired
+      : null;
+    const tuneRows = activeRequiredTune
+      ? [getAppliedSelectionRecommendationSnapshot(activeRequiredTune)]
+      : getTuneRowsBySource(sourceType);
     const maxIndex = Math.max(
       0,
-      ...getTuneRowsBySource(sourceType)
+      ...tuneRows
         .map((row) => (Array.isArray(row.tuneSteps) ? row.tuneSteps.length - 1 : 0)),
     );
     const currentIndex = getTuneStepIndexBySource(state, sourceType);
@@ -7317,7 +7477,13 @@ export function installEnchantView(ctx) {
     }
     state.equipmentTunePopoverOpen = true;
     state.equipmentTunePopoverSource = sourceType;
-    if (sourceType === 'equipmentTune' && state.dealerSimulator?.activeSelectionByGroup?.equipmentTune) {
+    if (
+      sourceType === 'equipmentTune'
+      && (
+        state.dealerSimulator?.activeSelectionByGroup?.equipmentTune
+        || state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired
+      )
+    ) {
       if (replaceAppliedEquipmentTuneVariant(state.tuneStepIndexBySource[sourceType])) return;
       state.tuneStepIndexBySource[sourceType] = currentIndex;
       state.equipmentTuneStepIndex = currentIndex;
@@ -7400,11 +7566,43 @@ export function installEnchantView(ctx) {
     );
   }
 
+  function evaluateRebuiltOathAcquisitionSnapshot(row, includeMaterialCosts) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !row) return row;
+    if (simulator.role === 'buffer') {
+      return getBufferRecommendationRows(
+        [row],
+        state.currentEnchants,
+        state.currentCreature,
+        state.currentTitle,
+        state.currentAura,
+        simulator.baseBaseline,
+        includeMaterialCosts,
+        simulator,
+        simulator.simulatedEquipmentUpgrades,
+      )[0] || row;
+    }
+    const context = getDealerSimulatorRecommendationContext([row]);
+    return getRepresentativeRecommendationRows(
+      context.rows,
+      getActiveEnchants(),
+      getActiveCreatureWithArtifacts(),
+      getActiveTitle(),
+      getActiveAura(),
+      getActiveDamageBaseline(),
+      includeMaterialCosts,
+      context.options,
+      getActiveCreature(),
+      simulator.simulatedEquipmentUpgrades,
+    )[0] || row;
+  }
+
   function storeAppliedOathAcquisitionCombinedSnapshot(
     row,
     transcendCount,
     craftCount,
     preservedBaselineSnapshot = null,
+    recalculatedEffectSnapshot = null,
   ) {
     const simulator = state.dealerSimulator;
     const pairKey = row?.oathAcquisitionPairKey || '';
@@ -7422,82 +7620,49 @@ export function installEnchantView(ctx) {
     const previousCombinedSnapshot = activeSelections
       .map((selection) => selection.appliedCombinedRecommendationSnapshot)
       .find((snapshot) => snapshot?.oathAcquisitionPairKey === pairKey);
-    const baselineSnapshot = preservedBaselineSnapshot || previousCombinedSnapshot || row;
-    const totalCount = Number(transcendCount || 0) + Number(craftCount || 0);
-    const effectSnapshot = getOathAcquisitionVariantFromRecommendations(
-      baselineSnapshot.transcendRecommendations || [baselineSnapshot.transcendRecommendation],
-      totalCount,
-    ) || getOathAcquisitionVariantFromRecommendations(
-      baselineSnapshot.craftRecommendations || [baselineSnapshot.craftRecommendation],
-      totalCount,
-    ) || baselineSnapshot;
-    const snapshot = {
-      ...cloneSimulatorValue(effectSnapshot),
-      oathAcquisitionPairKey: pairKey,
-      transcendRecommendation: cloneSimulatorValue(baselineSnapshot.transcendRecommendation),
-      craftRecommendation: cloneSimulatorValue(baselineSnapshot.craftRecommendation),
-      transcendRecommendations: cloneSimulatorValue(baselineSnapshot.transcendRecommendations),
-      craftRecommendations: cloneSimulatorValue(baselineSnapshot.craftRecommendations),
+    const snapshot = createOathAcquisitionCombinedSnapshot(
+      row,
       transcendCount,
       craftCount,
-      variantCount: totalCount,
-    };
+      preservedBaselineSnapshot || previousCombinedSnapshot || row,
+      recalculatedEffectSnapshot,
+    );
     activeSelections.forEach((selection) => {
       selection.appliedCombinedRecommendationSnapshot = cloneSimulatorValue(snapshot);
     });
   }
 
-  function setOathAcquisitionMethodCount(pairKey, method, requestedCount) {
-    let combinedRow = getRenderedCombinedOathAcquisition(pairKey);
-    if (!combinedRow) return false;
-    const recommendations = method === 'craft'
-      ? combinedRow.craftRecommendations || [combinedRow.craftRecommendation]
-      : combinedRow.transcendRecommendations || [combinedRow.transcendRecommendation];
-    const recommendation = recommendations.find(Boolean);
-    const groupKey = recommendation?.variantGroupKey;
-    const desiredCount = Number(requestedCount || 0);
-    if (!groupKey || !Number.isInteger(desiredCount) || desiredCount < 0) return false;
-    const currentCount = Number(getCombinedOathAcquisitionCounts(combinedRow)[method] || 0);
-    if (currentCount === desiredCount) return true;
-    if (desiredCount === 0) {
-      const activeVariant = getOathAcquisitionVariantFromRecommendations(recommendations, currentCount);
-      if (!activeVariant) return false;
-      removeActiveOathAcquisitionRecommendation(getDealerSimulatorRecommendationId(activeVariant));
-    } else if (currentCount > 0) {
-      if (!replaceAppliedOathAcquisitionVariant(groupKey, desiredCount - 1)) return false;
-    } else {
-      let targetVariant = getOathAcquisitionVariantFromRecommendations(recommendations, desiredCount);
-      if (!targetVariant && state.dealerSimulator?.role === 'buffer') {
-        const sourceRows = method === 'craft'
-          ? getOathTranscendRows(
-            state.currentOathCraftRecommendations,
-            state.upgradeMaterialPrices,
-            'oathCraft',
-          )
-          : getOathTranscendRows(
-            state.currentOathTranscendRecommendations,
-            state.upgradeMaterialPrices,
-          );
-        const sourceVariant = sourceRows.find((variant) => (
-          variant?.variantGroupKey === groupKey
-          && Number(variant.variantCount || 1) === desiredCount
-        ));
-        targetVariant = sourceVariant
-          ? adaptOathAcquisitionRecommendation(sourceVariant, state.dealerSimulator)
-          : null;
-      }
-      if (!targetVariant) return false;
-      const targetRecommendationId = getDealerSimulatorRecommendationId(targetVariant);
-      if (!state.dealerSimulatorRecommendations.has(targetRecommendationId)) {
-        state.dealerSimulatorRecommendations.set(targetRecommendationId, targetVariant);
-      }
-      applyDealerSimulatorRecommendation(targetRecommendationId);
-    }
-    combinedRow = getRenderedCombinedOathAcquisition(pairKey);
-    return Boolean(
-      combinedRow
-      && Number(getCombinedOathAcquisitionCounts(combinedRow)[method] || 0) === desiredCount
+  function getAppliedOathAcquisitionCombinedSnapshot(pairKey) {
+    return getActiveOathAcquisitionSelections(state.dealerSimulator || {})
+      .map((selection) => selection?.appliedCombinedRecommendationSnapshot)
+      .find((snapshot) => snapshot?.oathAcquisitionPairKey === pairKey) || null;
+  }
+
+  function getOathAcquisitionPlanConfig(pairKey, fallbackRow = null, overrideCounts = null) {
+    const appliedSnapshot = getAppliedOathAcquisitionCombinedSnapshot(pairKey);
+    const sourceRow = appliedSnapshot || fallbackRow || getRenderedCombinedOathAcquisition(pairKey);
+    if (!sourceRow) return null;
+    const counts = overrideCounts || getCombinedOathAcquisitionCounts(sourceRow);
+    const transcendCount = Number(counts.transcend || 0);
+    const craftCount = Number(counts.craft || 0);
+    const totalCount = transcendCount + craftCount;
+    if (totalCount <= 0) return null;
+    const planVariant = getOathAcquisitionVariantFromRecommendations(
+      sourceRow.transcendRecommendations || [sourceRow.transcendRecommendation],
+      totalCount,
+    ) || getOathAcquisitionVariantFromRecommendations(
+      sourceRow.craftRecommendations || [sourceRow.craftRecommendation],
+      totalCount,
     );
+    if (!planVariant) return null;
+    return {
+      pairKey,
+      sourceRow,
+      appliedSnapshot,
+      transcendCount,
+      craftCount,
+      planVariant,
+    };
   }
 
   function redistributeActiveOathAcquisitionMethods(row, transcendCount, craftCount) {
@@ -7625,69 +7790,92 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function replaceCombinedOathAcquisitionTotalPlan(row, totalCount) {
+  function rebuildCombinedOathAcquisitionState(row, transcendCount, craftCount) {
     const simulator = state.dealerSimulator;
-    if (!simulator || !row || totalCount <= 0) return false;
+    if (!simulator || !row?.oathAcquisitionPairKey) return false;
     const previousOath = cloneSimulatorValue(simulator.simulatedOathUpgrades || {});
-    const allRecommendations = [
-      ...(row.transcendRecommendations || [row.transcendRecommendation]),
-      ...(row.craftRecommendations || [row.craftRecommendation]),
-    ].filter(Boolean);
-    const seedVariant = getOathAcquisitionVariantFromRecommendations(
-      allRecommendations,
-      totalCount,
+    const activeOathTune = cloneSimulatorValue(
+      simulator.activeSelectionByGroup?.oathTune || null,
     );
-    if (!seedVariant) return false;
-    const activePairGroupKeys = Object.entries(simulator.activeSelectionByGroup || {})
-      .filter(([, selection]) => (
-        selection?.applyType === 'acquireOathDecision'
-        && getOathAcquisitionCombinedPairKey({
-          sourceType: selection.acquisitionMethod === 'craft' ? 'oathCraft' : 'oathTranscend',
-          targetRarity: selection.targetDecision?.targetRarity
-            || selection.targetDecision?.itemRarity
-            || row.targetRarity
-            || row.itemRarity,
-        }) === row.oathAcquisitionPairKey
-      ))
-      .map(([groupKey]) => groupKey);
-    const variantWithCurrentPlanReplaced = {
-      ...seedVariant,
-      replacedAcquisitionGroupKeys: [
-        ...new Set([
-          ...(seedVariant.replacedAcquisitionGroupKeys || []),
-          ...activePairGroupKeys,
-        ]),
-      ],
-    };
-    const adaptedVariant = simulator.role === 'buffer'
-      ? adaptOathAcquisitionRecommendation(variantWithCurrentPlanReplaced, simulator)
-      : variantWithCurrentPlanReplaced;
-    if (!adaptedVariant) return false;
-    const targetRow = {
-      ...adaptedVariant,
-      replacedAcquisitionGroupKeys: [
-        ...new Set([
-          ...(adaptedVariant.replacedAcquisitionGroupKeys || []),
-          ...activePairGroupKeys,
-        ]),
-      ],
-    };
-    const target = resolveDealerSimulatorTarget(targetRow);
-    if (!target || !applySimulatedOathAcquisition(targetRow, target)) return false;
-    const actionId = getDealerSimulatorRecommendationId(targetRow);
+    const pairKeys = ['oathDecision:태초', 'oathDecision:에픽'];
+    const planConfigs = pairKeys.map((pairKey) => getOathAcquisitionPlanConfig(
+      pairKey,
+      pairKey === row.oathAcquisitionPairKey ? row : null,
+      pairKey === row.oathAcquisitionPairKey
+        ? { transcend: transcendCount, craft: craftCount }
+        : null,
+    )).filter(Boolean);
+    const rebuilt = rebuildOathAcquisitionPlansFromBase(
+      simulator,
+      planConfigs.map((config) => config.planVariant),
+    );
+    if (!rebuilt) return false;
+
+    if (activeOathTune?.actionType === 'oathTunePlan') {
+      delete simulator.activeSelectionByGroup.oathTune;
+      if (simulator.role === 'buffer') delete simulator.oathTuneChangesBySource.oathTune;
+    }
+    Object.entries(simulator.activeSelectionByGroup || {}).forEach(([groupKey, selection]) => {
+      if (selection?.applyType === 'acquireOathDecision') {
+        delete simulator.activeSelectionByGroup[groupKey];
+      }
+    });
+    simulator.simulatedOathUpgrades = rebuilt.oathUpgrades;
+
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
-    const appliedDescriptors = setActiveOathAcquisitionSelections(
-      targetRow,
-      target,
-      actionId,
-      includeMaterialCosts,
+    for (const plannedRow of rebuilt.recommendations) {
+      const target = resolveDealerSimulatorTarget(plannedRow);
+      if (!target) return false;
+      target.replacedAcquisitionSelectionsByGroup = {};
+      const appliedDescriptors = setActiveOathAcquisitionSelections(
+        plannedRow,
+        target,
+        getDealerSimulatorRecommendationId(plannedRow),
+        includeMaterialCosts,
+      );
+      if (!appliedDescriptors.length) return false;
+    }
+    for (const config of planConfigs) {
+      if (!redistributeActiveOathAcquisitionMethods(
+        config.sourceRow,
+        config.transcendCount,
+        config.craftCount,
+      )) return false;
+    }
+    if (
+      activeOathTune?.actionType === 'oathTunePlan'
+      && !reapplyOathTuneSelectionToCurrentState(activeOathTune)
+    ) return false;
+    if (simulator.role === 'buffer') {
+      if (!syncBufferOathAcquisitionChanges()) return false;
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
+    const rebuiltRecommendationByPairKey = new Map(
+      rebuilt.recommendations.map((plannedRow) => [
+        getOathAcquisitionCombinedPairKey(plannedRow),
+        evaluateRebuiltOathAcquisitionSnapshot(plannedRow, includeMaterialCosts),
+      ]),
     );
-    if (!appliedDescriptors.length) return false;
-    simulator.lastChangedTarget = target;
-    getChangedOathTuneSlots(
-      previousOath,
-      simulator.simulatedOathUpgrades,
-    ).forEach(triggerDealerSimulatorSweep);
+    for (const config of planConfigs) {
+      storeAppliedOathAcquisitionCombinedSnapshot(
+        config.sourceRow,
+        config.transcendCount,
+        config.craftCount,
+        config.appliedSnapshot,
+        rebuiltRecommendationByPairKey.get(config.pairKey) || null,
+      );
+    }
+    syncOathAcquisitionVariantIndexes(true);
+    simulator.totalGold = getDealerSimulatorTotalGold(simulator, includeMaterialCosts);
+    simulator.lastChangedTarget = {
+      targetTab: 'oath',
+      targetSlot: '서약 결정',
+      applyType: 'acquireOathDecision',
+    };
+    getChangedOathTuneSlots(previousOath, simulator.simulatedOathUpgrades)
+      .forEach(triggerDealerSimulatorSweep);
     return true;
   }
 
@@ -7715,87 +7903,17 @@ export function installEnchantView(ctx) {
       [pairKey]: { transcend: nextTranscendCount, craft: nextCraftCount },
     };
     try {
-      const currentCounts = getCombinedOathAcquisitionCounts(row);
-      const currentTotalCount = currentCounts.transcend + currentCounts.craft;
       const nextTotalCount = nextTranscendCount + nextCraftCount;
-      const preservedCombinedSnapshot = Object.values(simulator.activeSelectionByGroup || {})
-        .map((selection) => selection?.appliedCombinedRecommendationSnapshot)
-        .find((snapshot) => snapshot?.oathAcquisitionPairKey === pairKey) || null;
-      if (nextTotalCount > 0 && currentTotalCount !== nextTotalCount) {
-        if (!replaceCombinedOathAcquisitionTotalPlan(row, nextTotalCount)) {
-          throw new Error('oath acquisition total plan replacement failed');
-        }
-        const finalRow = getRenderedCombinedOathAcquisition(pairKey) || row;
-        if (!redistributeActiveOathAcquisitionMethods(
-          finalRow,
-          nextTranscendCount,
-          nextCraftCount,
-        )) throw new Error('oath acquisition method redistribution failed');
-        storeAppliedOathAcquisitionCombinedSnapshot(
-          row,
-          nextTranscendCount,
-          nextCraftCount,
-          preservedCombinedSnapshot,
-        );
-        simulator.selectedRecommendationId = `applied-oath-combined:${pairKey}`;
-        state.enchantLoadoutTab = 'oath';
-        renderEnchantCharacterPortrait();
-        renderEnchantTable();
-        scheduleOpenTunePopoverShift();
-        return true;
-      }
-      const activeTargetCount = Object.values(simulator.activeSelectionByGroup || {}).filter(
-        (selection) => (
-          selection?.applyType === 'acquireOathDecision'
-          && getOathAcquisitionCombinedPairKey({
-            sourceType: selection.acquisitionMethod === 'craft' ? 'oathCraft' : 'oathTranscend',
-            targetRarity: selection.targetDecision?.targetRarity
-              || selection.targetDecision?.itemRarity
-              || row.targetRarity
-              || row.itemRarity,
-          }) === pairKey
-        ),
-      ).length;
-      if (
-        nextTotalCount > 0
-        && (currentTotalCount === nextTotalCount || activeTargetCount === nextTotalCount)
-      ) {
-        if (!redistributeActiveOathAcquisitionMethods(
-          row,
-          nextTranscendCount,
-          nextCraftCount,
-        )) throw new Error('oath acquisition method redistribution failed');
-        storeAppliedOathAcquisitionCombinedSnapshot(
-          row,
-          nextTranscendCount,
-          nextCraftCount,
-        );
-        simulator.selectedRecommendationId = `applied-oath-combined:${pairKey}`;
-        renderEnchantCharacterPortrait();
-        renderEnchantTable();
-        scheduleOpenTunePopoverShift();
-        return true;
-      }
-      const reductions = [
-        ['transcend', nextTranscendCount, currentCounts.transcend],
-        ['craft', nextCraftCount, currentCounts.craft],
-      ].filter(([, desired, current]) => desired < current);
-      const increases = [
-        ['transcend', nextTranscendCount, currentCounts.transcend],
-        ['craft', nextCraftCount, currentCounts.craft],
-      ].filter(([, desired, current]) => desired > current);
-      for (const [method, desired] of [...reductions, ...increases]) {
-        if (!setOathAcquisitionMethodCount(pairKey, method, desired)) throw new Error('oath acquisition count update failed');
-      }
-      const finalRow = getRenderedCombinedOathAcquisition(pairKey);
-      const finalCounts = getCombinedOathAcquisitionCounts(finalRow);
-      if (
-        finalCounts.transcend !== nextTranscendCount
-        || finalCounts.craft !== nextCraftCount
-      ) throw new Error('oath acquisition count mismatch');
-      simulator.selectedRecommendationId = nextTranscendCount + nextCraftCount > 0
+      if (!rebuildCombinedOathAcquisitionState(
+        row,
+        nextTranscendCount,
+        nextCraftCount,
+      )) throw new Error('oath acquisition state rebuild failed');
+      simulator.selectedRecommendationId = nextTotalCount > 0
         ? `applied-oath-combined:${pairKey}`
         : '';
+      state.enchantLoadoutTab = 'oath';
+      renderEnchantCharacterPortrait();
       renderEnchantTable();
       scheduleOpenTunePopoverShift();
       return true;
@@ -7818,16 +7936,11 @@ export function installEnchantView(ctx) {
   function removeAppliedOathAcquisitionCombined(pairKey) {
     const row = getRenderedCombinedOathAcquisition(pairKey);
     if (!row) return false;
-    const targetRarity = pairKey.startsWith('oathDecision:')
-      ? pairKey.slice('oathDecision:'.length)
-      : '';
-    const targetGroupKey = targetRarity ? `oathAcquireTarget:${targetRarity}` : '';
-    if (!targetGroupKey) return false;
     const preservedCounts = {
       transcend: Number(row.transcendCount || 0),
       craft: Number(row.craftCount || 0),
     };
-    if (!removeActiveOathAcquisitionRecommendation('', targetGroupKey)) return false;
+    if (!applyOathAcquisitionCombinedCounts(pairKey, 0, 0)) return false;
     state.oathAcquisitionCombinedCountsByPair = {
       ...(state.oathAcquisitionCombinedCountsByPair || {}),
       [pairKey]: preservedCounts,
