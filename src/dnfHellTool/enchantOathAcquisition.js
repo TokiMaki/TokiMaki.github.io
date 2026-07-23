@@ -645,7 +645,13 @@ export function createEnchantOathAcquisition({
     return Number.MAX_SAFE_INTEGER;
   }
 
-  function getOathAcquisitionCandidateScore(entry = {}, currentCrystal = {}, referenceOath = {}, db = {}) {
+  function getOathAcquisitionCandidateScore(
+    entry = {},
+    currentCrystal = {},
+    referenceOath = {},
+    db = {},
+    role = 'dealer',
+  ) {
     const currentEffects = currentCrystal.effects || entry.currentEffects || {};
     const targetEffects = entry.targetEffects || {};
     const effectDelta = getOathDecisionEffectDelta(targetEffects, currentEffects);
@@ -655,12 +661,23 @@ export function createEnchantOathAcquisition({
     const targetSetPoint = currentSetPoint - currentSlotSetPoint + targetSlotSetPoint;
     const currentState = getOathTuneState(db, currentSetPoint);
     const targetState = getOathTuneState(db, targetSetPoint);
-    const skillDamageMultiplier = currentState?.damageMultiplier > 0
-      ? Number(targetState?.damageMultiplier || 0) / currentState.damageMultiplier
-      : 1;
-    const finalDamageMultiplier = 1 + Number(effectDelta.finalDamage || 0) / 100;
+    const currentSetBuffPower = Number(currentState?.blessingBuffPower || 0)
+      + Number(currentState?.stageBuffPower || 0);
+    const targetSetBuffPower = Number(targetState?.blessingBuffPower || 0)
+      + Number(targetState?.stageBuffPower || 0);
+    let score;
+    if (role === 'buffer') {
+      score = Number(targetEffects.buffPower || 0) - Number(currentEffects.buffPower || 0)
+        + targetSetBuffPower - currentSetBuffPower;
+    } else {
+      const skillDamageMultiplier = currentState?.damageMultiplier > 0
+        ? Number(targetState?.damageMultiplier || 0) / currentState.damageMultiplier
+        : 1;
+      const finalDamageMultiplier = 1 + Number(effectDelta.finalDamage || 0) / 100;
+      score = (finalDamageMultiplier * skillDamageMultiplier - 1) * 100;
+    }
     return {
-      score: (finalDamageMultiplier * skillDamageMultiplier - 1) * 100,
+      score,
       setPointDelta: targetSlotSetPoint - currentSlotSetPoint,
     };
   }
@@ -700,6 +717,7 @@ export function createEnchantOathAcquisition({
             currentCrystal,
             referenceOath,
             simulator.oathTuneDb,
+            simulator.role,
           ),
         };
       })

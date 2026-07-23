@@ -262,24 +262,84 @@ export function createEnchantEquipmentTuneProgression({
     }];
   }
 
-  function getRequiredEquipmentTuneRow(currentEquipmentUpgrades = [], materialPrices = {}) {
+  function getRequiredEquipmentTuneRow(
+    currentEquipmentUpgrades = [],
+    materialPrices = {},
+    bufferBaseline = null,
+  ) {
     const totalSetPoint = getEquipmentTuneSetPoint(currentEquipmentUpgrades);
     if (totalSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) return null;
-    const tuneCount = Math.ceil(
+    const requiredTuneCount = Math.ceil(
       (EQUIPMENT_TUNE_MIN_SET_POINT - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT,
     );
-    if (!Number.isFinite(tuneCount) || tuneCount <= 0) return null;
+    if (!Number.isFinite(requiredTuneCount) || requiredTuneCount <= 0) return null;
     const candidates = getEquipmentTuneCandidates(currentEquipmentUpgrades);
-    const cost = allocateEquipmentTuneCost(candidates, tuneCount);
-    if (!cost || cost.gold <= 0) return null;
-    const targetSetPoint = totalSetPoint + tuneCount * EQUIPMENT_TUNE_STEP_POINT;
-    const expectedMaterials = applyUpgradeMaterialPrices(cost.materials, 'equipmentTune', materialPrices)
-      .map((material) => ({
-        ...material,
-        itemName: material.label || material.itemName,
-      }));
+    const maxTuneCount = candidates.reduce(
+      (sum, equipment) => sum + Number(equipment.tuneRemaining || 0),
+      0,
+    );
+    if (requiredTuneCount > maxTuneCount) return null;
     const currentStage = getEquipmentTuneStage(totalSetPoint);
-    const targetStage = getEquipmentTuneStage(targetSetPoint);
+    const requiredTargetSetPoint = totalSetPoint
+      + requiredTuneCount * EQUIPMENT_TUNE_STEP_POINT;
+    const requiredTargetStage = getEquipmentTuneStage(requiredTargetSetPoint);
+    const maxStage = getEquipmentTuneStage(
+      totalSetPoint + maxTuneCount * EQUIPMENT_TUNE_STEP_POINT,
+    );
+    const targetStages = [requiredTargetStage];
+    for (let stage = requiredTargetStage + 1; stage <= maxStage; stage += 1) {
+      targetStages.push(stage);
+    }
+    const isBuffer = Boolean(bufferBaseline?.isBuffer);
+    const tuneSteps = targetStages
+      .map((stage) => {
+        const threshold = stage === requiredTargetStage
+          ? EQUIPMENT_TUNE_MIN_SET_POINT
+          : EQUIPMENT_TUNE_MIN_SET_POINT + stage * EQUIPMENT_TUNE_MEMORY_POINT;
+        const tuneCount = Math.ceil((threshold - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT);
+        if (tuneCount < requiredTuneCount || tuneCount > maxTuneCount) return null;
+        const cost = allocateEquipmentTuneCost(candidates, tuneCount);
+        if (!cost || cost.gold <= 0) return null;
+        const targetSetPoint = totalSetPoint + tuneCount * EQUIPMENT_TUNE_STEP_POINT;
+        const targetStage = getEquipmentTuneStage(targetSetPoint);
+        const expectedMaterials = applyUpgradeMaterialPrices(
+          cost.materials,
+          'equipmentTune',
+          materialPrices,
+        ).map((material) => ({
+          ...material,
+          itemName: material.label || material.itemName,
+        }));
+        const finalDamageBefore = currentStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE;
+        const finalDamageAfter = targetStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE;
+        const buffPowerBefore = currentStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
+        const buffPowerAfter = targetStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER;
+        return {
+          index: 0,
+          tuneCount,
+          currentSetPoint: totalSetPoint,
+          targetSetPoint,
+          currentFinalDamage: finalDamageBefore,
+          targetFinalDamage: finalDamageAfter,
+          currentBuffPower: buffPowerBefore,
+          targetBuffPower: buffPowerAfter,
+          expectedGold: cost.gold,
+          expectedMaterials,
+          tunePlan: cloneSimulatorValue(cost.tunePlan),
+          effects: targetStage === currentStage
+            ? {}
+            : isBuffer
+              ? { buffPower: buffPowerAfter - buffPowerBefore }
+              : {
+                skillDamageMultiplier: (1 + finalDamageAfter / 100)
+                  / (1 + finalDamageBefore / 100),
+              },
+        };
+      })
+      .filter(Boolean)
+      .map((step, index) => ({ ...step, index }));
+    const first = tuneSteps[0];
+    if (!first) return null;
     const iconEquipment = candidates.find((equipment) => equipment.iconUrl) || {};
     return {
       sourceType: 'equipmentTune',
@@ -292,20 +352,20 @@ export function createEnchantEquipmentTuneProgression({
       itemRarity: '',
       iconUrl: iconEquipment.iconUrl || '',
       itemExplain: '유일 장비 장착으로 태초 세트포인트를 유지하기 위해 자동 적용된 조율',
-      effects: {},
-      auction: { minUnitPrice: cost.gold },
-      expectedGold: cost.gold,
-      expectedMaterials,
-      tunePlan: cloneSimulatorValue(cost.tunePlan),
-      tuneSteps: [],
+      effects: first.effects,
+      auction: { minUnitPrice: first.expectedGold },
+      expectedGold: first.expectedGold,
+      expectedMaterials: first.expectedMaterials,
+      tunePlan: cloneSimulatorValue(first.tunePlan),
+      tuneSteps,
       selectedTuneStepIndex: 0,
       currentSetPoint: totalSetPoint,
-      targetSetPoint,
+      targetSetPoint: first.targetSetPoint,
       currentTuneFinalDamage: currentStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
-      targetTuneFinalDamage: targetStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
+      targetTuneFinalDamage: first.targetFinalDamage,
       currentTuneBuffPower: currentStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
-      targetTuneBuffPower: targetStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
-      tuneCount,
+      targetTuneBuffPower: first.targetBuffPower,
+      tuneCount: first.tuneCount,
     };
   }
 

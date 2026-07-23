@@ -230,6 +230,73 @@ const bufferSimulator = {
   ...cloneSimulatorValue(simulator),
   role: 'buffer',
 };
+const roleAwareCandidateRow = {
+  ...cloneSimulatorValue(candidateRow),
+  decisionCandidatePool: [
+    {
+      slotIndex: 0,
+      targetItemId: 'epic-a',
+      targetItemName: '에픽 A',
+      targetRarity: '에픽',
+      targetEffects: { finalDamage: 8, buffPower: 100 },
+      targetSlotSetPoint: 120,
+    },
+    {
+      slotIndex: 1,
+      targetItemId: 'epic-b',
+      targetItemName: '에픽 B',
+      targetRarity: '에픽',
+      targetEffects: { finalDamage: 5, buffPower: 100 },
+      targetSlotSetPoint: 130,
+    },
+  ],
+};
+const sameRarityBaseOath = {
+  setPoint: 200,
+  crystals: [
+    {
+      index: 0,
+      itemId: 'legend-a',
+      itemName: '레전더리 A',
+      itemRarity: '레전더리',
+      effects: { finalDamage: 1, buffPower: 90 },
+      setPoint: 100,
+    },
+    {
+      index: 1,
+      itemId: 'legend-b',
+      itemName: '레전더리 B',
+      itemRarity: '레전더리',
+      effects: { finalDamage: 4, buffPower: 20 },
+      setPoint: 100,
+    },
+  ],
+};
+const roleAwareDealerSimulator = {
+  ...cloneSimulatorValue(simulator),
+  baseOathUpgrades: cloneSimulatorValue(sameRarityBaseOath),
+  simulatedOathUpgrades: cloneSimulatorValue(sameRarityBaseOath),
+};
+const roleAwareBufferSimulator = {
+  ...cloneSimulatorValue(roleAwareDealerSimulator),
+  role: 'buffer',
+};
+assert.equal(
+  acquisition.adaptOathAcquisitionRecommendation(
+    roleAwareCandidateRow,
+    roleAwareDealerSimulator,
+  ).decisionPlan[0].slotIndex,
+  0,
+  '딜러는 최종 데미지 이득이 큰 같은 등급 슬롯을 선택한다',
+);
+assert.equal(
+  acquisition.adaptOathAcquisitionRecommendation(
+    roleAwareCandidateRow,
+    roleAwareBufferSimulator,
+  ).decisionPlan[0].slotIndex,
+  1,
+  '버퍼는 버프력 이득이 큰 같은 등급 슬롯을 선택한다',
+);
 const evaluation = acquisition.getBufferOathAcquisitionEvaluation(adapted, bufferSimulator);
 assert.ok(evaluation?.referenceChanges);
 assert.ok(evaluation?.candidateChanges);

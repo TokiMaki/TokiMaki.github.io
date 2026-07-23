@@ -532,7 +532,10 @@ function formatUpgradeEffect(row) {
 
 function formatEquipmentTuneEffect(row) {
   const pointText = `태초 ${formatEffectNumber(row.currentSetPoint)} -> 태초 ${formatEffectNumber(row.targetSetPoint)}`;
-  if (row.requiredForRelicCraft === true) return pointText;
+  if (
+    row.requiredForRelicCraft === true
+    && Number(row.selectedTuneStepIndex || 0) === 0
+  ) return pointText;
   if (row.metricType === 'buffer') {
     const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
     return `${pointText} / ${buffPowerText}`;
@@ -599,7 +602,10 @@ function formatEquipmentTuneEffectHtml(row, escapeHtml) {
   const currentPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.currentSetPoint)}`, escape);
   const targetPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.targetSetPoint)}`, escape);
   const pointHtml = `${currentPoint} <span class="enchant-oath-stage-arrow">-&gt;</span> ${targetPoint}`;
-  if (row.requiredForRelicCraft === true) return pointHtml;
+  if (
+    row.requiredForRelicCraft === true
+    && Number(row.selectedTuneStepIndex || 0) === 0
+  ) return pointHtml;
   const tuneText = row.metricType === 'buffer'
     ? `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`
     : `최종뎀 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
@@ -1979,7 +1985,8 @@ export function installEnchantView(ctx) {
   }
 
   function getEquipmentTuneRecommendationUpgrades() {
-    const activeTune = state.dealerSimulator?.activeSelectionByGroup?.equipmentTune;
+    const activeTune = state.dealerSimulator?.activeSelectionByGroup?.equipmentTune
+      || state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired;
     return activeTune?.actionType === 'equipmentTunePlan' && activeTune.beforeTuneSnapshot
       ? activeTune.beforeTuneSnapshot
       : getActiveEquipmentUpgrades();
@@ -3300,7 +3307,10 @@ export function installEnchantView(ctx) {
     simulator.totalGold = getDealerSimulatorTotalGold(simulator);
     syncOathAcquisitionVariantIndexes(true);
     const equipmentTuneStepIndex = Number(
-      simulator.activeSelectionByGroup.equipmentTune?.selectedVariantIndex || 0,
+      (
+        simulator.activeSelectionByGroup.equipmentTune
+        || simulator.activeSelectionByGroup.equipmentTuneRequired
+      )?.selectedVariantIndex || 0,
     );
     const oathTuneStepIndex = Number(
       simulator.activeSelectionByGroup.oathTune?.selectedVariantIndex || 0,
@@ -3821,14 +3831,30 @@ export function installEnchantView(ctx) {
     const simulator = state.dealerSimulator;
     if (!simulator) return null;
     const currentSetPoint = getEquipmentTuneSetPoint(simulator.simulatedEquipmentUpgrades || []);
-    if (currentSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) return { changedSlots: [] };
+    if (currentSetPoint >= EQUIPMENT_TUNE_MIN_SET_POINT) {
+      state.tuneStepIndexBySource = {
+        ...(state.tuneStepIndexBySource || {}),
+        equipmentTune: 0,
+      };
+      state.equipmentTuneStepIndex = 0;
+      return { changedSlots: [] };
+    }
     const row = getRequiredEquipmentTuneRow(
       simulator.simulatedEquipmentUpgrades || [],
       state.upgradeMaterialPrices,
+      state.currentBufferBaseline,
     );
     if (!row) return null;
+    const displayRow = applyEquipmentTuneDisplayStep(
+      simulator.role === 'buffer' ? { ...row, metricType: 'buffer' } : row,
+      0,
+      els.enchantMaterialCostToggle?.checked === true,
+      getActiveDamageBaseline(),
+      state.currentBufferBaseline,
+      simulator.role === 'buffer' ? simulator : null,
+    );
     const beforeTuneSnapshot = cloneSimulatorValue(simulator.simulatedEquipmentUpgrades || []);
-    const nextEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, row.tunePlan);
+    const nextEquipment = applyEquipmentTunePlan(beforeTuneSnapshot, displayRow.tunePlan);
     if (
       !nextEquipment
       || getEquipmentTuneSetPoint(nextEquipment) < EQUIPMENT_TUNE_MIN_SET_POINT
@@ -3844,9 +3870,9 @@ export function installEnchantView(ctx) {
     };
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
     const selection = createActiveSimulatorSelection({
-      row,
+      row: displayRow,
       target,
-      candidateSignature: getSimulatorCandidateSignature(row),
+      candidateSignature: getSimulatorCandidateSignature(displayRow),
       previousSelection: null,
       goldWithoutMaterials: getRecommendationGold(row, false),
       goldWithMaterials: getRecommendationGold(row, true),
@@ -3854,22 +3880,21 @@ export function installEnchantView(ctx) {
     });
     if (!selection?.candidateSignature) return null;
     simulator.activeSelectionByGroup.equipmentTuneRequired = selection;
+    state.tuneStepIndexBySource = {
+      ...(state.tuneStepIndexBySource || {}),
+      equipmentTune: 0,
+    };
+    state.equipmentTuneStepIndex = 0;
     return { changedSlots };
   }
 
-  function getEquipmentTuneSelectionForBodyChangeReapply(
-    previousEquipmentTune = null,
-    previousRequiredTune = null,
-  ) {
-    if (previousEquipmentTune?.actionType === 'equipmentTunePlan') {
-      return previousEquipmentTune;
-    }
+  function getEquipmentTuneSelectionForBodyChangeReapply(previousEquipmentTune = null) {
     const simulator = state.dealerSimulator;
     if (
-      previousRequiredTune?.actionType === 'equipmentTunePlan'
+      previousEquipmentTune?.actionType === 'equipmentTunePlan'
       && !simulator?.activeSelectionByGroup?.equipmentTuneRequired
     ) {
-      return previousRequiredTune;
+      return previousEquipmentTune;
     }
     return null;
   }
@@ -3882,9 +3907,6 @@ export function installEnchantView(ctx) {
     const previousEquipmentTune = isPrecisionChange
       ? null
       : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTune || null);
-    const previousRequiredTune = isPrecisionChange
-      ? null
-      : cloneSimulatorValue(simulator.activeSelectionByGroup?.equipmentTuneRequired || null);
     if (!isPrecisionChange && !invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
     if (!isPrecisionChange && !invalidateRequiredEquipmentTuneSelectionForBodyChange()) return false;
     const targetSlotId = target.targetSlotId
@@ -3917,7 +3939,6 @@ export function installEnchantView(ctx) {
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
       previousEquipmentTune,
-      previousRequiredTune,
     );
     const reappliedTuneResult = !isPrecisionChange && previousTuneForReapply
       ? reapplyEquipmentTuneSelectionToCurrentState(previousTuneForReapply)
@@ -5006,9 +5027,6 @@ export function installEnchantView(ctx) {
     const previousEquipmentTune = isPrecisionChange
       ? null
       : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTune || null);
-    const previousRequiredTune = isPrecisionChange
-      ? null
-      : cloneSimulatorValue(simulator?.activeSelectionByGroup?.equipmentTuneRequired || null);
     const targetSlotId = selection.targetSlotId
       || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot });
     if (!simulator || !targetSlotId) return false;
@@ -5052,7 +5070,6 @@ export function installEnchantView(ctx) {
     }
     const previousTuneForReapply = getEquipmentTuneSelectionForBodyChangeReapply(
       previousEquipmentTune,
-      previousRequiredTune,
     );
     const reappliedTuneResult = !isPrecisionChange && previousTuneForReapply
       ? reapplyEquipmentTuneSelectionToCurrentState(previousTuneForReapply)
@@ -6058,6 +6075,8 @@ export function installEnchantView(ctx) {
     els.enchantRecommendList.innerHTML = displayRecommendations.map((row, index) => {
       const isApplied = row.isApplied === true;
       const isRequiredEquipmentTune = row.requiredForRelicCraft === true;
+      const isRequiredEquipmentTuneBaseVariant = isRequiredEquipmentTune
+        && Number(row.selectedTuneStepIndex || 0) === 0;
       const isRemovalLocked = isApplied && row.simulatorRemovalLocked === true;
       const isCombinedOathAcquisition = row.sourceType === 'oathAcquisitionCombined';
       const isCombinedPreviewOnly = isCombinedOathAcquisition && row.previewOnly === true;
@@ -6067,7 +6086,7 @@ export function installEnchantView(ctx) {
       const hasOathDecisionVariants = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         && Array.isArray(row.oathDecisionVariants)
         && row.oathDecisionVariants.length > 1;
-      const hasVariantActions = (TUNE_SOURCE_TYPES.has(row.sourceType) && !isRequiredEquipmentTune)
+      const hasVariantActions = TUNE_SOURCE_TYPES.has(row.sourceType)
         || hasOathDecisionVariants
         || isCombinedOathAcquisition;
       const variantPopoverSource = isCombinedOathAcquisition
@@ -6273,10 +6292,12 @@ export function installEnchantView(ctx) {
           : [];
       const rowGold = getRecommendationGold(row, includeMaterialCosts);
       const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
-      const cardMetricValue = isRequiredEquipmentTune
+      const cardMetricValue = isRequiredEquipmentTuneBaseVariant
         ? rowGold
         : isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent;
-      const cardMetricLabel = isRequiredEquipmentTune ? '필수 비용' : isBufferMetric ? '100점당' : '0.1%당';
+      const cardMetricLabel = isRequiredEquipmentTuneBaseVariant
+        ? '필수 비용'
+        : isBufferMetric ? '100점당' : '0.1%당';
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
         : includeMaterialCosts && ['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
@@ -6375,9 +6396,9 @@ export function installEnchantView(ctx) {
         { html: relicCraftMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { html: combinedAcquisitionMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { text: !isCombinedOathAcquisition && !materialPartsMarkup && !relicCraftMaterialsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
-        { text: isRequiredEquipmentTune ? '태초 세트 포인트 유지' : isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
-        { text: !isRequiredEquipmentTune && isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
-        { text: isRequiredEquipmentTune || legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { text: isRequiredEquipmentTuneBaseVariant ? '태초 세트 포인트 유지' : isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
+        { text: !isRequiredEquipmentTuneBaseVariant && isBufferMetric ? `버프점수 ${Math.round(row.currentBufferScore).toLocaleString('ko-KR')} → ${Math.round(row.candidateBufferScore).toLocaleString('ko-KR')}` : '', className: 'enchant-popover-muted' },
+        { text: isRequiredEquipmentTuneBaseVariant || legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
         { text: isRemovalLocked ? '유일 장비 구성에 따라 자동 적용되는 조율입니다.' : isApplied ? '한 번 더 눌러 시뮬레이터 적용 해제' : '', className: 'enchant-simulator-touch-hint' },
         { text: simulatorTarget ? '한 번 더 눌러 시뮬레이터에 적용' : '', className: 'enchant-simulator-touch-hint' },
@@ -7076,9 +7097,23 @@ export function installEnchantView(ctx) {
   function replaceAppliedEquipmentTuneVariant(stepIndex, options = {}) {
     const simulator = state.dealerSimulator;
     const selection = options.selectionOverride
-      || simulator?.activeSelectionByGroup?.equipmentTune;
+      || simulator?.activeSelectionByGroup?.equipmentTune
+      || simulator?.activeSelectionByGroup?.equipmentTuneRequired;
     if (!simulator || !selection || selection.actionType !== 'equipmentTunePlan') return false;
-    const row = options.rowOverride || getEquipmentTuneVariantRow(stepIndex);
+    const selectionSnapshot = getAppliedSelectionRecommendationSnapshot(selection);
+    const isRequiredTune = selectionSnapshot?.requiredForRelicCraft === true;
+    const row = options.rowOverride || (
+      isRequiredTune
+        ? applyEquipmentTuneDisplayStep(
+          selectionSnapshot,
+          stepIndex,
+          els.enchantMaterialCostToggle?.checked === true,
+          getActiveDamageBaseline(),
+          state.currentBufferBaseline,
+          simulator.role === 'buffer' ? simulator : null,
+        )
+        : getEquipmentTuneVariantRow(stepIndex)
+    );
     const isSameVariant = Number(row?.selectedTuneStepIndex || 0)
       === Number(selection.selectedVariantIndex || 0);
     if (!row || (!options.allowSameVariant && isSameVariant)) return false;
@@ -7093,6 +7128,7 @@ export function installEnchantView(ctx) {
       previousEquipment.map((equipment) => [equipment?.slot, equipment]),
     );
     const nextEquipment = plannedEquipment.map((equipment) => {
+      if (isRequiredTune) return equipment;
       const currentEquipment = currentEquipmentBySlot.get(equipment?.slot);
       const equipmentBodySelection = Object.values(
         simulator.activeSelectionByGroup || {},
@@ -7135,11 +7171,16 @@ export function installEnchantView(ctx) {
     };
     try {
       simulator.simulatedEquipmentUpgrades = nextEquipment;
-      simulator.activeSelectionByGroup.equipmentTune = updatedSelection;
+      const selectionGroupKey = isRequiredTune ? 'equipmentTuneRequired' : 'equipmentTune';
+      simulator.activeSelectionByGroup[selectionGroupKey] = updatedSelection;
       if (simulator.role === 'buffer') {
-        simulator.equipmentTuneChangesBySource.equipmentTune = cloneSimulatorValue(
-          row.bufferBaseRelativeChanges,
-        );
+        if (row.bufferBaseRelativeChanges) {
+          simulator.equipmentTuneChangesBySource.equipmentTune = cloneSimulatorValue(
+            row.bufferBaseRelativeChanges,
+          );
+        } else {
+          delete simulator.equipmentTuneChangesBySource.equipmentTune;
+        }
       }
       const selectedVariantIndex = Number(row.selectedTuneStepIndex || 0);
       const changedSlots = getChangedEquipmentTuneSlots(previousEquipment, nextEquipment);
@@ -7303,9 +7344,15 @@ export function installEnchantView(ctx) {
     const value = Number(delta || 0);
     if (!Number.isFinite(value) || value === 0) return;
     freezeRecommendationOrderWhileEditing(sourceType);
+    const activeRequiredTune = sourceType === 'equipmentTune'
+      ? state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired
+      : null;
+    const tuneRows = activeRequiredTune
+      ? [getAppliedSelectionRecommendationSnapshot(activeRequiredTune)]
+      : getTuneRowsBySource(sourceType);
     const maxIndex = Math.max(
       0,
-      ...getTuneRowsBySource(sourceType)
+      ...tuneRows
         .map((row) => (Array.isArray(row.tuneSteps) ? row.tuneSteps.length - 1 : 0)),
     );
     const currentIndex = getTuneStepIndexBySource(state, sourceType);
@@ -7318,7 +7365,13 @@ export function installEnchantView(ctx) {
     }
     state.equipmentTunePopoverOpen = true;
     state.equipmentTunePopoverSource = sourceType;
-    if (sourceType === 'equipmentTune' && state.dealerSimulator?.activeSelectionByGroup?.equipmentTune) {
+    if (
+      sourceType === 'equipmentTune'
+      && (
+        state.dealerSimulator?.activeSelectionByGroup?.equipmentTune
+        || state.dealerSimulator?.activeSelectionByGroup?.equipmentTuneRequired
+      )
+    ) {
       if (replaceAppliedEquipmentTuneVariant(state.tuneStepIndexBySource[sourceType])) return;
       state.tuneStepIndexBySource[sourceType] = currentIndex;
       state.equipmentTuneStepIndex = currentIndex;
