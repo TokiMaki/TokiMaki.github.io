@@ -73,7 +73,7 @@ MAX_LOADOUT_RESPONSE_CACHE_ENTRIES = 64
 LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS = 60
 _HEAVY_REQUEST_SEMAPHORE = BoundedSemaphore(HEAVY_REQUEST_LIMIT)
 _PUBLIC_RESPONSE_CACHE = {}
-_PUBLIC_RESPONSE_LOCKS = {}
+_PUBLIC_RESPONSE_INFLIGHT = {}
 _PUBLIC_RESPONSE_CACHE_LOCK = Lock()
 _LOADOUT_RESPONSE_CACHE = {}
 _LOADOUT_RESPONSE_INFLIGHT = {}
@@ -298,36 +298,47 @@ def prune_public_response_cache(now: float):
 
 def load_public_response_body(cache_key: tuple, loader, force_refresh: bool = False) -> tuple[bytes, bool]:
     now = time.time()
-    if not force_refresh:
-        with _PUBLIC_RESPONSE_CACHE_LOCK:
+    with _PUBLIC_RESPONSE_CACHE_LOCK:
+        if not force_refresh:
             prune_public_response_cache(now)
             cached = _PUBLIC_RESPONSE_CACHE.get(cache_key)
             if cached and cached["expires_at"] > now:
                 return cached["body"], True
-            cache_lock = _PUBLIC_RESPONSE_LOCKS.setdefault(cache_key, Lock())
-    else:
-        with _PUBLIC_RESPONSE_CACHE_LOCK:
-            cache_lock = _PUBLIC_RESPONSE_LOCKS.setdefault(cache_key, Lock())
 
-    with cache_lock:
-        now = time.time()
-        if not force_refresh:
-            with _PUBLIC_RESPONSE_CACHE_LOCK:
-                prune_public_response_cache(now)
-                cached = _PUBLIC_RESPONSE_CACHE.get(cache_key)
-                if cached and cached["expires_at"] > now:
-                    return cached["body"], True
+        inflight = _PUBLIC_RESPONSE_INFLIGHT.get(cache_key)
+        if not inflight:
+            inflight = {"event": Event(), "body": None, "error": None}
+            _PUBLIC_RESPONSE_INFLIGHT[cache_key] = inflight
+            is_owner = True
+        else:
+            is_owner = False
 
+    if not is_owner:
+        inflight["event"].wait()
+        if inflight.get("error") is not None:
+            raise inflight["error"]
+        return inflight.get("body") or b"{}", True
+
+    try:
         payload = loader()
         body = json_response(payload)
-        if should_cache_public_payload(payload):
-            with _PUBLIC_RESPONSE_CACHE_LOCK:
+        with _PUBLIC_RESPONSE_CACHE_LOCK:
+            if should_cache_public_payload(payload):
                 prune_public_response_cache(time.time())
                 _PUBLIC_RESPONSE_CACHE[cache_key] = {
                     "body": body,
                     "expires_at": time.time() + PUBLIC_RESPONSE_CACHE_SECONDS,
                 }
+            inflight["body"] = body
         return body, False
+    except Exception as exc:
+        with _PUBLIC_RESPONSE_CACHE_LOCK:
+            inflight["error"] = exc
+        raise
+    finally:
+        with _PUBLIC_RESPONSE_CACHE_LOCK:
+            inflight["event"].set()
+            _PUBLIC_RESPONSE_INFLIGHT.pop(cache_key, None)
 
 
 def prune_loadout_response_cache(now: float):
