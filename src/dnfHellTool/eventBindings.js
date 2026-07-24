@@ -62,8 +62,6 @@ export function bindToolEvents(ctx) {
   } = ctx.constants;
   const {
     SORT_CONFIG,
-    SUPPLY_ADVANCED_KEYS,
-    SUPPLY_CONTENT_GROUPS,
     SUPPLY_CONTENT_LABELS,
     SUPPLY_CONTENT_ORDER,
     SUPPLY_CONTENT_SHORT_LABELS,
@@ -78,9 +76,8 @@ export function bindToolEvents(ctx) {
   const syncPercentile = (...args) => ctx.actions.syncPercentile(...args);
   const updateCharacterAliveSetSelection = (...args) => ctx.actions.updateCharacterAliveSetSelection(...args);
   const clearCharacterData = (...args) => ctx.actions.clearCharacterData(...args);
-  const getSupplyEntriesForFame = (...args) => ctx.actions.getSupplyEntriesForFame(...args);
-  const normalizeSupplySelection = (...args) => ctx.actions.normalizeSupplySelection(...args);
-  const getSupplyAccountSelectionCount = (...args) => ctx.actions.getSupplyAccountSelectionCount(...args);
+
+  const buildNextSupplyContentKeys = (...args) => ctx.actions.buildNextSupplyContentKeys(...args);
   const getSupplyRosterCharactersByRole = (...args) => ctx.actions.getSupplyRosterCharactersByRole(...args);
   const getSupplySelectedCharacterKeys = (...args) => ctx.actions.getSupplySelectedCharacterKeys(...args);
   const setSupplySelectionOnly = (...args) => ctx.actions.setSupplySelectionOnly(...args);
@@ -1013,76 +1010,16 @@ if (els.supplyContentControls) {
     const groupKey = String(checkbox.dataset.supplyGroupKey || '').trim();
     if (!entryKey) return;
   
-    const getEntryTypeLimit = (entry) => {
-      if (!entry) return 0;
-      if (SUPPLY_ADVANCED_KEYS.has(entry.groupKey) || entry.contentType === 'advanced') return 2;
-      if (entry.contentType === 'legion') return 1;
-      return 0;
-    };
-    const getEntryComparableFame = (entry) => Number(entry?.minFame || 0);
-    const buildNextContentKeys = (character) => {
-      const currentSelectedKeys = normalizeSupplySelection(
-        character.selectedContentKeys ?? character.selectedSupplyKeys ?? character.selectedAdvancedDungeonKeys ?? [],
-        character.fame
-      );
-      const currentEntries = getSupplyEntriesForFame(character.fame, true);
-      const entryMap = new Map(currentEntries.map((entry) => [entry.key, entry]));
-      const targetEntry = entryMap.get(entryKey);
-      if (!targetEntry || !targetEntry.available) return currentSelectedKeys;
-      const group = SUPPLY_CONTENT_GROUPS.find((item) => item.key === (targetEntry?.groupKey || groupKey)) || null;
-      const groupLimit = Math.max(0, Number(group?.accountLimit || targetEntry?.accountLimit || 0));
-      const poolKey = String(group?.accountPoolKey || targetEntry?.accountPoolKey || groupKey || entryKey).trim();
-      const alreadySelected = currentSelectedKeys.includes(entryKey);
-    
-      if (checkbox.checked && groupLimit > 0 && !alreadySelected) {
-      const selectedCount = getSupplyAccountSelectionCount(poolKey);
-      if (selectedCount >= groupLimit) {
-          return currentSelectedKeys;
-        }
-      }
-    
-      const nextKeys = currentSelectedKeys.filter((key) => {
-        const selectedEntry = entryMap.get(key);
-        return selectedEntry && String(selectedEntry.accountPoolKey || selectedEntry.groupKey || selectedEntry.key || '').trim() !== poolKey;
-      });
-    
-      if (checkbox.checked) {
-        const typeLimit = getEntryTypeLimit(targetEntry);
-        if (typeLimit > 0 && !alreadySelected) {
-          const selectedTypeKeys = nextKeys.filter((key) => {
-            const selectedEntry = entryMap.get(key);
-            return getEntryTypeLimit(selectedEntry) === typeLimit && selectedEntry?.contentType === targetEntry?.contentType;
-          });
-          if (selectedTypeKeys.length >= typeLimit) {
-            const targetFame = getEntryComparableFame(targetEntry);
-            const sortedTypeKeys = [...selectedTypeKeys].sort((a, b) => {
-              const fameDiff = getEntryComparableFame(entryMap.get(a)) - getEntryComparableFame(entryMap.get(b));
-              if (fameDiff !== 0) return fameDiff;
-              return a.localeCompare(b);
-            });
-            const removeKey = targetFame > getEntryComparableFame(entryMap.get(sortedTypeKeys[0]))
-              ? sortedTypeKeys[0]
-              : sortedTypeKeys[sortedTypeKeys.length - 1];
-            const removeIndex = nextKeys.indexOf(removeKey);
-            if (removeIndex >= 0) {
-              nextKeys.splice(removeIndex, 1);
-            }
-          }
-        }
-        nextKeys.push(entryKey);
-      }
-    
-      return nextKeys;
-    };
+    const selectionChange = { entryKey, groupKey, checked: checkbox.checked };
   
     const targetKeys = getSupplySelectedCharacterKeys();
     if (targetKeys.length > 1) {
       const selectedCharacters = state.supplyCharacters.filter((character) => targetKeys.includes(character.key));
       const referenceCharacter = [...selectedCharacters].sort((a, b) => Number(b.fame || 0) - Number(a.fame || 0))[0] || current;
-      const referenceKeys = buildNextContentKeys(referenceCharacter);
+      const referenceKeys = buildNextSupplyContentKeys(referenceCharacter, selectionChange);
       syncSupplyContentCheckboxes(referenceKeys);
       scheduleSupplyCharactersUpdate(targetKeys, '선택 수정', (character) => {
-        const selectedContentKeys = buildNextContentKeys(character);
+        const selectedContentKeys = buildNextSupplyContentKeys(character, selectionChange);
         return {
           ...character,
           selectedContentKeys,
@@ -1093,7 +1030,7 @@ if (els.supplyContentControls) {
       return;
     }
   
-    const nextKeys = buildNextContentKeys(current);
+    const nextKeys = buildNextSupplyContentKeys(current, selectionChange);
     syncSupplyContentCheckboxes(nextKeys);
     scheduleSupplySelectionUpdate(current.key, nextKeys);
   });

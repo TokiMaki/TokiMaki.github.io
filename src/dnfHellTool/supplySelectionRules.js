@@ -162,6 +162,72 @@ function normalizeSupplySelection(keys, fame) {
   return next;
 }
 
+function getSupplyEntryTypeLimit(entry) {
+  if (!entry) return 0;
+  if (SUPPLY_ADVANCED_KEYS.has(entry.groupKey) || entry.contentType === 'advanced') return 2;
+  if (entry.contentType === 'legion') return 1;
+  return 0;
+}
+
+function getSupplyEntryComparableFame(entry) {
+  return Number(entry?.minFame || 0);
+}
+
+function buildNextSupplyContentKeys(character, { entryKey, groupKey, checked } = {}) {
+  const currentSelectedKeys = normalizeSupplySelection(
+    character.selectedContentKeys ?? character.selectedSupplyKeys ?? character.selectedAdvancedDungeonKeys ?? [],
+    character.fame
+  );
+  const currentEntries = getSupplyEntriesForFame(character.fame, true);
+  const entryMap = new Map(currentEntries.map((entry) => [entry.key, entry]));
+  const targetEntry = entryMap.get(entryKey);
+  if (!targetEntry || !targetEntry.available) return currentSelectedKeys;
+  const group = SUPPLY_CONTENT_GROUPS.find((item) => item.key === (targetEntry?.groupKey || groupKey)) || null;
+  const groupLimit = Math.max(0, Number(group?.accountLimit || targetEntry?.accountLimit || 0));
+  const poolKey = String(group?.accountPoolKey || targetEntry?.accountPoolKey || groupKey || entryKey).trim();
+  const alreadySelected = currentSelectedKeys.includes(entryKey);
+
+  if (checked && groupLimit > 0 && !alreadySelected) {
+    const selectedCount = getSupplyAccountSelectionCount(poolKey);
+    if (selectedCount >= groupLimit) {
+      return currentSelectedKeys;
+    }
+  }
+
+  const nextKeys = currentSelectedKeys.filter((key) => {
+    const selectedEntry = entryMap.get(key);
+    return selectedEntry && String(selectedEntry.accountPoolKey || selectedEntry.groupKey || selectedEntry.key || '').trim() !== poolKey;
+  });
+
+  if (checked) {
+    const typeLimit = getSupplyEntryTypeLimit(targetEntry);
+    if (typeLimit > 0 && !alreadySelected) {
+      const selectedTypeKeys = nextKeys.filter((key) => {
+        const selectedEntry = entryMap.get(key);
+        return getSupplyEntryTypeLimit(selectedEntry) === typeLimit && selectedEntry?.contentType === targetEntry?.contentType;
+      });
+      if (selectedTypeKeys.length >= typeLimit) {
+        const targetFame = getSupplyEntryComparableFame(targetEntry);
+        const sortedTypeKeys = [...selectedTypeKeys].sort((a, b) => {
+          const fameDiff = getSupplyEntryComparableFame(entryMap.get(a)) - getSupplyEntryComparableFame(entryMap.get(b));
+          if (fameDiff !== 0) return fameDiff;
+          return a.localeCompare(b);
+        });
+        const removeKey = targetFame > getSupplyEntryComparableFame(entryMap.get(sortedTypeKeys[0]))
+          ? sortedTypeKeys[0]
+          : sortedTypeKeys[sortedTypeKeys.length - 1];
+        const removeIndex = nextKeys.indexOf(removeKey);
+        if (removeIndex >= 0) {
+          nextKeys.splice(removeIndex, 1);
+        }
+      }
+    }
+    nextKeys.push(entryKey);
+  }
+
+  return nextKeys;
+}
+
 function getDefaultSupplySelection(fame) {
   return buildDefaultSupplySelectionForFame(fame);
 }
@@ -778,6 +844,7 @@ function getSupplyRosterFocusKeyAfterMove(beforeCharacters, afterCharacters, mov
     getAvailableSupplyKeys,
     resolveSupplySelectionKey,
     normalizeSupplySelection,
+    buildNextSupplyContentKeys,
     getDefaultSupplySelection,
     buildDefaultSupplySelectionForFame,
     enforceSupplyAccountLimits,

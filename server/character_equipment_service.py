@@ -15,7 +15,6 @@ from .data_store import (
 )
 from .api_fanout_trace import finish_api_fanout_trace, start_api_fanout_trace
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number
-from .equipment_body import get_equipment_tune_set_point
 from .avatar_skill_optimizer import (
     flatten_skill_rows,
     get_avatar_candidate_combos,
@@ -80,7 +79,11 @@ from .presenters.platinum_emblem_presenter import build_platinum_emblem_recommen
 from .presenters.buffer_switching_title_presenter import build_buffer_switching_title_recommendation_row
 from .presenters.character_preview_presenter import build_character_preview_payload
 from .presenters.character_avatar_presenter import build_character_avatar_payload
-from .presenters.character_enchants_presenter import build_character_enchants_payload
+from .presenters.character_enchants_presenter import (
+    build_character_enchants_payload,
+    build_equipment_enchant_rows_and_upgrades,
+    build_equipment_upgrade_payload,
+)
 from .upgrade_payloads import (
     build_aura_payload,
     build_title_payload,
@@ -100,20 +103,6 @@ AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHO
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
 SWITCHING_LEVEL_CAP = 7
 EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF = 2550
-EQUIPMENT_TUNE_SLOT_NAMES = {
-    "머리어깨",
-    "상의",
-    "하의",
-    "벨트",
-    "신발",
-    "무기",
-    "팔찌",
-    "목걸이",
-    "보조장비",
-    "반지",
-    "귀걸이",
-    "마법석",
-}
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
 AVATAR_EMBLEM_AUCTION_MAX_PAGES = 5
 AVATAR_PLATINUM_RESOLVED_PRICE_CACHE_VERSION = 1
@@ -1056,44 +1045,6 @@ def load_character_buffer_skill_levels(server_id: str, character_id: str, job_na
     }
 
 
-def build_equipment_upgrade_payload(equipment: dict) -> dict:
-    slot_name = clean_text(equipment.get("slotName"))
-    slot_id = clean_text(equipment.get("slotId"))
-    reinforce = int(parse_percent_or_number(equipment.get("reinforce")))
-    refine = int(parse_percent_or_number(equipment.get("refine")))
-    amplification_name = clean_text(equipment.get("amplificationName"))
-    item_id = clean_text(equipment.get("itemId"))
-    item_name = clean_text(equipment.get("itemName"))
-    item_rarity = clean_text(equipment.get("itemRarity"))
-    tune_rows = [tune for tune in equipment.get("tune") or [] if isinstance(tune, dict)]
-    tune_level = max([int(parse_percent_or_number(tune.get("level"))) for tune in tune_rows] or [0])
-    tune_set_point = get_equipment_tune_set_point(equipment)
-    tune_upgradeable = any(tune.get("upgrade") is not False for tune in tune_rows)
-    is_unique_equipment = re.match(r"^고유\s*[:\-]", item_name) is not None
-    is_tune_target = (
-        slot_name in EQUIPMENT_TUNE_SLOT_NAMES
-        and item_rarity in {"에픽", "레전더리"}
-        and not is_unique_equipment
-    )
-    tune_remaining = max(0, 3 - tune_level) if is_tune_target and tune_upgradeable else 0
-    return {
-        "slot": slot_name,
-        "slotId": slot_id,
-        "itemId": item_id,
-        "itemName": item_name,
-        "itemRarity": item_rarity,
-        "iconUrl": get_item_icon_url(item_id) if item_id else "",
-        "reinforce": reinforce,
-        "refine": refine,
-        "amplificationName": amplification_name,
-        "isAmplified": bool(amplification_name),
-        "tuneLevel": tune_level,
-        "tuneSetPoint": tune_set_point,
-        "tuneUpgradeable": bool(is_tune_target and tune_upgradeable),
-        "tuneRemaining": tune_remaining,
-    }
-
-
 def get_equipment_total_set_point(equipment_rows: list) -> float:
     return sum(
         parse_percent_or_number(tune.get("setPoint"))
@@ -1102,28 +1053,6 @@ def get_equipment_total_set_point(equipment_rows: list) -> float:
         for tune in equipment.get("tune") or []
         if isinstance(tune, dict)
     )
-
-
-def build_equipment_enchant_rows_and_upgrades(equipment_rows: list) -> tuple[list, list]:
-    rows = []
-    equipment_upgrades = []
-    for equipment in equipment_rows or []:
-        slot_name = clean_text(equipment.get("slotName"))
-        if slot_name:
-            equipment_upgrades.append(build_equipment_upgrade_payload(equipment))
-        enchant = equipment.get("enchant") or {}
-        status_rows = enchant.get("status") or []
-        reinforce_skill = enchant.get("reinforceSkill") or []
-        if not slot_name or (not status_rows and not reinforce_skill):
-            continue
-        rows.append({
-            "slot": slot_name,
-            "itemName": clean_text(equipment.get("itemName")),
-            "effects": normalize_enchant_status(status_rows),
-            "reinforceSkill": reinforce_skill,
-            "rawStatus": status_rows,
-        })
-    return rows, equipment_upgrades
 
 
 def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: dict | None = None) -> dict:

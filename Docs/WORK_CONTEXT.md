@@ -3,7 +3,7 @@
 ## Active Snapshot
 
 - 현재 목표: DunPilot은 던전앤파이터 캐릭터의 현재 세팅을 분석해 마법부여, 증폭, 장비 조율, 서약 조율, 버프강화, 칭호, 크리쳐, 오라, 흑아 등 스펙업 후보의 골드 효율과 추천 순서를 비교한다.
-- 현재 진행 목표: `Docs/architecture/CODE_REVIEW_IMPLEMENTATION_PLAN.md`를 기준으로 ChatGPT 대화 `6a622b74-5d84-83ea-bbed-4e49be0d1462`의 코드 리뷰를 하나씩 CodexPro에 구현·테스트시키고, Codex가 실제 diff와 검증 결과를 감독한다. 1~3번과 5번은 완료했고, 4번 배포 게이트는 테스트 체계 보강 전까지 보류하며 6번은 대기 중이다.
+- 현재 진행 목표: `Docs/architecture/CODE_REVIEW_IMPLEMENTATION_PLAN.md` 기준 코드 리뷰 1~3번과 5~6번은 완료했다. 4번 배포 게이트는 테스트 체계 보강 전까지 보류한다.
 - 현재 주요 파일: `neople_hell_api_server.py`, `server/character_equipment_service.py`, `server/enchant_service.py`, `server/repositories/*`, `server/candidates/*`, `server/calculators/*`, `server/presenters/*`, `src/dnfHellTool/enchantView.js`, `src/dnfHellTool/enchantEquipmentProgression.js`, `src/dnfHellTool/enchantEquipmentTuneProgression.js`, `src/dnfHellTool/enchantOathProgression.js`, `src/dnfHellTool/enchantOathAcquisition.js`, `src/dnfHellTool/enchantBuffEnhancementMetric.js`, `src/dnfHellTool/enchantBufferRecommendation.js`, `src/dnfHellTool/enchantDealerRecommendation.js`, `src/dnfHellTool/enchantDealerSimulatorCalculation.js`, `src/dnfHellTool/enchantDealerDamageMetric.js`, `src/dnfHellTool/enchantSimulatorIdentity.js`, `src/dnfHellTool/enchantRecommendationEvaluationPolicy.js`, `src/dnfHellTool/enchantTitleRecommendationSource.js`, `src/dnfHellTool/enchantAvatarRecommendationSource.js`, `src/dnfHellTool/enchantBufferSimulatorCalculation.js`, `src/dnfHellTool/enchantBufferSimulatorSourceCalculation.js`, `src/dnfHellTool/enchantBufferSimulatorSourceIdentity.js`, `Docs/*.json`.
 - 서버 구조 원칙: Route는 HTTP 요청/응답, Service는 orchestration, Repository/Cache는 캐시/TTL/single-flight/fallback, Candidate Resolver는 후보 탐색, Calculator는 수치 계산, Presenter는 프론트 payload 조립을 담당한다.
 - 최근 구조 분리: Candidate Resolver, Repository/Cache, Calculator, Presenter 1차 분리를 완료했다. Route/Service 경계도 `/api/search`, `/api/summarize`, `/api/avatar-skill-efficiency`부터 얇게 정리했다.
@@ -58,5 +58,6 @@
 - 최근 프론트 구조: `enchantView.js` 책임 분리는 완료했다. 남은 factory 조립·dispatcher, 권위 state 동기화, simulator transaction, DOM/event, API request guard는 view 책임이며 추가 lifecycle 분리는 진행하지 않는다.
 - 최근 프론트 lifecycle: `toolLifecycle.js`가 설치 시 등록한 이벤트 리스너, timer·RAF·idle callback과 진행 중 fetch를 소유한다. `initDnfHellTool()`은 React cleanup과 초기화 실패 rollback에서 disposer를 역순 실행하고 lifecycle 전체를 정리한다.
 - 최근 테스트 구조: `test_enchant_*.js` 22개는 모두 고유한 회귀 보호가 있어 유지한다. 이동 시점에만 필요했던 정확한 source 위치·공백·출현 횟수 검사는 최소 assembly·runtime 계약으로 정리했다.
+- 최근 백엔드 경계: 장비 강화·조율 payload와 마법부여 표시 row 조립은 `character_enchants_presenter.py`가 소유하며, `character_equipment_service.py`는 조회·계산 orchestration과 전달을 담당한다.
 - 최근 SEO 구조: Vite multi-page로 `/`, `/about/`, `/privacy/` 정적 HTML 엔트리를 빌드하고, 루트·소개는 index, 개인정보·캐릭터 결과·unknown은 noindex 정책으로 메타데이터를 일관되게 전환한다. 최초 화면에만 보이는 SEO 설명문은 두지 않으며, 문구는 실제 유입 검색어인 던파 스펙업 순서·골드 효율·가성비 비교를 중심으로 사용한다.
-- 다음 작업: 코드 리뷰 6번은 현재 완료된 백엔드 경계와 `enchantView.js` 분리 상태를 먼저 재평가하고, 실제로 잘못 남은 책임 경계만 확인한다.
+- 다음 작업: 코드 리뷰 계획의 4번 배포 게이트는 테스트 체계 보강 전까지 보류한다.
