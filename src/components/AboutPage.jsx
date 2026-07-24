@@ -3,8 +3,6 @@ import logoImage from '../../이미지/로고/logo.png';
 import SiteLegalFooter from './SiteLegalFooter';
 
 const FEEDBACK_EMAIL = import.meta.env.VITE_FEEDBACK_EMAIL?.trim() || 'dunpilot.feedback@gmail.com';
-const PAGE_TITLE = '던파일럿 소개 - 던파 스펙업 순서와 골드 효율 분석';
-const PAGE_DESCRIPTION = '던파일럿은 던전앤파이터 캐릭터의 현재 세팅을 분석해 골드 대비 효율이 좋은 스펙업 순서를 추천합니다.';
 
 const SUMMARY_ITEMS = [
   ['캐릭터 맞춤 분석', '현재 착용 장비와 세팅을 기준으로 분석합니다.'],
@@ -80,23 +78,8 @@ export default function AboutPage() {
   const [feedbackCopyStatus, setFeedbackCopyStatus] = useState('');
   const feedbackStatusTimerRef = useRef(null);
 
-  useEffect(() => {
-    const previousTitle = document.title;
-    const descriptionMeta = document.querySelector('meta[name="description"]');
-    const canonicalLink = document.querySelector('link[rel="canonical"]');
-    const previousDescription = descriptionMeta?.getAttribute('content') || '';
-    const previousCanonical = canonicalLink?.getAttribute('href') || '';
-
-    document.title = PAGE_TITLE;
-    descriptionMeta?.setAttribute('content', PAGE_DESCRIPTION);
-    canonicalLink?.setAttribute('href', 'https://www.dunpilot.com/about');
-
-    return () => {
-      window.clearTimeout(feedbackStatusTimerRef.current);
-      document.title = previousTitle;
-      descriptionMeta?.setAttribute('content', previousDescription);
-      canonicalLink?.setAttribute('href', previousCanonical);
-    };
+  useEffect(() => () => {
+    window.clearTimeout(feedbackStatusTimerRef.current);
   }, []);
 
   const handleFeedbackEmailCopy = async () => {

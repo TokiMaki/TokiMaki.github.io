@@ -58,4 +58,5 @@
 - 최근 프론트 구조: `enchantView.js` 책임 분리는 완료했다. 남은 factory 조립·dispatcher, 권위 state 동기화, simulator transaction, DOM/event, API request guard는 view 책임이며 추가 lifecycle 분리는 진행하지 않는다.
 - 최근 프론트 lifecycle: `toolLifecycle.js`가 설치 시 등록한 이벤트 리스너, timer·RAF·idle callback과 진행 중 fetch를 소유한다. `initDnfHellTool()`은 React cleanup과 초기화 실패 rollback에서 disposer를 역순 실행하고 lifecycle 전체를 정리한다.
 - 최근 테스트 구조: `test_enchant_*.js` 22개는 모두 고유한 회귀 보호가 있어 유지한다. 이동 시점에만 필요했던 정확한 source 위치·공백·출현 횟수 검사는 최소 assembly·runtime 계약으로 정리했다.
+- 최근 SEO 구조: Vite multi-page로 `/`, `/about/`, `/privacy/` 정적 HTML 엔트리를 빌드하고, 루트·소개는 index, 개인정보·캐릭터 결과·unknown은 noindex 정책으로 메타데이터를 일관되게 전환한다. 최초 화면에만 보이는 SEO 설명문은 두지 않으며, 문구는 실제 유입 검색어인 던파 스펙업 순서·골드 효율·가성비 비교를 중심으로 사용한다.
 - 다음 작업: 코드 리뷰 6번은 현재 완료된 백엔드 경계와 `enchantView.js` 분리 상태를 먼저 재평가하고, 실제로 잘못 남은 책임 경계만 확인한다.

@@ -1,3 +1,5 @@
+import { applyCharacterResultMetadata, applyRootMetadata } from '../seo/pageMetadata.js';
+
 export function bindToolEvents(ctx) {
   const { els, state, lifecycle } = ctx;
   const finishEventListenerCapture = lifecycle.beginEventListenerCapture();
@@ -124,6 +126,7 @@ export function bindToolEvents(ctx) {
   const showLanding = (updateHistory = false) => {
     setScreen('landing');
     if (updateHistory) window.history.pushState({}, '', window.location.pathname);
+    applyRootMetadata();
     lifecycle.setTimeout(() => els.landingCharacterNameInput?.focus(), 0);
   };
   const loadRecentSearches = () => {
@@ -318,6 +321,7 @@ export function bindToolEvents(ctx) {
     setScreen('results');
     setActiveTab('enchantPanel');
     if (updateHistory) updateResultUrl(normalizedServerId, normalizedName);
+    applyCharacterResultMetadata(normalizedServerId, normalizedName);
     Promise.resolve(ctx.actions.searchEnchantCharacter?.({
       serverId: normalizedServerId,
       characterName: normalizedName,
