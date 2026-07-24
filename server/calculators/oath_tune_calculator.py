@@ -76,13 +76,24 @@ def get_oath_detail_set_point(detail: dict) -> float:
     return parse_percent_or_number((detail or {}).get("setPoint"))
 
 
-def build_oath_set_point_context(current_total_set_point: float, current_slot_set_point: float, target_slot_set_point: float, db: dict) -> dict:
+def build_oath_set_point_context(
+    current_total_set_point: float,
+    current_slot_set_point: float,
+    target_slot_set_point: float,
+    db: dict,
+    current_set_point_contribution: float | None = None,
+) -> dict:
     current_total = parse_percent_or_number(current_total_set_point)
     current_slot = parse_percent_or_number(current_slot_set_point)
+    current_contribution = (
+        current_slot
+        if current_set_point_contribution is None
+        else parse_percent_or_number(current_set_point_contribution)
+    )
     target_slot = parse_percent_or_number(target_slot_set_point)
-    if current_total <= 0 or current_slot <= 0 or target_slot <= 0:
+    if current_total <= 0 or current_slot <= 0 or current_contribution < 0 or target_slot <= 0:
         return {}
-    target_total = current_total - current_slot + target_slot
+    target_total = current_total - current_contribution + target_slot
     current_state = get_oath_tune_state(db, current_total)
     target_state = get_oath_tune_state(db, target_total)
     if not current_state or not target_state:
@@ -95,6 +106,7 @@ def build_oath_set_point_context(current_total_set_point: float, current_slot_se
         "currentSetPoint": current_total,
         "targetSetPoint": target_total,
         "currentSlotSetPoint": current_slot,
+        "currentSetPointContribution": current_contribution,
         "targetSlotSetPoint": target_slot,
         "currentOathStageName": current_state["stageName"],
         "targetOathStageName": target_state["stageName"],

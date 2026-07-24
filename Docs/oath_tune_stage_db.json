@@ -29,7 +29,7 @@
   ],
   "blessingRows": [
     { "rarity": "레어", "startPoint": 750, "finalDamagePercent": 17, "buffPower": 3300, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": false },
-    { "rarity": "유니크", "startPoint": 1200, "finalDamagePercent": 28, "buffPower": 5060, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": true },
+    { "rarity": "유니크", "startPoint": 1200, "finalDamagePercent": 28, "buffPower": 5060, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 80, "cooldownEquivalent": true },
     { "rarity": "레전더리", "startPoint": 1650, "finalDamagePercent": 39, "buffPower": 6720, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": true },
     { "rarity": "에픽", "startPoint": 2100, "finalDamagePercent": 50, "buffPower": 8210, "stepPoint": 25, "finalDamagePerStep": 0.5, "buffPowerPerStep": 70, "cooldownEquivalent": true },
     { "rarity": "태초", "startPoint": 2550, "finalDamagePercent": 62, "buffPower": 9700, "stepPoint": 25, "finalDamagePerStep": 1, "buffPowerPerStep": 120, "cooldownEquivalent": true }

@@ -512,6 +512,31 @@ assert.deepEqual(
   ['태초', '에픽'],
   '전체 계획은 입력 순서와 관계없이 태초 다음 에픽으로 배치한다',
 );
+assert.deepEqual(
+  recomposedPlans.snapshotPlans.map((plan) => [
+    plan.recommendation.targetRarity,
+    plan.referenceOathUpgrades.setPoint,
+    plan.targetOathUpgrades.setPoint,
+  ]),
+  [
+    [
+      '태초',
+      recomposedPlans.recommendations[0].currentSetPoint,
+      recomposedPlans.recommendations[0].targetSetPoint,
+    ],
+    [
+      '에픽',
+      recomposedPlans.recommendations[1].currentSetPoint,
+      recomposedPlans.recommendations[1].targetSetPoint,
+    ],
+  ],
+  '적용 카드 snapshot 기준 상태도 태초 다음 에픽 순서로 이어진다',
+);
+assert.equal(
+  recomposedPlans.snapshotPlans[1].referenceOathUpgrades.setPoint,
+  recomposedPlans.snapshotPlans[0].targetOathUpgrades.setPoint,
+  '후행 에픽 snapshot은 선행 태초 적용 결과에서 시작한다',
+);
 assert.equal(recomposedPlans.oathUpgrades.crystals[0].itemId, 'primeval-slot-0');
 assert.equal(recomposedPlans.oathUpgrades.crystals[1].itemId, 'epic-slot-1');
 assert.equal(recomposedPlans.oathUpgrades.crystals[2].itemId, 'legend-high');
@@ -684,5 +709,96 @@ const adaptedEpicAfterPrimeval = acquisition.adaptOathAcquisitionRecommendation(
 );
 assert.ok(adaptedEpicAfterPrimeval);
 assert.equal(adaptedEpicAfterPrimeval.decisionPlan[0].slotIndex, 0);
+
+const mixedFamilyBaseCrystals = [
+  { index: 0, itemId: 'a-unique', itemName: 'A 유니크', itemRarity: '유니크', familyName: 'A', effects: { finalDamage: 1, buffPower: 10 }, setPoint: 80 },
+  { index: 1, itemId: 'a-legend', itemName: 'A 레전더리', itemRarity: '레전더리', familyName: 'A', effects: { finalDamage: 2, buffPower: 20 }, setPoint: 90 },
+  { index: 2, itemId: 'b-unique', itemName: 'B 유니크', itemRarity: '유니크', familyName: 'B', effects: { finalDamage: 8, buffPower: 80 }, setPoint: 85 },
+  { index: 3, itemId: 'b-legend', itemName: 'B 레전더리', itemRarity: '레전더리', familyName: 'B', effects: { finalDamage: 9, buffPower: 90 }, setPoint: 95 },
+  { index: 4, itemId: 'unique-epic', itemName: '잔향의 안개 결정', itemRarity: '에픽', familyName: '', effects: { finalDamage: 10, buffPower: 100 }, setPoint: 165 },
+];
+const mixedFamilySimulator = {
+  role: 'dealer',
+  oathTuneDb: { maxTuneLevel: 3, uniqueCrystalNameKeyword: '안개 결정' },
+  baseOathUpgrades: { setName: 'A', setPoint: 350, crystals: cloneSimulatorValue(mixedFamilyBaseCrystals) },
+  simulatedOathUpgrades: { setName: 'A', setPoint: 350, crystals: cloneSimulatorValue(mixedFamilyBaseCrystals) },
+  activeSelectionByGroup: {},
+};
+const makeMixedFamilyEntry = (crystal, targetRarity) => ({
+  slotIndex: crystal.index,
+  currentFamilyName: crystal.familyName,
+  currentEffects: cloneSimulatorValue(crystal.effects),
+  currentSlotSetPoint: crystal.setPoint,
+  targetItemId: `a-${targetRarity}-${crystal.index}`,
+  targetItemName: `A ${targetRarity} ${crystal.index}`,
+  targetFamilyName: 'A',
+  targetRarity,
+  targetEffects: { finalDamage: 20 + crystal.index, buffPower: 200 + crystal.index * 10 },
+  targetSlotSetPoint: targetRarity === '태초' ? 145 : 130,
+  expectedGold: 1000,
+});
+const makeMixedFamilyRow = (targetRarity, variantCount) => ({
+  sourceType: 'oathTranscend',
+  targetRarity,
+  itemRarity: targetRarity,
+  targetFamilyName: 'A',
+  variantGroupKey: `oathTranscend:${targetRarity}`,
+  variantCount,
+  decisionCandidatePool: mixedFamilyBaseCrystals.map((crystal) => (
+    makeMixedFamilyEntry(crystal, targetRarity)
+  )),
+});
+const mixedFamilyEpicRow = makeMixedFamilyRow('에픽', 2);
+for (const role of ['dealer', 'buffer']) {
+  const adaptedMixedFamily = acquisition.adaptOathAcquisitionRecommendation(
+    mixedFamilyEpicRow,
+    { ...cloneSimulatorValue(mixedFamilySimulator), role },
+  );
+  assert.deepEqual(
+    adaptedMixedFamily.decisionPlan.map((entry) => entry.slotIndex),
+    [2, 3],
+    `${role} 혼합 세트는 타 family 전체를 주 family보다 먼저 교체한다`,
+  );
+  assert.deepEqual(adaptedMixedFamily.decisionPlan.map((entry) => entry.targetFamilyName), ['A', 'A']);
+  assert.deepEqual(adaptedMixedFamily.decisionPlan.map((entry) => entry.currentSetPointContribution), [0, 0]);
+  assert.equal(adaptedMixedFamily.targetSetPoint, 610);
+}
+const adaptedAllMixedFamily = acquisition.adaptOathAcquisitionRecommendation(
+  makeMixedFamilyRow('에픽', 5),
+  mixedFamilySimulator,
+);
+assert.deepEqual(adaptedAllMixedFamily.decisionPlan.map((entry) => entry.slotIndex), [2, 3, 0, 1, 4]);
+assert.deepEqual(
+  adaptedAllMixedFamily.decisionPlan.map((entry) => entry.currentSetPointContribution),
+  [0, 0, 80, 90, 165],
+);
+assert.equal(adaptedAllMixedFamily.currentSlotSetPoint, 515);
+assert.equal(adaptedAllMixedFamily.currentSetPointContribution, 335);
+assert.equal(adaptedAllMixedFamily.targetSetPoint, 665);
+assert.equal(acquisition.getOathAcquisitionCombinedPairKey(adaptedAllMixedFamily), 'oathDecision:에픽');
+assert.deepEqual(
+  acquisition.getActiveOathAcquisitionMethodCounts({
+    activeSelectionByGroup: {
+      a: { applyType: 'acquireOathDecision', acquisitionTargetGroupKey: 'oathAcquireTarget:에픽', acquisitionMethod: 'transcend', targetFamilyName: 'A' },
+      b: { applyType: 'acquireOathDecision', acquisitionTargetGroupKey: 'oathAcquireTarget:에픽', acquisitionMethod: 'craft', targetFamilyName: 'B' },
+    },
+  }, [mixedFamilyEpicRow]),
+  { transcend: 1, craft: 0 },
+);
+const rebuiltMixedFamily = acquisition.rebuildOathAcquisitionPlansFromBase(
+  mixedFamilySimulator,
+  [makeMixedFamilyRow('에픽', 2), makeMixedFamilyRow('태초', 1)],
+);
+assert.ok(rebuiltMixedFamily);
+assert.deepEqual(rebuiltMixedFamily.recommendations.map((row) => row.targetRarity), ['태초', '에픽']);
+assert.deepEqual(
+  rebuiltMixedFamily.oathUpgrades.crystals
+    .filter((crystal) => (
+      ['태초', '에픽'].includes(crystal.itemRarity)
+      && crystal.itemId !== 'unique-epic'
+    ))
+    .map((crystal) => crystal.familyName),
+  ['A', 'A', 'A'],
+);
 
 console.log('test_enchant_oath_acquisition: ok');

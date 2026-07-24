@@ -211,10 +211,15 @@ def build_oath_decision_plan_entry(candidate: dict) -> dict:
     return {
         "slotIndex": int(candidate.get("targetSlotIndex") or 0),
         "currentItemName": clean_text(candidate.get("currentItemName")),
+        "currentFamilyName": clean_text(candidate.get("currentFamilyName")),
         "currentEffects": dict(candidate.get("currentEffects") or {}),
         "currentSlotSetPoint": parse_percent_or_number(candidate.get("currentSlotSetPoint")),
+        "currentSetPointContribution": parse_percent_or_number(
+            candidate.get("currentSetPointContribution", candidate.get("currentSlotSetPoint"))
+        ),
         "targetItemId": clean_text(candidate.get("itemId")),
         "targetItemName": clean_text(candidate.get("targetItemName") or candidate.get("itemName")),
+        "targetFamilyName": clean_text(candidate.get("targetFamilyName")),
         "targetRarity": clean_text(candidate.get("targetRarity")),
         "targetIconUrl": clean_text(candidate.get("iconUrl")),
         "targetEffects": dict(candidate.get("targetEffects") or {}),
@@ -238,6 +243,7 @@ def build_oath_decision_variant_rows(
     if not selected_rows:
         return []
     target_rarity = clean_text(selected_rows[0].get("targetRarity"))
+    target_family_name = clean_text(selected_rows[0].get("targetFamilyName"))
     variant_total = len(selected_rows)
     variants = []
     for count in range(1, variant_total + 1):
@@ -245,12 +251,17 @@ def build_oath_decision_variant_rows(
         current_effects = combine_oath_effects(*(row.get("currentEffects") or {} for row in current_rows))
         target_effects = combine_oath_effects(*(row.get("targetEffects") or {} for row in current_rows))
         current_slot_set_point = sum(parse_percent_or_number(row.get("currentSlotSetPoint")) for row in current_rows)
+        current_set_point_contribution = sum(
+            parse_percent_or_number(row.get("currentSetPointContribution", row.get("currentSlotSetPoint")))
+            for row in current_rows
+        )
         target_slot_set_point = sum(parse_percent_or_number(row.get("targetSlotSetPoint")) for row in current_rows)
         set_point_context = build_oath_set_point_context(
             current_total_set_point,
             current_slot_set_point,
             target_slot_set_point,
             db,
+            current_set_point_contribution,
         )
         if not set_point_context:
             continue
@@ -284,6 +295,7 @@ def build_oath_decision_variant_rows(
         )
         row.update({
             "variantGroupKey": f"{source_type}:{target_rarity}",
+            "targetFamilyName": target_family_name,
             "variantIndex": count - 1,
             "variantCount": count,
             "variantTotal": variant_total,
@@ -314,16 +326,31 @@ def get_oath_crystal_family_name(item_name: str) -> str:
     return clean_text(family_name)
 
 
-def get_oath_context_family_name(crystals: list, unique_keyword: str = "") -> str:
-    family_names = {
-        family_name
-        for crystal in crystals or []
-        if isinstance(crystal, dict)
-        if not is_oath_unique_crystal_name(crystal.get("itemName"), unique_keyword)
-        for family_name in [get_oath_crystal_family_name(crystal.get("itemName"))]
-        if family_name
-    }
-    return next(iter(family_names)) if len(family_names) == 1 else ""
+def get_oath_context_family_name(oath: dict) -> str:
+    set_option_name = clean_text(((oath or {}).get("setInfo") or {}).get("setOptionName"))
+    if " : " not in set_option_name:
+        return ""
+    return clean_text(set_option_name.split(" : ", 1)[0])
+
+
+def is_oath_other_family(current_family_name: str, target_family_name: str) -> bool:
+    current_family_name = clean_text(current_family_name)
+    target_family_name = clean_text(target_family_name)
+    return bool(
+        current_family_name
+        and target_family_name
+        and current_family_name != target_family_name
+    )
+
+
+def get_oath_current_set_point_contribution(
+    current_slot_set_point: float,
+    current_family_name: str,
+    target_family_name: str,
+) -> float:
+    if is_oath_other_family(current_family_name, target_family_name):
+        return 0
+    return parse_percent_or_number(current_slot_set_point)
 
 
 def get_oath_craft_fragment_label(item_name: str, family_name: str = "") -> str:
@@ -366,13 +393,22 @@ def resolve_oath_transcend_target_detail(current_item_name: str, target_rarity: 
     return (fetch_item_details([item_id]) or [{}])[0] if item_id else {}
 
 
-def get_oath_transcend_target_rarities(current_rarity: str, current_item_name: str = "", unique_keyword: str = "") -> list[str]:
+def get_oath_transcend_target_rarities(
+    current_rarity: str,
+    current_item_name: str = "",
+    unique_keyword: str = "",
+    current_family_name: str = "",
+    target_family_name: str = "",
+) -> list[str]:
     current_rarity = clean_text(current_rarity)
+    is_other_family = is_oath_other_family(current_family_name, target_family_name)
     if current_rarity in {"유니크", "레전더리"}:
         return ["에픽", "태초"]
     if current_rarity == "에픽":
-        if is_oath_unique_crystal_name(current_item_name, unique_keyword):
+        if is_oath_unique_crystal_name(current_item_name, unique_keyword) or is_other_family:
             return ["에픽", "태초"]
+        return ["태초"]
+    if current_rarity == "태초" and is_other_family:
         return ["태초"]
     return []
 
@@ -397,6 +433,8 @@ def get_oath_acquisition_current_rarity_priority(row: dict, unique_keyword: str 
         return 2
     if current_rarity == "에픽":
         return 3
+    if current_rarity == "태초":
+        return 4
     return 99
 
 
@@ -461,15 +499,20 @@ def build_oath_decision_recommendations_debug(
     is_buffer = bool((buffer_baseline or {}).get("isBuffer"))
     current_total_set_point = get_oath_total_set_point(oath)
     equipment_reinforce_by_slot = get_equipment_reinforce_by_slot(equipment_rows or [])
+    context_family_name = get_oath_context_family_name(oath)
     epic_count = sum(
         1 for crystal in crystals
         if clean_text(crystal.get("itemRarity")) == "에픽"
         and not is_oath_unique_crystal_name(crystal.get("itemName"), unique_keyword)
+        and get_oath_crystal_family_name(crystal.get("itemName")) == context_family_name
     )
     epic_remaining = max(0, 8 - epic_count)
-    primeval_count = sum(1 for crystal in crystals if clean_text(crystal.get("itemRarity")) == "태초")
+    primeval_count = sum(
+        1 for crystal in crystals
+        if clean_text(crystal.get("itemRarity")) == "태초"
+        and get_oath_crystal_family_name(crystal.get("itemName")) == context_family_name
+    )
     primeval_remaining = max(0, 3 - primeval_count)
-    context_family_name = get_oath_context_family_name(crystals, unique_keyword)
     recommendations = []
     skipped = []
 
@@ -479,11 +522,11 @@ def build_oath_decision_recommendations_debug(
         current_item_name = clean_item_display_name(crystal.get("itemName"))
         current_rarity = clean_text(crystal.get("itemRarity"))
         current_is_unique = is_oath_unique_crystal_name(current_item_name, unique_keyword)
-        current_family_name = context_family_name if current_is_unique else get_oath_crystal_family_name(current_item_name)
+        current_family_name = "" if current_is_unique else get_oath_crystal_family_name(current_item_name)
         if is_oath_transcend_blocked_crystal(crystal, unique_keyword):
             skipped.append({"index": index, "reason": "blocked"})
             continue
-        if not current_family_name:
+        if not context_family_name:
             skipped.append({"index": index, "reason": "missing_set_context"})
             continue
         current_id = clean_text(crystal.get("itemId"))
@@ -499,20 +542,33 @@ def build_oath_decision_recommendations_debug(
             equipment_reinforce_by_slot,
             current_detail,
         )
-        for target_rarity in get_oath_transcend_target_rarities(current_rarity, current_item_name, unique_keyword):
+        for target_rarity in get_oath_transcend_target_rarities(
+            current_rarity,
+            current_item_name,
+            unique_keyword,
+            current_family_name,
+            context_family_name,
+        ):
             if target_rarity == "에픽" and epic_remaining <= 0:
                 continue
             if target_rarity == "태초" and primeval_remaining <= 0:
                 continue
-            target_detail = resolve_oath_transcend_target_detail(current_item_name, target_rarity, unique_keyword, current_family_name)
+            target_detail = resolve_oath_transcend_target_detail(current_item_name, target_rarity, unique_keyword, context_family_name)
             if not target_detail:
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "missing_target"})
                 continue
+            current_slot_set_point = get_oath_crystal_set_point(crystal)
+            current_set_point_contribution = get_oath_current_set_point_contribution(
+                current_slot_set_point,
+                current_family_name,
+                context_family_name,
+            )
             set_point_context = build_oath_set_point_context(
                 current_total_set_point,
-                get_oath_crystal_set_point(crystal),
+                current_slot_set_point,
                 get_oath_detail_set_point(target_detail),
                 db,
+                current_set_point_contribution,
             )
             if not set_point_context:
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "missing_set_point"})
@@ -526,7 +582,11 @@ def build_oath_decision_recommendations_debug(
                 "skillDamageMultiplier": set_point_context.get("skillDamageMultiplier"),
                 "oathSetBuffPowerDelta": set_point_context.get("oathSetBuffPowerDelta"),
             }, is_buffer)
-            if score <= 0:
+            is_same_rarity_family_replacement = (
+                current_rarity == target_rarity
+                and current_family_name != context_family_name
+            )
+            if score <= 0 and not is_same_rarity_family_replacement:
                 skipped.append({"index": index, "targetRarity": target_rarity, "reason": "no_gain"})
                 continue
             cost = costs_by_rarity.get(target_rarity) or {}
@@ -535,7 +595,7 @@ def build_oath_decision_recommendations_debug(
             for material in cost.get("materials") or []:
                 material_row = dict(material)
                 if material_row.get("key") == "oathCrystalFragment":
-                    material_row["label"] = get_oath_craft_fragment_label(current_item_name, current_family_name)
+                    material_row["label"] = get_oath_craft_fragment_label(current_item_name, context_family_name)
                 cost_materials.append(material_row)
             materials = build_oath_transcend_materials(cost_materials)
             row = build_oath_transcend_recommendation_row(
@@ -561,12 +621,15 @@ def build_oath_decision_recommendations_debug(
                 tier=tier,
             )
             row["_score"] = score
+            row["currentFamilyName"] = current_family_name
+            row["targetFamilyName"] = context_family_name
             row["targetSlotIndex"] = index
             recommendations.append(row)
 
     epic_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "에픽"]
     primeval_rows = [row for row in recommendations if clean_text(row.get("targetRarity")) == "태초"]
     row_rank_key = lambda row: (
+        0 if is_oath_other_family(row.get("currentFamilyName"), context_family_name) else 1,
         get_oath_acquisition_current_rarity_priority(row, unique_keyword),
         -float(row.get("_score") or 0),
         -(parse_percent_or_number(row.get("targetSetPoint")) - parse_percent_or_number(row.get("currentSetPoint"))),
@@ -604,6 +667,7 @@ def build_oath_decision_recommendations_debug(
     ))
     steps.append({
         "name": step_name,
+        "targetFamilyName": context_family_name,
         "crystalCount": len(crystals),
         "epicCount": epic_count,
         "epicRemaining": epic_remaining,
