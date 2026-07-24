@@ -1,4 +1,7 @@
-export function createEnchantRecommendationLayout({ getRecommendList }) {
+export function createEnchantRecommendationLayout({
+  getRecommendList,
+  requestAnimationFrame = (callback) => window.requestAnimationFrame(callback),
+}) {
   function fitEnchantRecommendTitles() {
     if (!getRecommendList()) return;
     getRecommendList().querySelectorAll('.enchant-recommend-title').forEach((title) => {
@@ -30,7 +33,7 @@ export function createEnchantRecommendationLayout({ getRecommendList }) {
 
   function scheduleFitEnchantRecommendTitles() {
     fitEnchantRecommendTitles();
-    window.requestAnimationFrame(() => fitEnchantRecommendTitles());
+    requestAnimationFrame(() => fitEnchantRecommendTitles());
   }
 
   function adjustRecommendPopoverShift(popover) {
@@ -63,11 +66,11 @@ export function createEnchantRecommendationLayout({ getRecommendList }) {
     const host = target?.closest?.('.enchant-recommend-item, .enchant-recommend-step-tune');
     const popover = host?.querySelector?.('.enchant-recommend-popover');
     if (!popover) return;
-    window.requestAnimationFrame(() => adjustRecommendPopoverShift(popover));
+    requestAnimationFrame(() => adjustRecommendPopoverShift(popover));
   }
 
   function scheduleOpenTunePopoverShift() {
-    window.requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       const popover = getRecommendList()?.querySelector('.enchant-recommend-step-tune.is-tune-popover-open .enchant-recommend-popover');
       adjustRecommendPopoverShift(popover);
     });

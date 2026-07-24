@@ -1,5 +1,5 @@
 export function installBootstrap(ctx) {
-  const { els, state } = ctx;
+  const { els, state, lifecycle } = ctx;
   const { characterCache, supplyCache } = ctx.caches;
   const {
     applySelectedPercentile,
@@ -79,7 +79,7 @@ export function installBootstrap(ctx) {
   const loadActiveTab = (...args) => ctx.actions.loadActiveTab(...args);
   const recalc = (...args) => ctx.actions.recalc(...args);
 
-async function bootstrap() {
+function bootstrap() {
   try {
     const parsed = JSON.parse(localStorage.getItem(SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY) || '[]');
     state.supplySoulExcludedKeys = new Set(Array.isArray(parsed) ? parsed.map((key) => String(key || '').trim()).filter(Boolean) : []);
@@ -109,10 +109,7 @@ async function bootstrap() {
   
   if (loadedHell) {
     els.calcState.textContent = '계산 대기';
-    const scheduleInitialRecalc = window.requestIdleCallback
-      ? (callback) => window.requestIdleCallback(callback, { timeout: 1200 })
-      : (callback) => window.setTimeout(callback, 120);
-    scheduleInitialRecalc(() => recalc());
+    lifecycle.requestIdleCallback(() => recalc(), { timeout: 1200 });
   } else {
     clearCharacterData('이 브라우저 저장소에 저장된 캐릭터가 없습니다.');
   }

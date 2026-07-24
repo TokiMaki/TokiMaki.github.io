@@ -1,5 +1,5 @@
 export function installSupplyViewApi(ctx) {
-  const { els, state } = ctx;
+  const { els, state, lifecycle } = ctx;
   const { characterCache, supplyCache } = ctx.caches;
   const {
     applySelectedPercentile,
@@ -523,7 +523,7 @@ function setSupplyError(message = '') {
 
 async function lookupSupplyCharacter(serverId, characterName) {
   const url = `${API_BASE}/api/search?serverId=${encodeURIComponent(serverId)}&characterName=${encodeURIComponent(characterName)}`;
-  const response = await fetch(url, { cache: 'no-store' });
+  const response = await lifecycle.fetch(url, { cache: 'no-store' });
   const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
   
   const resolved = payload.resolved || {};
@@ -570,11 +570,14 @@ async function addSupplyCharacter() {
     setSupplyCharacters(nextCharacters, '검색 반영');
     els.supplyCharacterNameInput.value = '';
   } catch (error) {
+    if (!lifecycle.active) return;
     setSupplyError(normalizeApiErrorMessage(error, '캐릭터 추가 중 오류가 발생했습니다.'));
     els.supplySearchStatus.textContent = '추가 실패';
   } finally {
-    setSupplySearchBusy(false);
-    els.supplyCharacterNameInput.focus();
+    if (lifecycle.active) {
+      setSupplySearchBusy(false);
+      els.supplyCharacterNameInput.focus();
+    }
   }
 }
 
@@ -617,9 +620,10 @@ async function refreshSupplyCharacters() {
       els.supplySearchStatus.textContent = `${state.supplyCharactersSource} · ${refreshed.length.toLocaleString('ko-KR')}캐릭 전체 갱신`;
     }
   } catch (error) {
+    if (!lifecycle.active) return;
     setSupplyError(normalizeApiErrorMessage(error, '전체 갱신 중 오류가 발생했습니다.'));
   } finally {
-    setSupplySearchBusy(false);
+    if (lifecycle.active) setSupplySearchBusy(false);
   }
 }
 
@@ -643,6 +647,7 @@ async function refreshSupplyCharacterByKey(characterKey) {
     setSupplyCharacters(nextCharacters, '단일 갱신');
     els.supplySearchStatus.textContent = `${state.supplyCharactersSource} · ${getCharacterLabel(resolved)} 갱신 완료`;
   } catch (error) {
+    if (!lifecycle.active) return;
     setSupplyError(normalizeApiErrorMessage(error, '캐릭터 갱신 중 오류가 발생했습니다.'));
     els.supplySearchStatus.textContent = `${getCharacterLabel(target)} 갱신 실패`;
   }

@@ -1,5 +1,5 @@
 export function installHellRenderCalc(ctx) {
-  const { els, state } = ctx;
+  const { els, state, lifecycle } = ctx;
   const { characterCache, supplyCache } = ctx.caches;
   const {
     applySelectedPercentile,
@@ -322,8 +322,8 @@ function scheduleRecalc() {
   if (!state.hasCharacterData) {
     return;
   }
-  clearTimeout(state.debounceTimer);
-  state.debounceTimer = setTimeout(recalc, 120);
+  lifecycle.clearTimeout(state.debounceTimer);
+  state.debounceTimer = lifecycle.setTimeout(recalc, 120);
 }
 
   Object.assign(ctx.actions, {

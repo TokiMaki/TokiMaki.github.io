@@ -1804,7 +1804,8 @@ function formatTitlePurchaseRouteLabel(row) {
 }
 
 export function installEnchantView(ctx) {
-  const { els, state } = ctx;
+  const { els, state, lifecycle } = ctx;
+  const finishEventListenerCapture = lifecycle.beginEventListenerCapture();
   const {
     API_BASE,
     ENCHANT_INCLUDE_FILTER_STORAGE_KEY,
@@ -4748,7 +4749,7 @@ export function installEnchantView(ctx) {
     const token = simulator.sweepSequence + 1;
     simulator.sweepSequence = token;
     simulator.activeSweepSlots.set(slot, { token, startedAt: Date.now() });
-    setTimeout(() => {
+    lifecycle.setTimeout(() => {
       if (getActiveSimulator() !== simulator) return;
       const activeSweep = simulator.activeSweepSlots.get(slot);
       if (activeSweep?.token === token) simulator.activeSweepSlots.delete(slot);
@@ -5954,6 +5955,7 @@ export function installEnchantView(ctx) {
     isLeavingRecommendPopoverHost,
   } = createEnchantRecommendationLayout({
     getRecommendList: () => els.enchantRecommendList,
+    requestAnimationFrame: lifecycle.requestAnimationFrame,
   });
 
   function applyDealerSimulatorRecommendationEligibility(recommendations, dealerSimulator) {
@@ -6581,7 +6583,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/character-enchants?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/character-enchants?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '캐릭터 마법부여 조회에 실패했습니다.');
     state.currentEnchants = Array.isArray(payload.enchants) ? payload.enchants : [];
     state.currentEquipmentUpgrades = Array.isArray(payload.equipmentUpgrades) ? payload.equipmentUpgrades : [];
@@ -6629,7 +6631,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/character-creature?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/character-creature?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '캐릭터 크리쳐 조회에 실패했습니다.');
     state.currentCreature = payload.creature || null;
     state.currentCreatureCharacterKey = characterKey;
@@ -6653,7 +6655,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/character-title?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/character-title?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '캐릭터 칭호 조회에 실패했습니다.');
     state.currentTitle = payload.title || null;
     state.currentTitleCharacterKey = characterKey;
@@ -6677,7 +6679,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/character-aura?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/character-aura?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '캐릭터 오라 조회에 실패했습니다.');
     state.currentAura = payload.aura || null;
     state.currentAuraCharacterKey = characterKey;
@@ -6701,7 +6703,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/character-avatar?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/character-avatar?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '캐릭터 아바타 조회에 실패했습니다.');
     state.currentAvatar = payload || null;
     state.currentAvatarCharacterKey = characterKey;
@@ -6718,7 +6720,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/character-preview?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/character-preview?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '캐릭터 장비 조회에 실패했습니다.');
     if (requestId !== state.enchantRequestId) return;
     state.currentEnchants = Array.isArray(payload.enchants) ? payload.enchants : [];
@@ -6779,7 +6781,7 @@ export function installEnchantView(ctx) {
         serverId: character.serverId,
         characterName,
       });
-      const response = await fetch(`${API_BASE}/api/equipment-score?${query.toString()}`, { cache: 'no-store' });
+      const response = await lifecycle.fetch(`${API_BASE}/api/equipment-score?${query.toString()}`, { cache: 'no-store' });
       const payload = await parseApiJsonResponse(response, '공식 점수 조회에 실패했습니다.');
       const activeCharacterKey = isBuffer
         ? state.currentOfficialBufferScoreCharacterKey
@@ -6798,6 +6800,7 @@ export function installEnchantView(ctx) {
         state.dealerSimulator.baseEquipmentScore = state.currentOfficialEquipmentScore;
       }
     } catch {
+      if (!lifecycle.active) return;
       const activeCharacterKey = isBuffer
         ? state.currentOfficialBufferScoreCharacterKey
         : state.currentOfficialEquipmentScoreCharacterKey;
@@ -6810,7 +6813,7 @@ export function installEnchantView(ctx) {
         state.currentOfficialEquipmentScoreStatus = 'error';
       }
     }
-    renderEnchantCharacterPortrait();
+    if (lifecycle.active) renderEnchantCharacterPortrait();
   }
 
   async function loadCurrentCharacterLoadout(requestId = state.enchantRequestId) {
@@ -6844,7 +6847,7 @@ export function installEnchantView(ctx) {
       characterId: character.characterId,
     });
     const startedAt = getEnchantNowMs();
-    const response = await fetch(`${API_BASE}/api/character-loadout?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/character-loadout?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '캐릭터 세팅 조회에 실패했습니다.');
     if (requestId !== state.enchantRequestId) return;
     state.currentEnchants = Array.isArray(payload.enchants) ? payload.enchants : [];
@@ -6909,7 +6912,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/aura-upgrades?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/aura-upgrades?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '오라 후보 조회에 실패했습니다.');
     if (requestId !== state.enchantRequestId) return;
     state.auraUpgradeGroups = Array.isArray(payload.groups) ? payload.groups : [];
@@ -6922,7 +6925,7 @@ export function installEnchantView(ctx) {
       serverId: character.serverId,
       characterId: character.characterId,
     });
-    const response = await fetch(`${API_BASE}/api/creature-upgrades?${query.toString()}`, { cache: 'no-store' });
+    const response = await lifecycle.fetch(`${API_BASE}/api/creature-upgrades?${query.toString()}`, { cache: 'no-store' });
     const payload = await parseApiJsonResponse(response, '크리쳐 후보 조회에 실패했습니다.');
     if (requestId !== state.enchantRequestId) return;
     state.creatureUpgradeGroups = Array.isArray(payload.groups) ? payload.groups : [];
@@ -6951,7 +6954,7 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       flushEnchantTiming('complete');
     } catch (error) {
-      if (requestId !== state.enchantRequestId) return;
+      if (!lifecycle.active || requestId !== state.enchantRequestId) return;
       state.currentBufferScoreStatus = 'idle';
       state.enchantRecommendationLoading = false;
       const errorMessage = normalizeApiErrorMessage(error, '스펙업 순서 추천을 불러오지 못했습니다.');
@@ -6996,7 +6999,7 @@ export function installEnchantView(ctx) {
       if (isCandidateSearch) {
         const query = new URLSearchParams({ serverId: isAdventureSearch ? 'adventure' : 'all', characterName });
         const searchStartedAt = getEnchantNowMs();
-        const response = await fetch(`${API_BASE}/api/search-all?${query.toString()}`, { cache: 'no-store' });
+        const response = await lifecycle.fetch(`${API_BASE}/api/search-all?${query.toString()}`, { cache: 'no-store' });
         const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
         if (requestId !== state.enchantRequestId) return;
         const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
@@ -7014,7 +7017,7 @@ export function installEnchantView(ctx) {
       }
       const query = new URLSearchParams({ serverId, characterName });
       const searchStartedAt = getEnchantNowMs();
-      const response = await fetch(`${API_BASE}/api/search?${query.toString()}`, { cache: 'no-store' });
+      const response = await lifecycle.fetch(`${API_BASE}/api/search?${query.toString()}`, { cache: 'no-store' });
       const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
       if (requestId !== state.enchantRequestId) return;
       recordEnchantTimingStep('search', searchStartedAt, {
@@ -7051,7 +7054,7 @@ export function installEnchantView(ctx) {
         characterName: state.enchantTargetCharacter.name,
       };
     } catch (error) {
-      if (requestId !== state.enchantRequestId) return;
+      if (!lifecycle.active || requestId !== state.enchantRequestId) return;
       const errorMessage = String(error?.message || '').includes('캐릭터를 찾지 못했습니다')
         ? '캐릭터를 찾지 못했습니다.'
         : normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
@@ -7064,7 +7067,7 @@ export function installEnchantView(ctx) {
       setEnchantCharacterStatus(errorMessage);
       flushEnchantTiming('error');
     } finally {
-      if (requestId === state.enchantRequestId && els.loadEnchantCharacterButton) {
+      if (lifecycle.active && requestId === state.enchantRequestId && els.loadEnchantCharacterButton) {
         els.loadEnchantCharacterButton.disabled = false;
       }
     }
@@ -7099,10 +7102,10 @@ export function installEnchantView(ctx) {
       const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
       const priceStartedAt = getEnchantNowMs();
       const [enchantResponse, creatureResponse, titleResponse, auraResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/enchant-cards${query}`, { cache: 'no-store' }),
-        fetch(`${API_BASE}/api/creature-upgrades${query}`, { cache: 'no-store' }),
-        fetch(`${API_BASE}/api/title-upgrades${query}`, { cache: 'no-store' }),
-        fetch(`${API_BASE}/api/aura-upgrades${query}`, { cache: 'no-store' }),
+        lifecycle.fetch(`${API_BASE}/api/enchant-cards${query}`, { cache: 'no-store' }),
+        lifecycle.fetch(`${API_BASE}/api/creature-upgrades${query}`, { cache: 'no-store' }),
+        lifecycle.fetch(`${API_BASE}/api/title-upgrades${query}`, { cache: 'no-store' }),
+        lifecycle.fetch(`${API_BASE}/api/aura-upgrades${query}`, { cache: 'no-store' }),
       ]);
       const payload = await parseApiJsonResponse(enchantResponse, '마법부여 가격 조회에 실패했습니다.');
       const creaturePayload = await parseApiJsonResponse(creatureResponse, '크리쳐 가격 조회에 실패했습니다.');
@@ -7154,18 +7157,18 @@ export function installEnchantView(ctx) {
             renderEnchantTable();
           })
           .catch((error) => {
-            if (isStalePriceRequest()) return;
+            if (!lifecycle.active || isStalePriceRequest()) return;
             resetCurrentEnchantCharacterState();
             setEnchantPriceStatus('일부 정보를 확인하지 못했습니다.', `${devStatus}, 현재 세팅 미반영: ${normalizeApiErrorMessage(error)}`);
             renderEnchantTable();
           });
       }
     } catch (error) {
-      if (isStalePriceRequest()) return;
+      if (!lifecycle.active || isStalePriceRequest()) return;
       setEnchantPriceStatus(normalizeApiErrorMessage(error, '가격 정보를 불러오지 못했습니다.'));
       if (ownsTiming) flushEnchantTiming('error');
     } finally {
-      if (!isStalePriceRequest()) {
+      if (lifecycle.active && !isStalePriceRequest()) {
         state.enchantLoading = false;
         if (els.refreshEnchantCardsButton) els.refreshEnchantCardsButton.disabled = false;
         if (ownsTiming) flushEnchantTiming('complete');
@@ -8047,7 +8050,7 @@ export function installEnchantView(ctx) {
       const step = event.target.closest('.enchant-recommend-step-tune');
       if (step) {
         const sourceType = step.dataset.tuneSource || 'equipmentTune';
-        window.requestAnimationFrame(() => {
+        lifecycle.requestAnimationFrame(() => {
           if (state.equipmentTunePopoverSource !== sourceType) return;
           const editingStep = [...(els.enchantRecommendList?.querySelectorAll('.enchant-recommend-step-tune') || [])]
             .find((candidate) => (
@@ -8272,4 +8275,5 @@ export function installEnchantView(ctx) {
   renderEnchantCharacterPortrait();
   renderEnchantIncludeControls();
   renderEfficiencyLegend();
+  return finishEventListenerCapture();
 }

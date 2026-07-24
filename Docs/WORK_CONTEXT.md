@@ -3,7 +3,7 @@
 ## Active Snapshot
 
 - 현재 목표: DunPilot은 던전앤파이터 캐릭터의 현재 세팅을 분석해 마법부여, 증폭, 장비 조율, 서약 조율, 버프강화, 칭호, 크리쳐, 오라, 흑아 등 스펙업 후보의 골드 효율과 추천 순서를 비교한다.
-- 현재 진행 목표: `Docs/architecture/CODE_REVIEW_IMPLEMENTATION_PLAN.md`를 기준으로 ChatGPT 대화 `6a622b74-5d84-83ea-bbed-4e49be0d1462`의 코드 리뷰 1~6번을 하나씩 CodexPro에 구현·테스트시키고, Codex가 실제 diff와 검증 결과를 감독한다. 1번은 `7bbd76f`, 2번은 `00902be`로 완료했고 3번은 구현·검증 완료 후 미커밋 상태이며 4번은 대기 상태다.
+- 현재 진행 목표: `Docs/architecture/CODE_REVIEW_IMPLEMENTATION_PLAN.md`를 기준으로 ChatGPT 대화 `6a622b74-5d84-83ea-bbed-4e49be0d1462`의 코드 리뷰를 하나씩 CodexPro에 구현·테스트시키고, Codex가 실제 diff와 검증 결과를 감독한다. 1~3번과 5번은 완료했고, 4번 배포 게이트는 테스트 체계 보강 전까지 보류하며 6번은 대기 중이다.
 - 현재 주요 파일: `neople_hell_api_server.py`, `server/character_equipment_service.py`, `server/enchant_service.py`, `server/repositories/*`, `server/candidates/*`, `server/calculators/*`, `server/presenters/*`, `src/dnfHellTool/enchantView.js`, `src/dnfHellTool/enchantEquipmentProgression.js`, `src/dnfHellTool/enchantEquipmentTuneProgression.js`, `src/dnfHellTool/enchantOathProgression.js`, `src/dnfHellTool/enchantOathAcquisition.js`, `src/dnfHellTool/enchantBuffEnhancementMetric.js`, `src/dnfHellTool/enchantBufferRecommendation.js`, `src/dnfHellTool/enchantDealerRecommendation.js`, `src/dnfHellTool/enchantDealerSimulatorCalculation.js`, `src/dnfHellTool/enchantDealerDamageMetric.js`, `src/dnfHellTool/enchantSimulatorIdentity.js`, `src/dnfHellTool/enchantRecommendationEvaluationPolicy.js`, `src/dnfHellTool/enchantTitleRecommendationSource.js`, `src/dnfHellTool/enchantAvatarRecommendationSource.js`, `src/dnfHellTool/enchantBufferSimulatorCalculation.js`, `src/dnfHellTool/enchantBufferSimulatorSourceCalculation.js`, `src/dnfHellTool/enchantBufferSimulatorSourceIdentity.js`, `Docs/*.json`.
 - 서버 구조 원칙: Route는 HTTP 요청/응답, Service는 orchestration, Repository/Cache는 캐시/TTL/single-flight/fallback, Candidate Resolver는 후보 탐색, Calculator는 수치 계산, Presenter는 프론트 payload 조립을 담당한다.
 - 최근 구조 분리: Candidate Resolver, Repository/Cache, Calculator, Presenter 1차 분리를 완료했다. Route/Service 경계도 `/api/search`, `/api/summarize`, `/api/avatar-skill-efficiency`부터 얇게 정리했다.
@@ -56,5 +56,6 @@
 - 최근 프론트 구조: `enchantRecommendationEvaluationPolicy.js`는 딜러·버퍼 공용 비용 계산, 재료/무료 획득 분류, 중복 선택, 재료 마부 정렬과 tier 효율 pruning을 소유한다. include filter taxonomy와 최종 렌더링은 `enchantView.js`에 유지한다.
 - 최근 프론트 구조: `enchantDealerDamageMetric.js`는 딜러 기본 damage baseline, 장비점수 유효 스탯과 증분 딜 metric을 소유한다. 딜러 마부 표시 adapter, 버퍼 stat helper와 simulator normalization은 `enchantView.js`에 유지한다.
 - 최근 프론트 구조: `enchantView.js` 책임 분리는 완료했다. 남은 factory 조립·dispatcher, 권위 state 동기화, simulator transaction, DOM/event, API request guard는 view 책임이며 추가 lifecycle 분리는 진행하지 않는다.
+- 최근 프론트 lifecycle: `toolLifecycle.js`가 설치 시 등록한 이벤트 리스너, timer·RAF·idle callback과 진행 중 fetch를 소유한다. `initDnfHellTool()`은 React cleanup과 초기화 실패 rollback에서 disposer를 역순 실행하고 lifecycle 전체를 정리한다.
 - 최근 테스트 구조: `test_enchant_*.js` 22개는 모두 고유한 회귀 보호가 있어 유지한다. 이동 시점에만 필요했던 정확한 source 위치·공백·출현 횟수 검사는 최소 assembly·runtime 계약으로 정리했다.
-- 다음 작업: 새 기능이나 버그가 생기면 해당 도메인 모듈에서 최소 변경하고, `enchantView.js` 추가 분리는 새로운 응집된 순수 책임과 동작 보존 근거가 확인될 때만 검토한다.
+- 다음 작업: 코드 리뷰 6번은 현재 완료된 백엔드 경계와 `enchantView.js` 분리 상태를 먼저 재평가하고, 실제로 잘못 남은 책임 경계만 확인한다.

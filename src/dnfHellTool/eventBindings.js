@@ -1,5 +1,6 @@
 export function bindToolEvents(ctx) {
-  const { els, state } = ctx;
+  const { els, state, lifecycle } = ctx;
+  const finishEventListenerCapture = lifecycle.beginEventListenerCapture();
   const { characterCache, supplyCache } = ctx.caches;
   const {
     applySelectedPercentile,
@@ -123,7 +124,7 @@ export function bindToolEvents(ctx) {
   const showLanding = (updateHistory = false) => {
     setScreen('landing');
     if (updateHistory) window.history.pushState({}, '', window.location.pathname);
-    window.setTimeout(() => els.landingCharacterNameInput?.focus(), 0);
+    lifecycle.setTimeout(() => els.landingCharacterNameInput?.focus(), 0);
   };
   const loadRecentSearches = () => {
     try {
@@ -271,11 +272,12 @@ export function bindToolEvents(ctx) {
   const loadLandingNotices = async () => {
     if (!els.landingNoticeList) return;
     try {
-      const response = await fetch('./notices.json', { cache: 'no-store' });
+      const response = await lifecycle.fetch('./notices.json', { cache: 'no-store' });
       if (!response.ok) throw new Error(`공지사항 로드 실패 (${response.status})`);
       const payload = await response.json();
       renderLandingNotices(Array.isArray(payload) ? payload : []);
     } catch {
+      if (!lifecycle.active) return;
       els.landingNoticeList.replaceChildren(Object.assign(document.createElement('p'), {
         textContent: '공지사항을 불러오지 못했습니다.',
       }));
@@ -358,10 +360,10 @@ export function bindToolEvents(ctx) {
   };
   const showFeedbackCopyStatus = (message) => {
     if (!els.feedbackEmailCopyStatus) return;
-    window.clearTimeout(feedbackStatusTimer);
+    lifecycle.clearTimeout(feedbackStatusTimer);
     els.feedbackEmailCopyStatus.textContent = message;
     els.feedbackEmailCopyStatus.classList.add('is-visible');
-    feedbackStatusTimer = window.setTimeout(() => {
+    feedbackStatusTimer = lifecycle.setTimeout(() => {
       els.feedbackEmailCopyStatus.classList.remove('is-visible');
     }, 1800);
   };
@@ -485,7 +487,7 @@ bindRecentSearchList(els.landingRecentSearchList);
 window.addEventListener('popstate', applyLocation);
 renderRecentSearches();
 loadLandingNotices();
-window.setTimeout(applyLocation, 0);
+lifecycle.setTimeout(applyLocation, 0);
 if (els.enchantSlotFilter) {
   els.enchantSlotFilter.addEventListener('change', () => {
     ctx.actions.renderEnchantTable?.();
@@ -600,9 +602,12 @@ els.selectedCharacter.addEventListener('change', () => {
       ctx.actions.loadCurrentTitle?.(),
     ])
       .catch((error) => {
+        if (!lifecycle.active) return;
         if (els.enchantStatus) els.enchantStatus.textContent = normalizeApiErrorMessage(error);
       })
-      .finally(() => ctx.actions.renderEnchantTable?.());
+      .finally(() => {
+        if (lifecycle.active) ctx.actions.renderEnchantTable?.();
+      });
   }
 });
 els.addCharacterButton.addEventListener('click', () => {
@@ -743,8 +748,8 @@ let supplyRosterDragImage = null;
 let pendingSupplyRefreshTimer = 0;
 let pendingSupplySelectionUpdate = 0;
 const scheduleSupplyCharacterRefresh = (rowKey) => {
-  window.clearTimeout(pendingSupplyRefreshTimer);
-  pendingSupplyRefreshTimer = window.setTimeout(() => {
+  lifecycle.clearTimeout(pendingSupplyRefreshTimer);
+  pendingSupplyRefreshTimer = lifecycle.setTimeout(() => {
     refreshSupplyCharacterByKey(rowKey).catch((error) => {
       setSupplyError(normalizeApiErrorMessage(error, '캐릭터 갱신 중 오류가 발생했습니다.'));
       els.supplySearchStatus.textContent = '갱신 실패';
@@ -752,17 +757,17 @@ const scheduleSupplyCharacterRefresh = (rowKey) => {
   }, 350);
 };
 const scheduleSupplySelectionUpdate = (characterKey, nextKeys) => {
-  window.cancelAnimationFrame(pendingSupplySelectionUpdate);
-  pendingSupplySelectionUpdate = window.requestAnimationFrame(() => {
-    window.setTimeout(() => {
+  lifecycle.cancelAnimationFrame(pendingSupplySelectionUpdate);
+  pendingSupplySelectionUpdate = lifecycle.requestAnimationFrame(() => {
+    lifecycle.setTimeout(() => {
       updateSupplyCharacterSelection(characterKey, nextKeys);
     }, 0);
   });
 };
 const scheduleSupplyCharactersUpdate = (targetKeys, sourceLabel, updater) => {
-  window.cancelAnimationFrame(pendingSupplySelectionUpdate);
-  pendingSupplySelectionUpdate = window.requestAnimationFrame(() => {
-    window.setTimeout(() => {
+  lifecycle.cancelAnimationFrame(pendingSupplySelectionUpdate);
+  pendingSupplySelectionUpdate = lifecycle.requestAnimationFrame(() => {
+    lifecycle.setTimeout(() => {
       updateSupplyCharactersByKeys(targetKeys, sourceLabel, updater);
     }, 0);
   });
@@ -1236,4 +1241,13 @@ els.supplyPresetButtons.forEach((button) => {
     applySupplyPreset(button.dataset.supplyPreset);
   });
 });
+
+const disposeEventListeners = finishEventListenerCapture();
+return () => {
+  disposeEventListeners();
+  lifecycle.clearTimeout(feedbackStatusTimer);
+  lifecycle.clearTimeout(pendingSupplyRefreshTimer);
+  lifecycle.cancelAnimationFrame(pendingSupplySelectionUpdate);
+  clearSupplyRosterDragImage();
+};
 }

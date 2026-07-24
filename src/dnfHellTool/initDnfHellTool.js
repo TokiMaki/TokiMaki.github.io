@@ -92,6 +92,7 @@ import { installHellRenderCalc } from './hellRenderCalc.js';
 import { installEnchantView } from './enchantView.js';
 import { bindToolEvents } from './eventBindings.js';
 import { installBootstrap } from './bootstrap.js';
+import { createToolLifecycle } from './toolLifecycle.js';
 
 function createToolState() {
   return {
@@ -131,7 +132,7 @@ function createToolConfig() {
   };
 }
 
-function createToolContext(els) {
+function createToolContext(els, lifecycle) {
   const state = createToolState();
   const config = createToolConfig();
   const deps = {
@@ -149,7 +150,7 @@ function createToolContext(els) {
     ACTIVE_TAB_STORAGE_KEY, API_BASE, DEV_MODE_STORAGE_KEY, ENCHANT_INCLUDE_FILTER_STORAGE_KEY, ENCHANT_INCLUDE_KNOWN_FILTER_STORAGE_KEY, ENCHANT_MATERIAL_COST_STORAGE_KEY, ENCHANT_RELIC_TUNE_ATTEMPT_STORAGE_KEY, ENABLE_DEV_MODE, normalizeApiErrorMessage, parseApiJsonResponse, STORAGE_NAMESPACE_KEY, STORAGE_SCOPE_LABEL, SUPPLY_SOUL_EXCLUDED_KEYS_STORAGE_KEY, SUPPLY_SOUL_USAGE_RATES_STORAGE_KEY,
     SUPPLY_CHARACTER_FATIGUE_POTIONS, SUPPLY_CHARACTER_FATIGUE_PROFILES, SUPPLY_USAGE_CONSTANTS,
   };
-  const ctx = { els, state, config, deps, constants, caches: {}, actions: {} };
+  const ctx = { els, state, config, deps, constants, lifecycle, caches: {}, actions: {}, disposers: [] };
 
   installBrowserState(ctx);
   ctx.caches.characterCache = createNamespacedCache({
@@ -172,18 +173,40 @@ function createToolContext(els) {
   installSupplyViewApi(ctx);
   installHellApiState(ctx);
   installHellRenderCalc(ctx);
-  installEnchantView(ctx);
+  ctx.disposers.push(installEnchantView(ctx));
   installBootstrap(ctx);
   return ctx;
 }
 
 export function initDnfHellTool() {
-  const els = createToolDomRefs();
-  const ctx = createToolContext(els);
-  bindToolEvents(ctx);
-  ctx.actions.bootstrap();
-  return () => {
-    // 현재 도구 컨트롤러는 이벤트 정리를 개별로 하지 않는다.
-    // React StrictMode를 사용하지 않으면 개발 환경에서 중복 초기화 문제는 발생하지 않는다.
+  const lifecycle = createToolLifecycle();
+  let ctx = null;
+  const cleanup = (preservedError = null) => {
+    let cleanupError = null;
+    const disposers = ctx?.disposers?.splice(0).reverse() || [];
+    disposers.forEach((dispose) => {
+      try {
+        dispose?.();
+      } catch (error) {
+        cleanupError ||= error;
+      }
+    });
+    try {
+      lifecycle.dispose();
+    } catch (error) {
+      cleanupError ||= error;
+    }
+    if (preservedError) throw preservedError;
+    if (cleanupError) throw cleanupError;
   };
+
+  try {
+    const els = createToolDomRefs();
+    ctx = createToolContext(els, lifecycle);
+    ctx.disposers.push(bindToolEvents(ctx));
+    ctx.actions.bootstrap();
+    return cleanup;
+  } catch (error) {
+    cleanup(error);
+  }
 }

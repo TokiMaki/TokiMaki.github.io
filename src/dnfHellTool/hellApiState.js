@@ -1,5 +1,5 @@
 export function installHellApiState(ctx) {
-  const { els, state } = ctx;
+  const { els, state, lifecycle } = ctx;
   const { characterCache, supplyCache } = ctx.caches;
   const {
     applySelectedPercentile,
@@ -110,9 +110,12 @@ function setActiveTab(tabId, persist = true, options = {}) {
     } else {
       ctx.actions.loadCurrentEnchants?.()
         .catch((error) => {
+          if (!lifecycle.active) return;
           if (els.enchantStatus) els.enchantStatus.textContent = normalizeApiErrorMessage(error);
         })
-        .finally(() => ctx.actions.renderEnchantTable?.());
+        .finally(() => {
+          if (lifecycle.active) ctx.actions.renderEnchantTable?.();
+        });
     }
   } else {
     updateViewOnly();
@@ -186,6 +189,7 @@ async function addCharacterFromApi() {
     recalc();
     els.searchStatus.textContent = `${state.activeCharactersSource} · ${state.activeCharacters.length.toLocaleString('ko-KR')}캐릭`;
   } catch (error) {
+    if (!lifecycle.active) return;
     const rawMessage = normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
     const message = /fetch/i.test(rawMessage)
       ? '로컬 API 서버를 먼저 실행해 주세요. python3 neople_hell_api_server.py'
@@ -195,8 +199,10 @@ async function addCharacterFromApi() {
     setCalcMeta('캐릭터 검색에 실패했습니다');
     els.searchStatus.textContent = message;
   } finally {
-    setSearchBusy(false);
-    els.characterNameInput.focus();
+    if (lifecycle.active) {
+      setSearchBusy(false);
+      els.characterNameInput.focus();
+    }
   }
 }
 
@@ -238,13 +244,14 @@ async function refreshAllCharactersFromApi() {
       els.searchStatus.textContent = `${state.activeCharactersSource} · ${state.activeCharacters.length.toLocaleString('ko-KR')}캐릭 전체 갱신`;
     }
   } catch (error) {
+    if (!lifecycle.active) return;
     const message = normalizeApiErrorMessage(error, '전체 갱신에 실패했습니다.');
     els.error.textContent = message;
     els.calcState.textContent = '오류';
     setCalcMeta('전체 갱신에 실패했습니다');
     els.searchStatus.textContent = message;
   } finally {
-    setSearchBusy(false);
+    if (lifecycle.active) setSearchBusy(false);
   }
 }
 
@@ -254,7 +261,7 @@ function buildApiUrl(path, params) {
 }
 
 async function fetchCharacterSummary(serverId, characterName) {
-  const response = await fetch(buildApiUrl('/api/summarize', {
+  const response = await lifecycle.fetch(buildApiUrl('/api/summarize', {
     serverId,
     characterName,
   }), {
