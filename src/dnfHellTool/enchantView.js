@@ -1806,6 +1806,43 @@ function getTuneStepIndexBySource(state = {}, sourceType = 'equipmentTune') {
   return sourceType === 'equipmentTune' ? Number(state.equipmentTuneStepIndex || 0) : 0;
 }
 
+const API_CONNECTION_RETRY_DELAYS_MS = [750, 750, 750];
+const RETRYABLE_API_GATEWAY_STATUSES = new Set([502, 504, 521, 522, 523, 524]);
+
+function isRetryableApiConnectionError(error) {
+  if (error?.name === 'AbortError') return false;
+  return error instanceof TypeError
+    || /Failed to fetch|NetworkError|Load failed/i.test(String(error?.message || error || ''));
+}
+
+function isRetryableApiGatewayResponse(response) {
+  if (RETRYABLE_API_GATEWAY_STATUSES.has(Number(response?.status))) return true;
+  if (Number(response?.status) !== 503) return false;
+  return !String(response.headers?.get?.('content-type') || '').toLowerCase().includes('application/json');
+}
+
+function waitForApiConnectionRetry(delayMs) {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, delayMs);
+  });
+}
+
+async function fetchApiSearchWithRetry(lifecycle, input, init = {}) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await lifecycle.fetch(input, init);
+      if (!isRetryableApiGatewayResponse(response) || attempt >= API_CONNECTION_RETRY_DELAYS_MS.length) {
+        return response;
+      }
+    } catch (error) {
+      if (!isRetryableApiConnectionError(error) || attempt >= API_CONNECTION_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+    }
+    await waitForApiConnectionRetry(API_CONNECTION_RETRY_DELAYS_MS[attempt]);
+  }
+}
+
 function formatTitlePurchaseRouteLabel(row) {
   const elementLabel = row?.titleEnchantElement
     ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement
@@ -7028,7 +7065,11 @@ export function installEnchantView(ctx) {
       if (isCandidateSearch) {
         const query = new URLSearchParams({ serverId: isAdventureSearch ? 'adventure' : 'all', characterName });
         const searchStartedAt = getEnchantNowMs();
-        const response = await lifecycle.fetch(`${API_BASE}/api/search-all?${query.toString()}`, { cache: 'no-store' });
+        const response = await fetchApiSearchWithRetry(
+          lifecycle,
+          `${API_BASE}/api/search-all?${query.toString()}`,
+          { cache: 'no-store' },
+        );
         const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
         if (requestId !== state.enchantRequestId) return;
         const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
@@ -7046,7 +7087,11 @@ export function installEnchantView(ctx) {
       }
       const query = new URLSearchParams({ serverId, characterName });
       const searchStartedAt = getEnchantNowMs();
-      const response = await lifecycle.fetch(`${API_BASE}/api/search?${query.toString()}`, { cache: 'no-store' });
+      const response = await fetchApiSearchWithRetry(
+        lifecycle,
+        `${API_BASE}/api/search?${query.toString()}`,
+        { cache: 'no-store' },
+      );
       const payload = await parseApiJsonResponse(response, '캐릭터 검색에 실패했습니다.');
       if (requestId !== state.enchantRequestId) return;
       recordEnchantTimingStep('search', searchStartedAt, {
