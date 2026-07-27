@@ -25,6 +25,10 @@ SKILL_EFFECT_MODES = {
     "recognizedCoefficient",
     "unsupported",
 }
+REGION_STAT_FLAT_A = 168350
+REGION_STAT_FLAT_B = 297900
+REGION_STAT_SCALE = 3.08
+REGION_STAT_OFFSET = 2886
 
 
 def clean_text(value) -> str:
@@ -198,6 +202,20 @@ def get_level_attack_percent(
     return values[0]
 
 
+def get_post_amplified_effective_stat(
+    stat: float,
+    base_stat: float,
+    post_multiplier: float,
+) -> float:
+    effective_stat = (
+        stat
+        + REGION_STAT_FLAT_A
+        + REGION_STAT_FLAT_B
+        + int(REGION_STAT_SCALE * (stat - base_stat) + REGION_STAT_OFFSET)
+    )
+    return effective_stat * post_multiplier
+
+
 def resolve_recognized_coefficient(level: int | float) -> float:
     try:
         recognized_level = max(0, float(level))
@@ -299,16 +317,23 @@ def resolve_skill_effect_multiplier(
                     "calculable": False,
                     "reason": "힘/지능 증폭 계산에 필요한 현재 스탯 기준값이 없습니다.",
                 }
-            fixed_stat = base_stat - 250
             equipped_multiplier = 1 + equipped_attack / 100
             if equipped_multiplier <= 0:
                 return {
                     "calculable": False,
                     "reason": "현재 힘/지능 증가율이 올바르지 않습니다.",
                 }
-            amplified_stat = (current_final_stat - fixed_stat) / equipped_multiplier
-            current_stat = fixed_stat + amplified_stat * (1 + current_attack / 100)
-            target_stat = fixed_stat + amplified_stat * (1 + target_attack / 100)
+            unamplified_stat = current_final_stat / equipped_multiplier
+            current_stat = get_post_amplified_effective_stat(
+                unamplified_stat,
+                base_stat,
+                1 + current_attack / 100,
+            )
+            target_stat = get_post_amplified_effective_stat(
+                unamplified_stat,
+                base_stat,
+                1 + target_attack / 100,
+            )
             if current_stat + 250 <= 0 or target_stat + 250 <= 0:
                 return {
                     "calculable": False,
@@ -317,7 +342,7 @@ def resolve_skill_effect_multiplier(
             multiplier = (target_stat + 250) / (current_stat + 250)
         else:
             multiplier = (1 + target_attack / 100) / (1 + current_attack / 100)
-    return {
+    result = {
         "calculable": True,
         "currentSkillAttackPercent": current_attack,
         "targetSkillAttackPercent": target_attack,
@@ -326,6 +351,12 @@ def resolve_skill_effect_multiplier(
         "multiplier": multiplier,
         "incrementalDamagePercent": (multiplier - 1) * 100,
     }
+    if effect_mode == "statAmplification":
+        result.update({
+            "equippedSkillAttackPercent": equipped_attack,
+            "equippedStatPostMultiplier": equipped_multiplier,
+        })
+    return result
 
 
 def estimate_skill_plus_one(

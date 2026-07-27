@@ -256,9 +256,10 @@ export function createEnchantAvatarRecommendationSource(deps) {
       ),
       base,
     );
+    const statPostMultiplier = Number(base.statPostMultiplier || 1);
     return {
       ...baseBaseline,
-      stat: base.stat + getSelectedStatEffect(recognitionDelta, base),
+      stat: base.stat + getSelectedStatEffect(recognitionDelta, base) * statPostMultiplier,
     };
   }
 

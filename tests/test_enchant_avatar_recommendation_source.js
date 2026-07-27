@@ -49,11 +49,13 @@ function addEffects(...effectRows) {
 }
 
 function getDamageBaseline(baseline = {}) {
+  const statPostMultiplier = Number(baseline?.statPostMultiplier || 1);
   return {
     ...(baseline || {}),
     stat: Number(baseline?.stat || 0),
     statName: baseline?.statName === '지능' ? '지능' : '힘',
     baseStat: Number(baseline?.baseStat || 0),
+    ...(statPostMultiplier !== 1 ? { statPostMultiplier } : {}),
   };
 }
 
@@ -420,6 +422,22 @@ function testAvatarEmblemActualEquipmentScoreAndBaselineIdentity() {
     baseStat: 100,
     marker: 'same',
   });
+  const amplifiedEquipmentScoreBaseline = getAvatarEmblemMetricBaseline(
+    { ...baseline, statPostMultiplier: 1.38 },
+    avatar,
+    'equipmentScore',
+  );
+  assertClose(amplifiedEquipmentScoreBaseline.stat, -544.22);
+  assert.deepEqual(
+    { ...amplifiedEquipmentScoreBaseline, stat: -544.22 },
+    {
+      stat: -544.22,
+      statName: '지능',
+      baseStat: 100,
+      marker: 'same',
+      statPostMultiplier: 1.38,
+    },
+  );
   assert.equal(baseline.stat, 1000);
 }
 

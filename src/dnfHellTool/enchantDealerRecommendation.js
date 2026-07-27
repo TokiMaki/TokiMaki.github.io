@@ -93,9 +93,18 @@ export function createEnchantDealerRecommendation(deps) {
     const attackMultiplier = targetAttack / currentAttack;
     const currentStatValue = getSelectedStatEffect(currentEffects, base);
     const targetStatValue = getSelectedStatEffect(targetEffects, base);
-    const baseStat = base.stat - currentStatValue;
-    const currentEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + currentStatValue, base.baseStat);
-    const targetEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + targetStatValue, base.baseStat);
+    const statPostMultiplier = Number(base.statPostMultiplier || 1);
+    const baseStat = base.stat / statPostMultiplier - currentStatValue;
+    const currentEffectiveStat = getEquipmentScoreEffectiveStat(
+      baseStat + currentStatValue,
+      base.baseStat,
+      statPostMultiplier,
+    );
+    const targetEffectiveStat = getEquipmentScoreEffectiveStat(
+      baseStat + targetStatValue,
+      base.baseStat,
+      statPostMultiplier,
+    );
     const statMultiplier = (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
     const currentSkillDamageMultiplier = getSkillDamageMultiplier(current);
     const targetSkillDamageMultiplier = getSkillDamageMultiplier(row);
@@ -304,9 +313,18 @@ export function createEnchantDealerRecommendation(deps) {
     const attackMultiplier = targetAttack / currentAttack;
     const currentStatValue = getSelectedStatEffect(currentEffects, base);
     const targetStatValue = getSelectedStatEffect(targetEffects, base);
-    const baseStat = base.stat - currentStatValue;
-    const currentEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + currentStatValue, base.baseStat);
-    const targetEffectiveStat = getEquipmentScoreEffectiveStat(baseStat + targetStatValue, base.baseStat);
+    const statPostMultiplier = Number(base.statPostMultiplier || 1);
+    const baseStat = base.stat / statPostMultiplier - currentStatValue;
+    const currentEffectiveStat = getEquipmentScoreEffectiveStat(
+      baseStat + currentStatValue,
+      base.baseStat,
+      statPostMultiplier,
+    );
+    const targetEffectiveStat = getEquipmentScoreEffectiveStat(
+      baseStat + targetStatValue,
+      base.baseStat,
+      statPostMultiplier,
+    );
     const statMultiplier = (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
     const currentSkillDamageMultiplier = getSkillDamageMultiplier(current);
     const targetSkillDamageMultiplier = getSkillDamageMultiplier(row);

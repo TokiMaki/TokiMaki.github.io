@@ -171,10 +171,11 @@ export function createEnchantDealerSimulatorCalculation(deps) {
       base,
     );
     const selectedStatDelta = getSelectedStatEffect(delta, base);
+    const statPostMultiplier = Number(base.statPostMultiplier || 1);
     const elementDelta = Number(delta.elementAll || 0);
     const simulatedBaseline = {
       ...(metricBaseBaseline || {}),
-      stat: base.stat + selectedStatDelta,
+      stat: base.stat + selectedStatDelta * statPostMultiplier,
       element: base.element + elementDelta,
       elementDamage: base.elementDamage + elementDelta * ELEMENT_DAMAGE_PER_ELEMENT,
       elementValues: Object.fromEntries(Object.entries(base.elementValues || {}).map(([key, value]) => [

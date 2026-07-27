@@ -29,6 +29,10 @@ export function createEnchantDealerDamageMetric(deps) {
     baseline = baseline || {};
     const stat = Number(baseline.stat || 0) || ENCHANT_DAMAGE_BASELINE.stat;
     const baseStat = Number(baseline.baseStat || 0) || ENCHANT_DAMAGE_BASELINE.baseStat;
+    const rawStatPostMultiplier = Number(baseline.statPostMultiplier || 1);
+    const statPostMultiplier = Number.isFinite(rawStatPostMultiplier) && rawStatPostMultiplier > 0
+      ? rawStatPostMultiplier
+      : 1;
     const elementNames = Array.isArray(baseline.elementNames)
       ? baseline.elementNames.filter(Boolean)
       : (baseline.elementName ? [baseline.elementName] : []);
@@ -38,6 +42,7 @@ export function createEnchantDealerDamageMetric(deps) {
       stat,
       statName: baseline.statName === '지능' ? '지능' : '힘',
       baseStat,
+      ...(Math.abs(statPostMultiplier - 1) > 0.000001 ? { statPostMultiplier } : {}),
       element: Number(baseline.element || 0) || ENCHANT_DAMAGE_BASELINE.element,
       elementName: elementNames[0] || '',
       elementNames,
@@ -53,11 +58,15 @@ export function createEnchantDealerDamageMetric(deps) {
     };
   }
 
-  function getEquipmentScoreEffectiveStat(stat, baseStat) {
-    return stat +
+  function getEquipmentScoreEffectiveStat(stat, baseStat, statPostMultiplier = 1) {
+    const multiplier = Number.isFinite(Number(statPostMultiplier)) && Number(statPostMultiplier) > 0
+      ? Number(statPostMultiplier)
+      : 1;
+    return (stat +
       REGION_STAT_FLAT_A +
       REGION_STAT_FLAT_B +
-      Math.trunc(REGION_STAT_SCALE * (stat - baseStat) + REGION_STAT_OFFSET);
+      Math.trunc(REGION_STAT_SCALE * (stat - baseStat) + REGION_STAT_OFFSET))
+      * multiplier;
   }
 
   function getSelectedStatEffect(effects = {}, baseline = {}) {
@@ -94,8 +103,18 @@ export function createEnchantDealerDamageMetric(deps) {
     const effectiveAttack = base.attack + REGION_ATTACK_FLAT;
     const attackMultiplier = (effectiveAttack + Number(effects.attack || 0)) / effectiveAttack;
     const statValue = getSelectedStatEffect(effects, base);
-    const currentEffectiveStat = getEquipmentScoreEffectiveStat(base.stat, base.baseStat);
-    const candidateEffectiveStat = getEquipmentScoreEffectiveStat(base.stat + statValue, base.baseStat);
+    const statPostMultiplier = Number(base.statPostMultiplier || 1);
+    const unamplifiedStat = base.stat / statPostMultiplier;
+    const currentEffectiveStat = getEquipmentScoreEffectiveStat(
+      unamplifiedStat,
+      base.baseStat,
+      statPostMultiplier,
+    );
+    const candidateEffectiveStat = getEquipmentScoreEffectiveStat(
+      unamplifiedStat + statValue,
+      base.baseStat,
+      statPostMultiplier,
+    );
     const statMultiplier = (1 + candidateEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
     const explicitSkillDamageMultiplier = Number(effects.skillDamageMultiplier || 0);
     const skillDamageMultiplier = Number.isFinite(explicitSkillDamageMultiplier) && explicitSkillDamageMultiplier > 0

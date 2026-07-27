@@ -87,6 +87,7 @@ def get_avatar_skill_effect_context(
     detail: dict,
     current_avatar: dict,
     skill_name: str,
+    primary_stat_name: str = "",
 ) -> dict:
     status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
     status = {
@@ -94,7 +95,11 @@ def get_avatar_skill_effect_context(
         for row in status_payload.get("status") or []
         if clean_text(row.get("name"))
     }
-    stat_name = "힘" if status.get("힘", 0) >= status.get("지능", 0) else "지능"
+    stat_name = (
+        clean_text(primary_stat_name)
+        if clean_text(primary_stat_name) in {"힘", "지능"}
+        else "힘" if status.get("힘", 0) >= status.get("지능", 0) else "지능"
+    )
     base_stats = resolve_job_base_stat_row(
         clean_text(detail.get("jobName")),
         clean_text(detail.get("jobGrowName")),
@@ -363,6 +368,15 @@ def is_recognized_coefficient_skill(skill_name: str, skill_infos: dict) -> bool:
     return clean_text((skill_info.get("effectSpec") or {}).get("mode")) == "recognizedCoefficient"
 
 
+def get_current_stat_post_multiplier(analyzed_skills: list[dict]) -> float:
+    return next((
+        float(row.get("equippedStatPostMultiplier") or 1)
+        for row in analyzed_skills
+        if clean_text(row.get("effectMode")) == "statAmplification"
+        and float(row.get("equippedStatPostMultiplier") or 0) > 0
+    ), 1.0)
+
+
 def get_avatar_db_fallback_combo(option_db: dict, current_avatar: dict) -> dict:
     db_combos = get_avatar_candidate_combos(option_db, current_avatar)
     current_top_key = normalize_skill_key(current_avatar.get("topSkill"))
@@ -611,6 +625,7 @@ def get_character_avatar_skill_infos(
     skill_level_overrides: dict | None = None,
     current_avatar: dict | None = None,
     skill_effect_specs: dict | None = None,
+    primary_stat_name: str = "",
 ) -> tuple[list[dict], dict]:
     normalized_level_overrides = normalize_skill_level_overrides(skill_level_overrides)
     job_id = clean_text(detail.get("jobId"))
@@ -714,6 +729,7 @@ def get_character_avatar_skill_infos(
                     detail,
                     current_avatar,
                     skill_name,
+                    primary_stat_name,
                 )
                 effect_context["recognizedBaseLevel"] = 0
                 effect_context["currentRecognizedLevel"] = current_recognized_level
@@ -756,6 +772,7 @@ def select_best_avatar_combo_for_character(
     option_db: dict,
     skill_level_overrides: dict | None = None,
     prefer_current_top: bool = False,
+    primary_stat_name: str = "",
 ) -> dict:
     current_avatar = extract_current_avatar_skills(avatar_payload)
     combo_candidates = build_avatar_combo_candidates(option_db, current_avatar)
@@ -776,7 +793,9 @@ def select_best_avatar_combo_for_character(
         skill_level_overrides,
         current_avatar,
         option_db.get("skillEffects") or {},
+        primary_stat_name,
     )
+    current_stat_post_multiplier = get_current_stat_post_multiplier(analyzed)
     all_combo_results = [
         evaluate_avatar_combo(combo, current_avatar, skill_infos, include_price=False)
         for combo in combo_candidates
@@ -813,6 +832,7 @@ def select_best_avatar_combo_for_character(
             "recommendedCombos": [],
             "recommendedCombo": current_result,
             "usesRecognizedCoefficient": True,
+            "currentStatPostMultiplier": current_stat_post_multiplier,
         }
 
     if has_empty_platinum_slot and candidate_has_recognized_platinum:
@@ -832,6 +852,7 @@ def select_best_avatar_combo_for_character(
             "recommendedCombos": [fallback_result] if fallback_result else [],
             "recommendedCombo": fallback_result,
             "usesRecognizedCoefficient": True,
+            "currentStatPostMultiplier": current_stat_post_multiplier,
         }
 
     combo_results = [
@@ -872,6 +893,7 @@ def select_best_avatar_combo_for_character(
         "comboResults": combo_results[:20],
         "recommendedCombos": strongest_recommended_combos,
         "recommendedCombo": recommended_combo,
+        "currentStatPostMultiplier": current_stat_post_multiplier,
         "usesRecognizedCoefficient": any(
             clean_text((info.get("effectSpec") or {}).get("mode")) == "recognizedCoefficient"
             for info in skill_infos.values()
@@ -924,6 +946,7 @@ def load_character_avatar_skill_efficiency(
         current_avatar,
         option_db.get("skillEffects") or {},
     )
+    current_stat_post_multiplier = get_current_stat_post_multiplier(analyzed)
 
     combo_results = [
         evaluate_avatar_combo(combo, current_avatar, skill_infos)
@@ -965,6 +988,7 @@ def load_character_avatar_skill_efficiency(
         "recommendedVsCurrent": recommended_vs_current,
         "bestCombo": recommended_combo,
         "comboResults": combo_results[:20],
+        "currentStatPostMultiplier": current_stat_post_multiplier,
     }
 
 

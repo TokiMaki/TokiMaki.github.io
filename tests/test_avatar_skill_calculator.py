@@ -136,7 +136,7 @@ class AvatarSkillCalculatorTests(unittest.TestCase):
                 self.assertTrue(result["calculable"])
                 self.assertAlmostEqual(result["multiplier"], 1.22 / 1.20)
 
-    def test_dimension_alignment_uses_current_stat_amplification(self):
+    def test_dimension_alignment_amplifies_post_corrected_effective_stat(self):
         detail = build_skill_detail(
             "17e417b31686389eebff6d754c3401ea",
             "차원일치",
@@ -160,7 +160,9 @@ class AvatarSkillCalculatorTests(unittest.TestCase):
         )
 
         self.assertTrue(result["calculable"])
-        self.assertAlmostEqual(result["incrementalDamagePercent"], 1.3702487692)
+        self.assertAlmostEqual(result["incrementalDamagePercent"], 1.4700472579)
+        self.assertEqual(result["equippedSkillAttackPercent"], 38)
+        self.assertEqual(result["equippedStatPostMultiplier"], 1.38)
 
     def test_recognized_coefficient_uses_recognized_level_only(self):
         detail = build_skill_detail(

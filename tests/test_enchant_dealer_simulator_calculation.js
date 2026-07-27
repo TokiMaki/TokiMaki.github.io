@@ -218,6 +218,7 @@ function testBuildSimulatedDamageBaselineAllSourcesAdjustedFallbackAndImmutabili
     stat: 1000,
     statName: '지능',
     baseStat: 100,
+    statPostMultiplier: 1.38,
     element: 300,
     elementDamage: 155,
     elementValues: { fire: 300, water: 290, light: 280, dark: 270 },
@@ -287,7 +288,7 @@ function testBuildSimulatedDamageBaselineAllSourcesAdjustedFallbackAndImmutabili
   assert.deepEqual(fallbackBaseline, {
     ...baseBaseline,
     metricMarker: 'equipmentScore',
-    stat: 1053,
+    stat: 1073.14,
     element: 308,
     elementDamage: 159,
     elementValues: { fire: 308, water: 298, light: 288, dark: 278 },

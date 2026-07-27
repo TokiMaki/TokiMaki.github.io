@@ -78,10 +78,12 @@ function getDamageBaseline(baseline = {}) {
     ? baseline.elementNames.filter(Boolean)
     : (baseline.elementName ? [baseline.elementName] : []);
   const element = Number(baseline.element || 0);
+  const statPostMultiplier = Number(baseline.statPostMultiplier || 1);
   return {
     stat: Number(baseline.stat || 0),
     statName: baseline.statName === '지능' ? '지능' : '힘',
     baseStat: Number(baseline.baseStat || 0),
+    ...(statPostMultiplier !== 1 ? { statPostMultiplier } : {}),
     element,
     elementName: elementNames[0] || '',
     elementNames,
@@ -104,8 +106,10 @@ function getSelectedStatEffect(effects = {}, baseline = {}) {
     : Number(effects.str || 0);
 }
 
-function getEquipmentScoreEffectiveStat(stat, baseStat) {
-  return stat + 168350 + 297900 + Math.trunc(3.08 * (stat - baseStat) + 2886);
+function getEquipmentScoreEffectiveStat(stat, baseStat, statPostMultiplier = 1) {
+  return (
+    stat + 168350 + 297900 + Math.trunc(3.08 * (stat - baseStat) + 2886)
+  ) * statPostMultiplier;
 }
 
 function estimateDamageMultiplier(effects = {}, baseline = {}) {
@@ -120,10 +124,17 @@ function estimateDamageMultiplier(effects = {}, baseline = {}) {
     / (1 + base.elementDamage / 100);
   const attackMultiplier = (base.attack + REGION_ATTACK_FLAT + Number(effects.attack || 0))
     / (base.attack + REGION_ATTACK_FLAT);
-  const currentEffectiveStat = getEquipmentScoreEffectiveStat(base.stat, base.baseStat);
-  const candidateEffectiveStat = getEquipmentScoreEffectiveStat(
-    base.stat + getSelectedStatEffect(effects, base),
+  const statPostMultiplier = Number(base.statPostMultiplier || 1);
+  const unamplifiedStat = base.stat / statPostMultiplier;
+  const currentEffectiveStat = getEquipmentScoreEffectiveStat(
+    unamplifiedStat,
     base.baseStat,
+    statPostMultiplier,
+  );
+  const candidateEffectiveStat = getEquipmentScoreEffectiveStat(
+    unamplifiedStat + getSelectedStatEffect(effects, base),
+    base.baseStat,
+    statPostMultiplier,
   );
   const statMultiplier = (1 + candidateEffectiveStat / 250) / (1 + currentEffectiveStat / 250);
   const explicitSkillDamageMultiplier = Number(effects.skillDamageMultiplier || 0);
@@ -336,6 +347,31 @@ function testReplacementDamageFormulas() {
     getReplacementIncrementalDamagePercent(target, current, baseline),
     21.467397056647286,
     1e-12,
+  );
+  const darkKnightBaseline = {
+    stat: 11071,
+    statName: '힘',
+    baseStat: 762,
+    statPostMultiplier: 1.38,
+  };
+  const darkKnightRawBaseStat = darkKnightBaseline.stat / 1.38 - 10;
+  const darkKnightCurrentStat = getEquipmentScoreEffectiveStat(
+    darkKnightRawBaseStat + 10,
+    darkKnightBaseline.baseStat,
+    1.38,
+  );
+  const darkKnightTargetStat = getEquipmentScoreEffectiveStat(
+    darkKnightRawBaseStat + 20,
+    darkKnightBaseline.baseStat,
+    1.38,
+  );
+  assertClose(
+    getReplacementIncrementalDamagePercent(
+      { effects: { str: 20 } },
+      { effects: { str: 10 } },
+      darkKnightBaseline,
+    ),
+    ((1 + darkKnightTargetStat / 250) / (1 + darkKnightCurrentStat / 250) - 1) * 100,
   );
 
   const titleCurrent = deepFreeze({

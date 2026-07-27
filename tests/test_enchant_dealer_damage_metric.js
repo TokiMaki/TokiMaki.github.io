@@ -307,6 +307,39 @@ function testDamageMultiplierSentinelsProductPercentRatioAndImmutability() {
   assert.deepEqual(combined, combinedSnapshot);
 }
 
+function testDarkKnightStatPostMultiplierUsesUnamplifiedTownStat() {
+  const {
+    getDamageBaseline,
+    getEquipmentScoreEffectiveStat,
+    estimateDamageMultiplier,
+  } = createMetric();
+  const baseline = {
+    stat: 11071,
+    statName: '힘',
+    baseStat: 762,
+    statPostMultiplier: 1.38,
+  };
+  const base = getDamageBaseline(baseline);
+  assert.equal(base.statPostMultiplier, 1.38);
+
+  const unamplifiedStat = base.stat / base.statPostMultiplier;
+  const currentEffectiveStat = getEquipmentScoreEffectiveStat(
+    unamplifiedStat,
+    base.baseStat,
+    base.statPostMultiplier,
+  );
+  const targetEffectiveStat = getEquipmentScoreEffectiveStat(
+    unamplifiedStat + 10,
+    base.baseStat,
+    base.statPostMultiplier,
+  );
+  assertClose(
+    estimateDamageMultiplier({ str: 10 }, baseline),
+    (1 + targetEffectiveStat / 250) / (1 + currentEffectiveStat / 250),
+  );
+  assertClose(targetEffectiveStat - currentEffectiveStat, 56.58);
+}
+
 function createStubModuleSource(importNames) {
   const lines = [];
   for (const name of importNames) {
@@ -380,6 +413,7 @@ const tests = [
   testPrimaryStatAndDamageBaselineFallbacksOrderAndReferences,
   testEffectiveStatTruncationAndSelectedStatBranches,
   testDamageMultiplierSentinelsProductPercentRatioAndImmutability,
+  testDarkKnightStatPostMultiplierUsesUnamplifiedTownStat,
   testViewImportAssemblyAndTdzSmoke,
 ];
 

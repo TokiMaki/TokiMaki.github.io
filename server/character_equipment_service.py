@@ -3460,6 +3460,11 @@ def load_character_loadout(
                     clean_text(damage_baseline.get("jobGrowName")),
                 ).get(avatar_primary_stat_name)
             )
+            stat_post_multiplier = parse_percent_or_number(
+                (avatar_payload.get("avatar") or {}).get("currentStatPostMultiplier")
+            )
+            if clean_text(damage_baseline.get("jobName")) == "다크나이트" and stat_post_multiplier > 0:
+                damage_baseline["statPostMultiplier"] = stat_post_multiplier
         return {
             "serverId": enchant_payload.get("serverId"),
             "characterId": enchant_payload.get("characterId"),
@@ -5212,6 +5217,7 @@ def load_character_avatar(
                     payload,
                     option_db,
                     prefer_current_top=True,
+                    primary_stat_name=primary_stat_name,
                 ),
             )
         except Exception as error:
@@ -6044,6 +6050,9 @@ def load_character_avatar(
         "expectedPlatinumEmblemsBySlot": platinum_skill_by_slot,
         "recommendedCombo": recommended_avatar_combo,
         "comboAnalysisError": avatar_combo_analysis.get("error"),
+        "currentStatPostMultiplier": float(
+            avatar_combo_analysis.get("currentStatPostMultiplier") or 1
+        ),
         "recognizedTopOptionLevelContribution": recognized_top_option_level,
         "rareAvatarCount": len(rare_slots),
         "rareAvatarSlots": rare_slots,
