@@ -6,13 +6,6 @@ const DB_PATH = path.join(ROOT, "Docs", "avatar_option_db.json");
 const DEFAULT_COMBO_LIMIT = 4;
 const MIN_ADOPTION_RATE = 10;
 
-const JOB_NAME_OVERRIDES = {
-  "마법사(남)|엘레멘탈바머": "엘레멘탈 바머",
-  "마법사(남)|스위프트마스터": "스위프트 마스터",
-  "마창사|다크랜서": "다크 랜서",
-  "총검사|트러블슈터": "트러블 슈터",
-};
-
 const GROUP_OVERRIDES = {
   "외전|다크나이트": "다크나이트",
   "외전|크리에이터": "크리에이터",
@@ -21,7 +14,7 @@ const GROUP_OVERRIDES = {
 function getDfmaxPath(entry) {
   const key = `${entry.classGroup}|${entry.guideName}`;
   const group = GROUP_OVERRIDES[key] || entry.classGroup;
-  const jobName = JOB_NAME_OVERRIDES[key] || entry.guideName;
+  const jobName = entry.guideName;
   return `/jobs/${encodeURIComponent(group)}/${encodeURIComponent(`眞 ${jobName}`)}/avatar`;
 }
 

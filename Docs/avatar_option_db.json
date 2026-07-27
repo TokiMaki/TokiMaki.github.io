@@ -1226,7 +1226,7 @@
     },
     {
       "classGroup": "마법사(남)",
-      "guideName": "엘레멘탈바머",
+      "guideName": "엘레멘탈 바머",
       "source": {
         "site": "dfmax.xyz",
         "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EC%97%98%EB%A0%88%EB%A9%98%ED%83%88%20%EB%B0%94%EB%A8%B8/avatar"
@@ -1389,7 +1389,7 @@
     },
     {
       "classGroup": "마법사(남)",
-      "guideName": "스위프트마스터",
+      "guideName": "스위프트 마스터",
       "source": {
         "site": "dfmax.xyz",
         "url": "https://dfmax.xyz/jobs/%EB%A7%88%EB%B2%95%EC%82%AC(%EB%82%A8)/%E7%9C%9E%20%EC%8A%A4%EC%9C%84%ED%94%84%ED%8A%B8%20%EB%A7%88%EC%8A%A4%ED%84%B0/avatar"
@@ -2655,7 +2655,7 @@
     },
     {
       "classGroup": "마창사",
-      "guideName": "다크랜서",
+      "guideName": "다크 랜서",
       "source": {
         "site": "dfmax.xyz",
         "url": "https://dfmax.xyz/jobs/%EB%A7%88%EC%B0%BD%EC%82%AC/%E7%9C%9E%20%EB%8B%A4%ED%81%AC%20%EB%9E%9C%EC%84%9C/avatar"
@@ -2797,7 +2797,7 @@
     },
     {
       "classGroup": "총검사",
-      "guideName": "트러블슈터",
+      "guideName": "트러블 슈터",
       "source": {
         "site": "dfmax.xyz",
         "url": "https://dfmax.xyz/jobs/%EC%B4%9D%EA%B2%80%EC%82%AC/%E7%9C%9E%20%ED%8A%B8%EB%9F%AC%EB%B8%94%20%EC%8A%88%ED%84%B0/avatar"
@@ -3028,6 +3028,47 @@
       },
       "review": {
         "adoptionRate": 91.57
+      }
+    },
+    {
+      "classGroup": "아처",
+      "guideName": "키메라",
+      "source": {
+        "site": "dfmax.xyz",
+        "url": "https://dfmax.xyz/jobs/%EC%95%84%EC%B2%98/%E7%9C%9E%20%ED%82%A4%EB%A9%94%EB%9D%BC/avatar"
+      },
+      "role": "dealer",
+      "avatar": {
+        "topOptions": [
+          "복제의 유산"
+        ],
+        "platinumEmblems": [
+          "복제의 유산"
+        ],
+        "needsReview": false,
+        "extractor": "dfmax-avatar-adoption-rank-v1",
+        "candidateCombos": [
+          {
+            "rank": 1,
+            "topOption": "복제의 유산",
+            "platinumEmblems": [
+              "복제의 유산",
+              "복제의 유산"
+            ],
+            "adoptionRate": 94.61
+          }
+        ],
+        "skillEffects": {
+          "복제의 유산": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
+      },
+      "review": {
+        "adoptionRate": 94.61
       }
     },
     {
