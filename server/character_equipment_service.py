@@ -5285,6 +5285,12 @@ def load_character_avatar(
             iter(current_platinum_skills),
             "",
         )
+        current_has_recognized_coefficient = any(
+            clean_text(
+                get_avatar_skill_effect_config(option_db, current_skill).get("mode")
+            ) == "recognizedCoefficient"
+            for current_skill in current_platinum_skills
+        )
         recognized_platinum_level_by_slot[slot_id] = (
             1
             if any(
@@ -5294,6 +5300,9 @@ def load_character_avatar(
             else 0
         )
         if any(skill_name_matches(current_skill, skip_skill) for current_skill in current_platinum_skills for skip_skill in skip_current_platinum_skills):
+            platinum_slots.append(slot_label)
+            continue
+        if not buffer_baseline and current_has_recognized_coefficient:
             platinum_slots.append(slot_label)
             continue
         target_platinum_skill = clean_text(platinum_skill_by_slot.get(slot_label) or platinum_skill)

@@ -5,8 +5,10 @@ from unittest.mock import patch
 
 from server.avatar_skill_optimizer import (
     evaluate_avatar_combo,
+    extract_current_avatar_skills,
     get_character_avatar_skill_infos,
     resolve_weapon_mastery_skill_name,
+    select_best_avatar_combo_for_character,
 )
 from server.calculators.avatar_skill_calculator import (
     estimate_skill_plus_one,
@@ -303,6 +305,331 @@ class AvatarSkillCalculatorTests(unittest.TestCase):
 
         self.assertTrue(result["calculable"])
         self.assertAlmostEqual(result["multiplier"], 1.26 / 1.20)
+
+    def test_single_platinum_keeps_its_physical_slot(self):
+        current = extract_current_avatar_skills({
+            "avatar": [
+                {"slotId": "JACKET", "optionAbility": "현재 상의", "emblems": []},
+                {
+                    "slotId": "PANTS",
+                    "emblems": [{
+                        "slotColor": "플래티넘",
+                        "itemName": "플래티넘 엠블렘[블러드]",
+                    }],
+                },
+            ],
+        })
+
+        self.assertEqual(current["platinumSkills"], ["블러드"])
+        self.assertEqual(current["platinumSlotSkills"], ["", "블러드"])
+
+    def test_single_direct_platinum_selects_strongest_slot_aware_combo(self):
+        option_db = {
+            "topOptions": ["현재 상의"],
+            "platinumEmblems": ["블러드"],
+            "platinumCandidates": ["블러드", "블러드 혼"],
+        }
+        avatar_payload = {
+            "avatar": [
+                {"slotId": "JACKET", "optionAbility": "현재 상의", "emblems": []},
+                {
+                    "slotId": "PANTS",
+                    "emblems": [{
+                        "slotColor": "플래티넘",
+                        "itemName": "플래티넘 엠블렘[블러드]",
+                    }],
+                },
+            ],
+        }
+        skill_infos = {
+            "블러드": {"effectSpec": {"mode": "increase"}},
+            "블러드혼": {"effectSpec": {"mode": "increase"}},
+            "현재상의": {"effectSpec": {"mode": "increase"}},
+        }
+
+        def evaluate(combo, *_args, **_kwargs):
+            platinum_skills = combo.get("platinumSkills") or []
+            is_mixed = set(platinum_skills) == {"블러드", "블러드 혼"}
+            return {
+                **combo,
+                "calculable": True,
+                "incrementalDamagePercent": 10 if is_mixed else 1,
+                "changeCount": 1 if is_mixed else 2,
+                "slotChangeCount": (
+                    1 if platinum_skills == ["블러드 혼", "블러드"] else 2
+                ),
+            }
+
+        with (
+            patch(
+                "server.avatar_skill_optimizer.get_character_avatar_skill_infos",
+                return_value=([], skill_infos),
+            ),
+            patch("server.avatar_skill_optimizer.evaluate_avatar_combo", side_effect=evaluate),
+        ):
+            result = select_best_avatar_combo_for_character(
+                "cain",
+                "character",
+                {},
+                avatar_payload,
+                option_db,
+                prefer_current_top=True,
+            )
+
+        self.assertEqual(
+            result["recommendedCombo"]["platinumSkills"],
+            ["블러드 혼", "블러드"],
+        )
+
+    def test_single_recognized_platinum_uses_db_fallback_for_empty_slot(self):
+        option_db = {
+            "topOptions": ["현재 상의"],
+            "platinumEmblems": ["인정 플티"],
+            "platinumCandidates": ["인정 플티", "직접 플티"],
+            "candidateCombos": [{
+                "rank": 1,
+                "topOption": "현재 상의",
+                "platinumEmblems": ["인정 플티", "인정 플티"],
+            }],
+        }
+        avatar_payload = {
+            "avatar": [
+                {"slotId": "JACKET", "optionAbility": "현재 상의", "emblems": []},
+                {
+                    "slotId": "PANTS",
+                    "emblems": [{
+                        "slotColor": "플래티넘",
+                        "itemName": "플래티넘 엠블렘[인정 플티]",
+                    }],
+                },
+            ],
+        }
+        skill_infos = {
+            "인정플티": {"effectSpec": {"mode": "recognizedCoefficient"}},
+            "직접플티": {"effectSpec": {"mode": "increase"}},
+            "현재상의": {"effectSpec": {"mode": "increase"}},
+        }
+
+        with (
+            patch(
+                "server.avatar_skill_optimizer.get_character_avatar_skill_infos",
+                return_value=([], skill_infos),
+            ),
+            patch(
+                "server.avatar_skill_optimizer.evaluate_avatar_combo",
+                side_effect=lambda combo, *_args, **_kwargs: {
+                    **combo,
+                    "calculable": True,
+                    "incrementalDamagePercent": 1,
+                },
+            ),
+        ):
+            result = select_best_avatar_combo_for_character(
+                "cain",
+                "character",
+                {},
+                avatar_payload,
+                option_db,
+                prefer_current_top=True,
+            )
+
+        self.assertEqual(result["selectionScope"], "emptyPlatinumDbFallback")
+        self.assertEqual(
+            result["recommendedCombo"]["platinumSkills"],
+            ["인정 플티", "인정 플티"],
+        )
+        self.assertEqual(
+            result["currentAvatarSkills"]["platinumSlotSkills"],
+            ["", "인정 플티"],
+        )
+
+    def test_empty_platinum_uses_db_combo_when_recognized_candidate_exists(self):
+        option_db = {
+            "topOptions": ["첫 상의", "현재 상의"],
+            "platinumEmblems": ["인정 플티"],
+            "platinumCandidates": ["인정 플티", "직접 플티"],
+            "candidateCombos": [
+                {
+                    "rank": 1,
+                    "topOption": "첫 상의",
+                    "platinumEmblems": ["인정 플티", "인정 플티"],
+                },
+                {
+                    "rank": 2,
+                    "topOption": "현재 상의",
+                    "platinumEmblems": ["직접 플티", "직접 플티"],
+                },
+            ],
+        }
+        avatar_payload = {
+            "avatar": [
+                {"slotId": "JACKET", "optionAbility": "현재 상의", "emblems": []},
+                {"slotId": "PANTS", "emblems": []},
+            ],
+        }
+        skill_infos = {
+            "인정플티": {"effectSpec": {"mode": "recognizedCoefficient"}},
+            "직접플티": {"effectSpec": {"mode": "increase"}},
+            "첫상의": {"effectSpec": {"mode": "increase"}},
+            "현재상의": {"effectSpec": {"mode": "increase"}},
+        }
+
+        def evaluate(combo, *_args, **_kwargs):
+            return {
+                **combo,
+                "calculable": True,
+                "incrementalDamagePercent": (
+                    100 if "인정 플티" in (combo.get("platinumSkills") or []) else 1
+                ),
+            }
+
+        with (
+            patch(
+                "server.avatar_skill_optimizer.get_character_avatar_skill_infos",
+                return_value=([], skill_infos),
+            ),
+            patch("server.avatar_skill_optimizer.evaluate_avatar_combo", side_effect=evaluate),
+        ):
+            result = select_best_avatar_combo_for_character(
+                "cain",
+                "character",
+                {},
+                avatar_payload,
+                option_db,
+                prefer_current_top=True,
+            )
+
+        self.assertEqual(result["selectionScope"], "emptyPlatinumDbFallback")
+        self.assertEqual(result["recommendedCombo"]["topSkill"], "현재 상의")
+        self.assertEqual(
+            result["recommendedCombo"]["platinumSkills"],
+            ["직접 플티", "직접 플티"],
+        )
+
+    def test_equipped_recognized_platinum_skips_combo_replacement(self):
+        option_db = {
+            "topOptions": ["현재 상의"],
+            "platinumEmblems": ["직접 플티"],
+            "platinumCandidates": ["인정 플티", "직접 플티"],
+        }
+        avatar_payload = {
+            "avatar": [
+                {
+                    "slotId": "JACKET",
+                    "optionAbility": "현재 상의",
+                    "emblems": [{
+                        "slotColor": "플래티넘",
+                        "itemName": "플래티넘 엠블렘[인정 플티]",
+                    }],
+                },
+                {
+                    "slotId": "PANTS",
+                    "emblems": [{
+                        "slotColor": "플래티넘",
+                        "itemName": "플래티넘 엠블렘[인정 플티]",
+                    }],
+                },
+            ],
+        }
+        skill_infos = {
+            "인정플티": {"effectSpec": {"mode": "recognizedCoefficient"}},
+            "직접플티": {"effectSpec": {"mode": "increase"}},
+            "현재상의": {"effectSpec": {"mode": "increase"}},
+        }
+
+        with (
+            patch(
+                "server.avatar_skill_optimizer.get_character_avatar_skill_infos",
+                return_value=([], skill_infos),
+            ),
+            patch(
+                "server.avatar_skill_optimizer.evaluate_avatar_combo",
+                side_effect=lambda combo, *_args, **_kwargs: {
+                    **combo,
+                    "calculable": True,
+                    "incrementalDamagePercent": 1,
+                },
+            ),
+        ):
+            result = select_best_avatar_combo_for_character(
+                "cain",
+                "character",
+                {},
+                avatar_payload,
+                option_db,
+                prefer_current_top=True,
+            )
+
+        self.assertEqual(result["selectionScope"], "currentRecognizedPlatinum")
+        self.assertEqual(
+            result["recommendedCombo"]["platinumSkills"],
+            ["인정 플티", "인정 플티"],
+        )
+        self.assertEqual(result["recommendedCombos"], [])
+
+    def test_equipped_direct_platinum_still_uses_direct_combo_comparison(self):
+        option_db = {
+            "topOptions": ["현재 상의"],
+            "platinumEmblems": ["직접 플티"],
+            "platinumCandidates": ["직접 플티", "인정 플티"],
+        }
+        avatar_payload = {
+            "avatar": [
+                {
+                    "slotId": "JACKET",
+                    "optionAbility": "현재 상의",
+                    "emblems": [{
+                        "slotColor": "플래티넘",
+                        "itemName": "플래티넘 엠블렘[직접 플티]",
+                    }],
+                },
+                {
+                    "slotId": "PANTS",
+                    "emblems": [{
+                        "slotColor": "플래티넘",
+                        "itemName": "플래티넘 엠블렘[직접 플티]",
+                    }],
+                },
+            ],
+        }
+        skill_infos = {
+            "인정플티": {"effectSpec": {"mode": "recognizedCoefficient"}},
+            "직접플티": {"effectSpec": {"mode": "increase"}},
+            "현재상의": {"effectSpec": {"mode": "increase"}},
+        }
+
+        def evaluate(combo, *_args, **_kwargs):
+            return {
+                **combo,
+                "calculable": True,
+                "incrementalDamagePercent": (
+                    100 if "인정 플티" in (combo.get("platinumSkills") or []) else 1
+                ),
+                "changeCount": 0,
+                "slotChangeCount": 0,
+            }
+
+        with (
+            patch(
+                "server.avatar_skill_optimizer.get_character_avatar_skill_infos",
+                return_value=([], skill_infos),
+            ),
+            patch("server.avatar_skill_optimizer.evaluate_avatar_combo", side_effect=evaluate),
+        ):
+            result = select_best_avatar_combo_for_character(
+                "cain",
+                "character",
+                {},
+                avatar_payload,
+                option_db,
+                prefer_current_top=True,
+            )
+
+        self.assertNotEqual(result["selectionScope"], "currentRecognizedPlatinum")
+        self.assertEqual(
+            result["recommendedCombo"]["platinumSkills"],
+            ["직접 플티", "직접 플티"],
+        )
 
     def test_all_dealer_avatar_candidates_have_effect_metadata(self):
         db_path = Path(__file__).resolve().parents[1] / "Docs" / "avatar_option_db.json"

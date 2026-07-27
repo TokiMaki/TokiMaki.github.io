@@ -358,6 +358,42 @@ def build_current_avatar_combo(current_avatar: dict) -> dict:
     }
 
 
+def is_recognized_coefficient_skill(skill_name: str, skill_infos: dict) -> bool:
+    skill_info = skill_infos.get(normalize_skill_key(skill_name)) or {}
+    return clean_text((skill_info.get("effectSpec") or {}).get("mode")) == "recognizedCoefficient"
+
+
+def get_avatar_db_fallback_combo(option_db: dict, current_avatar: dict) -> dict:
+    db_combos = get_avatar_candidate_combos(option_db, current_avatar)
+    current_top_key = normalize_skill_key(current_avatar.get("topSkill"))
+    if current_top_key:
+        matching_top = [
+            combo
+            for combo in db_combos
+            if normalize_skill_key(combo.get("topSkill")) == current_top_key
+        ]
+        if matching_top:
+            return matching_top[0]
+    if db_combos:
+        return db_combos[0]
+
+    top_skill = clean_text(
+        current_avatar.get("topSkill")
+        or next(iter(option_db.get("topOptions") or []), "")
+    )
+    platinum_skill = clean_text(
+        next(iter(option_db.get("platinumEmblems") or []), "")
+        or next(iter(option_db.get("platinumCandidates") or []), "")
+    )
+    if not top_skill or not platinum_skill:
+        return {}
+    return {
+        "topSkill": top_skill,
+        "platinumSkills": [platinum_skill, platinum_skill],
+        "sourceRank": 1,
+    }
+
+
 def parse_top_skill_name(value: str) -> str:
     return re.sub(r"\s*스킬\s*Lv\s*\+\s*1\s*$", "", clean_text(value), flags=re.IGNORECASE)
 
@@ -366,19 +402,24 @@ def extract_current_avatar_skills(avatar_payload: dict) -> dict:
     avatar_rows = avatar_payload.get("avatar") or []
     jacket = next((row for row in avatar_rows if clean_text(row.get("slotId")) == "JACKET"), {}) or {}
     pants = next((row for row in avatar_rows if clean_text(row.get("slotId")) == "PANTS"), {}) or {}
-    platinum_skills = []
+    platinum_slot_skills = []
     for row in (jacket, pants):
+        slot_skill = ""
         for emblem in row.get("emblems") or []:
             item_name = clean_text(emblem.get("itemName"))
             if "플래티넘" not in clean_text(emblem.get("slotColor")) and "플래티넘" not in item_name:
                 continue
             match = re.search(r"\[([^\]]+)\]", item_name)
             if match:
-                platinum_skills.append(match.group(1).strip())
+                slot_skill = match.group(1).strip()
+                break
+        platinum_slot_skills.append(slot_skill)
     return {
         "topSkill": parse_top_skill_name(jacket.get("optionAbility")),
-        "platinumSkills": dedupe_skill_names(platinum_skills),
-        "platinumSlotSkills": platinum_skills,
+        "platinumSkills": dedupe_skill_names([
+            skill_name for skill_name in platinum_slot_skills if skill_name
+        ]),
+        "platinumSlotSkills": platinum_slot_skills,
     }
 
 
@@ -736,9 +777,70 @@ def select_best_avatar_combo_for_character(
         current_avatar,
         option_db.get("skillEffects") or {},
     )
-    combo_results = [
+    all_combo_results = [
         evaluate_avatar_combo(combo, current_avatar, skill_infos, include_price=False)
         for combo in combo_candidates
+    ]
+    current_platinum_skills = [
+        clean_text(skill_name)
+        for skill_name in current_avatar.get("platinumSlotSkills") or []
+        if clean_text(skill_name)
+    ]
+    has_empty_platinum_slot = len(current_platinum_skills) < 2
+    current_has_recognized_platinum = any(
+        is_recognized_coefficient_skill(skill_name, skill_infos)
+        for skill_name in current_platinum_skills
+    )
+    candidate_has_recognized_platinum = any(
+        is_recognized_coefficient_skill(skill_name, skill_infos)
+        for skill_name in get_avatar_platinum_candidates(option_db, current_avatar)
+    )
+
+    if current_has_recognized_platinum and not has_empty_platinum_slot:
+        current_combo = build_current_avatar_combo(current_avatar)
+        current_result = (
+            evaluate_avatar_combo(current_combo, current_avatar, skill_infos, include_price=False)
+            if current_combo
+            else None
+        )
+        return {
+            "currentAvatarSkills": current_avatar,
+            "selectionScope": "currentRecognizedPlatinum",
+            "skillInfos": skill_infos,
+            "candidates": analyzed,
+            "comboCandidates": combo_candidates,
+            "comboResults": [current_result] if current_result else [],
+            "recommendedCombos": [],
+            "recommendedCombo": current_result,
+            "usesRecognizedCoefficient": True,
+        }
+
+    if has_empty_platinum_slot and candidate_has_recognized_platinum:
+        fallback_combo = get_avatar_db_fallback_combo(option_db, current_avatar)
+        fallback_result = (
+            evaluate_avatar_combo(fallback_combo, current_avatar, skill_infos, include_price=False)
+            if fallback_combo
+            else None
+        )
+        return {
+            "currentAvatarSkills": current_avatar,
+            "selectionScope": "emptyPlatinumDbFallback",
+            "skillInfos": skill_infos,
+            "candidates": analyzed,
+            "comboCandidates": combo_candidates,
+            "comboResults": all_combo_results[:20],
+            "recommendedCombos": [fallback_result] if fallback_result else [],
+            "recommendedCombo": fallback_result,
+            "usesRecognizedCoefficient": True,
+        }
+
+    combo_results = [
+        row
+        for row in all_combo_results
+        if not any(
+            is_recognized_coefficient_skill(skill_name, skill_infos)
+            for skill_name in row.get("platinumSkills") or []
+        )
     ]
     combo_results.sort(key=lambda row: (
         not row.get("calculable"),
