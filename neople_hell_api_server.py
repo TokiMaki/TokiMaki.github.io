@@ -753,7 +753,11 @@ class HellApiHandler(SimpleHTTPRequestHandler):
 
         try:
             body, cache_hit = load_character_loadout_response_body(
-                ("character-loadout", server_id, character_id),
+                (
+                    "character-loadout",
+                    server_id,
+                    character_id,
+                ),
                 lambda: self.run_heavy_api_operation(
                     parsed,
                     lambda: load_character_loadout(server_id, character_id),

@@ -348,7 +348,7 @@ export function createEnchantDealerSimulatorCalculation(deps) {
       * (1 + titleDamagePercent / 100)
       * (avatarEmblemMode === 'equipmentScore'
         ? getDealerAvatarPlatinumEquipmentScoreMultiplier(simulator)
-        : getAvatarPlatinumDamageMultiplier(simulator.avatarPlatinumChangesBySlot))
+        : getAvatarPlatinumDamageMultiplier(simulator.avatarPlatinumChangesBySlot, simulator))
       * getBuffEnhancementMetricMultiplier(simulator, avatarEmblemMode);
   }
 

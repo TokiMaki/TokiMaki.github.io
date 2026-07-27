@@ -2,21 +2,29 @@ import re
 
 
 SKILL_ATTACK_PATTERNS = [
-    re.compile(r"스킬\s*공격력[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
-    re.compile(r"스킬\s*데미지[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
+    re.compile(r"스킬\s*공격력\s*증가율[^0-9+\-\r\n]*(\d+(?:\.\d+)?)\s*%"),
+    re.compile(r"스킬\s*데미지\s*증가율[^0-9+\-\r\n]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"크리티컬\s*(?:공격력|데미지)\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"피해\s*증폭률[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"속성\s*공격력\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
     re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^0-9+\-]*(\d+(?:\.\d+)?)\s*%"),
 ]
 SKILL_ATTACK_OPTION_VALUE_PATTERNS = [
-    re.compile(r"스킬\s*공격력[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
-    re.compile(r"스킬\s*데미지[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
+    re.compile(r"스킬\s*공격력\s*증가율[^{}\r\n]*\{(value\d+)\}\s*%", re.IGNORECASE),
+    re.compile(r"스킬\s*데미지\s*증가율[^{}\r\n]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"크리티컬\s*(?:공격력|데미지)\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"피해\s*증폭률[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"속성\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
 ]
+SKILL_EFFECT_MODES = {
+    "increase",
+    "multiply",
+    "ratio",
+    "statAmplification",
+    "recognizedCoefficient",
+    "unsupported",
+}
 
 
 def clean_text(value) -> str:
@@ -78,11 +86,45 @@ def find_skill_attack_option_value_key(option_desc: str) -> str:
     return ""
 
 
-def get_level_attack_percent(skill_detail: dict, level: int) -> float | None:
+def normalize_skill_effect_spec(effect_spec: dict | None) -> dict:
+    if not isinstance(effect_spec, dict):
+        return {}
+    mode = clean_text(effect_spec.get("mode"))
+    if mode not in SKILL_EFFECT_MODES:
+        return {}
+    value_keys = [
+        clean_text(value_key)
+        for value_key in effect_spec.get("valueKeys") or []
+        if re.fullmatch(r"value\d+", clean_text(value_key), flags=re.IGNORECASE)
+    ]
+    return {
+        "mode": mode,
+        "valueKeys": list(dict.fromkeys(value_keys)),
+    }
+
+
+def get_skill_effect_spec(
+    skill_detail: dict,
+    effect_spec: dict | None = None,
+) -> tuple[str, tuple[str, ...]]:
+    explicit_spec = normalize_skill_effect_spec(effect_spec)
+    if explicit_spec:
+        return explicit_spec["mode"], tuple(explicit_spec["valueKeys"])
+    option_value_key = find_skill_attack_option_value_key(
+        (skill_detail.get("levelInfo") or {}).get("optionDesc") or "",
+    )
+    return "increase", (option_value_key,) if option_value_key else ()
+
+
+def get_level_effect_values(
+    skill_detail: dict,
+    level: int,
+    value_keys: tuple[str, ...],
+    allow_description_fallback: bool = False,
+) -> list[float] | None:
     level_info = skill_detail.get("levelInfo")
     if not isinstance(level_info, dict):
         return None
-    option_value_key = find_skill_attack_option_value_key(level_info.get("optionDesc") or "")
     try:
         target_level = int(level)
     except (TypeError, ValueError):
@@ -111,55 +153,221 @@ def get_level_attack_percent(skill_detail: dict, level: int) -> float | None:
                     continue
             except (TypeError, ValueError):
                 continue
-            for text in collect_strings(row):
-                parsed = parse_skill_attack_percent(text)
-                if parsed is not None:
-                    return parsed
-            if option_value_key and isinstance(row.get("optionValue"), dict):
-                parsed = parse_skill_attack_percent(row.get("optionDesc") or "")
-                if parsed is not None:
-                    return parsed
-                value = row.get("optionValue", {}).get(option_value_key)
-                try:
-                    return float(value)
-                except (TypeError, ValueError):
-                    pass
-
+            if allow_description_fallback:
+                for text in collect_strings(row):
+                    parsed = parse_skill_attack_percent(text)
+                    if parsed is not None:
+                        return [parsed]
+            option_value = row.get("optionValue")
+            if value_keys and isinstance(option_value, dict):
+                values = []
+                for value_key in value_keys:
+                    value = option_value.get(value_key)
+                    try:
+                        values.append(float(value))
+                    except (TypeError, ValueError):
+                        values = []
+                        break
+                if values:
+                    return values
     return None
 
 
-def estimate_skill_plus_one(skill_detail: dict, current_level: int) -> dict:
-    current_attack = get_level_attack_percent(skill_detail, current_level)
-    next_attack = get_level_attack_percent(skill_detail, current_level + 1)
-    if current_attack is None or next_attack is None:
-        return {
-            "calculable": False,
-            "reason": "스킬 상세 levelInfo에서 스킬 공격력 증가율을 찾지 못했습니다.",
-        }
-    return {
-        "calculable": True,
-        "currentSkillAttackPercent": current_attack,
-        "nextSkillAttackPercent": next_attack,
-        "incrementalDamagePercent": ((1 + next_attack / 100) / (1 + current_attack / 100) - 1) * 100,
-    }
+def get_level_attack_percent(
+    skill_detail: dict,
+    level: int,
+    effect_spec: dict | None = None,
+) -> float | None:
+    normalized_spec = normalize_skill_effect_spec(effect_spec)
+    effect_mode, value_keys = get_skill_effect_spec(skill_detail, effect_spec)
+    if effect_mode in {"recognizedCoefficient", "unsupported"}:
+        return None
+    values = get_level_effect_values(
+        skill_detail,
+        level,
+        value_keys,
+        allow_description_fallback=not normalized_spec,
+    )
+    if not values:
+        return None
+    if effect_mode == "multiply":
+        multiplier = 1.0
+        for value in values:
+            multiplier *= 1 + value / 100
+        return (multiplier - 1) * 100
+    return values[0]
 
 
-def get_skill_attack_ratio(skill_detail: dict, current_level: int, added_level: int) -> dict:
-    current_attack = get_level_attack_percent(skill_detail, current_level)
-    target_attack = get_level_attack_percent(skill_detail, current_level + added_level)
-    if current_attack is None or target_attack is None:
+def resolve_recognized_coefficient(level: int | float) -> float:
+    try:
+        recognized_level = max(0, float(level))
+    except (TypeError, ValueError):
+        recognized_level = 0
+    return 1.20 + recognized_level * 0.02
+
+
+def resolve_skill_effect_multiplier(
+    skill_detail: dict,
+    current_level: int,
+    target_level: int,
+    effect_context: dict | None = None,
+    effect_spec: dict | None = None,
+) -> dict:
+    effect_mode, value_keys = get_skill_effect_spec(skill_detail, effect_spec)
+    if effect_mode == "unsupported":
         return {
             "calculable": False,
-            "reason": "스킬 상세 levelInfo에서 누적 스킬 공격력 증가율을 찾지 못했습니다.",
+            "reason": "아바타 옵션 DB에 계산 가능한 스킬 효과가 등록되지 않았습니다.",
         }
-    multiplier = (1 + target_attack / 100) / (1 + current_attack / 100)
+    if effect_mode == "recognizedCoefficient":
+        context = effect_context or {}
+        current_recognized_level = float(
+            context.get("currentRecognizedLevel")
+            or context.get("recognizedBaseLevel")
+            or 0
+        )
+        level_delta = int(target_level) - int(current_level)
+        target_recognized_level = max(0, current_recognized_level + level_delta)
+        multiplier = (
+            resolve_recognized_coefficient(target_recognized_level)
+            / resolve_recognized_coefficient(current_recognized_level)
+        )
+        return {
+            "calculable": True,
+            "currentRecognizedLevel": current_recognized_level,
+            "targetRecognizedLevel": target_recognized_level,
+            "effectMode": effect_mode,
+            "multiplier": multiplier,
+            "incrementalDamagePercent": (multiplier - 1) * 100,
+        }
+
+    normalized_spec = normalize_skill_effect_spec(effect_spec)
+    current_values = get_level_effect_values(
+        skill_detail,
+        current_level,
+        value_keys,
+        allow_description_fallback=not normalized_spec,
+    )
+    target_values = get_level_effect_values(
+        skill_detail,
+        target_level,
+        value_keys,
+        allow_description_fallback=not normalized_spec,
+    )
+    if not current_values or not target_values:
+        return {
+            "calculable": False,
+            "reason": "스킬 상세 levelInfo에서 공격 배율을 찾지 못했습니다.",
+        }
+
+    if effect_mode == "multiply":
+        current_multiplier = 1.0
+        target_multiplier = 1.0
+        for value in current_values:
+            current_multiplier *= 1 + value / 100
+        for value in target_values:
+            target_multiplier *= 1 + value / 100
+        multiplier = target_multiplier / current_multiplier
+        current_attack = (current_multiplier - 1) * 100
+        target_attack = (target_multiplier - 1) * 100
+    else:
+        current_attack = current_values[0]
+        target_attack = target_values[0]
+        if effect_mode == "ratio":
+            if current_attack <= 0 or target_attack <= 0:
+                return {
+                    "calculable": False,
+                    "reason": "스킬 상세 levelInfo의 공격 비율이 올바르지 않습니다.",
+                }
+            multiplier = target_attack / current_attack
+        elif effect_mode == "statAmplification":
+            context = effect_context or {}
+            current_final_stat = float(context.get("currentFinalStat") or 0)
+            base_stat = float(context.get("baseStat") or 0)
+            current_avatar_added_level = int(context.get("currentAvatarAddedLevel") or 0)
+            equipped_current_level = int(
+                context.get("equippedCurrentLevel")
+                or current_level + current_avatar_added_level
+            )
+            equipped_attack = get_level_attack_percent(
+                skill_detail,
+                equipped_current_level,
+                effect_spec,
+            )
+            if current_final_stat <= 0 or base_stat <= 0 or equipped_attack is None:
+                return {
+                    "calculable": False,
+                    "reason": "힘/지능 증폭 계산에 필요한 현재 스탯 기준값이 없습니다.",
+                }
+            fixed_stat = base_stat - 250
+            equipped_multiplier = 1 + equipped_attack / 100
+            if equipped_multiplier <= 0:
+                return {
+                    "calculable": False,
+                    "reason": "현재 힘/지능 증가율이 올바르지 않습니다.",
+                }
+            amplified_stat = (current_final_stat - fixed_stat) / equipped_multiplier
+            current_stat = fixed_stat + amplified_stat * (1 + current_attack / 100)
+            target_stat = fixed_stat + amplified_stat * (1 + target_attack / 100)
+            if current_stat + 250 <= 0 or target_stat + 250 <= 0:
+                return {
+                    "calculable": False,
+                    "reason": "힘/지능 증폭 결과가 올바르지 않습니다.",
+                }
+            multiplier = (target_stat + 250) / (current_stat + 250)
+        else:
+            multiplier = (1 + target_attack / 100) / (1 + current_attack / 100)
     return {
         "calculable": True,
         "currentSkillAttackPercent": current_attack,
         "targetSkillAttackPercent": target_attack,
-        "addedLevel": added_level,
+        "effectMode": effect_mode,
+        "effectValueKeys": list(value_keys),
         "multiplier": multiplier,
         "incrementalDamagePercent": (multiplier - 1) * 100,
+    }
+
+
+def estimate_skill_plus_one(
+    skill_detail: dict,
+    current_level: int,
+    effect_context: dict | None = None,
+    effect_spec: dict | None = None,
+) -> dict:
+    result = resolve_skill_effect_multiplier(
+        skill_detail,
+        current_level,
+        current_level + 1,
+        effect_context,
+        effect_spec,
+    )
+    if not result.get("calculable"):
+        return result
+    return {
+        **result,
+        "nextSkillAttackPercent": result.get("targetSkillAttackPercent"),
+    }
+
+
+def get_skill_attack_ratio(
+    skill_detail: dict,
+    current_level: int,
+    added_level: int,
+    effect_context: dict | None = None,
+    effect_spec: dict | None = None,
+) -> dict:
+    result = resolve_skill_effect_multiplier(
+        skill_detail,
+        current_level,
+        current_level + added_level,
+        effect_context,
+        effect_spec,
+    )
+    if not result.get("calculable"):
+        return result
+    return {
+        **result,
+        "addedLevel": added_level,
     }
 
 
@@ -234,6 +442,24 @@ def get_avatar_platinum_skill_damage_multiplier(
         normalize_skill_key(current_platinum_skills[target_index]),
         target_key,
     }
+    recognized_base_level = 0
+    current_recognized_level = 0
+    target_recognized_level = 0
+    for skill_key, skill_info in skill_infos.items():
+        if clean_text((skill_info.get("effectSpec") or {}).get("mode")) != "recognizedCoefficient":
+            continue
+        recognized_base_level = max(
+            recognized_base_level,
+            float((skill_info.get("effectContext") or {}).get("recognizedBaseLevel") or 0),
+        )
+        current_recognized_level += count_avatar_skill(skill_key, current_platinum_skills)
+        target_recognized_level += count_avatar_skill(skill_key, target_platinum_skills)
+    if current_recognized_level != target_recognized_level:
+        multiplier *= (
+            resolve_recognized_coefficient(recognized_base_level + target_recognized_level)
+            / resolve_recognized_coefficient(recognized_base_level + current_recognized_level)
+        )
+
     for skill_key in changed_keys:
         if not skill_key:
             continue
@@ -243,19 +469,33 @@ def get_avatar_platinum_skill_damage_multiplier(
         if level_delta == 0:
             continue
         skill_info = skill_infos.get(skill_key) or {}
+        if clean_text((skill_info.get("effectSpec") or {}).get("mode")) == "recognizedCoefficient":
+            continue
         current_level = int(skill_info.get("currentLevel") or 0) + current_count
         if current_level <= 0:
             if skill_key == target_key and level_delta > 0:
                 return 0
             continue
         if level_delta > 0:
-            ratio = get_skill_attack_ratio(skill_info.get("detail") or {}, current_level, level_delta)
+            ratio = get_skill_attack_ratio(
+                skill_info.get("detail") or {},
+                current_level,
+                level_delta,
+                skill_info.get("effectContext"),
+                skill_info.get("effectSpec"),
+            )
             if not ratio.get("calculable"):
                 return 0
             multiplier *= float(ratio.get("multiplier") or 1)
         else:
             target_level = current_level + level_delta
-            ratio = get_skill_attack_ratio(skill_info.get("detail") or {}, target_level, -level_delta)
+            ratio = get_skill_attack_ratio(
+                skill_info.get("detail") or {},
+                target_level,
+                -level_delta,
+                skill_info.get("effectContext"),
+                skill_info.get("effectSpec"),
+            )
             if ratio.get("calculable"):
                 multiplier /= float(ratio.get("multiplier") or 1)
             # 계산 불가 플티는 딜 상승률 0%로 보고 제거 손실도 0으로 처리한다.

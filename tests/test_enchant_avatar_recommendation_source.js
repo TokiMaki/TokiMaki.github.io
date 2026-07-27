@@ -19,6 +19,7 @@ const DEPENDENCY_NAMES = [
 const PUBLIC_FUNCTIONS = [
   'getAvatarPlatinumDamageMultiplier',
   'getDealerAvatarPlatinumEquipmentScoreMultiplier',
+  'getDealerAvatarPlatinumRecognizedCoefficientMultiplier',
   'getAvatarPlatinumRecommendationMultiplier',
   'getAvatarRows',
   'normalizeAvatarSimulatorState',
@@ -316,16 +317,17 @@ function testNormalizeAvatarSimulatorStateCloneAndRecognition() {
   const thirdEmblem = { itemId: 'third' };
   const avatar = deepFreeze({
     jacket: { topOptionMatched: true },
+    recognizedTopOptionLevelContribution: 1,
     platinumSlots: ['TOP-LABEL'],
     slots: [
       {
         slotId: 'JACKET',
-        recognizedPlatinumLevelContribution: 99,
+        recognizedPlatinumLevelContribution: 1,
         emblems: [firstEmblem, null, thirdEmblem],
       },
       {
         slotId: 'PANTS',
-        recognizedPlatinumLevelContribution: 99,
+        recognizedPlatinumLevelContribution: 1,
         emblems: [{ itemId: 'pants' }],
       },
       {
@@ -339,7 +341,7 @@ function testNormalizeAvatarSimulatorStateCloneAndRecognition() {
   assert.notStrictEqual(normalized, avatar);
   assert.equal(normalized.recognizedTopOptionLevelContribution, 1);
   assert.equal(normalized.slots[0].recognizedPlatinumLevelContribution, 1);
-  assert.equal(normalized.slots[1].recognizedPlatinumLevelContribution, 0);
+  assert.equal(normalized.slots[1].recognizedPlatinumLevelContribution, 1);
   assert.equal(normalized.slots[2].recognizedPlatinumLevelContribution, 0);
   assert.equal(normalized.slots[0].emblems.length, 2);
   assert.deepEqual(normalized.slots[0].emblems[0], {
@@ -425,7 +427,9 @@ function testPlatinumMultipliersAndTitleJobFiltering() {
   const {
     getAvatarPlatinumDamageMultiplier,
     getDealerAvatarPlatinumEquipmentScoreMultiplier,
+    getDealerAvatarPlatinumRecognizedCoefficientMultiplier,
     getAvatarPlatinumRecommendationMultiplier,
+    getAvatarRows,
   } = createAvatarSource();
   assertClose(getAvatarPlatinumDamageMultiplier({
     top: { skillDamageMultiplier: 1.1 },
@@ -469,6 +473,104 @@ function testPlatinumMultipliersAndTitleJobFiltering() {
     getDealerAvatarPlatinumEquipmentScoreMultiplier(simulator),
     (1.20 + 7 * 0.02) / (1.20 + 6 * 0.02),
   );
+  assertClose(
+    getDealerAvatarPlatinumEquipmentScoreMultiplier({
+      baseDamageBaseline: { jobName: '이단심판관' },
+      baseAvatar: {
+        slots: [
+          { recognizedPlatinumLevelContribution: 1 },
+          { recognizedPlatinumLevelContribution: 1 },
+        ],
+      },
+      simulatedAvatar: {
+        recognizedTopOptionLevelContribution: 1,
+        slots: [
+          { recognizedPlatinumLevelContribution: 1 },
+          { recognizedPlatinumLevelContribution: 1 },
+        ],
+      },
+      simulatedTitle: {},
+    }),
+    1,
+  );
+  const fixedRecognitionSimulator = {
+    baseDamageBaseline: { jobName: '이단심판관' },
+    baseAvatar: {
+      slots: [
+        { slotId: 'JACKET', recognizedPlatinumLevelContribution: 0 },
+        { slotId: 'PANTS', recognizedPlatinumLevelContribution: 1 },
+      ],
+    },
+    simulatedAvatar: {
+      recognizedTopOptionLevelContribution: 1,
+      slots: [
+        { slotId: 'JACKET', recognizedPlatinumLevelContribution: 0 },
+        { slotId: 'PANTS', recognizedPlatinumLevelContribution: 1 },
+      ],
+    },
+    simulatedTitle: {
+      itemReinforceSkill: [
+        { jobName: '이단심판관', skills: [{ value: 1 }] },
+      ],
+    },
+  };
+  const fixedRecognitionRow = {
+    targetSlotId: 'JACKET',
+    targetPlatinumEmblem: { recognizedLevelContribution: 1 },
+  };
+  assertClose(
+    getDealerAvatarPlatinumRecognizedCoefficientMultiplier(
+      fixedRecognitionSimulator,
+      fixedRecognitionRow,
+    ),
+    1.28 / 1.26,
+  );
+  assertClose(
+    getDealerAvatarPlatinumRecognizedCoefficientMultiplier({
+      ...fixedRecognitionSimulator,
+      baseAvatar: {
+        slots: [
+          { slotId: 'JACKET', recognizedPlatinumLevelContribution: 1 },
+          { slotId: 'PANTS', recognizedPlatinumLevelContribution: 1 },
+        ],
+      },
+      simulatedAvatar: {
+        ...fixedRecognitionSimulator.simulatedAvatar,
+        slots: [
+          { slotId: 'JACKET', recognizedPlatinumLevelContribution: 1 },
+          { slotId: 'PANTS', recognizedPlatinumLevelContribution: 1 },
+        ],
+      },
+    }, fixedRecognitionRow),
+    1,
+  );
+  assertClose(
+    getAvatarPlatinumDamageMultiplier({
+      JACKET: { dealerPlatinumMetricPolicy: 'recognizedCoefficient' },
+    }, {
+      ...fixedRecognitionSimulator,
+      simulatedAvatar: {
+        ...fixedRecognitionSimulator.simulatedAvatar,
+        slots: [
+          { slotId: 'JACKET', recognizedPlatinumLevelContribution: 1 },
+          { slotId: 'PANTS', recognizedPlatinumLevelContribution: 1 },
+        ],
+      },
+    }),
+    1.28 / 1.26,
+  );
+  const fixedRows = getAvatarRows({
+    jobGrowName: '眞 이단심판관',
+    avatar: fixedRecognitionSimulator.simulatedAvatar,
+    recommendations: [{
+      kind: 'platinumEmblem',
+      targetSlotId: 'JACKET',
+      targetPlatinumEmblem: { recognizedLevelContribution: 1 },
+      dealerPlatinumMetricPolicy: 'recognizedCoefficient',
+      effects: { skillDamageMultiplier: 9 },
+    }],
+  }, fixedRecognitionSimulator.simulatedTitle, fixedRecognitionSimulator.baseDamageBaseline);
+  assertClose(fixedRows[0].skillDamageMultiplier, 1.28 / 1.26);
 
   assert.equal(getAvatarPlatinumRecommendationMultiplier({
     baseRelativeSkillDamageMultiplier: 1.07,

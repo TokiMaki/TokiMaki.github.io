@@ -1,13 +1,14 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-06-17",
+  "schemaVersion": 2,
+  "updatedAt": "2026-07-27",
   "sourcePolicy": "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나를 보관하고, avatar.platinumCandidates와 avatar.candidateCombos는 실제 스킬 API 기반 딜 효율 비교에 사용한다.",
   "fields": {
     "avatar.topOptions": "상의 아바타 옵션 후보. 앞쪽일수록 우선 후보.",
     "avatar.platinumEmblems": "대표 플래티넘 엠블렘. 계산 후보가 없거나 스킬 API 비교가 실패했을 때 fallback으로 사용한다.",
     "avatar.platinumCandidates": "딜 플래티넘 엠블렘 계산 후보 목록. 보통 1~2개이며, 서버가 현재 상의 옵션을 고정한 상태에서 후보 조합을 스킬 API 배율로 비교한다.",
     "avatar.candidateCombos": "딜 효율 비교용 상의+플래티넘 2개 후보 조합. 외부 사이트를 런타임 파싱하지 않고 검수된 후보만 보관한다.",
-    "avatar.needsReview": "추출 누락 또는 형식 불확실 여부."
+    "avatar.needsReview": "추출 누락 또는 형식 불확실 여부.",
+    "avatar.skillEffects": "아바타 후보 스킬별 계산 계약. mode은 increase/multiply/ratio/statAmplification/recognizedCoefficient이며, 정확 계산 모드는 네오플 levelInfo.optionValue의 valueKeys를 사용한다."
   },
   "entries": [
     {
@@ -37,7 +38,15 @@
             ],
             "adoptionRate": 73.88
           }
-        ]
+        ],
+        "skillEffects": {
+          "검기상인": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 73.88
@@ -79,7 +88,21 @@
             ],
             "adoptionRate": 25.79
           }
-        ]
+        ],
+        "skillEffects": {
+          "혈십자": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "블러드 인카넷": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 45.61
@@ -116,7 +139,27 @@
             ],
             "adoptionRate": 84.15
           }
-        ]
+        ],
+        "skillEffects": {
+          "팬텀 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "달의 커튼": {
+            "mode": "increase",
+            "valueKeys": [
+              "value2"
+            ]
+          },
+          "몽롱한 눈의 브레멘": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 84.15
@@ -149,7 +192,18 @@
             ],
             "adoptionRate": 70.49
           }
-        ]
+        ],
+        "skillEffects": {
+          "뇌신의 기운": {
+            "mode": "recognizedCoefficient"
+          },
+          "정신이 번쩍!": {
+            "mode": "increase",
+            "valueKeys": [
+              "value2"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 70.49
@@ -182,7 +236,15 @@
             ],
             "adoptionRate": 61.89
           }
-        ]
+        ],
+        "skillEffects": {
+          "검귀의 도 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 61.89
@@ -215,7 +277,15 @@
             ],
             "adoptionRate": 75.47
           }
-        ]
+        ],
+        "skillEffects": {
+          "무기 숙련": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 75.47
@@ -248,7 +318,15 @@
             ],
             "adoptionRate": 86.1
           }
-        ]
+        ],
+        "skillEffects": {
+          "마검 제어": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 86.1
@@ -281,7 +359,15 @@
             ],
             "adoptionRate": 91.64
           }
-        ]
+        ],
+        "skillEffects": {
+          "삼화취정": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 91.64
@@ -314,7 +400,15 @@
             ],
             "adoptionRate": 82.03
           }
-        ]
+        ],
+        "skillEffects": {
+          "스티그마": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 82.03
@@ -347,7 +441,15 @@
             ],
             "adoptionRate": 86.59
           }
-        ]
+        ],
+        "skillEffects": {
+          "빈티지": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 86.59
@@ -380,7 +482,12 @@
             ],
             "adoptionRate": 80.84
           }
-        ]
+        ],
+        "skillEffects": {
+          "나선의 넨": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 80.84
@@ -413,7 +520,18 @@
             ],
             "adoptionRate": 90.22
           }
-        ]
+        ],
+        "skillEffects": {
+          "화염의 각": {
+            "mode": "recognizedCoefficient"
+          },
+          "머슬 시프트": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 90.22
@@ -446,7 +564,15 @@
             ],
             "adoptionRate": 81.94
           }
-        ]
+        ],
+        "skillEffects": {
+          "도발": {
+            "mode": "increase",
+            "valueKeys": [
+              "value2"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 81.94
@@ -479,7 +605,15 @@
             ],
             "adoptionRate": 89.35
           }
-        ]
+        ],
+        "skillEffects": {
+          "강렬한 테이크 다운": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 89.35
@@ -512,7 +646,18 @@
             ],
             "adoptionRate": 79.52
           }
-        ]
+        ],
+        "skillEffects": {
+          "낙화태염성": {
+            "mode": "increase",
+            "valueKeys": [
+              "value2"
+            ]
+          },
+          "나선의 넨": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 79.52
@@ -545,7 +690,15 @@
             ],
             "adoptionRate": 85.31
           }
-        ]
+        ],
+        "skillEffects": {
+          "급소 지정": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 85.31
@@ -578,7 +731,18 @@
             ],
             "adoptionRate": 88.8
           }
-        ]
+        ],
+        "skillEffects": {
+          "독문무공": {
+            "mode": "recognizedCoefficient"
+          },
+          "도발": {
+            "mode": "increase",
+            "valueKeys": [
+              "value2"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 88.8
@@ -611,7 +775,15 @@
             ],
             "adoptionRate": 87.29
           }
-        ]
+        ],
+        "skillEffects": {
+          "강렬한 테이크 다운": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 87.29
@@ -644,7 +816,15 @@
             ],
             "adoptionRate": 84.69
           }
-        ]
+        ],
+        "skillEffects": {
+          "스타일리쉬": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 84.69
@@ -677,7 +857,16 @@
             ],
             "adoptionRate": 89.74
           }
-        ]
+        ],
+        "skillEffects": {
+          "중화기 마스터리": {
+            "mode": "multiply",
+            "valueKeys": [
+              "value3",
+              "value4"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 89.74
@@ -719,7 +908,21 @@
             ],
             "adoptionRate": 19.34
           }
-        ]
+        ],
+        "skillEffects": {
+          "아크리액터": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "HS-1 친구들": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 71.64
@@ -752,7 +955,12 @@
             ],
             "adoptionRate": 89.78
           }
-        ]
+        ],
+        "skillEffects": {
+          "병기 숙련": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 89.78
@@ -785,7 +993,15 @@
             ],
             "adoptionRate": 83.91
           }
-        ]
+        ],
+        "skillEffects": {
+          "센서빌리티": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 83.91
@@ -818,7 +1034,15 @@
             ],
             "adoptionRate": 83.07
           }
-        ]
+        ],
+        "skillEffects": {
+          "스타일리쉬": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 83.07
@@ -851,7 +1075,16 @@
             ],
             "adoptionRate": 90.72
           }
-        ]
+        ],
+        "skillEffects": {
+          "중화기 마스터리": {
+            "mode": "multiply",
+            "valueKeys": [
+              "value3",
+              "value4"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 90.72
@@ -897,7 +1130,24 @@
             ],
             "adoptionRate": 18.31
           }
-        ]
+        ],
+        "skillEffects": {
+          "G-오퍼레이터": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          },
+          "트랜스포메이션": {
+            "mode": "recognizedCoefficient"
+          },
+          "하이테크놀로지": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 54.53
@@ -930,7 +1180,12 @@
             ],
             "adoptionRate": 86.01
           }
-        ]
+        ],
+        "skillEffects": {
+          "병기 숙련": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 86.01
@@ -996,7 +1251,15 @@
             ],
             "adoptionRate": 86.79
           }
-        ]
+        ],
+        "skillEffects": {
+          "원소의 이해": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 86.79
@@ -1038,7 +1301,18 @@
             ],
             "adoptionRate": 13.62
           }
-        ]
+        ],
+        "skillEffects": {
+          "발현": {
+            "mode": "increase",
+            "valueKeys": [
+              "value2"
+            ]
+          },
+          "아이스크래프트": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 79.52
@@ -1093,7 +1367,21 @@
             ],
             "adoptionRate": 12.86
           }
-        ]
+        ],
+        "skillEffects": {
+          "블러드 혼": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "블러드": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 46.23
@@ -1126,7 +1414,15 @@
             ],
             "adoptionRate": 89.31
           }
-        ]
+        ],
+        "skillEffects": {
+          "휘몰아치는 질풍의 봉 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 89.31
@@ -1159,7 +1455,15 @@
             ],
             "adoptionRate": 88.82
           }
-        ]
+        ],
+        "skillEffects": {
+          "도그마 디바이스": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 88.82
@@ -1208,7 +1512,18 @@
             ],
             "adoptionRate": 35.1
           }
-        ]
+        ],
+        "skillEffects": {
+          "속성 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "쇼타임": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 48.92
@@ -1263,7 +1578,21 @@
             ],
             "adoptionRate": 18.84
           }
-        ]
+        ],
+        "skillEffects": {
+          "니우의 전투술": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "배틀메이지의 무기 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 26.61
@@ -1296,7 +1625,15 @@
             ],
             "adoptionRate": 84.19
           }
-        ]
+        ],
+        "skillEffects": {
+          "교감": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 84.19
@@ -1329,7 +1666,15 @@
             ],
             "adoptionRate": 87.84
           }
-        ]
+        ],
+        "skillEffects": {
+          "퍼밀리어와 친하게 지내기": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 87.84
@@ -1399,7 +1744,15 @@
             ],
             "adoptionRate": null
           }
-        ]
+        ],
+        "skillEffects": {
+          "신념의 오라": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "note": "성령의 메이스가 찍힌 남크루세이더 딜러용 항목"
@@ -1465,7 +1818,15 @@
             ],
             "adoptionRate": 86.2
           }
-        ]
+        ],
+        "skillEffects": {
+          "윌 드라이버": {
+            "mode": "increase",
+            "valueKeys": [
+              "value3"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 86.2
@@ -1498,7 +1859,21 @@
             ],
             "adoptionRate": 81.15
           }
-        ]
+        ],
+        "skillEffects": {
+          "신선의 경지": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "퇴마의 서": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 81.15
@@ -1531,7 +1906,15 @@
             ],
             "adoptionRate": 92.09
           }
-        ]
+        ],
+        "skillEffects": {
+          "환청": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 92.09
@@ -1597,7 +1980,15 @@
             ],
             "adoptionRate": 89.34
           }
-        ]
+        ],
+        "skillEffects": {
+          "윌 오브 피스트": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 89.34
@@ -1652,7 +2043,18 @@
             ],
             "adoptionRate": 10.24
           }
-        ]
+        ],
+        "skillEffects": {
+          "배틀액스 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "성화": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 25.7
@@ -1699,7 +2101,21 @@
             ],
             "adoptionRate": 26.16
           }
-        ]
+        ],
+        "skillEffects": {
+          "법력 강화": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "천녀기우제": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 39.54
@@ -1741,7 +2157,18 @@
             ],
             "adoptionRate": 26.69
           }
-        ]
+        ],
+        "skillEffects": {
+          "퍼스트 프라나 : 금단의 결정체": {
+            "mode": "recognizedCoefficient"
+          },
+          "죄업에 짓눌린 육신": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 44.23
@@ -1774,7 +2201,12 @@
             ],
             "adoptionRate": 90.71
           }
-        ]
+        ],
+        "skillEffects": {
+          "로그의 무기 마스터리": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 90.71
@@ -1816,7 +2248,18 @@
             ],
             "adoptionRate": 21.2
           }
-        ]
+        ],
+        "skillEffects": {
+          "발라크르의 맹약": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "언홀리 마스터리": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 68.08
@@ -1849,7 +2292,15 @@
             ],
             "adoptionRate": 93.61
           }
-        ]
+        ],
+        "skillEffects": {
+          "인법 : 잔영 남기기": {
+            "mode": "ratio",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 93.61
@@ -1882,7 +2333,15 @@
             ],
             "adoptionRate": 87.18
           }
-        ]
+        ],
+        "skillEffects": {
+          "날카로운 단검": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 87.18
@@ -1928,7 +2387,24 @@
             ],
             "adoptionRate": 10.19
           }
-        ]
+        ],
+        "skillEffects": {
+          "대자연의 가호": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "강인한 신념": {
+            "mode": "increase",
+            "valueKeys": [
+              "value2"
+            ]
+          },
+          "체인러쉬": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 63.33
@@ -1961,7 +2437,15 @@
             ],
             "adoptionRate": 90.26
           }
-        ]
+        ],
+        "skillEffects": {
+          "혼혈": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 90.26
@@ -1994,7 +2478,15 @@
             ],
             "adoptionRate": 82.94
           }
-        ]
+        ],
+        "skillEffects": {
+          "세라픽 페더": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 82.94
@@ -2027,7 +2519,15 @@
             ],
             "adoptionRate": 83.29
           }
-        ]
+        ],
+        "skillEffects": {
+          "대식가": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 83.29
@@ -2060,7 +2560,12 @@
             ],
             "adoptionRate": 80.63
           }
-        ]
+        ],
+        "skillEffects": {
+          "임팩트 스매쉬": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 80.63
@@ -2093,7 +2598,15 @@
             ],
             "adoptionRate": 75.11
           }
-        ]
+        ],
+        "skillEffects": {
+          "미라지 부스트": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 75.11
@@ -2126,7 +2639,15 @@
             ],
             "adoptionRate": 86.93
           }
-        ]
+        ],
+        "skillEffects": {
+          "광창 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 86.93
@@ -2159,7 +2680,15 @@
             ],
             "adoptionRate": 84.83
           }
-        ]
+        ],
+        "skillEffects": {
+          "어둠의 투창 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 84.83
@@ -2205,7 +2734,21 @@
             ],
             "adoptionRate": 21.23
           }
-        ]
+        ],
+        "skillEffects": {
+          "장도 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "숙련된 전문가": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 47.27
@@ -2238,7 +2781,15 @@
             ],
             "adoptionRate": 80.16
           }
-        ]
+        ],
+        "skillEffects": {
+          "소태도 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 80.16
@@ -2271,7 +2822,15 @@
             ],
             "adoptionRate": 88.05
           }
-        ]
+        ],
+        "skillEffects": {
+          "중검 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 88.05
@@ -2304,7 +2863,15 @@
             ],
             "adoptionRate": 82.53
           }
-        ]
+        ],
+        "skillEffects": {
+          "코어 블레이드 마스터리": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 82.53
@@ -2370,7 +2937,15 @@
             ],
             "adoptionRate": 90.11
           }
-        ]
+        ],
+        "skillEffects": {
+          "여행자의 직감": {
+            "mode": "increase",
+            "valueKeys": [
+              "value4"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 90.11
@@ -2403,7 +2978,12 @@
             ],
             "adoptionRate": 91.79
           }
-        ]
+        ],
+        "skillEffects": {
+          "사냥감 식별": {
+            "mode": "recognizedCoefficient"
+          }
+        }
       },
       "review": {
         "adoptionRate": 91.79
@@ -2436,7 +3016,15 @@
             ],
             "adoptionRate": 91.57
           }
-        ]
+        ],
+        "skillEffects": {
+          "특이체질": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 91.57
@@ -2469,7 +3057,15 @@
             ],
             "adoptionRate": 96.04
           }
-        ]
+        ],
+        "skillEffects": {
+          "노 쿼터": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 96.04
@@ -2502,7 +3098,21 @@
             ],
             "adoptionRate": 80.33
           }
-        ]
+        ],
+        "skillEffects": {
+          "차원일치": {
+            "mode": "statAmplification",
+            "valueKeys": [
+              "value3"
+            ]
+          },
+          "어둠의 검사": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 80.33
@@ -2535,7 +3145,21 @@
             ],
             "adoptionRate": 92.59
           }
-        ]
+        ],
+        "skillEffects": {
+          "계열 강화": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          },
+          "계열강화": {
+            "mode": "increase",
+            "valueKeys": [
+              "value1"
+            ]
+          }
+        }
       },
       "review": {
         "adoptionRate": 92.59

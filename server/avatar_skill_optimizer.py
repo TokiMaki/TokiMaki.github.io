@@ -1,20 +1,109 @@
 import re
 
-from .data_store import load_avatar_option_db
+from .data_store import load_avatar_option_db, resolve_job_base_stat_row
 from .character_search_service import search_character
 from .neople_client import clean_text, fetch_character_detail_from_api
 from .calculators.avatar_skill_calculator import (
     estimate_skill_plus_one,
+    get_skill_effect_spec,
     get_skill_attack_ratio,
     normalize_skill_key,
+    normalize_skill_effect_spec,
 )
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details
 
 
+WEAPON_MASTERY_SKILL_NAMES = {
+    ("소드마스터", "무기숙련"): {
+        "소검": "속성의 소검 마스터리",
+        "도": "쾌속의 도 마스터리",
+        "대검": "견고의 대검 마스터리",
+        "둔기": "파쇄의 둔기 마스터리",
+    },
+    ("다크나이트", "어둠의검사"): {
+        weapon_type: f"어둠의 {weapon_type} 마스터리"
+        for weapon_type in ("광검", "소검", "도", "대검", "둔기")
+    },
+}
 def normalize_job_name(value: str) -> str:
     text = clean_text(value)
     return re.sub(r"^(眞|진|真)\s*", "", text).strip()
+
+
+def parse_numeric_value(value) -> float:
+    try:
+        return float(str(value or 0).replace(",", ""))
+    except (TypeError, ValueError):
+        return 0
+
+
+def resolve_weapon_mastery_skill_name(job_grow_name: str, skill_name: str, weapon_type: str) -> str:
+    aliases = WEAPON_MASTERY_SKILL_NAMES.get((
+        normalize_job_name(job_grow_name),
+        normalize_skill_key(skill_name),
+    ))
+    return clean_text((aliases or {}).get(clean_text(weapon_type))) or clean_text(skill_name)
+
+
+def get_current_weapon_type(server_id: str, character_id: str) -> str:
+    equipment_rows = (
+        get_character_cached_payload(server_id, character_id, "equipment", "equip/equipment").get("equipment")
+        or []
+    )
+    weapon = next((
+        row for row in equipment_rows
+        if clean_text(row.get("slotId")) == "WEAPON"
+    ), {})
+    weapon_type = clean_text(weapon.get("itemTypeDetail"))
+    if weapon_type:
+        return weapon_type
+    item_id = clean_text(weapon.get("itemId"))
+    detail = next(iter(fetch_item_details([item_id])), {}) if item_id else {}
+    return clean_text(detail.get("itemTypeDetail"))
+
+
+def count_avatar_skill_levels(current_avatar: dict, skill_name: str) -> int:
+    skill_key = normalize_skill_key(skill_name)
+    if not skill_key:
+        return 0
+    return (
+        (1 if normalize_skill_key(current_avatar.get("topSkill")) == skill_key else 0)
+        + sum(
+            1
+            for platinum_skill in (
+                current_avatar.get("platinumSlotSkills")
+                or current_avatar.get("platinumSkills")
+                or []
+            )
+            if normalize_skill_key(platinum_skill) == skill_key
+        )
+    )
+
+
+def get_avatar_skill_effect_context(
+    server_id: str,
+    character_id: str,
+    detail: dict,
+    current_avatar: dict,
+    skill_name: str,
+) -> dict:
+    status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
+    status = {
+        clean_text(row.get("name")): parse_numeric_value(row.get("value"))
+        for row in status_payload.get("status") or []
+        if clean_text(row.get("name"))
+    }
+    stat_name = "힘" if status.get("힘", 0) >= status.get("지능", 0) else "지능"
+    base_stats = resolve_job_base_stat_row(
+        clean_text(detail.get("jobName")),
+        clean_text(detail.get("jobGrowName")),
+    )
+    return {
+        "currentFinalStat": status.get(stat_name, 0),
+        "baseStat": parse_numeric_value(base_stats.get(stat_name)),
+        "currentAvatarAddedLevel": count_avatar_skill_levels(current_avatar, skill_name),
+    }
 
 
 def parse_skill_level_overrides(raw_value: str) -> dict:
@@ -152,6 +241,22 @@ def dedupe_skill_names(values: list[str]) -> list[str]:
         seen.add(key)
         result.append(name)
     return result
+
+
+def normalize_avatar_skill_effect_specs(option_db: dict | None) -> dict:
+    return {
+        normalize_skill_key(skill_name): normalized_spec
+        for skill_name, effect_spec in ((option_db or {}).get("skillEffects") or {}).items()
+        for normalized_spec in [normalize_skill_effect_spec(effect_spec)]
+        if normalize_skill_key(skill_name) and normalized_spec
+    }
+
+
+def get_avatar_skill_effect_config(option_db: dict | None, skill_name: str) -> dict:
+    return normalize_avatar_skill_effect_specs(option_db).get(
+        normalize_skill_key(skill_name),
+        {},
+    )
 
 
 def get_avatar_candidate_combos(option_db: dict, current_avatar: dict) -> list[dict]:
@@ -334,11 +439,51 @@ def evaluate_avatar_combo(combo: dict, current: dict, skill_infos: dict, include
 
     multiplier = 1
     skill_results = []
+    recognized_added_level = 0
+    recognized_info = {}
     for key, added_level in added_by_skill.items():
         info = skill_infos.get(key) or {}
-        ratio = get_skill_attack_ratio(info.get("detail") or {}, info.get("currentLevel") or 0, added_level)
+        if clean_text((info.get("effectSpec") or {}).get("mode")) == "recognizedCoefficient":
+            recognized_added_level += added_level
+            recognized_info = recognized_info or info
+            continue
+        ratio = get_skill_attack_ratio(
+            info.get("detail") or {},
+            info.get("currentLevel") or 0,
+            added_level,
+            info.get("effectContext"),
+            info.get("effectSpec"),
+        )
         skill_results.append({
             "skillName": info.get("skillName") or key,
+            **ratio,
+        })
+        if not ratio.get("calculable"):
+            return {
+                **combo,
+                "calculable": False,
+                "reason": ratio.get("reason"),
+                "skillResults": skill_results,
+            }
+        multiplier *= ratio["multiplier"]
+
+    if recognized_added_level:
+        recognized_context = {
+            **(recognized_info.get("effectContext") or {}),
+            "currentRecognizedLevel": (
+                (recognized_info.get("effectContext") or {}).get("recognizedBaseLevel")
+                or 0
+            ),
+        }
+        ratio = get_skill_attack_ratio(
+            recognized_info.get("detail") or {},
+            recognized_info.get("currentLevel") or 0,
+            recognized_added_level,
+            recognized_context,
+            recognized_info.get("effectSpec"),
+        )
+        skill_results.append({
+            "skillName": "인정계수",
             **ratio,
         })
         if not ratio.get("calculable"):
@@ -423,6 +568,8 @@ def get_character_avatar_skill_infos(
     detail: dict,
     skill_names: list[str],
     skill_level_overrides: dict | None = None,
+    current_avatar: dict | None = None,
+    skill_effect_specs: dict | None = None,
 ) -> tuple[list[dict], dict]:
     normalized_level_overrides = normalize_skill_level_overrides(skill_level_overrides)
     job_id = clean_text(detail.get("jobId"))
@@ -439,6 +586,8 @@ def get_character_avatar_skill_infos(
     skill_by_name = skill_context.get("skillByName") or {}
     skill_detail_by_id = skill_context.get("skillDetailById") or {}
     style_rows = list(style_by_name.values())
+    current_avatar = current_avatar or {}
+    weapon_type = get_current_weapon_type(server_id, character_id)
     current_setup_bonuses = get_current_non_avatar_skill_bonuses(
         server_id,
         character_id,
@@ -449,12 +598,39 @@ def get_character_avatar_skill_infos(
         normalize_skill_key(name): value
         for name, value in current_setup_bonuses.items()
     }
-
+    normalized_effect_specs = {
+        normalize_skill_key(skill_name): normalized_spec
+        for skill_name, effect_spec in (skill_effect_specs or {}).items()
+        for normalized_spec in [normalize_skill_effect_spec(effect_spec)]
+        if normalize_skill_key(skill_name) and normalized_spec
+    }
+    registered_skill_keys = {
+        key for key, effect_spec in normalized_effect_specs.items()
+        if effect_spec.get("mode") != "unsupported"
+    }
+    current_recognized_level = sum(
+        1
+        for skill_name in [
+            current_avatar.get("topSkill"),
+            *(
+                current_avatar.get("platinumSlotSkills")
+                or current_avatar.get("platinumSkills")
+                or []
+            ),
+        ]
+        if normalize_skill_key(skill_name) in registered_skill_keys
+    )
     analyzed = []
     skill_infos = {}
     for skill_name in dedupe_skill_names(skill_names):
         key = normalize_skill_key(skill_name)
-        skill_row = skill_by_name.get(key) or style_by_name.get(key) or {}
+        resolved_skill_name = resolve_weapon_mastery_skill_name(
+            detail.get("jobGrowName"),
+            skill_name,
+            weapon_type,
+        )
+        resolved_key = normalize_skill_key(resolved_skill_name)
+        skill_row = skill_by_name.get(resolved_key) or style_by_name.get(resolved_key) or {}
         style_row = style_by_name.get(key) or {}
         skill_id = clean_text(skill_row.get("skillId") or style_row.get("skillId"))
         api_current_level = int(style_row.get("level") or style_row.get("skillLevel") or 0)
@@ -462,6 +638,7 @@ def get_character_avatar_skill_infos(
         current_level = normalized_level_overrides.get(key) or api_current_level + setup_bonus_level
         result = {
             "skillName": skill_name,
+            "resolvedSkillName": resolved_skill_name,
             "skillId": skill_id,
             "apiBaseLevel": api_current_level,
             "currentSetupBonusLevel": setup_bonus_level,
@@ -474,14 +651,52 @@ def get_character_avatar_skill_infos(
                 from .repositories.skill_repository import get_skill_detail
 
                 skill_detail_by_id[skill_id] = get_skill_detail(job_id, skill_id)
-            skill_detail = skill_detail_by_id[skill_id]
+            skill_detail = {
+                **skill_detail_by_id[skill_id],
+                "jobId": clean_text(skill_detail_by_id[skill_id].get("jobId")) or job_id,
+                "name": clean_text(skill_detail_by_id[skill_id].get("name")) or resolved_skill_name,
+            }
+            effect_spec = (
+                normalized_effect_specs.get(key)
+                if skill_effect_specs is not None
+                else None
+            ) or ({"mode": "unsupported"} if skill_effect_specs is not None else None)
+            effect_mode = get_skill_effect_spec(skill_detail, effect_spec)[0]
+            effect_context = {
+                "recognizedBaseLevel": 0,
+                "currentRecognizedLevel": current_recognized_level,
+            }
+            if effect_mode == "statAmplification":
+                effect_context = get_avatar_skill_effect_context(
+                    server_id,
+                    character_id,
+                    detail,
+                    current_avatar,
+                    skill_name,
+                )
+                effect_context["recognizedBaseLevel"] = 0
+                effect_context["currentRecognizedLevel"] = current_recognized_level
+                effect_context["equippedCurrentLevel"] = (
+                    current_level + effect_context["currentAvatarAddedLevel"]
+                )
             skill_infos[key] = {
                 "skillName": skill_name,
+                "resolvedSkillName": resolved_skill_name,
                 "skillId": skill_id,
                 "currentLevel": current_level,
                 "detail": skill_detail,
+                "effectContext": effect_context,
+                "effectSpec": effect_spec,
             }
-            result.update(estimate_skill_plus_one(skill_detail, current_level))
+            result.update(
+                estimate_skill_plus_one(
+                    skill_detail,
+                    current_level,
+                    effect_context,
+                    effect_spec,
+                )
+            )
+            result["effectSpec"] = effect_spec
         else:
             result.update({
                 "calculable": False,
@@ -518,6 +733,8 @@ def select_best_avatar_combo_for_character(
         detail,
         skill_names,
         skill_level_overrides,
+        current_avatar,
+        option_db.get("skillEffects") or {},
     )
     combo_results = [
         evaluate_avatar_combo(combo, current_avatar, skill_infos, include_price=False)
@@ -553,6 +770,10 @@ def select_best_avatar_combo_for_character(
         "comboResults": combo_results[:20],
         "recommendedCombos": strongest_recommended_combos,
         "recommendedCombo": recommended_combo,
+        "usesRecognizedCoefficient": any(
+            clean_text((info.get("effectSpec") or {}).get("mode")) == "recognizedCoefficient"
+            for info in skill_infos.values()
+        ),
     }
 
 
@@ -598,6 +819,8 @@ def load_character_avatar_skill_efficiency(
         detail,
         [candidate["skillName"] for candidate in candidates],
         skill_level_overrides,
+        current_avatar,
+        option_db.get("skillEffects") or {},
     )
 
     combo_results = [

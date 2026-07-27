@@ -18,6 +18,7 @@ from .effects import get_creature_artifact_status_summary, get_title_enchant_sta
 from .avatar_skill_optimizer import (
     flatten_skill_rows,
     get_avatar_candidate_combos,
+    get_avatar_skill_effect_config,
     normalize_skill_key,
     select_best_avatar_combo_for_character,
 )
@@ -3359,7 +3360,10 @@ def load_buffer_switching_creature_release_recommendations(
     }]
 
 
-def load_character_loadout(server_id: str, character_id: str) -> dict:
+def load_character_loadout(
+    server_id: str,
+    character_id: str,
+) -> dict:
     trace_token = start_api_fanout_trace("/api/character-loadout", server_id, character_id)
     started_at = time.perf_counter()
     try:
@@ -3386,7 +3390,11 @@ def load_character_loadout(server_id: str, character_id: str) -> dict:
         avatar_payload = _measure_step(
             steps,
             "load_character_avatar",
-            lambda: load_character_avatar(server_id, character_id, enchant_payload.get("bufferBaseline")),
+            lambda: load_character_avatar(
+                server_id,
+                character_id,
+                enchant_payload.get("bufferBaseline"),
+            ),
         )
         switching_title_recommendations = _measure_step(
             steps,
@@ -5155,7 +5163,11 @@ def get_recommended_platinum_skill_by_slot(option_db: dict, default_skill: str, 
     }
 
 
-def load_character_avatar(server_id: str, character_id: str, buffer_baseline: dict | None = None) -> dict:
+def load_character_avatar(
+    server_id: str,
+    character_id: str,
+    buffer_baseline: dict | None = None,
+) -> dict:
     steps = []
     timing_details = {}
     payload = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
@@ -5241,6 +5253,22 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         for skill in option_db.get("skipCurrentPlatinumSkills") or []
         if clean_text(skill)
     }
+    recognized_avatar_skill_keys = {
+        normalize_skill_key(candidate.get("skillName"))
+        for candidate in avatar_combo_analysis.get("candidates") or []
+        if candidate.get("calculable") and normalize_skill_key(candidate.get("skillName"))
+    }
+    recognized_avatar_skill_keys.update(
+        normalize_skill_key(skill)
+        for skill in skip_current_platinum_skills
+        if normalize_skill_key(skill)
+    )
+    current_top_option_key = normalize_skill_key(jacket.get("optionAbility"))
+    recognized_top_option_level = (
+        1 if current_top_option_key in recognized_avatar_skill_keys else 0
+    )
+    recognized_platinum_level_by_slot = {}
+    current_platinum_skill_by_slot = {}
     for slot_id, slot_label, row in [
         ("JACKET", "상의 아바타", jacket),
         ("PANTS", "하의 아바타", pants),
@@ -5253,6 +5281,18 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             for emblem in emblems
             if clean_text(extract_platinum_skill_name(emblem.get("itemName")))
         ]
+        current_platinum_skill_by_slot[slot_id] = next(
+            iter(current_platinum_skills),
+            "",
+        )
+        recognized_platinum_level_by_slot[slot_id] = (
+            1
+            if any(
+                normalize_skill_key(current_skill) in recognized_avatar_skill_keys
+                for current_skill in current_platinum_skills
+            )
+            else 0
+        )
         if any(skill_name_matches(current_skill, skip_skill) for current_skill in current_platinum_skills for skip_skill in skip_current_platinum_skills):
             platinum_slots.append(slot_label)
             continue
@@ -5805,7 +5845,10 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             buffer_platinum_deltas.update(slot_delta)
     if platinum_skill and missing_or_wrong_slots:
         for slot_label in missing_or_wrong_slots:
-            target_platinum_skill = clean_text(platinum_skill_by_slot.get(slot_label) or platinum_skill)
+            slot_id = "JACKET" if slot_label == "상의 아바타" else "PANTS"
+            target_platinum_skill = clean_text(
+                platinum_skill_by_slot.get(slot_label) or platinum_skill
+            )
             if not target_platinum_skill:
                 continue
             item = _measure_step(
@@ -5814,14 +5857,16 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                 lambda skill_name=target_platinum_skill: choose_avatar_platinum_price_item(skill_name, allow_selection_box=True),
             )
             timing_details[f"choose_avatar_platinum_price_item:{slot_label}"] = item.get("_debugTimings") or []
-            slot_id = "JACKET" if slot_label == "상의 아바타" else "PANTS"
             platinum_delta = buffer_platinum_deltas.get(slot_id) or {}
             buffer_stat_scope = (
                 "current"
                 if buffer_stat_name and slot_id in switching_rare_slot_ids
                 else "common" if buffer_stat_name else ""
             )
-            current_platinum_skill = clean_text(platinum_delta.get("currentSkill"))
+            current_platinum_skill = clean_text(
+                platinum_delta.get("currentSkill")
+                or current_platinum_skill_by_slot.get(slot_id)
+            )
             buff_skill_name = clean_text(buffer_skill_levels.get("buffSkillName"))
             awakening_skill_name = clean_text(buffer_skill_levels.get("awakeningSkillName"))
             skill_damage_multiplier = (
@@ -5889,6 +5934,14 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
                     ),
                     "skillContributionScope": buffer_stat_scope or "common",
                 })
+            elif "recognizedCoefficient" in {
+                clean_text(
+                    get_avatar_skill_effect_config(option_db, skill_name).get("mode")
+                )
+                for skill_name in (current_platinum_skill, target_platinum_skill)
+                if clean_text(skill_name)
+            }:
+                recommendation["dealerPlatinumMetricPolicy"] = "recognizedCoefficient"
             recommendations.append(recommendation)
     if buffer_stat_name:
         current_buffer_configs, switching_buffer_configs = get_buffer_avatar_emblem_configs(switching_rows)
@@ -5969,6 +6022,10 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
             "iconUrl": get_item_icon_url(item_id) if item_id else "",
             "emblems": emblems[:2],
             "platinumEmblems": platinum_emblems[:2],
+            "recognizedPlatinumLevelContribution": recognized_platinum_level_by_slot.get(
+                slot_id,
+                0,
+            ),
         })
     avatar_payload = {
         "dbMatched": bool(entry),
@@ -5978,6 +6035,7 @@ def load_character_avatar(server_id: str, character_id: str, buffer_baseline: di
         "expectedPlatinumEmblemsBySlot": platinum_skill_by_slot,
         "recommendedCombo": recommended_avatar_combo,
         "comboAnalysisError": avatar_combo_analysis.get("error"),
+        "recognizedTopOptionLevelContribution": recognized_top_option_level,
         "rareAvatarCount": len(rare_slots),
         "rareAvatarSlots": rare_slots,
         "rareCloneAvatarCount": len(clone_slots),

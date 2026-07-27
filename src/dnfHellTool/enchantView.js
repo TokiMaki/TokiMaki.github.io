@@ -1096,6 +1096,7 @@ function normalizeSimulatorDamageDelta(effects = {}, baseline = {}) {
 const {
   getAvatarPlatinumDamageMultiplier,
   getDealerAvatarPlatinumEquipmentScoreMultiplier,
+  getDealerAvatarPlatinumRecognizedCoefficientMultiplier,
   getAvatarPlatinumRecommendationMultiplier,
   getAvatarRows,
   normalizeAvatarSimulatorState,
@@ -1835,7 +1836,6 @@ export function installEnchantView(ctx) {
   const getRelicCraftTuneAttempts = () => normalizeRelicCraftTuneAttempts(
     els.enchantRelicTuneAttemptRange?.value,
   );
-
   const { renderEfficiencyLegend } = createEnchantEfficiencyLegend({
     escapeHtml,
     legendElement: els.enchantEfficiencyLegend,
@@ -2181,11 +2181,15 @@ export function installEnchantView(ctx) {
           skillDamageMultiplier: _skillDamageMultiplier,
           ...displayNeutralEffects
         } = row.effects || {};
-        const currentMultiplier = Number(
-          simulator.avatarPlatinumChangesBySlot?.[row.targetSlotId]?.skillDamageMultiplier || 1,
-        );
-        const targetMultiplier = getAvatarPlatinumRecommendationMultiplier(row);
-        const relativeMultiplier = currentMultiplier > 0 ? targetMultiplier / currentMultiplier : 0;
+        const relativeMultiplier = row.dealerPlatinumMetricPolicy === 'recognizedCoefficient'
+          ? getDealerAvatarPlatinumRecognizedCoefficientMultiplier(simulator, row)
+          : (() => {
+            const currentMultiplier = Number(
+              simulator.avatarPlatinumChangesBySlot?.[row.targetSlotId]?.skillDamageMultiplier || 1,
+            );
+            const targetMultiplier = getAvatarPlatinumRecommendationMultiplier(row);
+            return currentMultiplier > 0 ? targetMultiplier / currentMultiplier : 0;
+          })();
         return {
           ...row,
           skillDamageMultiplier: relativeMultiplier,
@@ -2904,6 +2908,7 @@ export function installEnchantView(ctx) {
         targetSlotId,
         applyType: 'replaceAvatarPlatinumEmblem',
         dealerMultiplier,
+        dealerPlatinumMetricPolicy: row.dealerPlatinumMetricPolicy || '',
       };
     }
     if (row.sourceType === 'switchingFragment') {
@@ -3557,6 +3562,7 @@ export function installEnchantView(ctx) {
     } else {
       simulator.avatarPlatinumChangesBySlot[target.targetSlotId] = {
         skillDamageMultiplier: Number(target.dealerMultiplier || 1),
+        dealerPlatinumMetricPolicy: target.dealerPlatinumMetricPolicy || '',
       };
       rebuildDealerSimulatorCalculationState();
     }
@@ -5919,7 +5925,7 @@ export function installEnchantView(ctx) {
       ...getSwitchingCreatureRows(state.switchingCreatureRecommendations),
       ...getSwitchingFragmentRows(state.switchingFragmentRecommendations),
       ...getAuraRows(state.auraUpgradeGroups),
-      ...getAvatarRows(state.currentAvatar),
+      ...getAvatarRows(state.currentAvatar, state.currentTitle, state.currentDamageBaseline),
       ...getUpgradeRows(
         getActiveEquipmentUpgrades(),
         state.upgradeExpectedDb,
@@ -7166,7 +7172,11 @@ export function installEnchantView(ctx) {
       const artifactCount = getCreatureArtifactRows(state.creatureArtifactGroups).length;
       const titleCount = getTitleRows(state.titleUpgradeGroups, state.currentTitle).length + getSwitchingTitleRows(state.switchingTitleRecommendations).length;
       const auraCount = getAuraRows(state.auraUpgradeGroups).length;
-      const avatarCount = getAvatarRows(state.currentAvatar).length;
+      const avatarCount = getAvatarRows(
+        state.currentAvatar,
+        state.currentTitle,
+        state.currentDamageBaseline,
+      ).length;
       const errorText = errorCount ? `, 실패 ${errorCount}개` : '';
       const refreshingText = payload.cache?.refreshing || creaturePayload.cache?.refreshing || titlePayload.cache?.refreshing || auraPayload.cache?.refreshing ? ', 백그라운드 갱신 중' : '';
       const pricedAtText = state.enchantPricedAt || state.creaturePricedAt || state.titlePricedAt || state.auraPricedAt || '캐시 준비 중';

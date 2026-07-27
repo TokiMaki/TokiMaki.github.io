@@ -16,7 +16,12 @@ export function createEnchantAvatarRecommendationSource(deps) {
     greenYellow: { shining: 0, ornate: 10, brilliant: 15 },
   };
 
-  function getAvatarPlatinumDamageMultiplier(changesBySlot = {}) {
+  function getAvatarPlatinumDamageMultiplier(changesBySlot = {}, simulator = {}) {
+    if (Object.values(changesBySlot || {}).some(
+      (changes) => changes?.dealerPlatinumMetricPolicy === 'recognizedCoefficient',
+    )) {
+      return getDealerAvatarPlatinumEquipmentScoreMultiplier(simulator);
+    }
     return Object.values(changesBySlot || {}).reduce((multiplier, changes) => {
       const value = Number(changes?.skillDamageMultiplier || 1);
       return multiplier * (Number.isFinite(value) && value > 0 ? value : 1);
@@ -81,6 +86,30 @@ export function createEnchantAvatarRecommendationSource(deps) {
       / resolveDealerAvatarSkillCoefficient(currentLevel);
   }
 
+  function getDealerAvatarPlatinumRecognizedCoefficientMultiplier(simulator = {}, row = {}) {
+    const currentAvatar = simulator.simulatedAvatar || {};
+    const targetAvatar = cloneSimulatorValue(currentAvatar);
+    const targetSlot = (targetAvatar.slots || [])
+      .find((slot) => slot?.slotId === row.targetSlotId);
+    if (!targetSlot) return 1;
+    targetSlot.recognizedPlatinumLevelContribution = Number(
+      row.targetPlatinumEmblem?.recognizedLevelContribution || 0,
+    );
+    const jobName = simulator.baseDamageBaseline?.jobName || '';
+    const currentLevel = getDealerAvatarRecognizedLevel(
+      currentAvatar,
+      simulator.simulatedTitle || {},
+      jobName,
+    );
+    const targetLevel = getDealerAvatarRecognizedLevel(
+      targetAvatar,
+      simulator.simulatedTitle || {},
+      jobName,
+    );
+    return resolveDealerAvatarSkillCoefficient(targetLevel)
+      / resolveDealerAvatarSkillCoefficient(currentLevel);
+  }
+
   function getAvatarPlatinumRecommendationMultiplier(row = {}) {
     const explicit = Number(
       row.baseRelativeSkillDamageMultiplier
@@ -93,57 +122,80 @@ export function createEnchantAvatarRecommendationSource(deps) {
     return finalDamage > 0 ? 1 + finalDamage / 100 : 1;
   }
 
-  function getAvatarRows(currentAvatar) {
-    return (currentAvatar?.recommendations || []).map((candidate) => ({
-      sourceType: 'avatar',
-      kind: candidate.kind || '',
-      slot: candidate.slot || '아바타',
-      tier: candidate.tier || '아바타',
-      itemId: candidate.itemId,
-      itemName: candidate.itemName,
-      itemRarity: candidate.itemRarity || '',
-      fame: 0,
-      iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
-      effects: candidate.effects || {},
-      skillDamageMultiplier: Number(candidate.skillDamageMultiplier || 0),
-      baseRelativeSkillDamageMultiplier: Number(candidate.skillDamageMultiplier || 0),
-      itemExplain: candidate.itemExplain || '',
-      auction: candidate.auction || {},
-      expectedGold: candidate.expectedGold,
-      acquisition: candidate.acquisition || null,
-      needCount: candidate.needCount || 0,
-      unitPrice: candidate.unitPrice,
-      targetSlotId: candidate.targetSlotId || '',
-      targetPlatinumEmblem: candidate.targetPlatinumEmblem || null,
-      targetBuffSlot: candidate.targetBuffSlot || '',
-      targetBuffChanges: candidate.targetBuffChanges || null,
-      socketChanges: Array.isArray(candidate.socketChanges) ? candidate.socketChanges : [],
-      targetSkill: candidate.targetSkill || '',
-      equivalentTargetSkills: candidate.equivalentTargetSkills || [],
-      currentSwitchingMultiplier: Number(candidate.currentSwitchingMultiplier || 0),
-      candidateSwitchingMultiplier: Number(candidate.candidateSwitchingMultiplier || 0),
-      priceMode: candidate.priceMode || '',
-      bufferStatScope: candidate.bufferStatScope || '',
-      bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
-      bufferAwakeningSkillLevelDelta: Number(candidate.bufferAwakeningSkillLevelDelta || 0),
-      bufferSimulatorChanges: candidate.bufferSimulatorChanges || null,
-      bufferSkillStatDeltas: candidate.bufferSkillStatDeltas || {},
-      bufferSkillLevels: candidate.bufferSkillLevels || {},
-      currentPlatinumSkill: candidate.currentPlatinumSkill || '',
-      baseSkillContributions: candidate.baseSkillContributions || [],
-      targetSkillContributions: candidate.targetSkillContributions || [],
-      hasExactSkillContributions: Array.isArray(candidate.baseSkillContributions)
-        && Array.isArray(candidate.targetSkillContributions),
-      skillContributionScope: candidate.skillContributionScope || '',
-      priceWarningText: candidate.priceWarningText || '',
-      recommendationPriority: Number(candidate.recommendationPriority || 0),
-    }));
+  function getAvatarRows(currentAvatar, currentTitle = {}, damageBaseline = {}) {
+    const currentAvatarState = normalizeAvatarSimulatorState(currentAvatar?.avatar || {});
+    return (currentAvatar?.recommendations || []).map((candidate) => {
+      const fixedRecognitionMultiplier = candidate.dealerPlatinumMetricPolicy === 'recognizedCoefficient'
+        ? getDealerAvatarPlatinumRecognizedCoefficientMultiplier({
+          simulatedAvatar: currentAvatarState,
+          simulatedTitle: currentTitle,
+          baseDamageBaseline: damageBaseline,
+        }, candidate)
+        : 0;
+      const skillDamageMultiplier = fixedRecognitionMultiplier
+        || Number(candidate.skillDamageMultiplier || 0);
+      return {
+        sourceType: 'avatar',
+        kind: candidate.kind || '',
+        slot: candidate.slot || '아바타',
+        tier: candidate.tier || '아바타',
+        itemId: candidate.itemId,
+        itemName: candidate.itemName,
+        itemRarity: candidate.itemRarity || '',
+        fame: 0,
+        iconUrl: candidate.iconUrl || (candidate.itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(candidate.itemId)}` : ''),
+        effects: fixedRecognitionMultiplier
+          ? { ...(candidate.effects || {}), skillDamageMultiplier: fixedRecognitionMultiplier }
+          : candidate.effects || {},
+        skillDamageMultiplier,
+        baseRelativeSkillDamageMultiplier: skillDamageMultiplier,
+        itemExplain: candidate.itemExplain || '',
+        auction: candidate.auction || {},
+        expectedGold: candidate.expectedGold,
+        acquisition: candidate.acquisition || null,
+        needCount: candidate.needCount || 0,
+        unitPrice: candidate.unitPrice,
+        targetSlotId: candidate.targetSlotId || '',
+        targetPlatinumEmblem: candidate.targetPlatinumEmblem || null,
+        targetBuffSlot: candidate.targetBuffSlot || '',
+        targetBuffChanges: candidate.targetBuffChanges || null,
+        socketChanges: Array.isArray(candidate.socketChanges) ? candidate.socketChanges : [],
+        targetSkill: candidate.targetSkill || '',
+        equivalentTargetSkills: candidate.equivalentTargetSkills || [],
+        currentSwitchingMultiplier: Number(candidate.currentSwitchingMultiplier || 0),
+        candidateSwitchingMultiplier: Number(candidate.candidateSwitchingMultiplier || 0),
+        priceMode: candidate.priceMode || '',
+        bufferStatScope: candidate.bufferStatScope || '',
+        bufferBuffSkillLevelDelta: Number(candidate.bufferBuffSkillLevelDelta || 0),
+        bufferAwakeningSkillLevelDelta: Number(candidate.bufferAwakeningSkillLevelDelta || 0),
+        bufferSimulatorChanges: candidate.bufferSimulatorChanges || null,
+        bufferSkillStatDeltas: candidate.bufferSkillStatDeltas || {},
+        bufferSkillLevels: candidate.bufferSkillLevels || {},
+        currentPlatinumSkill: candidate.currentPlatinumSkill || '',
+        baseSkillContributions: candidate.baseSkillContributions || [],
+        targetSkillContributions: candidate.targetSkillContributions || [],
+        hasExactSkillContributions: Array.isArray(candidate.baseSkillContributions)
+          && Array.isArray(candidate.targetSkillContributions),
+        skillContributionScope: candidate.skillContributionScope || '',
+        priceWarningText: candidate.priceWarningText || '',
+        recommendationPriority: Number(candidate.recommendationPriority || 0),
+        ...(candidate.dealerPlatinumMetricPolicy ? {
+          dealerPlatinumMetricPolicy: candidate.dealerPlatinumMetricPolicy,
+        } : {}),
+      };
+    });
   }
 
   function normalizeAvatarSimulatorState(avatar = {}) {
     const normalized = cloneSimulatorValue(avatar || {});
     const platinumSlots = new Set(normalized.platinumSlots || []);
-    normalized.recognizedTopOptionLevelContribution = normalized.jacket?.topOptionMatched ? 1 : 0;
+    const hasExplicitTopRecognition = Object.prototype.hasOwnProperty.call(
+      normalized,
+      'recognizedTopOptionLevelContribution',
+    );
+    normalized.recognizedTopOptionLevelContribution = hasExplicitTopRecognition
+      ? Number(normalized.recognizedTopOptionLevelContribution || 0)
+      : normalized.jacket?.topOptionMatched ? 1 : 0;
     normalized.slots = (normalized.slots || []).map((slot) => {
       const regularSockets = Array.isArray(slot?.emblems) ? slot.emblems.slice(0, 2) : [];
       while (regularSockets.length < 2) regularSockets.push(null);
@@ -152,9 +204,17 @@ export function createEnchantAvatarRecommendationSource(deps) {
         : slot?.slotId === 'PANTS'
           ? AVATAR_PLATINUM_SLOT_LABEL_BY_KEY.bottom
           : '';
+      const hasExplicitPlatinumRecognition = Object.prototype.hasOwnProperty.call(
+        slot || {},
+        'recognizedPlatinumLevelContribution',
+      );
       return {
         ...slot,
-        recognizedPlatinumLevelContribution: slotLabel && platinumSlots.has(slotLabel) ? 1 : 0,
+        recognizedPlatinumLevelContribution: slotLabel
+          ? hasExplicitPlatinumRecognition
+            ? Number(slot.recognizedPlatinumLevelContribution || 0)
+            : platinumSlots.has(slotLabel) ? 1 : 0
+          : 0,
         emblems: regularSockets.map((emblem, socketIndex) => (
           emblem
             ? { ...emblem, socketKey: `regular:${socketIndex}`, socketIndex }
@@ -205,6 +265,7 @@ export function createEnchantAvatarRecommendationSource(deps) {
   return {
     getAvatarPlatinumDamageMultiplier,
     getDealerAvatarPlatinumEquipmentScoreMultiplier,
+    getDealerAvatarPlatinumRecognizedCoefficientMultiplier,
     getAvatarPlatinumRecommendationMultiplier,
     getAvatarRows,
     normalizeAvatarSimulatorState,
