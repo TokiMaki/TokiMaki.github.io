@@ -115,7 +115,16 @@ export default function DnfHellToolMarkup() {
           </div>
         </aside>
         <section className={'panel enchant-include-card'} id={'enchantIncludeCard'}>
-          <div className={'enchant-include-title'}>포함 항목</div>
+          <div className={'enchant-include-header'}>
+            <div className={'enchant-include-title'}>포함 항목</div>
+            <button
+              type={'button'}
+              className={'ghost-button enchant-include-toggle-button'}
+              id={'toggleEnchantIncludeAllButton'}
+            >
+              전체 선택/해제
+            </button>
+          </div>
           <div className={'enchant-include-controls'} id={'enchantIncludeControls'}></div>
           <div className={'enchant-route-options'}>
             <label className={'enchant-include-option enchant-route-option'}>

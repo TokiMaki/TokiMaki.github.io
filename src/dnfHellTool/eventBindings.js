@@ -499,6 +499,17 @@ if (els.enchantTierFilter) {
     ctx.actions.renderEnchantTable?.();
   });
 }
+const persistEnchantIncludeSelection = () => {
+  if (!els.enchantIncludeControls) return;
+  try {
+    const checked = [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]:checked')]
+      .map((input) => input.value);
+    localStorage.setItem(ENCHANT_INCLUDE_FILTER_STORAGE_KEY, JSON.stringify(checked));
+  } catch {
+    // 저장 실패는 렌더링에 영향 주지 않는다.
+  }
+  ctx.actions.renderEnchantTable?.();
+};
 if (els.enchantIncludeControls) {
   els.enchantIncludeControls.addEventListener('change', (event) => {
     if (event.target?.matches?.('input[data-enchant-tier]')) {
@@ -511,6 +522,18 @@ if (els.enchantIncludeControls) {
       }
       ctx.actions.renderEnchantTable?.();
     }
+  });
+}
+if (els.toggleEnchantIncludeAllButton && els.enchantIncludeControls) {
+  els.toggleEnchantIncludeAllButton.addEventListener('click', () => {
+    const inputs = [...els.enchantIncludeControls.querySelectorAll('input[data-enchant-tier]')];
+    if (!inputs.length) return;
+    const shouldCheckAll = inputs.some((input) => !input.checked);
+    inputs.forEach((input) => {
+      input.checked = shouldCheckAll;
+    });
+    els.toggleEnchantIncludeAllButton.blur();
+    persistEnchantIncludeSelection();
   });
 }
 if (els.enchantTitleBeadOnlyToggle) {
