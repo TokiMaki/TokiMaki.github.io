@@ -12,13 +12,22 @@ CREATURE_PRICE_CACHE_PATH = PRICE_CACHE_DIR / "creature_prices.json"
 TITLE_PRICE_CACHE_PATH = PRICE_CACHE_DIR / "title_prices.json"
 AURA_PRICE_CACHE_PATH = PRICE_CACHE_DIR / "aura_prices.json"
 PRICE_REFRESH_INTERVAL_SECONDS = 600
-ENCHANT_PRICE_CACHE_SCHEMA_VERSION = 12
+PRICE_ERROR_RETRY_INTERVAL_SECONDS = 60
+ENCHANT_PRICE_CACHE_SCHEMA_VERSION = 13
 
 _CACHE_LOCK = Lock()
 _ENCHANT_PRICE_CACHE = {"expires_at": 0, "payload": None, "refreshing": False}
 _CREATURE_PRICE_CACHE = {"expires_at": 0, "payload": None, "refreshing": False}
 _TITLE_PRICE_CACHE = {"expires_at": 0, "payload": None, "refreshing": False}
 _AURA_PRICE_CACHE = {"expires_at": 0, "payload": None, "refreshing": False}
+
+
+def get_price_cache_ttl_seconds(payload: dict) -> int:
+    return (
+        PRICE_ERROR_RETRY_INTERVAL_SECONDS
+        if payload.get("errors")
+        else PRICE_REFRESH_INTERVAL_SECONDS
+    )
 
 
 def add_cache_status(payload: dict, cache: dict, stale: bool = False) -> dict:

@@ -3,14 +3,38 @@ import time
 from ..neople_client import clean_text, get_auction_rows_by_item_ids_from_api, get_auction_rows_by_name_from_api, get_auction_rows_from_api
 from ..price_cache import (
     AURA_PRICE_CACHE_PATH,
-    PRICE_REFRESH_INTERVAL_SECONDS,
     _AURA_PRICE_CACHE,
     _CACHE_LOCK,
     add_cache_status,
+    get_price_cache_ttl_seconds,
     load_price_cache_from_disk,
     save_price_cache_to_disk,
     start_cache_refresh,
 )
+
+AUCTION_PRICE_STATUS_PRICED = "priced"
+AUCTION_PRICE_STATUS_UNLISTED = "unlisted"
+AUCTION_PRICE_STATUS_UNAVAILABLE = "unavailable"
+
+
+def build_unlisted_auction_price() -> dict:
+    return {
+        "priceStatus": AUCTION_PRICE_STATUS_UNLISTED,
+        "listingCount": 0,
+        "minUnitPrice": None,
+        "averagePrice": None,
+        "auctionNo": None,
+    }
+
+
+def build_unavailable_auction_price() -> dict:
+    return {
+        "priceStatus": AUCTION_PRICE_STATUS_UNAVAILABLE,
+        "listingCount": 0,
+        "minUnitPrice": None,
+        "averagePrice": None,
+        "auctionNo": None,
+    }
 
 
 def get_auction_rows(item_id: str, min_fame=None, max_fame=None, limit: int = 100, offset: int = 0) -> list:
@@ -59,6 +83,7 @@ def _lowest_auction_price_from_rows(rows: list, require_max_upgrade: bool = Fals
 
     lowest = min(candidate_rows, key=lambda row: row.get("unitPrice"), default=None)
     return {
+        "priceStatus": AUCTION_PRICE_STATUS_PRICED if lowest else AUCTION_PRICE_STATUS_UNLISTED,
         "listingCount": sum(int(row.get("regCount") or 0) for row in candidate_rows),
         "minUnitPrice": lowest.get("unitPrice") if lowest else None,
         "averagePrice": lowest.get("averagePrice") if lowest and lowest.get("averagePrice", 0) > 0 else None,
@@ -153,7 +178,7 @@ def get_aura_price_cache_payload(force_refresh: bool, allow_stale: bool, schema_
 
 
 def save_aura_price_cache_payload(payload: dict, now: float) -> dict:
-    expires_at = now + PRICE_REFRESH_INTERVAL_SECONDS
+    expires_at = now + get_price_cache_ttl_seconds(payload)
     with _CACHE_LOCK:
         _AURA_PRICE_CACHE["payload"] = payload
         _AURA_PRICE_CACHE["expires_at"] = expires_at

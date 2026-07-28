@@ -62,7 +62,15 @@ from .neople_client import (
     get_item_icon_url,
 )
 from .ops_log import write_ops_log
-from .repositories.auction_repository import get_auction_rows, get_auction_rows_by_item_ids, get_auction_rows_by_name, get_lowest_auction_price, get_lowest_auction_prices
+from .repositories.auction_repository import (
+    build_unavailable_auction_price,
+    build_unlisted_auction_price,
+    get_auction_rows,
+    get_auction_rows_by_item_ids,
+    get_auction_rows_by_name,
+    get_lowest_auction_price,
+    get_lowest_auction_prices,
+)
 from .repositories.character_repository import (
     get_character_cached_computed_payload,
     get_character_cached_payload,
@@ -1844,6 +1852,7 @@ def append_damage_application_note(text: str, note: str) -> str:
 
 def auction_row_to_switching_title_price(row: dict) -> dict:
     return {
+        "priceStatus": "priced",
         "listingCount": int(row.get("regCount") or 1),
         "minUnitPrice": row.get("unitPrice") or row.get("currentPrice"),
         "averagePrice": row.get("averagePrice") if row.get("averagePrice", 0) > 0 else None,
@@ -1907,7 +1916,7 @@ def get_lowest_switching_fragment_auction(item_id: str) -> dict:
         and (row.get("unitPrice") or row.get("currentPrice")) > 0
     ]
     if not priced_rows:
-        return {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None, "expireDate": None}
+        return {**build_unlisted_auction_price(), "expireDate": None}
     return auction_row_to_switching_title_price(min(
         priced_rows,
         key=lambda row: row.get("unitPrice") or row.get("currentPrice") or 10**30,
@@ -4894,7 +4903,7 @@ def find_lowest_exact_item_by_name(item_name: str) -> dict:
         try:
             auction = get_lowest_auction_price(item_id)
         except Exception:
-            auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+            auction = build_unavailable_auction_price()
         candidates.append({
             "itemId": item_id,
             "itemName": clean_item_display_name(row.get("itemName")),
@@ -4905,7 +4914,7 @@ def find_lowest_exact_item_by_name(item_name: str) -> dict:
     return min(
         candidates,
         key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
-        default={"itemName": item_name, "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}},
+        default={"itemName": item_name, "auction": build_unlisted_auction_price()},
     )
 
 
@@ -5003,7 +5012,7 @@ def find_avatar_platinum_item(skill_name: str) -> dict:
     if not exact_rows:
         return {
             "itemName": item_name,
-            "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None},
+            "auction": build_unlisted_auction_price(),
         }
     candidates = []
     for row in exact_rows:
@@ -5013,7 +5022,7 @@ def find_avatar_platinum_item(skill_name: str) -> dict:
         try:
             auction = get_lowest_auction_price(item_id)
         except Exception:
-            auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+            auction = build_unavailable_auction_price()
         candidates.append({
             "itemId": item_id,
             "itemName": clean_item_display_name(row.get("itemName")),
@@ -5024,7 +5033,7 @@ def find_avatar_platinum_item(skill_name: str) -> dict:
     return min(
         candidates,
         key=lambda item: item.get("auction", {}).get("minUnitPrice") or 10**30,
-        default={"itemName": item_name, "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}},
+        default={"itemName": item_name, "auction": build_unlisted_auction_price()},
     )
 
 
@@ -5060,7 +5069,7 @@ def find_avatar_platinum_selection_box() -> dict:
             try:
                 auction = get_lowest_auction_price(item_id)
             except Exception:
-                auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                auction = build_unavailable_auction_price()
             candidates.append({
                 "itemId": item_id,
                 "itemName": clean_item_display_name(row.get("itemName")),

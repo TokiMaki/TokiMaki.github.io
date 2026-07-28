@@ -13,6 +13,7 @@ function formatEok(value) {
 
 const markup = read('../src/components/DnfHellToolMarkup.jsx');
 const styles = read('../src/styles/supply.css');
+const view = read('../src/dnfHellTool/enchantView.js');
 const relicCraftDb = JSON.parse(read('../Docs/relic_craft_db.json'));
 const expectedManualMaterials = relicCraftDb.crafts.flatMap((recipe) => {
   const manualPrices = recipe.manualPrices || {};
@@ -54,5 +55,9 @@ assert.match(styles, /\.enchant-material-cost-tooltip \{/);
 assert.match(styles, /\.enchant-material-cost-base-price img \{/);
 assert.match(styles, /\.enchant-material-cost-option-wrap:hover \.enchant-material-cost-tooltip/);
 assert.match(styles, /\.enchant-material-cost-option-wrap:focus-within \.enchant-material-cost-tooltip/);
+assert.match(view, /function isAuctionPriceUnavailable\(auction = \{\}\)/);
+assert.match(view, /return \['unlisted', 'unavailable'\]\.includes\(auction\?\.priceStatus\);/);
+assert.match(view, /if \(hasUnavailableMaterialPrice\(materials\)\) return Number\.NaN;/);
+assert.match(view, /\? '가격 확인 불가'/);
 
 console.log('enchant material cost tooltip: ok');

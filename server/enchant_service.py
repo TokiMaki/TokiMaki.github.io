@@ -18,18 +18,26 @@ from .price_cache import (
     CREATURE_PRICE_CACHE_PATH,
     ENCHANT_PRICE_CACHE_PATH,
     ENCHANT_PRICE_CACHE_SCHEMA_VERSION,
-    PRICE_REFRESH_INTERVAL_SECONDS,
     TITLE_PRICE_CACHE_PATH,
     _CACHE_LOCK,
     _CREATURE_PRICE_CACHE,
     _ENCHANT_PRICE_CACHE,
     _TITLE_PRICE_CACHE,
     add_cache_status,
+    get_price_cache_ttl_seconds,
     load_price_cache_from_disk,
     save_price_cache_to_disk,
     start_cache_refresh,
 )
-from .repositories.auction_repository import get_auction_rows, get_aura_price_cache_payload, get_lowest_auction_price, save_aura_price_cache_payload
+from .repositories.auction_repository import (
+    AUCTION_PRICE_STATUS_UNAVAILABLE,
+    build_unavailable_auction_price,
+    build_unlisted_auction_price,
+    get_auction_rows,
+    get_aura_price_cache_payload,
+    get_lowest_auction_price,
+    save_aura_price_cache_payload,
+)
 from .repositories.item_repository import fetch_item_details, resolve_exact_item_by_name, search_items_by_name
 from .upgrade_payloads import (
     build_title_payload,
@@ -38,9 +46,9 @@ from .upgrade_payloads import (
     parse_title_level_tag,
 )
 
-CREATURE_PRICE_CACHE_SCHEMA_VERSION = 7
-AURA_PRICE_CACHE_SCHEMA_VERSION = 2
-TITLE_PRICE_CACHE_SCHEMA_VERSION = 10
+CREATURE_PRICE_CACHE_SCHEMA_VERSION = 8
+AURA_PRICE_CACHE_SCHEMA_VERSION = 3
+TITLE_PRICE_CACHE_SCHEMA_VERSION = 11
 
 
 def get_enchant_bead_search_names(card: dict) -> list:
@@ -86,6 +94,7 @@ def combine_effects(*effect_rows: dict) -> dict:
 
 def auction_row_to_price(row: dict) -> dict:
     return {
+        "priceStatus": "priced",
         "listingCount": int(row.get("regCount") or row.get("count") or 1),
         "minUnitPrice": row.get("unitPrice"),
         "averagePrice": row.get("averagePrice") if row.get("averagePrice", 0) > 0 else None,
@@ -96,14 +105,19 @@ def auction_row_to_price(row: dict) -> dict:
 
 def add_auction_prices(*auctions: dict) -> dict:
     valid_auctions = [auction for auction in auctions if auction is not None]
+    if not valid_auctions:
+        return build_unlisted_auction_price()
     prices = [
         auction.get("minUnitPrice")
         for auction in valid_auctions
         if isinstance(auction.get("minUnitPrice"), (int, float)) and auction.get("minUnitPrice") > 0
     ]
     if len(prices) != len(valid_auctions):
-        return {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+        if any(auction.get("priceStatus") == AUCTION_PRICE_STATUS_UNAVAILABLE for auction in valid_auctions):
+            return build_unavailable_auction_price()
+        return build_unlisted_auction_price()
     return {
+        "priceStatus": "priced",
         "listingCount": sum(int(auction.get("listingCount") or 0) for auction in valid_auctions),
         "minUnitPrice": sum(prices),
         "averagePrice": None,
@@ -117,7 +131,14 @@ def lowest_auction_from_rows(rows: list) -> dict:
         if isinstance(row.get("unitPrice"), (int, float)) and row.get("unitPrice") > 0
     ]
     lowest = min(priced_rows, key=lambda row: row.get("unitPrice"), default=None)
-    return auction_row_to_price(lowest) if lowest else {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+    return auction_row_to_price(lowest) if lowest else build_unlisted_auction_price()
+
+
+def resolve_unpriced_auction(rows: list) -> dict:
+    auctions = [row.get("auction") or {} for row in rows or []]
+    if any(auction.get("priceStatus") == AUCTION_PRICE_STATUS_UNAVAILABLE for auction in auctions):
+        return build_unavailable_auction_price()
+    return build_unlisted_auction_price()
 
 
 def enrich_aura_groups_for_character(groups: list, server_id: str, character_id: str) -> list:
@@ -200,7 +221,7 @@ def load_title_bead_options(get_cached_auction, errors: list) -> list:
             try:
                 auction = get_cached_auction(item_id)
             except Exception as exc:
-                auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                auction = build_unavailable_auction_price()
                 errors.append({"itemId": item_id, "itemName": row.get("itemName"), "error": str(exc)})
             element_options.append({
                 "itemId": item_id,
@@ -261,7 +282,7 @@ def load_creature_artifact_groups_with_prices(errors: list) -> list:
                 try:
                     auction = future.result()
                 except Exception as exc:
-                    auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                    auction = build_unavailable_auction_price()
                     errors.append({"itemId": item_id, "itemName": candidate.get("itemName"), "error": str(exc)})
                 artifact_summary = get_creature_artifact_status_summary(detail.get("itemStatus") or [])
                 candidates.append({
@@ -486,7 +507,7 @@ def load_creature_upgrades_with_prices(
                     try:
                         item["auction"] = future.result()
                     except Exception as exc:
-                        item["auction"] = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                        item["auction"] = build_unavailable_auction_price()
                         errors.append({"itemId": item_id, "itemName": item.get("itemName"), "error": str(exc)})
                     items.append(item)
 
@@ -533,12 +554,7 @@ def load_creature_upgrades_with_prices(
                     "itemName": lowest_item.get("itemName"),
                     "iconUrl": lowest_item.get("iconUrl"),
                 } if lowest_item and lowest_item.get("itemId") != display_source.get("itemId") else None,
-                "auction": lowest_item.get("auction") if lowest_item else {
-                    "listingCount": 0,
-                    "minUnitPrice": None,
-                    "averagePrice": None,
-                    "auctionNo": None,
-                },
+                "auction": lowest_item.get("auction") if lowest_item else resolve_unpriced_auction(items),
             })
         group_payload["candidates"] = candidates
         groups.append(group_payload)
@@ -553,7 +569,7 @@ def load_creature_upgrades_with_prices(
         "artifactGroups": artifact_groups,
         "errors": errors,
     }
-    expires_at = now + PRICE_REFRESH_INTERVAL_SECONDS
+    expires_at = now + get_price_cache_ttl_seconds(payload)
     with _CACHE_LOCK:
         _CREATURE_PRICE_CACHE["payload"] = payload
         _CREATURE_PRICE_CACHE["expires_at"] = expires_at
@@ -690,7 +706,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
                 try:
                     item["auction"] = future.result()
                 except Exception as exc:
-                    item["auction"] = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                    item["auction"] = build_unavailable_auction_price()
                     errors.append({"itemId": item.get("itemId"), "itemName": item.get("itemName"), "error": str(exc)})
                 box_prices.append(item)
 
@@ -706,7 +722,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
                 try:
                     auction = future.result()
                 except Exception as exc:
-                    auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                    auction = build_unavailable_auction_price()
                     errors.append({"itemId": item_id, "itemName": detail.get("itemName"), "error": str(exc)})
 
                 variant = get_title_variant(detail.get("itemName"))
@@ -836,7 +852,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         "groups": groups,
         "errors": errors,
     }
-    expires_at = now + PRICE_REFRESH_INTERVAL_SECONDS
+    expires_at = now + get_price_cache_ttl_seconds(payload)
     with _CACHE_LOCK:
         _TITLE_PRICE_CACHE["payload"] = payload
         _TITLE_PRICE_CACHE["expires_at"] = expires_at
@@ -984,12 +1000,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
                 errors.append({"itemName": material_search_name, "error": "재료 itemId를 찾지 못했습니다."})
         item_with_source["acquisition"] = acquisition
         item_with_source["sources"] = build_material_enchant_sources(item, detail)
-        item_with_source["auction"] = {
-            "listingCount": 0,
-            "minUnitPrice": None,
-            "averagePrice": None,
-            "auctionNo": None,
-        }
+        item_with_source["auction"] = build_unlisted_auction_price()
         item_with_source["priceOptions"] = []
         cards.append(item_with_source)
 
@@ -1021,12 +1032,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
             try:
                 option["auction"] = future.result()
             except Exception as exc:
-                option["auction"] = {
-                    "listingCount": 0,
-                    "minUnitPrice": None,
-                    "averagePrice": None,
-                    "auctionNo": None,
-                }
+                option["auction"] = build_unavailable_auction_price()
                 errors.append({"itemId": option.get("itemId"), "itemName": option.get("itemName"), "error": str(exc)})
 
     for card in cards:
@@ -1036,12 +1042,10 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
             and option["auction"]["minUnitPrice"] > 0
         ]
         price_item = min(priced_options, key=lambda option: option["auction"]["minUnitPrice"], default=None)
-        card["auction"] = (price_item or {}).get("auction") or {
-            "listingCount": 0,
-            "minUnitPrice": None,
-            "averagePrice": None,
-            "auctionNo": None,
-        }
+        card["auction"] = (
+            (price_item or {}).get("auction")
+            or resolve_unpriced_auction(card.get("priceOptions") or [])
+        )
         card["priceItem"] = {
             "itemId": price_item.get("itemId"),
             "itemName": price_item.get("itemName"),
@@ -1058,7 +1062,7 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
         "cards": cards,
         "errors": errors,
     }
-    expires_at = now + PRICE_REFRESH_INTERVAL_SECONDS
+    expires_at = now + get_price_cache_ttl_seconds(payload)
     with _CACHE_LOCK:
         _ENCHANT_PRICE_CACHE["payload"] = payload
         _ENCHANT_PRICE_CACHE["expires_at"] = expires_at

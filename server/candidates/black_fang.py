@@ -7,8 +7,13 @@ from ..neople_client import (
     clean_text,
     get_item_icon_url,
 )
-from ..repositories.auction_repository import get_auction_rows_by_name, get_lowest_auction_price
+from ..repositories.auction_repository import (
+    build_unavailable_auction_price,
+    get_auction_rows_by_name,
+    get_lowest_auction_price,
+)
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
+from ..repositories.material_price_repository import find_upgrade_material_price_config_by_label
 from ..repositories.resolved_price_repository import get_cached_resolved_price
 from ..presenters.black_fang_presenter import build_black_fang_recommendation_row
 
@@ -19,11 +24,6 @@ BLACK_FANG_MATERIAL_AUCTION_NAME_MAP = {
     "조화의 결정체": "무결점 조화의 결정체",
     "태초 소울": "태초 소울 결정",
     "순례의 인장": "순례의 인장(1회 교환 가능)",
-}
-BLACK_FANG_MATERIAL_AUCTION_ITEM_ID_MAP = {
-    "무결점 조화의 결정체": "ab8eab6848ed81b8bdd65d1c5a6ae8b2",
-    "태초 소울 결정": "d288ebf406a65f4ec23d1f9c33227888",
-    "순례의 인장(1회 교환 가능)": "d7e9443a19fe81a9cc8364c201f6ab55",
 }
 
 
@@ -173,13 +173,18 @@ def enrich_black_fang_materials(
                 item_name = clean_text(material_price.get("label")) or auction_name
                 auction = dict(material_price.get("auction") or {})
             else:
-                item_id = clean_text(BLACK_FANG_MATERIAL_AUCTION_ITEM_ID_MAP.get(auction_name))
+                price_config = find_upgrade_material_price_config_by_label(auction_name)
+                item_id = clean_text(price_config.get("itemId"))
                 item = {} if item_id else _find_exact_item_by_name(auction_name)
                 item_id = clean_text(item_id or item.get("itemId"))
                 try:
-                    auction = get_lowest_auction_price(item_id) if item_id else {}
+                    auction = (
+                        get_lowest_auction_price(item_id)
+                        if item_id
+                        else build_unavailable_auction_price()
+                    )
                 except Exception:
-                    auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                    auction = build_unavailable_auction_price()
                 item_name = clean_text(item.get("itemName")) or auction_name
             material_price_cache[auction_name] = {
                 "itemId": item_id,
@@ -326,9 +331,13 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
             auction = dict(scroll_item.get("auction") or {})
             if not isinstance(auction.get("minUnitPrice"), (int, float)):
                 try:
-                    auction = get_lowest_auction_price(scroll_id) if scroll_id else {}
+                    auction = (
+                        get_lowest_auction_price(scroll_id)
+                        if scroll_id
+                        else build_unavailable_auction_price()
+                    )
                 except Exception:
-                    auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+                    auction = build_unavailable_auction_price()
             scroll_price_cache[scroll_id] = auction
             auction_lookup_ms += (time.perf_counter() - auction_started_at) * 1000
         auction = dict(scroll_price_cache.get(scroll_id) or {})

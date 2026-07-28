@@ -2,20 +2,21 @@ import threading
 import time
 
 from ..neople_client import clean_text, get_item_icon_url
-from .auction_repository import get_lowest_auction_price
+from .auction_repository import build_unavailable_auction_price, get_lowest_auction_price
 from .item_repository import search_items_by_name
 
 
 UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS = 300
+UPGRADE_MATERIAL_PRICE_ERROR_CACHE_TTL_SECONDS = 60
 _UPGRADE_MATERIAL_PRICE_CACHE_LOCK = threading.Lock()
 _UPGRADE_MATERIAL_PRICE_CACHE = {}
 UPGRADE_MATERIAL_PRICE_ITEMS = {
-    "harmonyCrystal": {"label": "무결점 조화의 결정체", "itemId": "ab8eab6848ed81b8bdd65d1c5a6ae8b2"},
+    "harmonyCrystal": {"label": "무결점 조화의 결정체", "itemId": "1f575027600618cabf8a3516601dfd29"},
     "contradictionCrystal": {"label": "모순의 결정체", "itemId": "f1afc13118b2b07ec1e3b8c2f1958b03"},
     "colorlessCube": {"label": "무색 큐브 조각", "itemId": "785e56a0ed4e3efd573da1f56a45217d"},
-    "lionCore": {"label": "무결점 라이언 코어", "itemId": "3840051cf487429c5a757c8bdb00e33b"},
+    "lionCore": {"label": "무결점 라이언 코어", "itemId": "01a0ba48b5af060379a11fe43cc2b517"},
     "amplificationProtectionTicket": {"label": "증폭 보호권", "itemId": "55be75a1c024aac3ef84ed3bed5b8db9"},
-    "reinforcementProtectionTicket": {"label": "강화 보호권", "itemId": "8bc063c2b80179bc002f7dfb8203c4ab"},
+    "reinforcementProtectionTicket": {"label": "장비 보호권", "itemId": "8bc063c2b80179bc002f7dfb8203c4ab"},
     "epicSoul": {"label": "에픽 소울 결정", "itemId": "c7d845c65ab9dbcff6e55dc910fbea87"},
     "legendarySoul": {"label": "레전더리 소울 결정", "itemId": "c6947ff630cc59aebdcbabfb449258d1"},
     "radiantSoul": {"label": "광휘의 소울 결정", "itemId": "27a5877768a40a3a0eccc493d0a53b9b"},
@@ -28,10 +29,21 @@ UPGRADE_MATERIAL_PRICE_ITEMS = {
 }
 UPGRADE_MATERIAL_DISPLAY_ITEMS = {
     "radiantSoul": {"label": "광휘의 소울", "itemId": "6307b8165444a9bd5c4c4aa2d7eae41d"},
-    "highElementalCrystal": {"label": "상급 원소결정", "itemId": "b682af8902d22554c7b90386abd18762"},
     "solidSoul": {"label": "솔리드 소울", "iconUrl": "/asset/soul/solidSoul.png"},
     "oathCrystalFragment": {"label": "서약 결정 조각", "iconUrl": "/asset/oath/oathCrystalFragment.png"},
 }
+
+
+def find_upgrade_material_price_config_by_label(label: str) -> dict:
+    label = clean_text(label)
+    return next(
+        (
+            config
+            for config in UPGRADE_MATERIAL_PRICE_ITEMS.values()
+            if clean_text(config.get("label")) == label
+        ),
+        {},
+    )
 
 
 def _find_exact_item_by_name(item_name: str) -> dict:
@@ -52,15 +64,25 @@ def load_upgrade_material_prices() -> dict:
             return cached.get("payload") or {}
 
     payload = {}
+    has_unavailable_price = False
     for key, config in UPGRADE_MATERIAL_PRICE_ITEMS.items():
         item_name = clean_text(config.get("label"))
         item_id = clean_text(config.get("itemId"))
-        item = {} if item_id else (_find_exact_item_by_name(item_name) if item_name else {})
-        item_id = clean_text(item_id or item.get("itemId"))
+        item = {}
         try:
-            auction = get_lowest_auction_price(item_id) if item_id else {}
+            item = {} if item_id else (_find_exact_item_by_name(item_name) if item_name else {})
+            item_id = clean_text(item_id or item.get("itemId"))
+            auction = (
+                get_lowest_auction_price(item_id)
+                if item_id
+                else build_unavailable_auction_price()
+            )
         except Exception:
-            auction = {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None}
+            auction = build_unavailable_auction_price()
+        has_unavailable_price = (
+            has_unavailable_price
+            or auction.get("priceStatus") == "unavailable"
+        )
         payload[key] = {
             "label": clean_text(item.get("itemName")) or item_name,
             "itemId": item_id,
@@ -69,9 +91,14 @@ def load_upgrade_material_prices() -> dict:
         }
 
     with _UPGRADE_MATERIAL_PRICE_CACHE_LOCK:
+        ttl_seconds = (
+            UPGRADE_MATERIAL_PRICE_ERROR_CACHE_TTL_SECONDS
+            if has_unavailable_price
+            else UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS
+        )
         _UPGRADE_MATERIAL_PRICE_CACHE["payload"] = {
             "payload": payload,
-            "expires_at": now + UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS,
+            "expires_at": now + ttl_seconds,
         }
     return payload
 

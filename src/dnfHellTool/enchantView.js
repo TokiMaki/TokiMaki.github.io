@@ -150,19 +150,19 @@ const ELEMENT_LABEL_BY_NAME = {
 const MATERIAL_ENCHANT_MATERIAL_ORDER = ['은화', '비단', '잔해', '소명'];
 const BUFFER_JOB_GROW_NAMES = new Set(['眞 크루세이더', '眞 인챈트리스', '眞 뮤즈', '眞 패러메딕']);
 const UPGRADE_MATERIAL_LABELS = {
-  harmonyCrystal: '조화의 결정체',
+  harmonyCrystal: '무결점 조화의 결정체',
   contradictionCrystal: '모순의 결정체',
   colorlessCube: '무색 큐브 조각',
-  lionCore: '라이언 코어',
+  lionCore: '무결점 라이언 코어',
   epicSoul: '에픽 소울',
   legendarySoul: '레전더리 소울',
   radiantSoul: '광휘의 소울',
 };
 const UPGRADE_MATERIAL_ICON_IDS = {
-  harmonyCrystal: 'ab8eab6848ed81b8bdd65d1c5a6ae8b2',
+  harmonyCrystal: '1f575027600618cabf8a3516601dfd29',
   contradictionCrystal: 'f1afc13118b2b07ec1e3b8c2f1958b03',
   colorlessCube: '785e56a0ed4e3efd573da1f56a45217d',
-  lionCore: '3840051cf487429c5a757c8bdb00e33b',
+  lionCore: '01a0ba48b5af060379a11fe43cc2b517',
   amplificationProtectionTicket: '55be75a1c024aac3ef84ed3bed5b8db9',
   reinforcementProtectionTicket: '8bc063c2b80179bc002f7dfb8203c4ab',
   epicSoul: 'c7d845c65ab9dbcff6e55dc910fbea87',
@@ -218,7 +218,7 @@ function getUpgradeMaterials(stepCost = {}) {
 function getUpgradeMaterialLabel(material, upgradeMode) {
   if (material.key === 'protectionTicket') {
     return ['reinforcement', 'safeReinforcement'].includes(upgradeMode)
-      ? '강화 보호권'
+      ? '장비 보호권'
       : '증폭 보호권';
   }
   return material.label;
@@ -257,7 +257,19 @@ function applyUpgradeMaterialPrices(materials = [], upgradeMode = '', materialPr
   });
 }
 
+function isAuctionPriceUnavailable(auction = {}) {
+  return ['unlisted', 'unavailable'].includes(auction?.priceStatus);
+}
+
+function hasUnavailableMaterialPrice(materials = []) {
+  return (materials || []).some((material) => (
+    Number(material?.amount || 0) > 0
+    && isAuctionPriceUnavailable(material?.auction)
+  ));
+}
+
 function getMaterialGold(materials = []) {
+  if (hasUnavailableMaterialPrice(materials)) return Number.NaN;
   return (materials || []).reduce((sum, material) => {
     const amount = Number(material.amount || 0);
     const unitPrice = Number(material.auction?.minUnitPrice || 0);
@@ -267,13 +279,26 @@ function getMaterialGold(materials = []) {
 }
 
 function getRecommendationGold(row, includeMaterialCosts = false) {
+  if (!Number.isFinite(row?.expectedGold) && isAuctionPriceUnavailable(row?.auction)) {
+    return Number.NaN;
+  }
   const baseGold = Number.isFinite(row?.expectedGold) ? row.expectedGold : Number(row?.auction?.minUnitPrice || 0);
   if (!Number.isFinite(baseGold) || baseGold <= 0) return 0;
   if (!includeMaterialCosts || !['upgrade', 'blackFang', 'relicCraft', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)) return baseGold;
   const materialGold = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
     ? getMaterialGold(row.expectedMaterials)
     : getMaterialGold(row.materials);
+  if (!Number.isFinite(materialGold)) return Number.NaN;
   return baseGold + materialGold;
+}
+
+function isRecommendationPriceUnavailable(row, includeMaterialCosts = false) {
+  if (!Number.isFinite(row?.expectedGold) && isAuctionPriceUnavailable(row?.auction)) return true;
+  if (!includeMaterialCosts) return false;
+  const materials = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)
+    ? row.expectedMaterials
+    : row?.materials;
+  return hasUnavailableMaterialPrice(materials);
 }
 
 function getUpgradeMaterialParts(materials = [], upgradeMode = '') {
@@ -6471,7 +6496,11 @@ export function installEnchantView(ctx) {
           ? getBlackFangMaterialParts(row.materials)
           : [];
       const rowGold = getRecommendationGold(row, includeMaterialCosts);
-      const rowGoldText = isFreeActionRecommendation(row) ? '0 골드' : formatGold(rowGold);
+      const rowGoldText = isFreeActionRecommendation(row)
+        ? '0 골드'
+        : isRecommendationPriceUnavailable(row, includeMaterialCosts)
+          ? '가격 확인 불가'
+          : formatGold(rowGold);
       const cardMetricValue = isRequiredEquipmentTuneBaseVariant
         ? rowGold
         : isBufferMetric ? row.buffCostPerHundredPoints : row.costPerPointOnePercent;

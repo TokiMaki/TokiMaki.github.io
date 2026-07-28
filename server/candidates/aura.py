@@ -9,6 +9,7 @@ from ..neople_client import (
     get_item_icon_url,
     request_json,
 )
+from ..repositories.auction_repository import build_unavailable_auction_price
 from ..repositories.item_repository import fetch_item_details, search_items_by_name
 from ..repositories.resolved_price_repository import get_cached_resolved_price
 from ..upgrade_payloads import aura_item_matches, build_aura_payload
@@ -126,7 +127,7 @@ def build_aura_price_item(detail: dict, get_cached_auction, errors: list) -> dic
             "itemName": item_name,
             "iconUrl": get_item_icon_url(item_id),
             "itemExplain": get_item_explain(detail),
-            "auction": {"listingCount": 0, "minUnitPrice": None, "averagePrice": None, "auctionNo": None},
+            "auction": build_unavailable_auction_price(),
         }
 
 
