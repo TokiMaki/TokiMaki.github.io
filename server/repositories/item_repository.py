@@ -45,10 +45,10 @@ def fetch_item_details(item_ids: list) -> list:
     return [rows_by_id[item_id] for item_id in unique_ids if item_id in rows_by_id]
 
 
-def search_items_by_name(item_name: str, max_pages: int = 1, word_type: str = "full", limit: int = 100) -> list:
+def search_items_by_name(item_name: str, max_pages: int = 1, word_type: str = "full", limit: int = 30) -> list:
     max_pages = max(1, int(max_pages or 1))
     word_type = clean_text(word_type) or "full"
-    limit = max(1, min(100, int(limit or 100)))
+    limit = max(1, min(30, int(limit or 30)))
     cache_key = f"{clean_text(item_name)}::word={word_type}::limit={limit}::pages={max_pages}"
     with _ITEM_SEARCH_CACHE_LOCK:
         cached = _ITEM_SEARCH_CACHE.get(cache_key)
@@ -61,7 +61,7 @@ def search_items_by_name(item_name: str, max_pages: int = 1, word_type: str = "f
         offset = page * limit
         page_rows = search_items_by_name_from_api(item_name, word_type=word_type, limit=limit, offset=offset)
         rows.extend(page_rows)
-        if len(page_rows) < 100:
+        if len(page_rows) < limit:
             break
     with _ITEM_SEARCH_CACHE_LOCK:
         _ITEM_SEARCH_CACHE[cache_key] = [dict(row) for row in rows]
