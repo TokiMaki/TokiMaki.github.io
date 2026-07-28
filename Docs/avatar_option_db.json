@@ -1724,29 +1724,29 @@
       "role": "dealer",
       "avatar": {
         "topOptions": [
-          "신념의 오라"
+          "용기의 은총"
         ],
         "platinumEmblems": [
-          "신념의 오라"
+          "용기의 은총"
         ],
         "platinumCandidates": [
-          "신념의 오라"
+          "용기의 은총"
         ],
         "needsReview": false,
         "extractor": "manual-male-crusader-dealer-v1",
         "candidateCombos": [
           {
             "rank": 1,
-            "topOption": "신념의 오라",
+            "topOption": "용기의 은총",
             "platinumEmblems": [
-              "신념의 오라",
-              "신념의 오라"
+              "용기의 은총",
+              "용기의 은총"
             ],
             "adoptionRate": null
           }
         ],
         "skillEffects": {
-          "신념의 오라": {
+          "용기의 은총": {
             "mode": "increase",
             "valueKeys": [
               "value1"
