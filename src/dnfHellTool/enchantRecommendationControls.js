@@ -10,7 +10,7 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
-const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set(['서약:초월/정가']);
+const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set();
 function setOptions(select, values, allLabel) {
   if (!select) return;
   const current = select.value || 'all';

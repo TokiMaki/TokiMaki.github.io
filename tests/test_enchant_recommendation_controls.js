@@ -220,14 +220,14 @@ test('storage null은 기본 HTML과 기본-disabled 서약 상태를 보존한�
   assert.deepEqual(storage.calls, []);
   controls.renderEnchantIncludeControls();
 
-  assert.equal(includeControls.innerHTML.length, 7790);
+  assert.equal(includeControls.innerHTML.length, 7797);
   assert.equal(
     sha256(includeControls.innerHTML),
-    '8532a6da96687a2b5a6908182b133ff9ced835dbd650c2b22515306556a35df8',
+    '6e7db9311e157ddecb5afc6ade5890e338c563f4648b1d835456eab19a448cfb',
   );
   assert.equal(includeControls.inputs.length, 22);
-  assert.equal(getInput(includeControls, '서약:초월/정가').checked, false);
-  assert.equal(checkedValues(includeControls).length, 21);
+  assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
+  assert.equal(checkedValues(includeControls).length, 22);
   assert.deepEqual(storage.calls, [['getItem', INCLUDE_KEY]]);
 });
 
@@ -400,10 +400,10 @@ test('신규 일반 key는 자동 체크하고 신규 default-disabled key는 �
 
   controls.renderEnchantIncludeControls();
 
-  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '흑아:흑아']);
+  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '서약:초월/정가', '흑아:흑아']);
   assertStoredJson(storage, KNOWN_KEY, DEFAULT_INCLUDE_KEYS);
   assert.equal(getInput(includeControls, '흑아:흑아').checked, true);
-  assert.equal(getInput(includeControls, '서약:초월/정가').checked, false);
+  assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
   assert.deepEqual(storage.calls.map((call) => call.slice(0, 2)), [
     ['getItem', INCLUDE_KEY],
     ['getItem', KNOWN_KEY],
@@ -464,7 +464,7 @@ test('DOM 축소 후 재등장 key는 현재 DOM/default 규칙으로 복원된�
 
   controls.renderEnchantIncludeControls(['마법부여:가성비']);
   controls.renderEnchantIncludeControls(['마법부여:가성비', '서약:초월/정가']);
-  assert.equal(getInput(includeControls, '서약:초월/정가').checked, false);
+  assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
 });
 
 test('unknown include key는 표시하지 않고 hierarchical buff avatar parent fallback을 허용한다', () => {

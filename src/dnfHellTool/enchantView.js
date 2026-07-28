@@ -6273,7 +6273,10 @@ export function installEnchantView(ctx) {
     state.renderedOathAcquisitionCombinedRows = new Map();
     renderEfficiencyLegend(recommendations);
     if (!displayRecommendations.length) {
-      els.enchantRecommendList.innerHTML = '<div class="table-empty-cell">현재 세팅보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
+      const selectedIncludeTiers = getSelectedEnchantIncludeTiers();
+      els.enchantRecommendList.innerHTML = selectedIncludeTiers instanceof Set && selectedIncludeTiers.size === 0
+        ? ''
+        : '<div class="table-empty-cell">현재 세팅보다 높은 후보가 없거나 가격을 찾지 못했습니다.</div>';
       return;
     }
 
