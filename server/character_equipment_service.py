@@ -95,11 +95,13 @@ from .presenters.character_enchants_presenter import (
 )
 from .upgrade_payloads import (
     build_aura_payload,
+    build_current_aura_payload,
     build_title_payload,
     get_creature_platinum_skill_damage_percent,
     get_level_option_variant,
     parse_skill_damage_percent,
     parse_title_level_tag,
+    resolve_effective_aura_item_id,
 )
 
 
@@ -207,6 +209,7 @@ def collect_loadout_prefetch_item_ids(payloads: dict) -> list[str]:
         )
     ), {})
     _append_prefetch_item_id(item_ids, seen, aura.get("itemId"))
+    _append_prefetch_item_id(item_ids, seen, resolve_effective_aura_item_id(aura))
 
     creature_payload = payloads.get("creature") or {}
     _append_creature_item_ids(item_ids, seen, creature_payload.get("creature") or {})
@@ -1023,11 +1026,15 @@ def load_character_buffer_skill_levels(server_id: str, character_id: str, job_na
     equipment_rows = equipment_payload.get("equipment") or []
     avatar_rows = avatar_payload.get("avatar") or []
     creature = creature_payload.get("creature") or {}
-    item_ids = [
-        clean_text(row.get("itemId"))
-        for row in [*equipment_rows, *avatar_rows, creature]
-        if clean_text(row.get("itemId"))
-    ]
+    item_ids = []
+    for row in [*equipment_rows, *avatar_rows, creature]:
+        item_id = (
+            resolve_effective_aura_item_id(row)
+            if clean_text(row.get("slotId")) == "AURORA"
+            else clean_text(row.get("itemId"))
+        )
+        if item_id:
+            item_ids.append(item_id)
     detail_by_id = {
         clean_text(detail.get("itemId")): detail
         for detail in fetch_item_details(item_ids)
@@ -1613,7 +1620,7 @@ def load_character_aura(server_id: str, character_id: str) -> dict:
         or "오라" in clean_text(avatar.get("itemTypeDetail"))
         or "오라" in clean_text(avatar.get("itemName"))
     ), None)
-    item_id = clean_text((aura or {}).get("itemId"))
+    item_id = resolve_effective_aura_item_id(aura or {})
     detail = _measure_step(
         steps,
         "fetch_item_details",
@@ -1635,7 +1642,7 @@ def load_character_aura(server_id: str, character_id: str) -> dict:
         "characterName": payload.get("characterName"),
         "fame": payload.get("fame"),
         "aura": ({
-            **build_aura_payload(item_id, detail),
+            **build_current_aura_payload(aura or {}, detail),
             **skill_effect,
             "reinforceSkills": reinforce_skills,
         } if item_id else None),
@@ -1700,7 +1707,7 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
         or "오라" in clean_text(avatar.get("itemTypeDetail"))
         or "오라" in clean_text(avatar.get("itemName"))
     ), None)
-    aura_item_id = clean_text((aura_row or {}).get("itemId"))
+    aura_item_id = resolve_effective_aura_item_id(aura_row or {})
 
     detail_map = {
         detail.get("itemId"): detail
@@ -1744,7 +1751,11 @@ def load_character_preview(server_id: str, character_id: str) -> dict:
         ],
     } if creature_item_id else None
 
-    aura = build_aura_payload(aura_item_id, detail_map.get(aura_item_id) or {}) if aura_item_id else None
+    aura = (
+        build_current_aura_payload(aura_row or {}, detail_map.get(aura_item_id) or {})
+        if aura_item_id
+        else None
+    )
 
     return build_character_preview_payload(
         equipment_payload,

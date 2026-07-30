@@ -9,6 +9,7 @@
 - 최근 구조 분리: Candidate Resolver, Repository/Cache, Calculator, Presenter 1차 분리를 완료했다. Route/Service 경계도 `/api/search`, `/api/summarize`, `/api/avatar-skill-efficiency`부터 얇게 정리했다.
 - 최근 성능 구조: `/api/character-loadout`에는 origin 내부 15초 response cache와 같은 `(serverId, characterId)` 요청 single-flight가 있다. 성공 200 body만 최대 64개 메모리에 저장하고, cache hit/대기 요청은 heavy semaphore와 loadout 계산을 건너뛴다.
 - 최근 성능 구조: `load_character_loadout()` 시작 시 현재 장비/오라/크리쳐/아티팩트/버프강화 장비·크리쳐 itemId를 모아 `fetch_item_details()`를 best-effort로 예열한다. 실패해도 본 계산 경로는 기존처럼 진행한다.
+- 최근 오라 정책: `모험단 모션 오라 아바타`는 장착 원본을 `equippedAura`로 보존하고 `clone.itemId`의 오라를 실제 효과 본체로 정규화한다. 일반 오라는 clone 데이터가 있어도 기존 장착 본체를 유지한다.
 - 최근 성능 구조: `character_repository`는 캐릭터 원본 payload에 대해 기존 15초 메모리 TTL cache를 먼저 보고, miss 시 `cache/character-response-cache.sqlite`의 60초 SQLite cache를 확인한다. SQLite hit은 메모리 cache를 다시 채우며, API 성공 payload만 디스크에 저장한다.
 - 최근 성능 구조: 서약 탭 표시용 `oathUpgrades` 조립 결과는 기존 `character-response-cache.sqlite`에 `resource="oathUpgrades"`로 저장한다. 기존 raw `oath`/`mist_assimilation` 캐시와 item detail memory cache를 재사용하며 새 SQLite 파일은 만들지 않는다.
 - 최근 캐시 구조: `server/repositories/resolved_price_repository.py`는 300초 TTL, 최대 512개 memory-only resolved price cache를 제공한다. raw auction rows가 아니라 가격 후보로 해석 완료된 결과만 저장한다.

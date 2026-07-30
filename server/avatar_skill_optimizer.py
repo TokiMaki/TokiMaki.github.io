@@ -12,6 +12,7 @@ from .calculators.avatar_skill_calculator import (
 )
 from .repositories.character_repository import get_character_cached_payload
 from .repositories.item_repository import fetch_item_details
+from .upgrade_payloads import resolve_effective_aura_item_id
 
 
 WEAPON_MASTERY_SKILL_NAMES = {
@@ -197,6 +198,11 @@ def get_current_non_avatar_skill_bonuses(server_id: str, character_id: str, styl
         or "오라" in clean_text(row.get("itemTypeDetail"))
         or "오라" in clean_text(row.get("itemName"))
     ), {})
+    if aura:
+        aura = {
+            **aura,
+            "itemId": resolve_effective_aura_item_id(aura),
+        }
     artifact_rows = creature.get("artifact") or []
     setup_rows = [
         *equipment_rows,

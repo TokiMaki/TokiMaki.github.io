@@ -4,6 +4,38 @@ from .effects import normalize_enchant_status
 from .neople_client import clean_text, get_item_explain, get_item_icon_url
 
 
+MOTION_AURA_CLONE_EFFECT_ITEM_IDS = frozenset({
+    "4754847cc0c85ffbcc6bd108e9207f6c",
+})
+
+
+def resolve_effective_aura_item_id(aura_row: dict) -> str:
+    equipped_item_id = clean_text((aura_row or {}).get("itemId"))
+    if equipped_item_id not in MOTION_AURA_CLONE_EFFECT_ITEM_IDS:
+        return equipped_item_id
+    clone_item_id = clean_text(((aura_row or {}).get("clone") or {}).get("itemId"))
+    return clone_item_id or equipped_item_id
+
+
+def build_current_aura_payload(aura_row: dict, detail: dict) -> dict:
+    equipped_item_id = clean_text((aura_row or {}).get("itemId"))
+    effective_item_id = resolve_effective_aura_item_id(aura_row)
+    payload = build_aura_payload(effective_item_id, detail)
+    if effective_item_id == equipped_item_id:
+        return payload
+    clone = (aura_row or {}).get("clone") or {}
+    payload["itemName"] = payload.get("itemName") or clean_text(clone.get("itemName"))
+    payload["itemRarity"] = payload.get("itemRarity") or clean_text((aura_row or {}).get("itemRarity"))
+    payload["effectSource"] = "clone"
+    payload["equippedAura"] = {
+        "itemId": equipped_item_id,
+        "itemName": clean_text((aura_row or {}).get("itemName")),
+        "itemRarity": clean_text((aura_row or {}).get("itemRarity")),
+        "iconUrl": get_item_icon_url(equipped_item_id),
+    }
+    return payload
+
+
 def parse_title_level_tag(item_name: str):
     match = re.search(r"\[(\d+)Lv\]", clean_text(item_name))
     return int(match.group(1)) if match else None
