@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 2,
+  "updatedAt": "2026-07-30",
+  "source": {
+    "type": "first_server_update",
+    "url": "https://df.nexon.com/community/news/update/2928057",
+    "title": "7/29(수) 퍼스트 서버 업데이트 안내",
+    "note": "본 서버 업데이트 후 /df/items에서 itemId와 실제 아이템 상세를 확인한 뒤 enchant_card_db.json에 병합한다."
+  },
+  "cards": [
+    {
+      "searchName": "진실을 꿰뚫어 보는 자 카드",
+      "slotName": "귀걸이",
+      "tier": "종결"
+    },
+    {
+      "searchName": "진리의 불꽃 우리엘 카드",
+      "slotName": "신발",
+      "tier": "종결"
+    },
+    {
+      "searchName": "무너진 성자 미카엘라 카드",
+      "slotName": "팔찌",
+      "tier": "종결"
+    },
+    {
+      "searchName": "희망의 속삭임 레미엘 카드",
+      "slotName": "보조장비",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "부리는 자 앤지 카드",
+      "slotName": "상의",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "마법같은 행운 엘리브 카드",
+      "slotName": "하의",
+      "tier": "종결"
+    }
+  ],
+  "bufferCards": [
+    {
+      "searchName": "타락한 사도 미카엘라 카드",
+      "slotName": "귀걸이",
+      "tier": "종결"
+    },
+    {
+      "searchName": "치유의 손길 라파엘 카드",
+      "slotName": "신발",
+      "tier": "종결"
+    },
+    {
+      "searchName": "가려진 정의 미카엘 카드",
+      "slotName": "팔찌",
+      "tier": "종결"
+    },
+    {
+      "searchName": "영혼의 안내자 사리엘 카드",
+      "slotName": "무기",
+      "tier": "종결"
+    },
+    {
+      "searchName": "하늘의 목소리 지브릴 카드",
+      "slotName": "보조장비",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "공정의 저울 라구엘 카드",
+      "slotName": "상의",
+      "tier": "가성비"
+    },
+    {
+      "searchName": "마법을 품은 배니부 카드",
+      "slotName": "하의",
+      "tier": "종결"
+    }
+  ],
+  "materialEnchantItems": [
+    {
+      "searchName": "미카엘라 딜러 하의 보주(최종 데미지 1%)",
+      "slotName": "하의",
+      "acquisition": {
+        "type": "material",
+        "label": "미카엘라 재료 구매",
+        "materialSearchName": "여명의 빛망울",
+        "materialLabel": "빛망울",
+        "amount": 240
+      }
+    }
+  ],
+  "bufferMaterialEnchantItems": [
+    {
+      "searchName": "미카엘라 버퍼 하의 보주(힘, 지능, 체력, 정신력 +120, 버퍼 전직 패시브 스킬 Lv +3)",
+      "slotName": "하의",
+      "acquisition": {
+        "type": "material",
+        "label": "미카엘라 재료 구매",
+        "materialSearchName": "여명의 빛망울",
+        "materialLabel": "빛망울",
+        "amount": 240
+      }
+    }
+  ]
+}
