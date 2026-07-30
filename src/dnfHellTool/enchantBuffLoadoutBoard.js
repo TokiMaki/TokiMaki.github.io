@@ -216,7 +216,7 @@ export function createEnchantBuffLoadoutBoard(deps) {
     if (avatarSlotKey) {
       for (let index = 0; index < 2; index += 1) {
         const emblem = regularEmblems[index];
-        if (!emblem) {
+        if (!hasAvatarEmblemIdentity(emblem || {})) {
           detailLines.push({
             text: '엠블렘 없음',
             className: 'enchant-portrait-detail-line-sub',

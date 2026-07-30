@@ -12,6 +12,7 @@
 - 최근 성능 구조: `character_repository`는 캐릭터 원본 payload에 대해 기존 15초 메모리 TTL cache를 먼저 보고, miss 시 `cache/character-response-cache.sqlite`의 60초 SQLite cache를 확인한다. SQLite hit은 메모리 cache를 다시 채우며, API 성공 payload만 디스크에 저장한다.
 - 최근 성능 구조: 서약 탭 표시용 `oathUpgrades` 조립 결과는 기존 `character-response-cache.sqlite`에 `resource="oathUpgrades"`로 저장한다. 기존 raw `oath`/`mist_assimilation` 캐시와 item detail memory cache를 재사용하며 새 SQLite 파일은 만들지 않는다.
 - 최근 캐시 구조: `server/repositories/resolved_price_repository.py`는 300초 TTL, 최대 512개 memory-only resolved price cache를 제공한다. raw auction rows가 아니라 가격 후보로 해석 완료된 결과만 저장한다.
+- 최근 재료 가격 정책: 정상 조회된 마지막 최저가는 이후 매물 없음 또는 API 오류 응답으로 덮어쓰지 않고 비용 계산에 유지한다. 현재 조회가 실패한 항목이 있으면 재료 가격 payload는 60초 TTL로 계속 갱신한다.
 - resolved price cache 적용 domain: `avatar_emblem`, `platinum_emblem`, `black_fang_scroll`, `switching_fragment`, `aura`.
 - 최근 계측 구조: `/api/character-loadout`의 `api_fanout_summary`는 API fan-out과 `resolvedPrice.total`, `resolvedPrice.byDomain`을 기록한다. domain별 hit/miss/store/skip/error만 남기고 itemName, skillName, scrollName 원문 key는 로그에 남기지 않는다.
 - 최근 계측 구조: API 요청 종료 시 필요한 경우만 `[REQ]`/`[SLOW]` 요약 로그를 남긴다. route cache, character response cache(m/sql/api), Neople API, auction API, recommendation count를 짧게 기록하고 빠른 cache hit/보조 API 정상 응답은 기본 출력에서 숨긴다.

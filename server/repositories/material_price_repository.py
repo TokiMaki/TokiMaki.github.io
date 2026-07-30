@@ -62,9 +62,10 @@ def load_upgrade_material_prices() -> dict:
         cached = _UPGRADE_MATERIAL_PRICE_CACHE.get("payload")
         if cached and float(cached.get("expires_at") or 0) > now:
             return cached.get("payload") or {}
+        previous_payload = (cached or {}).get("payload") or {}
 
     payload = {}
-    has_unavailable_price = False
+    has_missing_current_price = False
     for key, config in UPGRADE_MATERIAL_PRICE_ITEMS.items():
         item_name = clean_text(config.get("label"))
         item_id = clean_text(config.get("itemId"))
@@ -79,10 +80,29 @@ def load_upgrade_material_prices() -> dict:
             )
         except Exception:
             auction = build_unavailable_auction_price()
-        has_unavailable_price = (
-            has_unavailable_price
-            or auction.get("priceStatus") == "unavailable"
-        )
+        current_price_status = clean_text(auction.get("priceStatus"))
+        if current_price_status != "priced":
+            has_missing_current_price = True
+            previous_row = previous_payload.get(key) or {}
+            previous_item_id = clean_text(previous_row.get("itemId"))
+            previous_label = clean_text(previous_row.get("label"))
+            previous_auction = previous_row.get("auction") or {}
+            is_same_item = (
+                bool(item_id and previous_item_id == item_id)
+                or bool(not item_id and item_name and previous_label == item_name)
+            )
+            if (
+                is_same_item
+                and previous_auction.get("priceStatus") == "priced"
+                and isinstance(previous_auction.get("minUnitPrice"), (int, float))
+                and previous_auction.get("minUnitPrice") > 0
+            ):
+                auction = {
+                    **previous_auction,
+                    "isLastKnownPrice": True,
+                    "lookupPriceStatus": current_price_status or "unavailable",
+                }
+                item_id = item_id or previous_item_id
         payload[key] = {
             "label": clean_text(item.get("itemName")) or item_name,
             "itemId": item_id,
@@ -93,7 +113,7 @@ def load_upgrade_material_prices() -> dict:
     with _UPGRADE_MATERIAL_PRICE_CACHE_LOCK:
         ttl_seconds = (
             UPGRADE_MATERIAL_PRICE_ERROR_CACHE_TTL_SECONDS
-            if has_unavailable_price
+            if has_missing_current_price
             else UPGRADE_MATERIAL_PRICE_CACHE_TTL_SECONDS
         )
         _UPGRADE_MATERIAL_PRICE_CACHE["payload"] = {

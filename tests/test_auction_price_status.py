@@ -7,6 +7,7 @@ from server.repositories import material_price_repository
 from server.repositories.auction_repository import (
     _lowest_auction_price_from_rows,
     build_unavailable_auction_price,
+    build_unlisted_auction_price,
 )
 
 
@@ -78,6 +79,41 @@ class AuctionPriceStatusTest(unittest.TestCase):
         self.assertIsNone(auction["minUnitPrice"])
         self.assertGreater(cached["expires_at"], started_at)
         self.assertLessEqual(cached["expires_at"] - started_at, 61)
+
+    def test_material_keeps_last_price_while_retrying_empty_listing(self):
+        priced = _lowest_auction_price_from_rows([
+            {
+                "unitPrice": 123,
+                "regCount": 2,
+                "upgrade": 0,
+                "upgradeMax": 0,
+            },
+        ])
+        with (
+            patch.object(
+                material_price_repository,
+                "UPGRADE_MATERIAL_PRICE_ITEMS",
+                {"sample": {"label": "표본", "itemId": "sample-id"}},
+            ),
+            patch.object(
+                material_price_repository,
+                "get_lowest_auction_price",
+                side_effect=[priced, build_unlisted_auction_price()],
+            ),
+        ):
+            first_payload = material_price_repository.load_upgrade_material_prices()
+            material_price_repository._UPGRADE_MATERIAL_PRICE_CACHE["payload"]["expires_at"] = 0
+            retry_started_at = time.time()
+            second_payload = material_price_repository.load_upgrade_material_prices()
+
+        self.assertEqual(first_payload["sample"]["auction"]["minUnitPrice"], 123)
+        retained = second_payload["sample"]["auction"]
+        self.assertEqual(retained["priceStatus"], "priced")
+        self.assertEqual(retained["minUnitPrice"], 123)
+        self.assertTrue(retained["isLastKnownPrice"])
+        self.assertEqual(retained["lookupPriceStatus"], "unlisted")
+        cached = material_price_repository._UPGRADE_MATERIAL_PRICE_CACHE["payload"]
+        self.assertLessEqual(cached["expires_at"] - retry_started_at, 61)
 
 
 if __name__ == "__main__":
