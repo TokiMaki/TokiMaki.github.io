@@ -7,6 +7,7 @@ from server.upgrade_payloads import (
 
 
 MOTION_AURA_ITEM_ID = "4754847cc0c85ffbcc6bd108e9207f6c"
+ADVANCEMENT_MOTION_AURA_ITEM_ID = "166259bc2ab25cef100531ccf27e34a7"
 
 
 class EffectiveAuraTest(unittest.TestCase):
@@ -60,6 +61,17 @@ class EffectiveAuraTest(unittest.TestCase):
         }
 
         self.assertEqual(resolve_effective_aura_item_id(aura), MOTION_AURA_ITEM_ID)
+
+    def test_advancement_motion_aura_uses_clone_item_as_effect_source(self):
+        aura = {
+            "itemId": ADVANCEMENT_MOTION_AURA_ITEM_ID,
+            "itemName": "전직의 모션 오라 아바타",
+            "clone": {
+                "itemId": "cloned-aura",
+            },
+        }
+
+        self.assertEqual(resolve_effective_aura_item_id(aura), "cloned-aura")
 
 
 if __name__ == "__main__":

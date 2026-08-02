@@ -6,6 +6,7 @@ from .neople_client import clean_text, get_item_explain, get_item_icon_url
 
 MOTION_AURA_CLONE_EFFECT_ITEM_IDS = frozenset({
     "4754847cc0c85ffbcc6bd108e9207f6c",
+    "166259bc2ab25cef100531ccf27e34a7",
 })
 
 
