@@ -58,6 +58,10 @@ assert.match(styles, /\.enchant-material-cost-option-wrap:focus-within \.enchant
 assert.match(view, /function isAuctionPriceUnavailable\(auction = \{\}\)/);
 assert.match(view, /return \['unlisted', 'unavailable'\]\.includes\(auction\?\.priceStatus\);/);
 assert.match(view, /if \(hasUnavailableMaterialPrice\(materials\)\) return Number\.NaN;/);
+assert.match(view, /function isZeroGoldMaterialEnchant\(row = \{\}\)/);
+assert.match(view, /return row\?\.sourceType === 'enchant' && Boolean\(row\?\.acquisition\?\.label\);/);
+assert.match(view, /function getRecommendationGold[\s\S]*?if \(isZeroGoldMaterialEnchant\(row\)\) return 0;/);
+assert.match(view, /function isRecommendationPriceUnavailable[\s\S]*?if \(isZeroGoldMaterialEnchant\(row\)\) return false;/);
 assert.match(view, /\? '가격 확인 불가'/);
 
 console.log('enchant material cost tooltip: ok');

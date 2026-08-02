@@ -278,7 +278,12 @@ function getMaterialGold(materials = []) {
   }, 0);
 }
 
+function isZeroGoldMaterialEnchant(row = {}) {
+  return row?.sourceType === 'enchant' && Boolean(row?.acquisition?.label);
+}
+
 function getRecommendationGold(row, includeMaterialCosts = false) {
+  if (isZeroGoldMaterialEnchant(row)) return 0;
   if (!Number.isFinite(row?.expectedGold) && isAuctionPriceUnavailable(row?.auction)) {
     return Number.NaN;
   }
@@ -293,6 +298,7 @@ function getRecommendationGold(row, includeMaterialCosts = false) {
 }
 
 function isRecommendationPriceUnavailable(row, includeMaterialCosts = false) {
+  if (isZeroGoldMaterialEnchant(row)) return false;
   if (!Number.isFinite(row?.expectedGold) && isAuctionPriceUnavailable(row?.auction)) return true;
   if (!includeMaterialCosts) return false;
   const materials = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)
