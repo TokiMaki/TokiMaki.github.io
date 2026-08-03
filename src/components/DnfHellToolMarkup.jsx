@@ -83,6 +83,7 @@ export default function DnfHellToolMarkup() {
         <div className={'hero-actions'}>
           <div className={'tab-bar'} role={'tablist'} aria-label={'계산기 탭'}>
             <button type={'button'} className={'tab-button active'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'true'}>스펙업 순서</button>
+            <a className={'tab-button tab-link'} href={'/stats/'}>세팅 가치</a>
             <button type={'button'} className={'tab-button dev-only'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'false'}>헬 계산기</button>
             <button type={'button'} className={'tab-button dev-only'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
           </div>

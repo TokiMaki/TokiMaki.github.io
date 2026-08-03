@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import DnfHellTool from './components/DnfHellTool.jsx';
 import AboutPage from './components/AboutPage.jsx';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage.jsx';
+import SettingValueRankingPage from './components/SettingValueRankingPage.jsx';
 import { applyMetadataForLocation } from './seo/pageMetadata.js';
 
-const SPA_PATHS = new Set(['/', '/about', '/about/', '/privacy', '/privacy/']);
+const SPA_PATHS = new Set(['/', '/about', '/about/', '/privacy', '/privacy/', '/stats', '/stats/']);
 
 function normalizeSpaPath(pathname) {
   if (pathname === '/about') return '/about/';
   if (pathname === '/privacy') return '/privacy/';
+  if (pathname === '/stats') return '/stats/';
   return pathname;
 }
 
@@ -78,6 +80,10 @@ export default function App() {
 
   if (pathname === '/about' || pathname === '/about/') {
     return <AboutPage />;
+  }
+
+  if (pathname === '/stats' || pathname === '/stats/') {
+    return <SettingValueRankingPage />;
   }
 
   if (pathname !== '/') {

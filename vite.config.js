@@ -12,6 +12,7 @@ export default defineConfig({
         main: resolve(import.meta.dirname, 'index.html'),
         about: resolve(import.meta.dirname, 'about/index.html'),
         privacy: resolve(import.meta.dirname, 'privacy/index.html'),
+        stats: resolve(import.meta.dirname, 'stats/index.html'),
       },
     },
   },

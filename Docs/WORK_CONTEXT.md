@@ -47,6 +47,7 @@
 - Docs 주의사항: `Docs/*.json`, `Docs/*.tsv`, `Docs/*.txt` 중 일부는 서버/스크립트가 직접 읽는 기준 데이터다. 문서 정리 중 이동하거나 수정하지 않는다.
 - 문서 관리: 과거 작업 로그와 일회성 질문 기록은 공식 Active Snapshot에 누적하지 않는다. 필요한 결정만 짧게 남기고, 개인 세션 로그는 별도 로컬 문서로 관리한다.
 - 공개 콘텐츠 결정: `Docs/PUBLIC_CONTENT_PLAN.md`에 던파일럿 갱신 캐릭터 기반 세팅 추정 가치, 주간 성장·큰손·가성비 랭킹, 공식 장비점수·버프점수 구간별 세팅 현황 방향을 기록했다. 실제 지출액이 아닌 현재가 기준 추정 가치로 표현한다.
+- 최근 공개 콘텐츠 프론트: `/stats/`에 세팅 가치 랭킹 배치 시안을 추가했다. 기존 얼굴 크롭, 장비·서약 아이콘, 증폭·마법부여·조율 배지, 장비점수·명성 아이콘과 색을 재사용하며 현재는 정적 목업·`noindex`이고 API는 연결하지 않았다.
 - 최근 프론트 구조: `enchantEfficiencyScale.js`, `enchantEfficiencyLegend.js`, `enchantRecommendationControls.js`, `enchantRecommendationLayout.js` 등 표시 보조 모듈은 기존 책임을 유지한다. `enchantEquipmentProgression.js`는 강화·안전강화·증폭·증폭 전환의 누적 효과·비용·추천 row·시뮬레이터 identity를 소유하는 응집된 장비 성장 도메인이다.
 - 최근 경계 교정: 추천 eligibility 초기화, 적용 상태 장식, 편집 중 표시 순서 고정은 서로 다른 view 수명주기라서 세 소형 모듈로 유지하지 않고 `enchantView.js` 로컬 함수로 복원했다. 호출·정렬·state mutation·event 순서는 유지했고, 해당 이동 전용 source/hash 테스트 3개는 삭제했다.
 - 최근 프론트 구조: `enchantEquipmentTuneProgression.js`는 장비 조율 후보·세트포인트 단계·최소 비용 plan·불변 plan 적용·누적 딜/버퍼 효과·추천 row·identity를 소유한다. `enchantOathProgression.js`는 서약 조율 progression을, `enchantOathAcquisition.js`는 서약 초월/정가 후보 재평가와 variant/applied snapshot 파생을 소유한다. 실제 simulator 수명주기, state 쓰기, DOM·event는 `enchantView.js`에 남겼다.

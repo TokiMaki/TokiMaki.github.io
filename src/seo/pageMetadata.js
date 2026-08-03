@@ -71,6 +71,27 @@ const ABOUT_METADATA = {
   },
 };
 
+const STATS_METADATA = {
+  title: '세팅 가치 랭킹 | 던파일럿',
+  description: '던파일럿에서 갱신된 캐릭터의 장비와 서약 결정, 장비점수, 명성과 현재가 기준 세팅 추정 가치를 함께 확인합니다.',
+  robots: 'noindex,follow',
+  canonical: `${SITE_URL}stats/`,
+  openGraph: {
+    title: '세팅 가치 랭킹 | 던파일럿',
+    description: '캐릭터의 장비와 서약 결정, 현재가 기준 세팅 추정 가치를 한 화면에서 확인합니다.',
+    url: `${SITE_URL}stats/`,
+    type: 'website',
+    image: SITE_IMAGE_URL,
+  },
+  twitter: {
+    card: 'summary',
+    title: '세팅 가치 랭킹 | 던파일럿',
+    description: '캐릭터별 장비와 서약 결정, 세팅 추정 가치를 함께 확인합니다.',
+    image: SITE_IMAGE_URL,
+  },
+  structuredData: null,
+};
+
 const PRIVACY_METADATA = {
   title: '개인정보 처리방침 | 던파일럿',
   description: '던파일럿의 캐릭터 검색·분석 정보, 브라우저 저장 정보, 로그와 광고 관련 개인정보 처리 기준을 안내합니다.',
@@ -165,6 +186,7 @@ export function getPageMetadataForLocation(locationLike) {
     return cloneMetadata(ROOT_METADATA);
   }
   if (pathname === '/about' || pathname === '/about/') return cloneMetadata(ABOUT_METADATA);
+  if (pathname === '/stats' || pathname === '/stats/') return cloneMetadata(STATS_METADATA);
   if (pathname === '/privacy' || pathname === '/privacy/') return cloneMetadata(PRIVACY_METADATA);
   return createNotFoundMetadata(pathname);
 }
