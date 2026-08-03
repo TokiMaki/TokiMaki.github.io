@@ -7121,7 +7121,12 @@ export function installEnchantView(ctx) {
         setEnchantCharacterStatus(candidates.length ? `${candidates.length}개 캐릭터를 찾았습니다.` : '캐릭터를 찾지 못했습니다.');
         setEnchantCandidatePanel(candidates.length ? 'ready' : 'empty', candidates, characterName);
         flushEnchantTiming('candidate-select');
-        return;
+        return candidates.length
+          ? {
+              serverId: isAdventureSearch ? 'adventure' : 'all',
+              characterName,
+            }
+          : undefined;
       }
       const query = new URLSearchParams({ serverId, characterName });
       const searchStartedAt = getEnchantNowMs();

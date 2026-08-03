@@ -148,7 +148,11 @@ export function bindToolEvents(ctx) {
 
       const serverLabel = document.createElement('span');
       serverLabel.className = 'landing-recent-server';
-      serverLabel.textContent = getServerLabel(row.serverId);
+      serverLabel.textContent = row.serverId === 'all'
+        ? '전체'
+        : row.serverId === 'adventure'
+          ? '모험단'
+          : getServerLabel(row.serverId);
 
       const characterName = document.createElement('span');
       characterName.className = 'landing-recent-character';
