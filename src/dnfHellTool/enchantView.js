@@ -6997,7 +6997,6 @@ export function installEnchantView(ctx) {
       jobGrowName: payload.damageBaseline?.jobGrowName || state.enchantTargetCharacter?.jobGrowName || '',
     };
     renderEnchantCharacterPortrait();
-    void loadCurrentOfficialEquipmentScore(requestId);
     const label = payload.characterName || character.name || character.characterName || character.characterId;
     setEnchantCharacterStatus(state.isDevMode
       ? `${label} 기준 · 현재 마부 ${state.currentEnchants.length}부위 · 강화/증폭 ${state.currentEquipmentUpgrades.length}부위 · 흑아 ${state.currentBlackFangRecommendations.length}부위`
@@ -7036,10 +7035,71 @@ export function installEnchantView(ctx) {
     state.creatureArtifactGroups = Array.isArray(payload.artifactGroups) ? payload.artifactGroups : [];
   }
 
+  async function finalizeCurrentSettingValue(requestId = state.enchantRequestId) {
+    const character = getSelectedEnchantCharacter();
+    if (!character?.serverId || !character?.characterId) return;
+    const characterKey = character.key || `${character.serverId}:${character.characterId}`;
+    const query = new URLSearchParams({
+      serverId: character.serverId,
+      characterId: character.characterId,
+    });
+    try {
+      const response = await lifecycle.fetch(
+        `${API_BASE}/api/setting-value/finalize?${query.toString()}`,
+        { method: 'POST', cache: 'no-store' },
+      );
+      const payload = await parseApiJsonResponse(response, '세팅 추정 가치 저장에 실패했습니다.');
+      const currentCharacter = getSelectedEnchantCharacter();
+      const currentKey = currentCharacter?.key || `${currentCharacter?.serverId || ''}:${currentCharacter?.characterId || ''}`;
+      if (!lifecycle.active || requestId !== state.enchantRequestId || currentKey !== characterKey) return;
+      if (!state.isDevMode) return;
+      const settingValue = payload.settingValue || {};
+      const totalGold = Number(settingValue.totalGold || 0);
+      const breakdown = Array.isArray(settingValue.breakdown)
+        ? settingValue.breakdown.map((row) => ({
+            분류: row.label || row.key || '-',
+            골드: Number(row.gold || 0),
+            표시값: formatGold(Number(row.gold || 0)),
+          }))
+        : [];
+      const detailGroups = Array.isArray(settingValue.details) ? settingValue.details : [];
+      console.group(`[DunPilot] ${character.name || character.characterName || character.characterId} · 세팅 추정 가치 ${formatGold(totalGold)}`);
+      console.log('세팅 추정 가치', { totalGold, formatted: formatGold(totalGold) });
+      if (breakdown.length) console.table(breakdown);
+      detailGroups.forEach((group) => {
+        const items = Array.isArray(group.items) ? group.items : [];
+        console.groupCollapsed(`${group.label || group.key || '상세'} · ${formatGold(Number(group.gold || 0))} · ${items.length}개`);
+        if (!items.length) {
+          console.log('산정 내역 없음');
+          console.groupEnd();
+          return;
+        }
+        console.table(items.map((item, index) => ({
+          번호: index + 1,
+          부위: item.slot || '-',
+          항목: item.label || item.itemName || '-',
+          현재장착: item.itemName || '-',
+          가격기준: item.priceItemName || '-',
+          단계: Number(item.level || 0) > 0 ? `+${Number(item.level)}` : '-',
+          적용값: item.effectText || '-',
+          구매경로: item.route || item.note || '-',
+          금액: item.gold == null ? '가격 확인 불가' : formatGold(Number(item.gold || 0)),
+        })));
+        console.groupEnd();
+      });
+      console.log('저장 스냅샷', payload.snapshot || null);
+      console.groupEnd();
+    } catch (error) {
+      if (!lifecycle.active || requestId !== state.enchantRequestId || !state.isDevMode) return;
+      console.warn('[DunPilot] 세팅 추정 가치 저장 생략', error);
+    }
+  }
+
   async function loadEnchantRecommendationsAsync(requestId) {
     try {
       await loadCurrentCharacterLoadout(requestId);
       if (requestId !== state.enchantRequestId) return;
+      const officialScorePromise = loadCurrentOfficialEquipmentScore(requestId);
       if (
         state.currentBufferBaseline?.isBuffer
         || !state.enchantPriceLoaded
@@ -7057,6 +7117,9 @@ export function installEnchantView(ctx) {
       renderEnchantCharacterPortrait();
       renderEnchantTable();
       flushEnchantTiming('complete');
+      await officialScorePromise;
+      if (requestId !== state.enchantRequestId) return;
+      void finalizeCurrentSettingValue(requestId);
     } catch (error) {
       if (!lifecycle.active || requestId !== state.enchantRequestId) return;
       state.currentBufferScoreStatus = 'idle';

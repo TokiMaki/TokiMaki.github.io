@@ -1,45 +1,57 @@
+import { useEffect, useMemo, useState } from 'react';
 import logoImage from '../../이미지/로고/logo.png';
 import equipmentScoreIcon from '../../이미지/equipmentScore.png';
+import bufferScoreIcon from '../../이미지/bufferScore.png';
 import fameIcon from '../../이미지/fame.png';
-import fairyPrimeval from '../../이미지/Oath/02fairy/primeval.webp';
-import goldPrimeval from '../../이미지/Oath/03gold/primeval.webp';
-import dragonPrimeval from '../../이미지/Oath/04dragon/primeval.webp';
-import fairyEpic from '../../이미지/Oath/02fairy/epic.png';
-import goldEpic from '../../이미지/Oath/03gold/epic.png';
-import dragonEpic from '../../이미지/Oath/04dragon/epic.png';
-import shadowEpic from '../../이미지/Oath/01shadow/epic.png';
-import natureEpic from '../../이미지/Oath/08nature/epic.png';
-import wolfEpic from '../../이미지/Oath/11wolf/epic.png';
-import fairyLegendary from '../../이미지/Oath/02fairy/legendary.png';
-import fairyUnique from '../../이미지/Oath/02fairy/unique.png';
-import { SETTING_VALUE_RANKING_ROWS } from '../data/settingValueRankingMockData.js';
 import { getCharacterAvatarClass, getCharacterAvatarUrl } from '../dnfHellTool/characterPresentation.js';
+import { API_BASE } from '../dnfHellTool/storageKeys.js';
 import SiteLegalFooter from './SiteLegalFooter.jsx';
 import '../styles/setting-value-ranking.css';
 
-const OATH_ICONS = [
-  ['로열 페어리 태초 결정', 'primeval', fairyPrimeval],
-  ['황금향 태초 결정', 'primeval', goldPrimeval],
-  ['용제 태초 결정', 'primeval', dragonPrimeval],
-  ['로열 페어리 에픽 결정', 'epic', fairyEpic],
-  ['황금향 에픽 결정', 'epic', goldEpic],
-  ['용제 에픽 결정', 'epic', dragonEpic],
-  ['그림자 에픽 결정', 'epic', shadowEpic],
-  ['자연 에픽 결정', 'epic', natureEpic],
-  ['늑대 에픽 결정', 'epic', wolfEpic],
-  ['로열 페어리 레전더리 결정', 'legendary', fairyLegendary],
-  ['로열 페어리 유니크 결정', 'unique', fairyUnique],
-].map(([name, rarity, iconUrl]) => ({ name, rarity, iconUrl }));
+const SERVER_LABELS = {
+  cain: '카인',
+  diregie: '디레지에',
+  siroco: '시로코',
+  prey: '프레이',
+  casillas: '카시야스',
+  hilder: '힐더',
+  anton: '안톤',
+  bakal: '바칼',
+};
 
 function itemIconUrl(itemId) {
-  return `https://img-api.neople.co.kr/df/items/${encodeURIComponent(itemId)}`;
+  return itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(itemId)}` : '';
 }
 
-function getOathRow(offset) {
-  return [...OATH_ICONS.slice(offset), ...OATH_ICONS.slice(0, offset)];
+function getRarityClass(rarity) {
+  return {
+    커먼: 'common',
+    언커먼: 'uncommon',
+    레어: 'rare',
+    유니크: 'unique',
+    레전더리: 'legendary',
+    에픽: 'epic',
+    태초: 'primeval',
+  }[String(rarity || '').trim()] || String(rarity || 'unknown').trim().toLowerCase();
 }
 
-function CharacterFace({ character }) {
+function formatSettingValue(value) {
+  const gold = Math.max(0, Math.floor(Number(value) || 0));
+  const eok = Math.floor(gold / 100000000);
+  const man = Math.floor((gold % 100000000) / 10000);
+  if (eok > 0) return `${eok.toLocaleString('ko-KR')}억${man ? ` ${man.toLocaleString('ko-KR')}만` : ''} 골드`;
+  if (man > 0) return `${man.toLocaleString('ko-KR')}만 골드`;
+  return `${gold.toLocaleString('ko-KR')} 골드`;
+}
+
+function CharacterFace({ row }) {
+  const character = {
+    serverId: row.serverId,
+    characterId: row.characterId,
+    name: row.characterName,
+    jobName: row.jobName,
+    jobGrowName: row.jobGrowName,
+  };
   const avatarUrl = getCharacterAvatarUrl(character, 1);
   return (
     <span
@@ -61,23 +73,23 @@ function EquipmentIcon({ equipment }) {
   const displayTuneLevel = Math.max(0, Math.min(3, Number(equipment.tuneLevel || 0)));
   const amplificationClass = getAmplificationLevelClass(equipment);
   const highlightClass = `${equipment.isRelic ? ' is-relic' : ''}${amplificationClass ? ` is-high-amplification${amplificationClass}` : ''}`;
-  const enchantTierClass = equipment.enchantTier === 'end' ? ' is-end' : '';
+  const rarityClass = getRarityClass(equipment.itemRarity);
+  const iconUrl = equipment.iconUrl || itemIconUrl(equipment.itemId);
   return (
-    <span className={`setting-value-equipment-item${highlightClass}`} title={equipment.slot}>
-      <span className={`enchant-character-slot is-${equipment.rarity}`} aria-label={equipment.slot}>
-        <img src={itemIconUrl(equipment.itemId)} alt={''} loading={'lazy'} decoding={'async'} />
-        <span className={'enchant-character-slot-enchant-badges'}>
-          <span
-            className={`enchant-character-slot-enchant-badge${enchantTierClass}`}
-            title={equipment.enchantTier === 'end' ? '종결 마법부여' : '마법부여'}
-          >
-            {equipment.enchantBadge}
+    <span className={`setting-value-equipment-item${highlightClass}`} title={`${equipment.slot}${equipment.itemName ? ` · ${equipment.itemName}` : ''}`}>
+      <span className={`enchant-character-slot is-${rarityClass}`} aria-label={equipment.slot}>
+        {iconUrl ? <img src={iconUrl} alt={''} loading={'lazy'} decoding={'async'} /> : null}
+        {equipment.hasEnchant ? (
+          <span className={'enchant-character-slot-enchant-badges'}>
+            <span className={'enchant-character-slot-enchant-badge'} title={'마법부여 적용'}>마부</span>
           </span>
+        ) : null}
+      </span>
+      {Number(equipment.reinforce || 0) > 0 ? (
+        <span className={`enchant-character-slot-badge enchant-character-slot-badge-${equipment.isAmplified ? 'amplify' : 'reinforce'}`}>
+          +{equipment.reinforce}
         </span>
-      </span>
-      <span className={`enchant-character-slot-badge enchant-character-slot-badge-${equipment.isAmplified ? 'amplify' : 'reinforce'}`}>
-        +{equipment.reinforce}
-      </span>
+      ) : null}
       {displayTuneLevel > 0 ? (
         <span className={'enchant-character-slot-tune-mark'} title={`조율 ${displayTuneLevel}단계`}>
           {Array.from({ length: displayTuneLevel }, (_, index) => (
@@ -89,48 +101,58 @@ function EquipmentIcon({ equipment }) {
   );
 }
 
-function RankingRow({ row }) {
-  const oathRow = getOathRow(row.oathOffset);
+function OathIcon({ oath, index }) {
+  const iconUrl = oath.iconUrl || itemIconUrl(oath.itemId);
+  return (
+    <span
+      className={`enchant-oath-slot is-${getRarityClass(oath.itemRarity)}`}
+      title={oath.itemName || `서약 결정 ${index + 1}`}
+    >
+      {iconUrl ? <img src={iconUrl} alt={''} loading={'lazy'} decoding={'async'} /> : null}
+    </span>
+  );
+}
+
+function RankingRow({ row, role }) {
+  const score = role === 'buffer' ? row.buffScore : row.equipmentScore;
+  const scoreLabel = role === 'buffer' ? '버프점수' : '장비점수';
+  const scoreIcon = role === 'buffer' ? bufferScoreIcon : equipmentScoreIcon;
   return (
     <article className={`setting-value-row is-rank-${row.rank}`}>
       <div className={'setting-value-rank'}>{row.rank}</div>
       <div className={'setting-value-character'}>
-        <CharacterFace character={row.character} />
+        <CharacterFace row={row} />
         <div className={'setting-value-character-copy'}>
-          <strong>{row.character.name}</strong>
-          <span>{row.serverLabel}</span>
-          <span>{row.character.jobGrowName}</span>
+          <strong>{row.characterName}</strong>
+          <span>{SERVER_LABELS[row.serverId] || row.serverId}</span>
+          <span>{row.jobGrowName || row.jobName}</span>
         </div>
       </div>
       <div className={'setting-value-metrics'}>
-        <div className={'setting-value-equipment-score'} title={'장비점수'}>
-          <img src={equipmentScoreIcon} alt={''} />
-          <strong>{row.equipmentScore.toLocaleString('ko-KR')}</strong>
+        <div className={'setting-value-equipment-score'} title={scoreLabel}>
+          <img src={scoreIcon} alt={''} />
+          <strong>{Number(score) > 0 ? Number(score).toLocaleString('ko-KR') : '-'}</strong>
         </div>
         <div className={'setting-value-fame'} title={'명성'}>
           <img src={fameIcon} alt={''} />
-          <strong>{row.fame.toLocaleString('ko-KR')}</strong>
+          <strong>{Number(row.fame || 0).toLocaleString('ko-KR')}</strong>
         </div>
         <div className={'setting-value-gold'}>
           <span>세팅 추정 가치</span>
-          <strong>{row.settingValue}</strong>
+          <strong>{formatSettingValue(row.settingValue?.totalGold)}</strong>
         </div>
       </div>
       <div className={'setting-value-loadout'}>
         <div className={'setting-value-loadout-line'}>
           <span className={'setting-value-loadout-label'}>장비</span>
           <div className={'setting-value-equipment-strip'}>
-            {row.equipment.map((equipment) => <EquipmentIcon equipment={equipment} key={equipment.slot} />)}
+            {(row.equipment || []).map((equipment) => <EquipmentIcon equipment={equipment} key={equipment.slotId || equipment.slot} />)}
           </div>
         </div>
         <div className={'setting-value-loadout-line'}>
           <span className={'setting-value-loadout-label'}>서약</span>
           <div className={'setting-value-oath-strip'}>
-            {oathRow.map((oath, index) => (
-              <span className={`enchant-oath-slot is-${oath.rarity}`} title={oath.name} key={`${oath.name}-${index}`}>
-                <img src={oath.iconUrl} alt={''} loading={'lazy'} decoding={'async'} />
-              </span>
-            ))}
+            {(row.oath || []).map((oath, index) => <OathIcon oath={oath} index={index} key={`${oath.itemId || oath.itemName}-${index}`} />)}
           </div>
         </div>
       </div>
@@ -139,6 +161,46 @@ function RankingRow({ row }) {
 }
 
 export default function SettingValueRankingPage() {
+  const [role, setRole] = useState('dealer');
+  const [sort, setSort] = useState('value');
+  const [job, setJob] = useState('all');
+  const [rows, setRows] = useState([]);
+  const [status, setStatus] = useState('loading');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStatus('loading');
+    const query = new URLSearchParams({ role, sort, limit: '100' });
+    fetch(`${API_BASE}/api/setting-value-ranking?${query.toString()}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || '랭킹을 불러오지 못했습니다.');
+        return payload;
+      })
+      .then((payload) => {
+        setRows(Array.isArray(payload.rows) ? payload.rows : []);
+        setStatus('ready');
+      })
+      .catch((error) => {
+        if (error?.name === 'AbortError') return;
+        setRows([]);
+        setStatus('error');
+      });
+    return () => controller.abort();
+  }, [role, sort]);
+
+  const jobs = useMemo(() => [...new Set(rows.map((row) => row.jobGrowName || row.jobName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')), [rows]);
+  const visibleRows = useMemo(() => (
+    job === 'all' ? rows : rows.filter((row) => (row.jobGrowName || row.jobName) === job)
+  ), [job, rows]);
+
+  useEffect(() => {
+    if (job !== 'all' && !jobs.includes(job)) setJob('all');
+  }, [job, jobs]);
+
   return (
     <div className={'wrap setting-value-page'}>
       <header className={'hero setting-value-hero'}>
@@ -158,43 +220,44 @@ export default function SettingValueRankingPage() {
           <div>
             <span className={'setting-value-kicker'}>DUNPILOT PUBLIC CONTENT</span>
             <h2>세팅 가치 랭킹</h2>
-            <p>가격 산정 가능 항목의 현재가 기준 추정 가치와 캐릭터 세팅을 함께 봅니다.</p>
+            <p>던파일럿에서 스펙업 순서를 조회한 캐릭터의 세팅 추정 가치를 비교합니다.</p>
           </div>
-          <span className={'setting-value-draft-badge'}>프론트 배치 시안</span>
         </section>
 
         <section className={'panel setting-value-filter-panel'} aria-label={'랭킹 필터'}>
           <div className={'setting-value-filter-group'}>
             <span>역할</span>
             <div className={'setting-value-role-buttons'}>
-              <button type={'button'} className={'is-active'}>딜러</button>
-              <button type={'button'}>버퍼</button>
+              <button type={'button'} className={role === 'dealer' ? 'is-active' : ''} onClick={() => setRole('dealer')}>딜러</button>
+              <button type={'button'} className={role === 'buffer' ? 'is-active' : ''} onClick={() => setRole('buffer')}>버퍼</button>
             </div>
           </div>
           <label className={'setting-value-filter-group'}>
             <span>직업</span>
-            <select defaultValue={'all'}>
+            <select value={job} onChange={(event) => setJob(event.target.value)}>
               <option value={'all'}>전체 직업</option>
-              <option value={'rogue'}>眞 로그</option>
-              <option value={'mechanic'}>眞 메카닉</option>
+              {jobs.map((jobName) => <option value={jobName} key={jobName}>{jobName}</option>)}
             </select>
           </label>
           <label className={'setting-value-filter-group'}>
             <span>정렬</span>
-            <select defaultValue={'value'}>
+            <select value={sort} onChange={(event) => setSort(event.target.value)}>
               <option value={'value'}>세팅 추정 가치 순</option>
-              <option value={'score'}>장비점수 순</option>
+              <option value={'score'}>{role === 'buffer' ? '버프점수' : '장비점수'} 순</option>
               <option value={'fame'}>명성 순</option>
             </select>
           </label>
         </section>
 
         <section className={'setting-value-ranking-list'} aria-label={'세팅 가치 랭킹'}>
-          {SETTING_VALUE_RANKING_ROWS.map((row) => <RankingRow row={row} key={row.rank} />)}
+          {status === 'loading' ? <div className={'panel'}>랭킹을 불러오는 중...</div> : null}
+          {status === 'error' ? <div className={'panel'}>랭킹을 불러오지 못했습니다.</div> : null}
+          {status === 'ready' && !visibleRows.length ? <div className={'panel'}>아직 저장된 캐릭터가 없습니다.</div> : null}
+          {status === 'ready' ? visibleRows.map((row) => <RankingRow row={row} role={role} key={`${row.serverId}:${row.characterId}`} />) : null}
         </section>
 
         <p className={'setting-value-footnote'}>
-          현재 수치와 세팅 추정 가치는 프론트 배치 확인용 목업입니다.
+          캐릭터가 스펙업 순서를 다시 조회하면 최신 분석 결과로 갱신됩니다.
         </p>
       </main>
 

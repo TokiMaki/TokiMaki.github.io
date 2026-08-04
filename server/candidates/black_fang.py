@@ -112,7 +112,10 @@ def parse_black_fang_scroll_cost(detail: dict) -> dict:
             continue
         if "악세서리" in line and line.endswith("1개"):
             continue
-        gold_match = re.search(r"골드\s*([\d,]+)", line)
+        gold_match = (
+            re.search(r"골드\s*([\d,]+)", line)
+            or re.search(r"([\d,]+)\s*골드", line)
+        )
         if gold_match:
             fixed_gold += int(gold_match.group(1).replace(",", ""))
             continue
@@ -204,7 +207,9 @@ def enrich_black_fang_materials(
 
 
 def get_black_fang_scroll_name(set_item_name: str) -> str:
-    set_name = re.sub(r"\s*세트$", "", clean_text(set_item_name)).strip()
+    set_name = clean_text(set_item_name)
+    set_name = re.sub(r"^\s*흑아\s*:\s*", "", set_name)
+    set_name = re.sub(r"\s*세트$", "", set_name).strip()
     return f"흑아 태초 변환서 - {set_name}" if set_name else ""
 
 
@@ -399,3 +404,58 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
         },
     ])
     return {"recommendations": recommendations, "steps": steps}
+
+
+def build_equipped_black_fang_cost_rows(
+    equipment_rows: list,
+    material_prices: dict | None = None,
+) -> list:
+    targets = [
+        equipment
+        for equipment in equipment_rows or []
+        if clean_text(equipment.get("slotId")) in BLACK_FANG_ACCESSORY_SLOT_IDS
+        and clean_text(equipment.get("itemName")).startswith("흑아 :")
+    ]
+    scroll_items = {}
+    for equipment in targets:
+        scroll_name = get_black_fang_scroll_name(equipment.get("setItemName"))
+        if scroll_name and scroll_name not in scroll_items:
+            scroll_items[scroll_name] = find_black_fang_scroll_price_item(scroll_name)
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details([
+            clean_text(item.get("itemId"))
+            for item in scroll_items.values()
+            if clean_text(item.get("itemId"))
+        ])
+        if clean_text(detail.get("itemId"))
+    }
+    material_price_cache = {}
+    rows = []
+    for equipment in targets:
+        scroll_name = get_black_fang_scroll_name(equipment.get("setItemName"))
+        scroll_item = scroll_items.get(scroll_name) or {}
+        scroll_id = clean_text(scroll_item.get("itemId"))
+        if not scroll_id:
+            continue
+        scroll_cost = parse_black_fang_scroll_cost(detail_by_id.get(scroll_id) or {})
+        auction = dict(scroll_item.get("auction") or {})
+        if (
+            not clean_text(auction.get("priceStatus"))
+            and isinstance(auction.get("minUnitPrice"), (int, float))
+            and auction.get("minUnitPrice") > 0
+        ):
+            auction["priceStatus"] = "priced"
+        rows.append({
+            "slot": clean_text(equipment.get("slotName")),
+            "itemId": scroll_id,
+            "itemName": clean_item_display_name(scroll_item.get("itemName")) or scroll_name,
+            "auction": auction,
+            "fixedGold": scroll_cost.get("fixedGold") or 0,
+            "materials": enrich_black_fang_materials(
+                scroll_cost.get("materials") or [],
+                material_price_cache,
+                material_prices,
+            ),
+        })
+    return rows

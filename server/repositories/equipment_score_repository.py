@@ -284,6 +284,20 @@ def _build_payload(server_id: str, server_name: str, character_name: str, row: d
     }
 
 
+def get_cached_official_equipment_score(server_id: str, character_name: str) -> dict:
+    server_id = clean_text(server_id).lower()
+    character_name = clean_text(character_name)
+    if not server_id or not character_name:
+        return _null_response(cached=False, stale=False)
+    payload, is_stale = _load_cached_payload(
+        _get_cache_key(server_id, character_name),
+        int(time.time() * 1000),
+    )
+    if not payload:
+        return _null_response(cached=False, stale=False)
+    return _to_response(payload, cached=True, stale=is_stale)
+
+
 def load_official_equipment_score(server_id: str, character_name: str) -> dict:
     server_id = clean_text(server_id).lower()
     character_name = clean_text(character_name)

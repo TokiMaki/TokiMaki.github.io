@@ -428,3 +428,48 @@ def build_relic_craft_recommendations_debug(
         "recommendations": recommendations,
         "steps": steps,
     }
+
+
+def build_equipped_relic_cost_rows(
+    equipment_rows: list,
+    material_prices: dict | None = None,
+) -> list:
+    recipe_by_item_id = {
+        clean_text((recipe.get("target") or {}).get("itemId")): recipe
+        for recipe in _get_enabled_recipes()
+        if clean_text((recipe.get("target") or {}).get("itemId"))
+    }
+    rows = []
+    for equipment in equipment_rows or []:
+        recipe = recipe_by_item_id.get(clean_text(equipment.get("itemId")))
+        if not recipe:
+            continue
+        precision = recipe.get("precision100") or {}
+        current_precision_percent = resolve_relic_precision_percent(equipment.get("potency"))
+        operation_count = (
+            _number(precision.get("operationCount"))
+            * _number(current_precision_percent)
+            / 100
+            if current_precision_percent is not None
+            else 0
+        )
+        materials = _build_materials(
+            recipe,
+            material_prices or {},
+            operation_count=operation_count,
+            include_craft=True,
+        )
+        base_craft = recipe.get("baseCraft") or {}
+        rows.append({
+            "slot": clean_text(equipment.get("slotName")),
+            "itemId": clean_text(equipment.get("itemId")),
+            "itemName": clean_text(equipment.get("itemName")),
+            "fixedGold": (
+                _number(base_craft.get("fixedGold"))
+                + _number(precision.get("fixedGoldPerAttempt")) * operation_count
+            ),
+            "materials": materials,
+            "precisionPercent": current_precision_percent,
+            "priceComplete": bool(materials),
+        })
+    return rows

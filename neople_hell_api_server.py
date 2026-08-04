@@ -31,6 +31,11 @@ from server.character_search_service import (
 )
 from server.character_summary_service import summarize_character_response
 from server.repositories.equipment_score_repository import load_official_equipment_score
+from server.setting_value_snapshot_service import (
+    SettingValueFinalizeUnavailable,
+    finalize_character_setting_value,
+    get_setting_value_ranking,
+)
 from server.avatar_skill_optimizer import load_avatar_skill_efficiency_response
 from server.enchant_service import (
     load_aura_upgrades_with_prices,
@@ -53,6 +58,7 @@ from server.price_cache import (
     ENCHANT_PRICE_CACHE_PATH,
     TITLE_PRICE_CACHE_PATH,
     _AURA_PRICE_CACHE,
+    _CACHE_LOCK,
     _CREATURE_PRICE_CACHE,
     _ENCHANT_PRICE_CACHE,
     _TITLE_PRICE_CACHE,
@@ -71,6 +77,7 @@ MAX_PUBLIC_RESPONSE_CACHE_ENTRIES = 256
 LOADOUT_RESPONSE_CACHE_SECONDS = 15
 MAX_LOADOUT_RESPONSE_CACHE_ENTRIES = 64
 LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS = 60
+SETTING_VALUE_PENDING_SECONDS = 120
 _HEAVY_REQUEST_SEMAPHORE = BoundedSemaphore(HEAVY_REQUEST_LIMIT)
 _PUBLIC_RESPONSE_CACHE = {}
 _PUBLIC_RESPONSE_INFLIGHT = {}
@@ -78,6 +85,8 @@ _PUBLIC_RESPONSE_CACHE_LOCK = Lock()
 _LOADOUT_RESPONSE_CACHE = {}
 _LOADOUT_RESPONSE_INFLIGHT = {}
 _LOADOUT_RESPONSE_CACHE_LOCK = Lock()
+_SETTING_VALUE_PENDING_CACHE = {}
+_SETTING_VALUE_PENDING_CACHE_LOCK = Lock()
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 REQUEST_LOGGER = logging.getLogger("dunpilot.request")
@@ -144,6 +153,8 @@ def format_route_cache_hit(cache_hit: bool | None) -> str:
 def get_request_route_name(route: str) -> str:
     route_names = {
         "/api/character-loadout": "loadout",
+        "/api/setting-value/finalize": "setting-value-finalize",
+        "/api/setting-value-ranking": "setting-value-ranking",
         "/api/search": "search",
         "/api/search-all": "search-all",
         "/api/aura-upgrades": "aura",
@@ -296,6 +307,58 @@ def prune_public_response_cache(now: float):
         _PUBLIC_RESPONSE_CACHE.pop(key, None)
 
 
+def save_pending_setting_value_loadout(payload: dict) -> None:
+    if not isinstance(payload, dict):
+        return
+    server_id = clean_text(payload.get("serverId")).lower()
+    character_id = clean_text(payload.get("characterId"))
+    if not server_id or not character_id:
+        return
+    now = time.time()
+    with _SETTING_VALUE_PENDING_CACHE_LOCK:
+        expired_keys = [
+            key for key, row in _SETTING_VALUE_PENDING_CACHE.items()
+            if row.get("expires_at", 0) <= now
+        ]
+        for key in expired_keys:
+            _SETTING_VALUE_PENDING_CACHE.pop(key, None)
+        _SETTING_VALUE_PENDING_CACHE[(server_id, character_id)] = {
+            "payload": payload,
+            "expires_at": now + SETTING_VALUE_PENDING_SECONDS,
+        }
+
+
+def get_pending_setting_value_loadout(server_id: str, character_id: str) -> dict | None:
+    key = (clean_text(server_id).lower(), clean_text(character_id))
+    now = time.time()
+    with _SETTING_VALUE_PENDING_CACHE_LOCK:
+        row = _SETTING_VALUE_PENDING_CACHE.get(key)
+        if not row or row.get("expires_at", 0) <= now:
+            _SETTING_VALUE_PENDING_CACHE.pop(key, None)
+            return None
+        return row.get("payload")
+
+
+def get_cached_price_payload(cache: dict, cache_path) -> dict | None:
+    load_price_cache_from_disk(cache, cache_path)
+    with _CACHE_LOCK:
+        payload = cache.get("payload")
+        return payload if isinstance(payload, dict) and payload else None
+
+
+def get_cached_response_payload(cache: dict, cache_lock, cache_key: tuple) -> dict | None:
+    now = time.time()
+    with cache_lock:
+        cached = cache.get(cache_key)
+        if not cached or cached.get("expires_at", 0) <= now:
+            if cached:
+                cache.pop(cache_key, None)
+            return None
+        body = cached.get("body") or b"{}"
+    payload = load_json_log_payload(body)
+    return payload if payload else None
+
+
 def load_public_response_body(cache_key: tuple, loader, force_refresh: bool = False) -> tuple[bytes, bool]:
     now = time.time()
     with _PUBLIC_RESPONSE_CACHE_LOCK:
@@ -424,7 +487,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Cache-Control", getattr(self, "_cache_control", "no-store"))
         super().end_headers()
@@ -488,6 +551,28 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         finally:
             _HEAVY_REQUEST_SEMAPHORE.release()
 
+    def do_POST(self):
+        self._request_started_at = time.time()
+        parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+        self._request_id = uuid.uuid4().hex[:8]
+        self._request_stats_token = None
+        if parsed.path.startswith("/api/"):
+            server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+            character_id = clean_text((query.get("characterId") or [""])[0])
+            character_name = clean_text((query.get("characterName") or [""])[0])
+            self._request_stats_token = start_request_stats(
+                parsed.path,
+                method="POST",
+                server_id=server_id,
+                character_id=character_id,
+                character_name=character_name,
+            )
+            write_ops_log("api_request_start", route=parsed.path)
+        if parsed.path == "/api/setting-value/finalize":
+            return self.handle_setting_value_finalize(parsed)
+        return self.send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
+
     def do_GET(self):
         self._request_started_at = time.time()
         parsed = urlparse(self.path)
@@ -540,6 +625,9 @@ class HellApiHandler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/character-loadout":
             return self.handle_character_loadout(parsed)
+
+        if parsed.path == "/api/setting-value-ranking":
+            return self.handle_setting_value_ranking(parsed)
 
         if parsed.path == "/api/character-preview":
             return self.run_limited_api_request(parsed, lambda: self.handle_character_preview(parsed))
@@ -764,7 +852,9 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                 ),
             )
             try:
-                save_character_search_candidate_from_loadout_payload(json.loads(body.decode("utf-8")))
+                loadout_payload = json.loads(body.decode("utf-8"))
+                save_pending_setting_value_loadout(loadout_payload)
+                save_character_search_candidate_from_loadout_payload(loadout_payload)
             except Exception:
                 pass
             self.send_json_body(body, cache_hit=cache_hit)
@@ -774,6 +864,81 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_setting_value_finalize(self, parsed):
+        query = parse_qs(parsed.query)
+        server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
+        if not server_id or not character_id:
+            return self.send_json(
+                {"error": "serverId와 characterId를 입력해 주세요."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+
+        loadout = get_pending_setting_value_loadout(server_id, character_id)
+        if not loadout:
+            return self.send_json(
+                {"error": "스펙업 순서 조회 결과가 만료되었습니다."},
+                status=HTTPStatus.CONFLICT,
+            )
+        is_buffer = bool((loadout.get("bufferBaseline") or {}).get("isBuffer"))
+        price_keys = {
+            "enchant": ("enchant-cards", server_id, character_id) if is_buffer else ("enchant-cards",),
+            "title": ("title-upgrades",),
+            "aura": ("aura-upgrades", server_id, character_id),
+            "creature": ("creature-upgrades", server_id, character_id),
+        }
+        price_payloads = {
+            name: get_cached_response_payload(_PUBLIC_RESPONSE_CACHE, _PUBLIC_RESPONSE_CACHE_LOCK, cache_key)
+            for name, cache_key in price_keys.items()
+        }
+        if price_payloads["enchant"] is None:
+            price_payloads["enchant"] = get_cached_price_payload(
+                _ENCHANT_PRICE_CACHE,
+                ENCHANT_PRICE_CACHE_PATH,
+            )
+        if price_payloads["title"] is None:
+            price_payloads["title"] = get_cached_price_payload(
+                _TITLE_PRICE_CACHE,
+                TITLE_PRICE_CACHE_PATH,
+            )
+        if any(payload is None for payload in price_payloads.values()):
+            return self.send_json(
+                {"error": "스펙업 순서 가격 정보가 만료되었습니다."},
+                status=HTTPStatus.CONFLICT,
+            )
+        try:
+            snapshot = finalize_character_setting_value(
+                loadout,
+                price_payloads["enchant"],
+                price_payloads["title"],
+                price_payloads["aura"],
+                price_payloads["creature"],
+            )
+            setting_value = snapshot.get("settingValue") or {}
+            response_snapshot = {
+                **snapshot,
+                "settingValue": {
+                    key: value
+                    for key, value in setting_value.items()
+                    if key != "details"
+                },
+            }
+            return self.send_json({
+                "settingValue": setting_value,
+                "snapshot": response_snapshot,
+            })
+        except SettingValueFinalizeUnavailable as exc:
+            return self.send_json({"error": str(exc)}, status=HTTPStatus.CONFLICT)
+        except Exception as exc:
+            return self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_setting_value_ranking(self, parsed):
+        query = parse_qs(parsed.query)
+        role = clean_text((query.get("role") or ["dealer"])[0]).lower()
+        sort = clean_text((query.get("sort") or ["value"])[0]).lower()
+        limit = clean_text((query.get("limit") or ["100"])[0])
+        return self.send_json(get_setting_value_ranking(role, sort, limit))
 
     def handle_character_preview(self, parsed):
         query = parse_qs(parsed.query)

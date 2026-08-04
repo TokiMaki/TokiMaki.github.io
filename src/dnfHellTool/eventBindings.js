@@ -327,8 +327,9 @@ export function bindToolEvents(ctx) {
       serverId: normalizedServerId,
       characterName: normalizedName,
     })).then((result) => {
-      if (!saveRecent || !result?.serverId || !result?.characterName) return;
-      saveRecentSearch(result.serverId, result.characterName);
+      if (saveRecent && result?.serverId && result?.characterName) {
+        saveRecentSearch(result.serverId, result.characterName);
+      }
     });
   };
   const runLandingSearch = () => runEnchantSearch({

@@ -44,8 +44,14 @@ from .candidates.avatar_emblem import (
     get_avatar_emblem_item_name,
     get_emblem_stat_value,
 )
-from .candidates.black_fang import build_black_fang_recommendations_debug
-from .candidates.relic_craft import build_relic_craft_recommendations_debug
+from .candidates.black_fang import (
+    build_black_fang_recommendations_debug,
+    build_equipped_black_fang_cost_rows,
+)
+from .candidates.relic_craft import (
+    build_equipped_relic_cost_rows,
+    build_relic_craft_recommendations_debug,
+)
 from .candidates.oath_transcend import build_oath_craft_recommendations_debug, build_oath_transcend_recommendations_debug
 from .candidates.switching_fragment import (
     SWITCHING_FRAGMENT_TARGET_SLOTS,
@@ -80,6 +86,7 @@ from .repositories.item_repository import fetch_item_details, search_items_by_na
 from .repositories.material_price_repository import load_upgrade_material_prices
 from .repositories.resolved_price_repository import get_cached_resolved_price
 from .repositories.skill_repository import get_skill_detail
+from .setting_value_service import collect_setting_value_direct_item_ids
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
@@ -1199,6 +1206,38 @@ def load_character_enchants(
         lambda: build_relic_craft_recommendations_debug(payload.get("equipment") or [], upgrade_material_prices),
     )
     relic_craft_recommendations = relic_craft_debug.get("recommendations") or []
+    setting_value_equipment_inputs = {}
+    if include_skill_details:
+        setting_value_input_ready = True
+        try:
+            equipped_black_fang_rows = _measure_step(
+                steps,
+                "build_equipped_black_fang_cost_rows",
+                lambda: build_equipped_black_fang_cost_rows(
+                    payload.get("equipment") or [],
+                    upgrade_material_prices,
+                ),
+            )
+        except Exception:
+            equipped_black_fang_rows = []
+            setting_value_input_ready = False
+        try:
+            equipped_unique_rows = _measure_step(
+                steps,
+                "build_equipped_relic_cost_rows",
+                lambda: build_equipped_relic_cost_rows(
+                    payload.get("equipment") or [],
+                    upgrade_material_prices,
+                ),
+            )
+        except Exception:
+            equipped_unique_rows = []
+            setting_value_input_ready = False
+        setting_value_equipment_inputs = {
+            "status": "ready" if setting_value_input_ready else "incomplete",
+            "blackFangRows": equipped_black_fang_rows,
+            "uniqueEquipmentRows": equipped_unique_rows,
+        }
     oath_upgrades = _measure_step(
         steps,
         "load_character_oath_upgrades",
@@ -1264,6 +1303,8 @@ def load_character_enchants(
             "build_oath_craft_recommendations": oath_craft_debug.get("steps") or [],
         },
     )
+    if include_skill_details:
+        result["_settingValueEquipmentInputs"] = setting_value_equipment_inputs
     if include_skill_details and buffer_baseline:
         result["_bufferSkillDetails"] = skill_detail_by_context
         result["_bufferSwitchingSkillLevels"] = switching_level_by_context
@@ -3404,6 +3445,7 @@ def load_character_loadout(
         )
         buffer_skill_details = enchant_payload.pop("_bufferSkillDetails", {})
         buffer_switching_levels = enchant_payload.pop("_bufferSwitchingSkillLevels", {})
+        setting_value_equipment_inputs = enchant_payload.pop("_settingValueEquipmentInputs", {})
         creature_payload = _measure_step(steps, "load_character_creature", lambda: load_character_creature(server_id, character_id))
         title_payload = _measure_step(steps, "load_character_title", lambda: load_character_title(server_id, character_id))
         aura_payload = _measure_step(steps, "load_character_aura", lambda: load_character_aura(server_id, character_id))
@@ -3485,6 +3527,43 @@ def load_character_loadout(
             )
             if clean_text(damage_baseline.get("jobName")) == "다크나이트" and stat_post_multiplier > 0:
                 damage_baseline["statPostMultiplier"] = stat_post_multiplier
+        avatar_slots = ((avatar_payload.get("avatar") or {}).get("slots") or [])
+        setting_value_input_ready = clean_text(setting_value_equipment_inputs.get("status")) == "ready"
+        try:
+            setting_value_direct_prices = _measure_step(
+                steps,
+                "load_setting_value_direct_prices",
+                lambda: get_lowest_auction_prices(collect_setting_value_direct_item_ids(
+                    title_payload.get("title") or {},
+                    aura_payload.get("aura") or {},
+                    creature_payload.get("creature") or {},
+                    avatar_slots,
+                    buff_loadout,
+                )),
+            )
+        except Exception:
+            setting_value_direct_prices = {}
+            setting_value_input_ready = False
+        try:
+            setting_value_platinum_prices = _measure_step(
+                steps,
+                "load_setting_value_platinum_prices",
+                lambda: _build_setting_value_platinum_price_by_name(
+                    avatar_slots,
+                    buff_loadout,
+                ),
+            )
+        except Exception:
+            setting_value_platinum_prices = {}
+            setting_value_input_ready = False
+        setting_value_inputs = {
+            "schemaVersion": 1,
+            "status": "ready" if setting_value_input_ready else "incomplete",
+            "blackFangRows": setting_value_equipment_inputs.get("blackFangRows") or [],
+            "uniqueEquipmentRows": setting_value_equipment_inputs.get("uniqueEquipmentRows") or [],
+            "directPrices": setting_value_direct_prices,
+            "platinumPriceByName": setting_value_platinum_prices,
+        }
         return {
             "serverId": enchant_payload.get("serverId"),
             "characterId": enchant_payload.get("characterId"),
@@ -3511,6 +3590,7 @@ def load_character_loadout(
             "switchingTitleRecommendations": switching_title_recommendations,
             "switchingFragmentRecommendations": switching_fragment_recommendations,
             "switchingCreatureRecommendations": switching_creature_recommendations,
+            "settingValueInputs": setting_value_inputs,
             "debugTimings": {
                 "totalMs": round((time.perf_counter() - started_at) * 1000, 1),
                 "steps": steps,
@@ -6096,3 +6176,29 @@ def load_character_avatar(
         steps,
         timing_details,
     )
+def _build_setting_value_platinum_price_by_name(
+    avatar_slots: list,
+    buff_loadout: dict,
+) -> dict:
+    emblems = [
+        emblem
+        for row in avatar_slots or []
+        for emblem in (row.get("platinumEmblems") or get_platinum_emblems(row))
+    ]
+    emblems.extend(
+        emblem
+        for avatar in buff_loadout.get("avatar") or []
+        if clean_text(avatar.get("buffAvatarSource")) == "actual"
+        for emblem in avatar.get("platinumEmblems") or []
+    )
+    price_by_name = {}
+    for emblem in emblems:
+        item_name = clean_item_display_name(emblem.get("itemName"))
+        skill_name = extract_platinum_skill_name(item_name)
+        if not item_name or not skill_name or item_name in price_by_name:
+            continue
+        price_by_name[item_name] = choose_avatar_platinum_price_item(
+            skill_name,
+            allow_selection_box=True,
+        )
+    return price_by_name
