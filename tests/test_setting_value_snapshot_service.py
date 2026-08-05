@@ -29,6 +29,24 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
                 "statName": "힘",
             },
             "bufferBaseline": None,
+            "title": {
+                "itemId": "title-item",
+                "itemName": "테스트 칭호",
+                "itemRarity": "레전더리",
+                "iconUrl": "https://example.com/title.png",
+            },
+            "aura": {
+                "itemId": "aura-item",
+                "itemName": "테스트 오라",
+                "itemRarity": "레전더리",
+                "iconUrl": "https://example.com/aura.png",
+            },
+            "creature": {
+                "itemId": "creature-item",
+                "itemName": "테스트 크리쳐",
+                "itemRarity": "레전더리",
+                "iconUrl": "https://example.com/creature.png",
+            },
             "enchants": [{
                 "slot": "무기",
                 "effects": {"finalDamage": 3, "elementAll": 15},
@@ -129,6 +147,9 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
         self.assertEqual(result["oath"][1]["kind"], "crystal")
         self.assertEqual(result["oath"][1]["itemId"], "oath-1")
         self.assertEqual(result["oath"][1]["tuneLevel"], 2)
+        self.assertEqual(result["title"]["itemId"], "title-item")
+        self.assertEqual(result["aura"]["itemId"], "aura-item")
+        self.assertEqual(result["creature"]["itemId"], "creature-item")
         build_value.assert_called_once()
         save_snapshot.assert_called_once()
         saved_snapshot = save_snapshot.call_args.args[0]

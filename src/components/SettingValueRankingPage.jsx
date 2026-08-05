@@ -153,6 +153,21 @@ function OathIcon({ oath, index }) {
   );
 }
 
+function AccessoryIcon({ item, label }) {
+  const rarityClass = getLoadoutRarityClass(item?.itemRarity);
+  const iconUrl = item?.iconUrl || itemIconUrl(item?.itemId);
+  const itemName = item?.itemName || '';
+  return (
+    <span
+      className={`enchant-character-slot setting-value-accessory-slot${rarityClass ? ` ${rarityClass}` : ''}${iconUrl ? '' : ' is-empty'}`}
+      title={[label, itemName].filter(Boolean).join(' · ')}
+      aria-label={itemName ? `${label}: ${itemName}` : `${label}: 정보 없음`}
+    >
+      {iconUrl ? <img src={iconUrl} alt={''} loading={'lazy'} decoding={'async'} /> : null}
+    </span>
+  );
+}
+
 function RankingRow({ row, role }) {
   const score = role === 'buffer' ? row.buffScore : row.equipmentScore;
   const scoreLabel = role === 'buffer' ? '버프점수' : '장비점수';
@@ -194,22 +209,27 @@ function RankingRow({ row, role }) {
         </div>
       </div>
       <div className={'setting-value-loadout'}>
-        <div className={'setting-value-loadout-line'}>
-          <span className={'setting-value-loadout-label'}>장비</span>
-          <div className={'setting-value-equipment-strip'}>
-            {(row.equipment || []).map((equipment) => (
-              <EquipmentIcon
-                equipment={equipment}
-                bufferBaseline={bufferBaseline}
-                key={equipment.slotId || equipment.slot}
-              />
-            ))}
-          </div>
+        <div className={'setting-value-accessory-stack'} aria-label={'오라, 칭호, 크리쳐'}>
+          <AccessoryIcon item={row.aura} label={'오라'} />
+          <AccessoryIcon item={row.title} label={'칭호'} />
+          <AccessoryIcon item={row.creature} label={'크리쳐'} />
         </div>
-        <div className={'setting-value-loadout-line'}>
-          <span className={'setting-value-loadout-label'}>서약</span>
-          <div className={'setting-value-oath-strip'}>
-            {(row.oath || []).map((oath, index) => <OathIcon oath={oath} index={index} key={`${oath.itemId || oath.itemName}-${index}`} />)}
+        <div className={'setting-value-loadout-strips'}>
+          <div className={'setting-value-loadout-line'}>
+            <div className={'setting-value-equipment-strip'} aria-label={'장비'}>
+              {(row.equipment || []).map((equipment) => (
+                <EquipmentIcon
+                  equipment={equipment}
+                  bufferBaseline={bufferBaseline}
+                  key={equipment.slotId || equipment.slot}
+                />
+              ))}
+            </div>
+          </div>
+          <div className={'setting-value-loadout-line'}>
+            <div className={'setting-value-oath-strip'} aria-label={'서약'}>
+              {(row.oath || []).map((oath, index) => <OathIcon oath={oath} index={index} key={`${oath.itemId || oath.itemName}-${index}`} />)}
+            </div>
           </div>
         </div>
       </div>

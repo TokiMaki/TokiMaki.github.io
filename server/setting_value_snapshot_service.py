@@ -21,6 +21,17 @@ def _int_value(value) -> int:
         return 0
 
 
+def _build_named_item_snapshot(item: dict | None) -> dict | None:
+    row = item or {}
+    snapshot = {
+        "itemId": clean_text(row.get("itemId")),
+        "itemName": clean_text(row.get("itemName")),
+        "itemRarity": clean_text(row.get("itemRarity")),
+        "iconUrl": clean_text(row.get("iconUrl")),
+    }
+    return snapshot if any(snapshot.values()) else None
+
+
 def _build_equipment_snapshot(loadout: dict, enchant_detail_by_slot: dict | None = None) -> list[dict]:
     equipment_slots = {
         "무기", "상의", "하의", "머리어깨", "벨트", "신발",
@@ -179,6 +190,9 @@ def finalize_character_setting_value(
         "equipmentScore": _int_value(score.get("equipmentScore")) or None,
         "buffScore": _int_value(score.get("buffScore")) or None,
         "settingValue": stored_setting_value,
+        "title": _build_named_item_snapshot(loadout.get("title")),
+        "aura": _build_named_item_snapshot(loadout.get("aura")),
+        "creature": _build_named_item_snapshot(loadout.get("creature")),
         "equipment": _build_equipment_snapshot(loadout, enchant_detail_by_slot),
         "oath": _build_oath_snapshot(loadout),
         "updatedAtMs": updated_at_ms,

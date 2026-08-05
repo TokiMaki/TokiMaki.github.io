@@ -101,7 +101,7 @@
       font-weight: 300;
     }
     .wrap {
-      max-width: 1180px;
+      max-width: calc(920px + 36px);
       margin: 0 auto;
       padding: 18px;
       display: grid;
@@ -124,6 +124,7 @@
       min-height: 100vh;
       display: grid;
       place-items: center;
+      padding: 102px 0 20px;
       overflow: hidden;
       isolation: isolate;
       background:
@@ -134,6 +135,16 @@
     }
     .landing-page::before {
       content: none;
+    }
+    .hero.landing-hero {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      z-index: 2;
+      width: min(920px, calc(100% - 40px));
+      min-height: 66px;
+      justify-content: flex-end;
+      transform: translateX(-50%);
     }
     .landing-orbit {
       position: absolute;
@@ -158,13 +169,13 @@
       inset: 32%;
     }
     .landing-orbit-two {
-      width: 760px;
+      width: 920px;
       border-style: dashed;
       animation-direction: reverse;
       animation-duration: 38s;
     }
     .landing-card {
-      width: min(760px, calc(100% - 40px));
+      width: min(920px, calc(100% - 40px));
       padding: 54px 50px 38px;
       text-align: center;
       border: 1px solid rgb(76 62 42 / 0.72);
@@ -517,8 +528,16 @@
       .wrap {
         padding: 10px;
       }
+      .landing-page {
+        padding: 92px 0 16px;
+      }
+      .hero.landing-hero {
+        top: 14px;
+        width: calc(100% - 20px);
+        align-items: center;
+      }
       .landing-card {
-        width: calc(100% - 24px);
+        width: calc(100% - 20px);
         padding: 38px 18px 24px;
       }
       .landing-kicker {

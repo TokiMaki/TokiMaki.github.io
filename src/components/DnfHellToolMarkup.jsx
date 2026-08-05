@@ -27,6 +27,14 @@ export default function DnfHellToolMarkup() {
   return (
     <div className={'wrap'}>
       <section className={'landing-page'} id={'landingPage'}>
+        <header className={'hero landing-hero'}>
+          <div className={'hero-actions'}>
+            <nav className={'site-header-tabs'} aria-label={'주요 메뉴'}>
+              <span className={'tab-button site-header-tab active'} aria-current={'page'}>스펙업 순서</span>
+              <a className={'tab-button tab-link site-header-tab'} href={'/stats/'}>랭킹</a>
+            </nav>
+          </div>
+        </header>
         <div className={'landing-orbit landing-orbit-one'} aria-hidden={'true'}></div>
         <div className={'landing-orbit landing-orbit-two'} aria-hidden={'true'}></div>
         <main className={'landing-card'}>

@@ -1,5 +1,5 @@
 .setting-value-page {
-  max-width: 1240px;
+  max-width: calc(920px + 36px);
 }
 
 .setting-value-main {
@@ -78,7 +78,7 @@
 
 .setting-value-row {
   display: grid;
-  grid-template-columns: 48px 178px 190px minmax(0, 1fr);
+  grid-template-columns: 44px 150px 166px minmax(0, 1fr);
   min-height: 132px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -212,30 +212,46 @@
 
 .setting-value-loadout {
   display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-value-accessory-stack,
+.setting-value-loadout-strips {
+  display: grid;
   align-content: center;
+  min-width: 0;
+}
+
+.setting-value-accessory-stack {
+  gap: 5px;
+}
+
+.setting-value-loadout-strips {
   gap: 10px;
 }
 
 .setting-value-loadout-line {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
   min-width: 0;
 }
 
-.setting-value-loadout-label {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 800;
-  text-align: center;
+.setting-value-accessory-slot.enchant-character-slot {
+  width: 26px;
+  height: 26px;
+  box-shadow: none;
+}
+
+.setting-value-accessory-slot.enchant-character-slot img {
+  width: 22px;
+  height: 22px;
 }
 
 .setting-value-equipment-strip,
 .setting-value-oath-strip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   overflow-x: auto;
   overflow-y: visible;
@@ -322,18 +338,15 @@
   margin-top: 18px;
 }
 
-@media (max-width: 1050px) {
-  .setting-value-row {
-    grid-template-columns: 44px 170px 178px minmax(520px, 1fr);
-  }
-
+@media (max-width: 956px) {
+  .setting-value-selected,
   .setting-value-ranking-list {
     overflow-x: auto;
     padding-bottom: 4px;
   }
 
   .setting-value-row {
-    min-width: 940px;
+    min-width: 920px;
   }
 }
 
