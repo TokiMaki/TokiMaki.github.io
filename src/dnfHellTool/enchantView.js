@@ -7078,7 +7078,7 @@ export function installEnchantView(ctx) {
           번호: index + 1,
           부위: item.slot || '-',
           항목: item.label || item.itemName || '-',
-          현재장착: item.itemName || '-',
+          현재장착: item.kind === 'enchant' ? formatEffects(item.effects || {}) || item.effectText || '-' : item.itemName || '-',
           가격기준: item.priceItemName || '-',
           단계: Number(item.level || 0) > 0 ? `+${Number(item.level)}` : '-',
           적용값: item.effectText || '-',

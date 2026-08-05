@@ -31,9 +31,9 @@ assert.equal(
   'developer console must read itemized setting-value details',
 );
 assert.equal(
-  enchantViewSource.includes('현재장착: item.itemName'),
+  enchantViewSource.includes("item.kind === 'enchant' ? formatEffects(item.effects || {})"),
   true,
-  'developer console must show the current item for each calculated row',
+  'developer console must reuse upgrade-order effect formatting for current enchants',
 );
 assert.equal(
   enchantViewSource.includes('가격기준: item.priceItemName'),

@@ -5,7 +5,7 @@ from ..neople_client import (
     clean_text,
     get_item_icon_url,
 )
-from ..repositories.auction_repository import get_auction_rows_by_name
+from ..repositories.auction_repository import get_auction_rows_by_name, remember_auction_item_price
 from ..repositories.resolved_price_repository import get_cached_resolved_price
 from ..presenters.avatar_emblem_presenter import build_avatar_emblem_recommendation_row
 
@@ -47,12 +47,14 @@ BUFFER_SWITCHING_AVATAR_EMBLEM_RECOMMENDATIONS = [
 
 def auction_row_to_item_price(row: dict) -> dict:
     item_id = clean_text(row.get("itemId"))
-    return {
+    item = {
         "itemId": item_id,
         "itemName": clean_item_display_name(row.get("itemName")),
         "itemRarity": clean_text(row.get("itemRarity")),
+        "itemTypeDetail": clean_text(row.get("itemTypeDetail")),
         "iconUrl": get_item_icon_url(item_id),
         "auction": {
+            "priceStatus": "priced",
             "listingCount": int(row.get("regCount") or 0),
             "minUnitPrice": row.get("unitPrice") or row.get("currentPrice"),
             "averagePrice": row.get("averagePrice"),
@@ -60,6 +62,8 @@ def auction_row_to_item_price(row: dict) -> dict:
             "expireDate": row.get("expireDate"),
         },
     }
+    remember_auction_item_price(item)
+    return item
 
 
 def get_avatar_slot(avatar_rows: list, slot_id: str) -> dict:

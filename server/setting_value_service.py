@@ -168,6 +168,50 @@ def _is_same_enchant_source(current: dict, source: dict) -> bool:
     return current_skill == source_skill
 
 
+_ENCHANT_TIER_SLOT_GROUP = {
+    "상의": "상의/하의",
+    "하의": "상의/하의",
+    "머리어깨": "어깨/벨트/신발",
+    "벨트": "어깨/벨트/신발",
+    "신발": "어깨/벨트/신발",
+    "팔찌": "악세서리",
+    "목걸이": "악세서리",
+    "반지": "악세서리",
+}
+
+
+def _normalize_enchant_tier_effects(effects: dict | None, role: str = "") -> tuple:
+    normalized = {
+        clean_text(key): round(_number(value), 6)
+        for key, value in (effects or {}).items()
+        if clean_text(key) and abs(_number(value)) > 0.000001
+    }
+    if clean_text(role).lower() == "dealer":
+        all_stat = normalized.pop("allStat", None)
+        if all_stat is not None:
+            normalized.setdefault("str", all_stat)
+            normalized.setdefault("int", all_stat)
+        normalized.pop("vit", None)
+        normalized.pop("spr", None)
+    return tuple(sorted(normalized.items()))
+
+
+def _is_same_enchant_tier_source(current: dict, source: dict) -> bool:
+    current_slot = clean_text(current.get("slot"))
+    source_slot = clean_text(source.get("slot"))
+    current_group = _ENCHANT_TIER_SLOT_GROUP.get(current_slot, current_slot)
+    source_group = _ENCHANT_TIER_SLOT_GROUP.get(source_slot, source_slot)
+    if not current_group or current_group != source_group:
+        return False
+    role = clean_text(source.get("role"))
+    if _normalize_enchant_tier_effects(current.get("effects"), role) \
+            != _normalize_enchant_tier_effects(source.get("effects"), role):
+        return False
+    current_skill = _normalize_reinforce_skill(current.get("reinforceSkill"))
+    source_skill = _normalize_reinforce_skill(source.get("reinforceSkill"))
+    return current_skill == source_skill
+
+
 def _get_current_enchant_details(current_rows: list, cards: list) -> list:
     details = []
     for current in current_rows or []:
@@ -177,21 +221,37 @@ def _get_current_enchant_details(current_rows: list, cards: list) -> list:
         if not current.get("effects") and not current.get("reinforceSkill"):
             continue
         matched = [
-            card
+            (card, source)
             for card in cards or []
-            if any(
-                _is_same_enchant_source(current, source)
-                for source in card.get("sources") or []
-            )
+            for source in card.get("sources") or []
+            if _is_same_enchant_source(current, source)
         ]
+        tier_matches = [
+            (card, source)
+            for card in cards or []
+            for source in card.get("sources") or []
+            if _is_same_enchant_tier_source(current, source)
+        ]
+        tier_priority = {"종결": 3, "준종결": 2, "가성비": 1}
+        matched_tiers = [
+            clean_text(source.get("tier") or card.get("tier"))
+            for card, source in tier_matches
+            if clean_text(source.get("tier") or card.get("tier"))
+        ]
+        matched_tier = max(
+            matched_tiers,
+            key=lambda tier: tier_priority.get(tier, 0),
+            default="",
+        )
+        is_end = matched_tier == "종결"
         priced = []
-        for card in matched:
+        for card, source in matched:
             if card.get("acquisition"):
-                priced.append((0.0, card, "재료 획득"))
+                priced.append((0.0, card, source, "재료 획득"))
                 continue
             price = get_priced_row_gold(card)
             if price is not None:
-                priced.append((price, card, "경매장"))
+                priced.append((price, card, source, "경매장"))
         effect_text = " / ".join(filter(None, [
             _format_effect_text(current.get("effects")),
             _format_reinforce_skill_text(current.get("reinforceSkill")),
@@ -205,9 +265,16 @@ def _get_current_enchant_details(current_rows: list, cards: list) -> list:
                 effect_text=effect_text,
                 kind="enchant",
                 note="동일한 스펙업 순서 가격 후보를 찾지 못함",
+                extra={
+                    "equipmentItemName": current.get("itemName"),
+                    "effects": current.get("effects") or {},
+                    "reinforceSkill": current.get("reinforceSkill") or [],
+                    "tier": matched_tier,
+                    "isEnd": is_end,
+                },
             ))
             continue
-        gold, card, route = min(priced, key=lambda row: row[0])
+        gold, card, source, route = min(priced, key=lambda row: row[0])
         acquisition = card.get("acquisition") or {}
         price_item_name = _get_candidate_price_item_name(card)
         if not price_item_name:
@@ -218,7 +285,7 @@ def _get_current_enchant_details(current_rows: list, cards: list) -> list:
                 or "마법부여"
             )
         details.append(_build_detail(
-            f"{slot or '장비'} / {price_item_name}",
+            f"{slot or '장비'} 마법부여",
             gold,
             slot=slot,
             item_name=current.get("itemName"),
@@ -226,6 +293,13 @@ def _get_current_enchant_details(current_rows: list, cards: list) -> list:
             effect_text=effect_text,
             route=route,
             kind="enchant",
+            extra={
+                "equipmentItemName": current.get("itemName"),
+                "effects": current.get("effects") or {},
+                "reinforceSkill": current.get("reinforceSkill") or [],
+                "tier": matched_tier or clean_text(source.get("tier") or card.get("tier")),
+                "isEnd": is_end,
+            },
         ))
     return details
 
@@ -373,11 +447,41 @@ def _get_artifact_candidate_gold(artifact: dict, groups: list) -> float | None:
     return _get_artifact_candidate_match(artifact, groups)[1]
 
 
-def _get_direct_gold(item_id: str, direct_prices: dict) -> float | None:
+def _get_direct_auction(item_id: str, direct_prices: dict) -> dict:
     item_id = clean_text(item_id)
     if not item_id:
-        return None
-    return get_priced_row_gold({"auction": direct_prices.get(item_id) or {}})
+        return {}
+    return direct_prices.get(item_id) or {}
+
+
+def _get_direct_gold(item_id: str, direct_prices: dict) -> float | None:
+    return get_priced_row_gold({
+        "auction": _get_direct_auction(item_id, direct_prices),
+    })
+
+
+def _get_direct_price_metadata(
+    item: dict,
+    direct_prices: dict,
+    *,
+    missing_note: str,
+) -> tuple[float | None, str, str]:
+    auction = _get_direct_auction(item.get("itemId"), direct_prices)
+    price = get_priced_row_gold({"auction": auction})
+    item_name = clean_item_display_name(item.get("itemName"))
+    price_item_name = clean_item_display_name(auction.get("priceItemName")) or item_name
+    price_source = clean_text(auction.get("priceSource"))
+    if auction.get("isLastKnownPrice"):
+        note = "현재 매물 없음 · 마지막 확인 가격"
+    elif price_source == "sameNameCachedItem":
+        note = "동일 이름 거래품의 캐시 가격"
+    elif price_source == "exactItemName":
+        note = "동일 이름 거래품의 경매장 가격"
+    elif price is not None:
+        note = "현재 아이템 직접 거래 가격"
+    else:
+        note = missing_note
+    return price, price_item_name, note
 
 
 def _get_item_gold_with_fallback(
@@ -447,21 +551,27 @@ def _get_direct_item_details(items: list, direct_prices: dict, *, kind: str) -> 
     details = []
     for item in items or []:
         item_name = clean_item_display_name(item.get("itemName"))
+        if not clean_text(item.get("itemId")) and not item_name:
+            continue
         slot = clean_text(
             item.get("avatarSlot")
             or item.get("slotName")
             or item.get("slot")
             or item.get("slotId")
         )
-        price = _get_direct_gold(item.get("itemId"), direct_prices)
+        price, price_item_name, note = _get_direct_price_metadata(
+            item,
+            direct_prices,
+            missing_note="현재 아이템과 동일 이름 거래품 가격을 찾지 못함",
+        )
         details.append(_build_detail(
             " / ".join(filter(None, [slot, item_name or kind])),
             price,
             slot=slot,
             item_name=item_name,
-            price_item_name=item_name,
+            price_item_name=price_item_name,
             kind=kind,
-            note="직접 거래 가격" if price is not None else "현재 아이템 가격을 찾지 못함",
+            note=note,
         ))
     return details
 
@@ -595,6 +705,50 @@ def _build_equivalent_item_detail(
     )
 
 
+def collect_setting_value_direct_items(
+    title: dict,
+    aura: dict,
+    creature: dict,
+    avatar_slots: list,
+    buff_loadout: dict,
+) -> list[dict]:
+    normal_emblems, platinum_emblems = _split_avatar_emblems(avatar_slots)
+    items = [
+        title,
+        aura,
+        creature,
+        *(creature.get("artifacts") or []),
+        *normal_emblems,
+        *platinum_emblems,
+    ]
+    for equipment in buff_loadout.get("equipment") or []:
+        if clean_text(equipment.get("slotId")) == "TITLE" or (equipment.get("buffContribution") or {}).get("isDenseFragment"):
+            items.append(equipment)
+    for avatar in buff_loadout.get("avatar") or []:
+        if clean_text(avatar.get("buffAvatarSource")) != "actual":
+            continue
+        items.append(avatar)
+        items.extend(avatar.get("emblems") or [])
+        items.extend(avatar.get("platinumEmblems") or [])
+    items.extend(buff_loadout.get("creature") or [])
+
+    result = []
+    seen_ids = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = clean_text(item.get("itemId"))
+        if not item_id or item_id in seen_ids:
+            continue
+        seen_ids.add(item_id)
+        result.append({
+            "itemId": item_id,
+            "itemName": clean_item_display_name(item.get("itemName")),
+            "itemTypeDetail": clean_text(item.get("itemTypeDetail")),
+        })
+    return result
+
+
 def collect_setting_value_direct_item_ids(
     title: dict,
     aura: dict,
@@ -602,25 +756,16 @@ def collect_setting_value_direct_item_ids(
     avatar_slots: list,
     buff_loadout: dict,
 ) -> list[str]:
-    normal_emblems, platinum_emblems = _split_avatar_emblems(avatar_slots)
-    item_ids = [
-        clean_text(title.get("itemId")),
-        clean_text(aura.get("itemId")),
-        clean_text(creature.get("itemId")),
+    return [
+        item.get("itemId")
+        for item in collect_setting_value_direct_items(
+            title,
+            aura,
+            creature,
+            avatar_slots,
+            buff_loadout,
+        )
     ]
-    item_ids.extend(clean_text(artifact.get("itemId")) for artifact in creature.get("artifacts") or [])
-    item_ids.extend(clean_text(emblem.get("itemId")) for emblem in [*normal_emblems, *platinum_emblems])
-    for equipment in buff_loadout.get("equipment") or []:
-        if clean_text(equipment.get("slotId")) == "TITLE" or (equipment.get("buffContribution") or {}).get("isDenseFragment"):
-            item_ids.append(clean_text(equipment.get("itemId")))
-    for avatar in buff_loadout.get("avatar") or []:
-        if clean_text(avatar.get("buffAvatarSource")) != "actual":
-            continue
-        item_ids.append(clean_text(avatar.get("itemId")))
-        item_ids.extend(clean_text(emblem.get("itemId")) for emblem in avatar.get("emblems") or [])
-        item_ids.extend(clean_text(emblem.get("itemId")) for emblem in avatar.get("platinumEmblems") or [])
-    item_ids.extend(clean_text(item.get("itemId")) for item in buff_loadout.get("creature") or [])
-    return list(dict.fromkeys(item_id for item_id in item_ids if item_id))
 
 
 def _get_buff_enhancement_details(
@@ -631,6 +776,8 @@ def _get_buff_enhancement_details(
     creature_candidates: list,
     platinum_price_by_name: dict,
     direct_prices: dict,
+    buff_title_price_candidate: dict | None = None,
+    buff_creature_price_candidate: dict | None = None,
 ) -> list:
     details = []
     main_title_id = clean_text(title.get("itemId"))
@@ -642,7 +789,10 @@ def _get_buff_enhancement_details(
         if clean_text(equipment.get("slotId")) == "TITLE":
             if not item_id or item_id == main_title_id:
                 continue
-            candidate, preferred = _get_title_candidate_match(equipment, title_candidates)
+            candidate = buff_title_price_candidate or {}
+            preferred = get_priced_row_gold(candidate)
+            if preferred is None:
+                candidate, preferred = _get_title_candidate_match(equipment, title_candidates)
             direct_fallback = preferred is None
             price = _get_item_gold_with_fallback(equipment, preferred, direct_prices)
             details.append(_build_equivalent_item_detail(
@@ -657,32 +807,40 @@ def _get_buff_enhancement_details(
             continue
         if not (equipment.get("buffContribution") or {}).get("isDenseFragment"):
             continue
-        price = _get_direct_gold(item_id, direct_prices)
         item_name = clean_item_display_name(equipment.get("itemName"))
+        price, price_item_name, note = _get_direct_price_metadata(
+            equipment,
+            direct_prices,
+            missing_note="현재 장비와 동일 이름 거래품 가격을 찾지 못함",
+        )
         details.append(_build_detail(
             " / ".join(filter(None, [slot, item_name or "짙은 편린 장비"])),
             price,
             slot=slot,
             item_name=item_name,
-            price_item_name=item_name,
+            price_item_name=price_item_name,
             kind="buffDenseFragment",
-            note="현재 버프강화 장비 직접 가격" if price is not None else "현재 장비 가격을 찾지 못함",
+            note=note,
         ))
 
     for avatar in buff_loadout.get("avatar") or []:
         if clean_text(avatar.get("buffAvatarSource")) != "actual":
             continue
         avatar_slot = clean_text(avatar.get("slotName") or avatar.get("slot") or avatar.get("slotId"))
-        body_price = _get_direct_gold(avatar.get("itemId"), direct_prices)
         avatar_name = clean_item_display_name(avatar.get("itemName"))
+        body_price, price_item_name, note = _get_direct_price_metadata(
+            avatar,
+            direct_prices,
+            missing_note="현재 아바타와 동일 이름 거래품 가격을 찾지 못함",
+        )
         details.append(_build_detail(
             " / ".join(filter(None, [avatar_slot, avatar_name or "버프강화 아바타"])),
             body_price,
             slot=avatar_slot,
             item_name=avatar_name,
-            price_item_name=avatar_name,
+            price_item_name=price_item_name,
             kind="buffAvatar",
-            note="현재 버프강화 아바타 직접 가격" if body_price is not None else "현재 아바타 가격을 찾지 못함",
+            note=note,
         ))
         avatar_emblems = [
             {
@@ -714,7 +872,10 @@ def _get_buff_enhancement_details(
         item_id = clean_text(buff_creature.get("itemId"))
         if not item_id or item_id == main_creature_id:
             continue
-        candidate, preferred = _get_creature_candidate_match(buff_creature, creature_candidates)
+        candidate = buff_creature_price_candidate or {}
+        preferred = get_priced_row_gold(candidate)
+        if preferred is None:
+            candidate, preferred = _get_creature_candidate_match(buff_creature, creature_candidates)
         direct_fallback = preferred is None
         price = _get_item_gold_with_fallback(buff_creature, preferred, direct_prices)
         details.append(_build_equivalent_item_detail(
@@ -737,6 +898,8 @@ def _get_buff_enhancement_gold(
     creature_candidates: list,
     platinum_price_by_name: dict,
     direct_prices: dict,
+    buff_title_price_candidate: dict | None = None,
+    buff_creature_price_candidate: dict | None = None,
 ) -> float:
     return _sum_detail_gold(_get_buff_enhancement_details(
         buff_loadout,
@@ -746,6 +909,8 @@ def _get_buff_enhancement_gold(
         creature_candidates,
         platinum_price_by_name,
         direct_prices,
+        buff_title_price_candidate,
+        buff_creature_price_candidate,
     ))
 
 
@@ -768,6 +933,8 @@ def build_character_setting_value(
     aura_catalog: dict,
     creature_catalog: dict,
     platinum_price_by_name: dict | None = None,
+    buff_title_price_candidate: dict | None = None,
+    buff_creature_price_candidate: dict | None = None,
 ) -> dict:
     upgrade_details = calculate_equipment_upgrade_details(
         equipment_upgrades,
@@ -876,6 +1043,8 @@ def build_character_setting_value(
         creature_candidates,
         platinum_price_by_name,
         direct_prices,
+        buff_title_price_candidate,
+        buff_creature_price_candidate,
     )
 
     complete_unique_rows = [

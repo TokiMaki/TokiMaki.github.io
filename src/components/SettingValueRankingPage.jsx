@@ -4,6 +4,9 @@ import equipmentScoreIcon from '../../이미지/equipmentScore.png';
 import bufferScoreIcon from '../../이미지/bufferScore.png';
 import fameIcon from '../../이미지/fame.png';
 import { getCharacterAvatarClass, getCharacterAvatarUrl } from '../dnfHellTool/characterPresentation.js';
+import { getEnchantLoadoutBadge } from '../dnfHellTool/enchantEquipmentLoadoutBoard.js';
+import { getLoadoutRarityClass } from '../dnfHellTool/loadoutRarity.js';
+import { getLocalOathSymbolIconUrl } from '../dnfHellTool/enchantOathLoadoutBoard.js';
 import { API_BASE } from '../dnfHellTool/storageKeys.js';
 import SiteLegalFooter from './SiteLegalFooter.jsx';
 import '../styles/setting-value-ranking.css';
@@ -21,18 +24,6 @@ const SERVER_LABELS = {
 
 function itemIconUrl(itemId) {
   return itemId ? `https://img-api.neople.co.kr/df/items/${encodeURIComponent(itemId)}` : '';
-}
-
-function getRarityClass(rarity) {
-  return {
-    커먼: 'common',
-    언커먼: 'uncommon',
-    레어: 'rare',
-    유니크: 'unique',
-    레전더리: 'legendary',
-    에픽: 'epic',
-    태초: 'primeval',
-  }[String(rarity || '').trim()] || String(rarity || 'unknown').trim().toLowerCase();
 }
 
 function formatSettingValue(value) {
@@ -69,19 +60,41 @@ function getAmplificationLevelClass(equipment) {
   return ` is-amplification-${Math.min(17, level)}`;
 }
 
-function EquipmentIcon({ equipment }) {
+function getReinforcementLevelClass(equipment) {
+  if (equipment.isAmplified || equipment.slot !== '무기') return '';
+  const level = Math.floor(Number(equipment.reinforce || 0));
+  if (!Number.isFinite(level) || level < 14) return '';
+  return ` is-reinforcement-${Math.min(17, level)}`;
+}
+
+function EquipmentIcon({ equipment, bufferBaseline }) {
   const displayTuneLevel = Math.max(0, Math.min(3, Number(equipment.tuneLevel || 0)));
   const amplificationClass = getAmplificationLevelClass(equipment);
-  const highlightClass = `${equipment.isRelic ? ' is-relic' : ''}${amplificationClass ? ` is-high-amplification${amplificationClass}` : ''}`;
-  const rarityClass = getRarityClass(equipment.itemRarity);
+  const reinforcementClass = getReinforcementLevelClass(equipment);
+  const highlightClass = `${equipment.isRelic ? ' is-relic' : ''}${amplificationClass ? ` is-high-amplification${amplificationClass}` : ''}${reinforcementClass ? ` is-high-reinforcement${reinforcementClass}` : ''}`;
+  const rarityClass = getLoadoutRarityClass(equipment.itemRarity);
   const iconUrl = equipment.iconUrl || itemIconUrl(equipment.itemId);
+  const enchant = equipment.enchant || null;
+  const enchantBadge = enchant
+    ? getEnchantLoadoutBadge(enchant.effects || {}, enchant.reinforceSkill || [], bufferBaseline)
+    : null;
+  const title = [
+    equipment.slot,
+    equipment.itemName,
+    enchant?.effectText ? `마법부여: ${enchant.effectText}` : '',
+  ].filter(Boolean).join(' · ');
   return (
-    <span className={`setting-value-equipment-item${highlightClass}`} title={`${equipment.slot}${equipment.itemName ? ` · ${equipment.itemName}` : ''}`}>
-      <span className={`enchant-character-slot is-${rarityClass}`} aria-label={equipment.slot}>
+    <span className={`setting-value-equipment-item${highlightClass}`} title={title}>
+      <span className={`enchant-character-slot${rarityClass ? ` ${rarityClass}` : ''}`} aria-label={equipment.slot}>
         {iconUrl ? <img src={iconUrl} alt={''} loading={'lazy'} decoding={'async'} /> : null}
-        {equipment.hasEnchant ? (
+        {enchantBadge ? (
           <span className={'enchant-character-slot-enchant-badges'}>
-            <span className={'enchant-character-slot-enchant-badge'} title={'마법부여 적용'}>마부</span>
+            <span
+              className={`enchant-character-slot-enchant-badge${enchant?.isEnd || enchant?.tier === '종결' ? ' is-end' : ''}`}
+              title={enchant?.effectText || '마법부여 적용'}
+            >
+              {enchantBadge.text}
+            </span>
           </span>
         ) : null}
       </span>
@@ -102,13 +115,38 @@ function EquipmentIcon({ equipment }) {
 }
 
 function OathIcon({ oath, index }) {
-  const iconUrl = oath.iconUrl || itemIconUrl(oath.itemId);
+  const isOathBody = oath.kind === 'oath';
+  const rarityClass = getLoadoutRarityClass(oath.itemRarity);
+  const iconUrl = isOathBody
+    ? getLocalOathSymbolIconUrl(oath) || oath.iconUrl || itemIconUrl(oath.itemId)
+    : oath.iconUrl || itemIconUrl(oath.itemId);
+  const displayTuneLevel = isOathBody
+    ? 0
+    : Math.max(0, Math.min(3, Math.floor(Number(oath.tuneLevel || 0))));
+  const title = isOathBody
+    ? [
+        oath.itemName || '서약',
+        oath.setOptionName || oath.setName,
+        Number(oath.setPoint || 0) > 0 ? `세트 포인트 ${Number(oath.setPoint).toLocaleString('ko-KR')}` : '',
+      ].filter(Boolean).join(' · ')
+    : oath.itemName || `서약 결정 ${index + 1}`;
   return (
     <span
-      className={`enchant-oath-slot is-${getRarityClass(oath.itemRarity)}`}
-      title={oath.itemName || `서약 결정 ${index + 1}`}
+      className={`enchant-oath-slot${rarityClass ? ` ${rarityClass}` : ''}${isOathBody ? ' setting-value-oath-body' : ''}`}
+      title={title}
     >
-      {iconUrl ? <img src={iconUrl} alt={''} loading={'lazy'} decoding={'async'} /> : null}
+      {iconUrl ? (
+        <img src={iconUrl} alt={''} loading={'lazy'} decoding={'async'} />
+      ) : isOathBody ? (
+        <span className={'setting-value-oath-body-fallback'} aria-hidden={'true'}>서약</span>
+      ) : null}
+      {displayTuneLevel > 0 ? (
+        <span className={'enchant-character-slot-tune-mark'} title={`조율 ${displayTuneLevel}회`}>
+          {Array.from({ length: displayTuneLevel }, (_, tuneIndex) => (
+            <span className={'enchant-character-slot-tune-bar'} aria-hidden={'true'} key={tuneIndex}></span>
+          ))}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -117,17 +155,28 @@ function RankingRow({ row, role }) {
   const score = role === 'buffer' ? row.buffScore : row.equipmentScore;
   const scoreLabel = role === 'buffer' ? '버프점수' : '장비점수';
   const scoreIcon = role === 'buffer' ? bufferScoreIcon : equipmentScoreIcon;
+  const characterHref = `/?${new URLSearchParams({
+    server: row.serverId || 'all',
+    name: row.characterName || '',
+  }).toString()}`;
+  const bufferBaseline = role === 'buffer'
+    ? { isBuffer: true, statName: row.statName, jobName: row.jobName }
+    : null;
   return (
     <article className={`setting-value-row is-rank-${row.rank}`}>
       <div className={'setting-value-rank'}>{row.rank}</div>
-      <div className={'setting-value-character'}>
+      <a
+        className={'setting-value-character'}
+        href={characterHref}
+        title={`${row.characterName} 스펙업 순서 보기`}
+      >
         <CharacterFace row={row} />
         <div className={'setting-value-character-copy'}>
           <strong>{row.characterName}</strong>
           <span>{SERVER_LABELS[row.serverId] || row.serverId}</span>
           <span>{row.jobGrowName || row.jobName}</span>
         </div>
-      </div>
+      </a>
       <div className={'setting-value-metrics'}>
         <div className={'setting-value-equipment-score'} title={scoreLabel}>
           <img src={scoreIcon} alt={''} />
@@ -146,7 +195,13 @@ function RankingRow({ row, role }) {
         <div className={'setting-value-loadout-line'}>
           <span className={'setting-value-loadout-label'}>장비</span>
           <div className={'setting-value-equipment-strip'}>
-            {(row.equipment || []).map((equipment) => <EquipmentIcon equipment={equipment} key={equipment.slotId || equipment.slot} />)}
+            {(row.equipment || []).map((equipment) => (
+              <EquipmentIcon
+                equipment={equipment}
+                bufferBaseline={bufferBaseline}
+                key={equipment.slotId || equipment.slot}
+              />
+            ))}
           </div>
         </div>
         <div className={'setting-value-loadout-line'}>

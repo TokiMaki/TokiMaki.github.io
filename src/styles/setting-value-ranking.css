@@ -115,7 +115,7 @@
 
 .setting-value-row {
   display: grid;
-  grid-template-columns: 48px 178px 172px minmax(0, 1fr);
+  grid-template-columns: 48px 178px 190px minmax(0, 1fr);
   min-height: 132px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -150,6 +150,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.setting-value-character:hover {
+  background: rgb(255 255 255 / 0.035);
+}
+
+.setting-value-character:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-2) 72%, white);
+  outline-offset: -2px;
 }
 
 .setting-value-character-avatar.character-avatar-shell {
@@ -227,8 +240,11 @@
 
 .setting-value-gold strong {
   color: var(--accent-2);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.25;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .setting-value-loadout {
@@ -278,17 +294,6 @@
   initial-value: 0deg;
 }
 
-.setting-value-equipment-item.is-relic .enchant-character-slot {
-  border-color: rgb(26 57 70 / 0.94);
-  background:
-    radial-gradient(circle at 18% 18%, rgb(126 249 234 / 0.18), transparent 38%),
-    radial-gradient(circle at 82% 82%, rgb(167 139 250 / 0.17), transparent 42%),
-    linear-gradient(145deg, rgb(8 24 34 / 0.98), rgb(8 11 22 / 0.98));
-  box-shadow:
-    inset 0 0 0 1px rgb(5 14 22 / 0.92),
-    inset 0 0 10px rgb(45 212 191 / 0.12);
-}
-
 .setting-value-equipment-item.is-relic::after {
   content: '';
   position: absolute;
@@ -331,6 +336,25 @@
   flex: 0 0 34px;
 }
 
+.setting-value-oath-strip .enchant-oath-slot.setting-value-oath-body {
+  border-width: 2px;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.08),
+    0 0 7px rgb(103 232 249 / 0.22);
+}
+
+.setting-value-oath-strip .enchant-oath-slot.setting-value-oath-body img {
+  object-fit: contain;
+  background: transparent;
+}
+
+.setting-value-oath-body-fallback {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .setting-value-footnote {
   margin: 2px 0 0;
   color: var(--muted);
@@ -344,7 +368,7 @@
 
 @media (max-width: 1050px) {
   .setting-value-row {
-    grid-template-columns: 44px 170px 160px minmax(520px, 1fr);
+    grid-template-columns: 44px 170px 178px minmax(520px, 1fr);
   }
 
   .setting-value-ranking-list {
@@ -503,82 +527,6 @@
   animation: setting-value-relic-glow 7.2s ease-in-out infinite;
 }
 
-.setting-value-equipment-item.is-high-amplification::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  z-index: -1;
-  border: 1px solid transparent;
-  pointer-events: none;
-}
-
-.setting-value-equipment-item.is-high-amplification .enchant-character-slot::before,
-.setting-value-equipment-item.is-high-amplification .enchant-character-slot::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.setting-value-equipment-item.is-amplification-13::before {
-  border-color: rgb(255 101 189 / 0.48);
-  box-shadow: 0 0 8px rgb(255 74 183 / 0.25);
-}
-
-.setting-value-equipment-item.is-amplification-13 .enchant-character-slot {
-  animation: none;
-  border-color: rgb(255 101 189 / 0.9);
-  box-shadow: 0 0 0 1px rgb(255 101 189 / 0.18), 0 0 10px rgb(255 74 183 / 0.34);
-}
-
-.setting-value-equipment-item.is-amplification-13 .enchant-character-slot-badge-amplify {
-  color: #ff65bd;
-  border-color: rgb(255 101 189 / 0.42);
-  text-shadow: 0 0 5px rgb(255 78 184 / 0.76);
-}
-
-.setting-value-equipment-item.is-amplification-14::before {
-  border-color: rgb(255 58 174 / 0.68);
-  animation: setting-value-amplification-14-ring 2.8s ease-in-out infinite;
-}
-
-.setting-value-equipment-item.is-amplification-14 .enchant-character-slot {
-  animation: setting-value-amplification-14-glow 2.8s ease-in-out infinite;
-}
-
-.setting-value-equipment-item.is-amplification-14 .enchant-character-slot-badge-amplify {
-  color: #ff3aae;
-  border-color: rgb(255 87 187 / 0.64);
-  background: rgb(55 4 35 / 0.84);
-  text-shadow: 0 0 6px rgb(255 48 169 / 0.94);
-}
-
-.setting-value-equipment-item.is-amplification-15::before {
-  inset: -3px;
-  border-color: rgb(255 92 195 / 0.82);
-  box-shadow: 0 0 7px rgb(255 49 173 / 0.55), 0 0 15px rgb(210 48 255 / 0.24);
-  animation: setting-value-amplification-15-ring 2.5s ease-in-out infinite;
-}
-
-.setting-value-equipment-item.is-amplification-15 .enchant-character-slot {
-  animation: setting-value-amplification-15-glow 2.5s ease-in-out infinite;
-}
-
-.setting-value-equipment-item.is-amplification-15 .enchant-character-slot::after {
-  inset: -10px;
-  background: linear-gradient(112deg, transparent 36%, rgb(255 255 255 / 0.68) 48%, transparent 60%);
-  transform: translateX(-90%);
-  animation: setting-value-amplification-sweep 4.8s ease-in-out infinite;
-}
-
-.setting-value-equipment-item.is-amplification-15 .enchant-character-slot-badge-amplify {
-  color: #fff5fb;
-  border-color: rgb(255 137 211 / 0.82);
-  background: linear-gradient(135deg, rgb(95 7 64 / 0.94), rgb(38 3 50 / 0.94));
-  text-shadow: 0 0 3px #fff, 0 0 8px rgb(255 29 158 / 0.96);
-}
-
 .setting-value-oath-strip .enchant-oath-slot.is-primeval {
   box-shadow: 0 0 0 1px rgb(103 232 249 / 0.14), 0 0 10px rgb(61 210 232 / 0.18);
 }
@@ -587,37 +535,6 @@
   0%, 58% { transform: translateX(-80%); opacity: 0; }
   68% { opacity: 1; }
   88%, 100% { transform: translateX(80%); opacity: 0; }
-}
-
-@keyframes setting-value-amplification-pulse {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.2); }
-}
-
-@keyframes setting-value-amplification-14-ring {
-  0%, 100% { box-shadow: 0 0 6px rgb(255 49 171 / 0.28); }
-  50% { box-shadow: 0 0 12px rgb(255 49 171 / 0.58); }
-}
-
-@keyframes setting-value-amplification-14-glow {
-  0%, 100% { filter: brightness(1); box-shadow: 0 0 9px rgb(255 49 171 / 0.34); }
-  50% { filter: brightness(1.14); box-shadow: 0 0 14px rgb(255 49 171 / 0.58); }
-}
-
-@keyframes setting-value-amplification-15-ring {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.24); }
-}
-
-@keyframes setting-value-amplification-15-glow {
-  0%, 100% { box-shadow: 0 0 10px rgb(255 35 168 / 0.48), inset 0 0 7px rgb(255 105 205 / 0.12); }
-  50% { box-shadow: 0 0 17px rgb(255 35 168 / 0.72), 0 0 23px rgb(156 58 255 / 0.24), inset 0 0 10px rgb(255 142 218 / 0.18); }
-}
-
-@keyframes setting-value-amplification-sweep {
-  0%, 55% { transform: translateX(-90%); opacity: 0; }
-  65% { opacity: 1; }
-  82%, 100% { transform: translateX(90%); opacity: 0; }
 }
 
 @keyframes setting-value-relic-glow {
@@ -646,24 +563,6 @@
 @keyframes setting-value-relic-facets {
   0%, 100% { opacity: 0.62; }
   50% { opacity: 1; }
-}
-
-/* 고증폭은 장비 프레임이 아니라 증폭 수치 배지만 강조한다. */
-.setting-value-equipment-item.is-high-amplification::before {
-  content: none;
-}
-
-.setting-value-equipment-item.is-high-amplification .enchant-character-slot::before,
-.setting-value-equipment-item.is-high-amplification .enchant-character-slot::after {
-  content: none;
-  animation: none;
-}
-
-.setting-value-equipment-item.is-high-amplification:not(.is-relic) .enchant-character-slot {
-  border-color: color-mix(in srgb, var(--line) 80%, transparent);
-  background: rgb(10 14 20 / 0.94);
-  box-shadow: var(--shadow-card);
-  animation: none;
 }
 
 .setting-value-equipment-item.is-relic .enchant-character-slot::before {
@@ -790,6 +689,39 @@
   animation: setting-value-amplification-17-badge 2.9s linear infinite;
 }
 
+.setting-value-equipment-item.is-high-reinforcement .enchant-character-slot-badge-reinforce {
+  z-index: 8;
+  isolation: isolate;
+  overflow: hidden;
+  clip-path: inset(0);
+  contain: paint;
+  transform-origin: left bottom;
+  will-change: background-position, filter, box-shadow;
+}
+
+.setting-value-equipment-item.is-reinforcement-14 .enchant-character-slot-badge-reinforce {
+  color: #a7e8ff;
+  border-color: rgb(77 194 255 / 0.62);
+  background: rgb(4 31 52 / 0.92);
+  box-shadow: 0 0 4px rgb(42 174 255 / 0.3);
+  text-shadow: 0 0 5px rgb(86 204 255 / 0.72);
+  animation: setting-value-reinforcement-14-badge 4.2s ease-in-out infinite;
+}
+
+.setting-value-equipment-item.is-reinforcement-15 .enchant-character-slot-badge-reinforce,
+.setting-value-equipment-item.is-reinforcement-16 .enchant-character-slot-badge-reinforce,
+.setting-value-equipment-item.is-reinforcement-17 .enchant-character-slot-badge-reinforce {
+  color: #f4fcff;
+  border-color: rgb(118 220 255 / 0.82);
+  background: linear-gradient(112deg, rgb(4 40 71 / 0.97) 0 36%, rgb(207 246 255 / 0.5) 47%, rgb(5 24 58 / 0.97) 58% 100%);
+  background-size: 260% 100%;
+  box-shadow: 0 0 6px rgb(38 179 255 / 0.42);
+  text-shadow: 0 0 2px rgb(255 255 255 / 0.8), 0 0 7px rgb(51 188 255 / 0.9);
+  animation:
+    setting-value-reinforcement-15-badge 4.6s ease-in-out infinite,
+    setting-value-reinforcement-badge-flow 7s linear infinite alternate;
+}
+
 @keyframes setting-value-amplification-14-badge {
   0%, 100% {
     filter: brightness(1);
@@ -824,6 +756,33 @@
   100% { transform: translateX(150%); opacity: 0.34; }
 }
 
+@keyframes setting-value-reinforcement-14-badge {
+  0%, 100% {
+    filter: brightness(1);
+    box-shadow: 0 0 4px rgb(42 174 255 / 0.28);
+  }
+  50% {
+    filter: brightness(1.1);
+    box-shadow: 0 0 7px rgb(42 174 255 / 0.52);
+  }
+}
+
+@keyframes setting-value-reinforcement-15-badge {
+  0%, 100% {
+    filter: brightness(1);
+    box-shadow: 0 0 5px rgb(38 179 255 / 0.36);
+  }
+  50% {
+    filter: brightness(1.14);
+    box-shadow: 0 0 8px rgb(38 179 255 / 0.62), 0 0 11px rgb(82 122 255 / 0.24);
+  }
+}
+
+@keyframes setting-value-reinforcement-badge-flow {
+  0% { background-position: 100% 50%; }
+  100% { background-position: -100% 50%; }
+}
+
 @keyframes setting-value-amplification-badge-flow {
   0% { background-position: 100% 50%; }
   100% { background-position: -100% 50%; }
@@ -832,6 +791,7 @@
 @media (prefers-reduced-motion: reduce) {
   .setting-value-row.is-rank-1::before,
   .setting-value-equipment-item.is-high-amplification .enchant-character-slot-badge-amplify,
+  .setting-value-equipment-item.is-high-reinforcement .enchant-character-slot-badge-reinforce,
   .setting-value-equipment-item.is-relic::after,
   .setting-value-equipment-item.is-relic .enchant-character-slot,
   .setting-value-equipment-item.is-relic .enchant-character-slot::before,

@@ -76,6 +76,8 @@ from .repositories.auction_repository import (
     get_auction_rows_by_name,
     get_lowest_auction_price,
     get_lowest_auction_prices,
+    get_lowest_auction_prices_for_items,
+    remember_auction_item_price,
 )
 from .repositories.character_repository import (
     get_character_cached_computed_payload,
@@ -86,7 +88,7 @@ from .repositories.item_repository import fetch_item_details, search_items_by_na
 from .repositories.material_price_repository import load_upgrade_material_prices
 from .repositories.resolved_price_repository import get_cached_resolved_price
 from .repositories.skill_repository import get_skill_detail
-from .setting_value_service import collect_setting_value_direct_item_ids
+from .setting_value_service import collect_setting_value_direct_items
 from .presenters.switching_fragment_presenter import build_switching_fragment_recommendation_row
 from .presenters.switching_title_presenter import build_switching_title_recommendation_row
 from .presenters.switching_creature_presenter import build_switching_creature_recommendation_row
@@ -119,6 +121,7 @@ AVATAR_BRILLIANT_GREEN_STAT = 15
 AVATAR_BRILLIANT_DUAL_STAT = 15
 AVATAR_BASE_RARE_SLOT_IDS = ["HEADGEAR", "HAIR", "FACE", "JACKET", "PANTS", "SHOES", "BREAST", "WAIST"]
 SWITCHING_CREATURE_CANDIDATE_CACHE_TTL_SECONDS = 600
+SWITCHING_TITLE_RESOLVED_PRICE_CACHE_VERSION = 1
 SWITCHING_LEVEL_CAP = 7
 EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF = 2550
 AVATAR_EMBLEM_AUCTION_PAGE_LIMIT = 100
@@ -1915,13 +1918,16 @@ def auction_row_to_switching_title_price(row: dict) -> dict:
 
 def auction_row_to_item_price(row: dict) -> dict:
     item_id = clean_text(row.get("itemId"))
-    return {
+    item = {
         "itemId": item_id,
         "itemName": clean_item_display_name(row.get("itemName")),
         "itemRarity": clean_text(row.get("itemRarity")),
+        "itemTypeDetail": clean_text(row.get("itemTypeDetail")),
         "iconUrl": get_item_icon_url(item_id),
         "auction": auction_row_to_switching_title_price(row),
     }
+    remember_auction_item_price(item)
+    return item
 
 
 def find_lowest_exact_auction_item_by_name(item_name: str, item_type_detail: str = "", word_type: str = "full") -> dict:
@@ -1962,17 +1968,7 @@ def find_lowest_auction_item_by_allowed_names(query: str, allowed_names: set[str
 
 
 def get_lowest_switching_fragment_auction(item_id: str) -> dict:
-    priced_rows = [
-        row for row in get_auction_rows(item_id, limit=100)
-        if isinstance(row.get("unitPrice") or row.get("currentPrice"), (int, float))
-        and (row.get("unitPrice") or row.get("currentPrice")) > 0
-    ]
-    if not priced_rows:
-        return {**build_unlisted_auction_price(), "expireDate": None}
-    return auction_row_to_switching_title_price(min(
-        priced_rows,
-        key=lambda row: row.get("unitPrice") or row.get("currentPrice") or 10**30,
-    ))
+    return get_lowest_auction_price(item_id)
 
 
 def load_dealer_switching_fragment_recommendations(
@@ -2840,26 +2836,51 @@ def load_switching_title_price_candidate(title_config: dict, job_name: str, buff
         item_id = clean_text(item.get("itemId"))
     if not item_id:
         return {}
-    rows = get_auction_rows(item_id, limit=100)
-    matched_rows = [
-        row for row in rows
-        if isinstance(row.get("unitPrice"), (int, float))
-        and row.get("unitPrice") > 0
-        and get_named_skill_level_bonus((row.get("enchant") or {}).get("reinforceSkill") or [], job_name, buff_skill_name)
-            >= int(title_config.get("enchantBuffSkillLevelDelta") or 0)
-    ]
-    lowest = min(matched_rows, key=lambda row: row.get("unitPrice"), default=None)
-    if not lowest:
-        return {}
-    return {
-        "itemId": item_id,
-        "itemName": clean_item_display_name(lowest.get("itemName") or item.get("itemName") or title_config.get("itemName")),
-        "itemRarity": clean_text(lowest.get("itemRarity") or item.get("itemRarity") or "레어"),
-        "iconUrl": get_item_icon_url(item_id),
-        "fame": lowest.get("fame") or item.get("fame"),
-        "enchant": lowest.get("enchant") or {},
-        "auction": auction_row_to_switching_title_price(lowest),
-    }
+    required_enchant_level = int(title_config.get("enchantBuffSkillLevelDelta") or 0)
+
+    def resolve_uncached():
+        rows = get_auction_rows(item_id, limit=100)
+        matched_rows = [
+            row for row in rows
+            if isinstance(row.get("unitPrice"), (int, float))
+            and row.get("unitPrice") > 0
+            and get_named_skill_level_bonus(
+                (row.get("enchant") or {}).get("reinforceSkill") or [],
+                job_name,
+                buff_skill_name,
+            ) >= required_enchant_level
+        ]
+        lowest = min(matched_rows, key=lambda row: row.get("unitPrice"), default=None)
+        if not lowest:
+            return {}
+        candidate = {
+            "itemId": item_id,
+            "itemName": clean_item_display_name(
+                lowest.get("itemName") or item.get("itemName") or title_config.get("itemName")
+            ),
+            "itemRarity": clean_text(lowest.get("itemRarity") or item.get("itemRarity") or "레어"),
+            "itemTypeDetail": "칭호",
+            "iconUrl": get_item_icon_url(item_id),
+            "fame": lowest.get("fame") or item.get("fame"),
+            "enchant": lowest.get("enchant") or {},
+            "auction": auction_row_to_switching_title_price(lowest),
+        }
+        remember_auction_item_price(candidate)
+        return candidate
+
+    return get_cached_resolved_price(
+        (
+            "switching_title",
+            SWITCHING_TITLE_RESOLVED_PRICE_CACHE_VERSION,
+            item_id,
+            clean_text(job_name),
+            clean_text(buff_skill_name),
+            required_enchant_level,
+        ),
+        resolve_uncached,
+        should_cache=lambda row: isinstance((row.get("auction") or {}).get("minUnitPrice"), (int, float))
+        and (row.get("auction") or {}).get("minUnitPrice") > 0,
+    )
 
 
 def get_buffer_switching_rows(server_id: str, character_id: str) -> tuple[list, list, dict]:
@@ -3421,6 +3442,208 @@ def load_buffer_switching_creature_release_recommendations(
     }]
 
 
+def _get_setting_value_switching_context(
+    server_id: str,
+    character_id: str,
+    buffer_baseline: dict | None,
+) -> dict:
+    buff_payload = get_character_cached_payload(
+        server_id,
+        character_id,
+        "buff_equipment",
+        "skill/buff/equip/equipment",
+    )
+    if not clean_text(buff_payload.get("jobName")) or not clean_text(buff_payload.get("jobGrowName")):
+        status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
+        buff_payload = {
+            **buff_payload,
+            "jobName": clean_text(buff_payload.get("jobName")) or clean_text(status_payload.get("jobName")),
+            "jobGrowName": clean_text(buff_payload.get("jobGrowName")) or clean_text(status_payload.get("jobGrowName")),
+        }
+    skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
+    job_name = clean_text((buffer_baseline or {}).get("jobName") or buff_payload.get("jobName"))
+    buff_skill_name = clean_text((buffer_baseline or {}).get("buffSkillName") or skill_info.get("name"))
+    if not job_name or not buff_skill_name:
+        return {}
+    required_level = get_buff_skill_required_level(server_id, character_id, skill_info)
+    if required_level <= 0:
+        return {}
+
+    equivalent_skill_names = []
+    if not buffer_baseline:
+        is_dealer_crusader = (
+            job_name == "프리스트(남)"
+            and clean_text(buff_payload.get("jobGrowName")) == "眞 크루세이더"
+            and is_male_crusader_dealer_style(server_id, character_id)
+        )
+        entry = find_dealer_switching_buff_entry(
+            buff_payload,
+            is_dealer_crusader=is_dealer_crusader,
+        )
+        if entry and clean_text(entry.get("buffSkillName")) == buff_skill_name:
+            equivalent_skill_names = [
+                clean_text(skill_name)
+                for skill_name in entry.get("equivalentSwitchingPlatinumSkills") or []
+                if clean_text(skill_name)
+            ]
+    target_skill_names = get_switching_creature_target_skill_names(
+        buff_skill_name,
+        equivalent_skill_names,
+    )
+    return {
+        "jobName": job_name,
+        "buffSkillName": buff_skill_name,
+        "requiredLevel": required_level,
+        "equivalentSkillNames": equivalent_skill_names,
+        "targetRequiredLevels": get_switching_skill_required_levels(
+            server_id,
+            character_id,
+            skill_info,
+            target_skill_names,
+        ),
+    }
+
+
+def _load_setting_value_switching_title_price(
+    server_id: str,
+    character_id: str,
+    buff_loadout: dict,
+    buffer_baseline: dict | None,
+) -> dict:
+    current_title = next((
+        row for row in buff_loadout.get("equipment") or []
+        if clean_text(row.get("slotId")) == "TITLE"
+    ), {})
+    current_contribution = int((current_title.get("buffContribution") or {}).get("skillLevel") or 0)
+    if current_contribution <= 0:
+        return {}
+    context = _get_setting_value_switching_context(
+        server_id,
+        character_id,
+        buffer_baseline,
+    )
+    required_level = int(context.get("requiredLevel") or 0)
+    if required_level <= 0:
+        return {}
+
+    candidates = []
+    for config in (load_dealer_switching_title_db().get("items") or []):
+        skill_range = config.get("skillLevelRange") or {}
+        if not (
+            int(skill_range.get("min") or 0)
+            <= required_level
+            <= int(skill_range.get("max") or 0)
+        ):
+            continue
+        if int(config.get("totalBuffSkillLevelDelta") or 0) != current_contribution:
+            continue
+        candidate = load_switching_title_price_candidate(
+            config,
+            context.get("jobName") or "",
+            context.get("buffSkillName") or "",
+        )
+        price = get_candidate_auction_price(candidate)
+        if price <= 0:
+            continue
+        candidates.append({
+            **candidate,
+            "purchaseRoute": "switchingTitleEquivalent",
+            "purchaseRouteLabel": f"버프 스킬 +{current_contribution}Lv 완성품",
+            "candidateTitleContribution": current_contribution,
+        })
+    return min(candidates, key=get_candidate_auction_price, default={})
+
+
+def _load_setting_value_switching_creature_price(
+    server_id: str,
+    character_id: str,
+    buff_loadout: dict,
+    buffer_baseline: dict | None,
+) -> dict:
+    current_creature = next(iter(buff_loadout.get("creature") or []), {})
+    current_contribution = int((current_creature.get("buffContribution") or {}).get("skillLevel") or 0)
+    if current_contribution <= 0:
+        return {}
+    context = _get_setting_value_switching_context(
+        server_id,
+        character_id,
+        buffer_baseline,
+    )
+    if not context:
+        return {}
+
+    creature_db = load_dealer_switching_creature_db()
+    fame_range = (creature_db.get("metadata") or {}).get("fameRange") or {}
+    fame_min = int(fame_range.get("min") or 491)
+    fame_max = int(fame_range.get("max") or 601)
+    candidates = []
+    for config in normalize_switching_creature_configs(creature_db):
+        box_options = get_switching_creature_box_price_candidates(
+            config.get("boxSearchNames") or []
+        )
+        for creature_option in get_switching_creature_item_candidates(
+            config,
+            fame_min,
+            fame_max,
+            job_name=context.get("jobName") or "",
+            buff_skill_name=context.get("buffSkillName") or "",
+            required_level=int(context.get("requiredLevel") or 0),
+            equivalent_skill_names=context.get("equivalentSkillNames") or [],
+            target_required_levels=context.get("targetRequiredLevels") or [],
+        ):
+            if int(creature_option.get("candidateCreatureContribution") or 0) != current_contribution:
+                continue
+            purchase_option = select_switching_creature_purchase_option(
+                creature_option,
+                box_options,
+            )
+            if get_candidate_auction_price(purchase_option) <= 0:
+                continue
+            candidates.append({
+                **purchase_option,
+                "purchaseRouteLabel": (
+                    "상자"
+                    if clean_text(purchase_option.get("purchaseRoute")) == "box"
+                    else f"버프 스킬 +{current_contribution}Lv 크리쳐"
+                ),
+                "candidateCreatureContribution": current_contribution,
+            })
+    return min(candidates, key=get_candidate_auction_price, default={})
+
+
+def _has_setting_value_direct_price(item: dict, direct_prices: dict) -> bool:
+    auction = direct_prices.get(clean_text(item.get("itemId"))) or {}
+    return (
+        isinstance(auction.get("minUnitPrice"), (int, float))
+        and auction.get("minUnitPrice") > 0
+    )
+
+def _enrich_setting_value_direct_items(items: list[dict]) -> list[dict]:
+    item_ids = [
+        clean_text(item.get("itemId"))
+        for item in items or []
+        if clean_text(item.get("itemId"))
+    ]
+    details_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    return [
+        {
+            **item,
+            "itemName": clean_item_display_name(
+                item.get("itemName")
+                or (details_by_id.get(clean_text(item.get("itemId"))) or {}).get("itemName")
+            ),
+            "itemTypeDetail": clean_text(
+                item.get("itemTypeDetail")
+                or (details_by_id.get(clean_text(item.get("itemId"))) or {}).get("itemTypeDetail")
+            ),
+        }
+        for item in items or []
+    ]
+
 def load_character_loadout(
     server_id: str,
     character_id: str,
@@ -3533,17 +3756,59 @@ def load_character_loadout(
             setting_value_direct_prices = _measure_step(
                 steps,
                 "load_setting_value_direct_prices",
-                lambda: get_lowest_auction_prices(collect_setting_value_direct_item_ids(
+                lambda: get_lowest_auction_prices_for_items(_enrich_setting_value_direct_items(collect_setting_value_direct_items(
                     title_payload.get("title") or {},
                     aura_payload.get("aura") or {},
                     creature_payload.get("creature") or {},
                     avatar_slots,
                     buff_loadout,
-                )),
+                ))),
             )
         except Exception:
             setting_value_direct_prices = {}
             setting_value_input_ready = False
+
+        buff_title_row = next((
+            row for row in buff_loadout.get("equipment") or []
+            if clean_text(row.get("slotId")) == "TITLE"
+        ), {})
+        buff_creature_row = next(iter(buff_loadout.get("creature") or []), {})
+        setting_value_buff_title_price = {}
+        setting_value_buff_creature_price = {}
+        if buff_title_row and not _has_setting_value_direct_price(
+            buff_title_row,
+            setting_value_direct_prices,
+        ):
+            try:
+                setting_value_buff_title_price = _measure_step(
+                    steps,
+                    "load_setting_value_switching_title_price",
+                    lambda: _load_setting_value_switching_title_price(
+                        server_id,
+                        character_id,
+                        buff_loadout,
+                        enchant_payload.get("bufferBaseline"),
+                    ),
+                )
+            except Exception:
+                setting_value_buff_title_price = {}
+        if buff_creature_row and not _has_setting_value_direct_price(
+            buff_creature_row,
+            setting_value_direct_prices,
+        ):
+            try:
+                setting_value_buff_creature_price = _measure_step(
+                    steps,
+                    "load_setting_value_switching_creature_price",
+                    lambda: _load_setting_value_switching_creature_price(
+                        server_id,
+                        character_id,
+                        buff_loadout,
+                        enchant_payload.get("bufferBaseline"),
+                    ),
+                )
+            except Exception:
+                setting_value_buff_creature_price = {}
         try:
             setting_value_platinum_prices = _measure_step(
                 steps,
@@ -3563,6 +3828,8 @@ def load_character_loadout(
             "uniqueEquipmentRows": setting_value_equipment_inputs.get("uniqueEquipmentRows") or [],
             "directPrices": setting_value_direct_prices,
             "platinumPriceByName": setting_value_platinum_prices,
+            "buffTitlePriceCandidate": setting_value_buff_title_price,
+            "buffCreaturePriceCandidate": setting_value_buff_creature_price,
         }
         return {
             "serverId": enchant_payload.get("serverId"),

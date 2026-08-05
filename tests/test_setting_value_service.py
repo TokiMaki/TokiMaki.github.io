@@ -23,9 +23,11 @@ class SettingValueServiceTest(unittest.TestCase):
     def test_build_character_setting_value_uses_supplied_loadout_and_price_data(self):
         enchant_catalog = {
             "cards": [{
+                "itemName": "테스트 카드",
                 "auction": auction(10),
                 "sources": [{
                     "slot": "상의",
+                    "tier": "종결",
                     "effects": {"str": 50},
                     "reinforceSkill": [],
                 }],
@@ -104,6 +106,7 @@ class SettingValueServiceTest(unittest.TestCase):
             result = setting_value_service.build_character_setting_value(
                 enchant_rows=[{
                     "slot": "상의",
+                    "itemName": "테스트 상의",
                     "effects": {"str": 50},
                     "reinforceSkill": [],
                 }],
@@ -157,6 +160,12 @@ class SettingValueServiceTest(unittest.TestCase):
         details = {row["key"]: row["items"] for row in result["details"]}
         self.assertEqual(details["amplification"][0]["label"], "상의 +11 증폭")
         self.assertEqual(details["enchant"][0]["slot"], "상의")
+        self.assertEqual(details["enchant"][0]["label"], "상의 마법부여")
+        self.assertEqual(details["enchant"][0]["itemName"], "테스트 상의")
+        self.assertEqual(details["enchant"][0]["equipmentItemName"], "테스트 상의")
+        self.assertEqual(details["enchant"][0]["priceItemName"], "테스트 카드")
+        self.assertEqual(details["enchant"][0]["tier"], "종결")
+        self.assertTrue(details["enchant"][0]["isEnd"])
         self.assertEqual(details["enchant"][0]["gold"], 10)
         self.assertIn("힘 +50", details["enchant"][0]["effectText"])
         self.assertEqual(
@@ -181,6 +190,50 @@ class SettingValueServiceTest(unittest.TestCase):
             ),
             0,
         )
+
+    def test_enchant_end_tier_matches_equivalent_dealer_stats(self):
+        cards = [{
+            "sources": [{
+                "slot": "상의",
+                "tier": "종결",
+                "role": "dealer",
+                "effects": {"finalDamage": 3, "attack": 110, "allStat": 90},
+                "reinforceSkill": [],
+            }],
+        }]
+        details = setting_value_service._get_current_enchant_details(
+            [{
+                "slot": "상의",
+                "effects": {"finalDamage": 3, "attack": 110, "str": 90, "int": 90},
+                "reinforceSkill": [],
+            }],
+            cards,
+        )
+        self.assertEqual(details[0]["tier"], "종결")
+        self.assertTrue(details[0]["isEnd"])
+        self.assertIsNone(details[0]["gold"])
+
+    def test_enchant_end_tier_matches_equivalent_armor_slot_group(self):
+        cards = [{
+            "sources": [{
+                "slot": "벨트",
+                "tier": "종결",
+                "role": "dealer",
+                "effects": {"finalDamage": 3, "attack": 15, "allStat": 50, "critical": 3},
+                "reinforceSkill": [],
+            }],
+        }]
+        details = setting_value_service._get_current_enchant_details(
+            [{
+                "slot": "신발",
+                "effects": {"finalDamage": 3, "attack": 15, "allStat": 50, "critical": 3},
+                "reinforceSkill": [],
+            }],
+            cards,
+        )
+        self.assertEqual(details[0]["tier"], "종결")
+        self.assertTrue(details[0]["isEnd"])
+        self.assertIsNone(details[0]["gold"])
 
     def test_aura_value_reuses_exact_upgrade_candidate_price(self):
         current = {"itemId": "current-aura"}
@@ -418,6 +471,58 @@ class SettingValueServiceTest(unittest.TestCase):
         breakdown = {row["key"]: row["gold"] for row in result["breakdown"]}
         self.assertEqual(breakdown["creature"], 79)
 
+    def test_buff_enhancement_uses_same_contribution_title_and_creature_candidates(self):
+        result = setting_value_service.build_character_setting_value(
+            enchant_rows=[],
+            equipment_upgrades=[],
+            title={"itemId": "main-title"},
+            aura={},
+            creature={"itemId": "main-creature"},
+            avatar_slots=[],
+            buff_loadout={
+                "equipment": [{
+                    "slotId": "TITLE",
+                    "slotName": "칭호",
+                    "itemId": "untradable-switch-title",
+                    "itemName": "봉인의 수호자[어둠]",
+                    "buffContribution": {"skillLevel": 3},
+                }],
+                "creature": [{
+                    "itemId": "untradable-switch-creature",
+                    "itemName": "아글라오페[25~30Lv]",
+                    "buffContribution": {"skillLevel": 1},
+                }],
+            },
+            upgrade_expected_db={},
+            material_prices={},
+            black_fang_rows=[],
+            unique_equipment_rows=[],
+            direct_prices={},
+            enchant_catalog={},
+            title_catalog={},
+            aura_catalog={},
+            creature_catalog={},
+            buff_title_price_candidate=priced_row(
+                "tradable-switch-title",
+                70,
+                itemName="모험가의 의지[어둠]",
+                purchaseRouteLabel="버프 스킬 +3Lv 완성품",
+            ),
+            buff_creature_price_candidate=priced_row(
+                "tradable-switch-creature",
+                30,
+                itemName="2026 쁘띠 바이킹 알",
+                purchaseRouteLabel="버프 스킬 +1Lv 크리쳐",
+            ),
+        )
+
+        breakdown = {row["key"]: row["gold"] for row in result["breakdown"]}
+        details = {row["key"]: row["items"] for row in result["details"]}
+        self.assertEqual(breakdown["buffEnhancement"], 100)
+        self.assertEqual([row["gold"] for row in details["buffEnhancement"]], [70, 30])
+        self.assertEqual(details["buffEnhancement"][0]["priceItemName"], "모험가의 의지[어둠]")
+        self.assertEqual(details["buffEnhancement"][1]["priceItemName"], "2026 쁘띠 바이킹 알")
+
     def test_collect_direct_item_ids_uses_only_current_setting_items(self):
         result = setting_value_service.collect_setting_value_direct_item_ids(
             {"itemId": "title"},
@@ -445,6 +550,33 @@ class SettingValueServiceTest(unittest.TestCase):
             "title", "aura", "creature", "artifact", "emblem", "platinum",
             "switch-title", "dense", "switch-avatar", "switch-emblem", "switch-creature",
         })
+
+    def test_direct_item_details_skip_empty_sockets_and_show_equivalent_price_item(self):
+        details = setting_value_service._get_direct_item_details(
+            [
+                {"itemId": "", "itemName": "", "avatarSlot": "상의 아바타"},
+                {
+                    "itemId": "event-emblem",
+                    "itemName": "찬란한 붉은빛 엠블렘[지능]",
+                    "avatarSlot": "오라 아바타",
+                },
+            ],
+            {
+                "event-emblem": {
+                    "priceStatus": "priced",
+                    "minUnitPrice": 123,
+                    "priceItemId": "tradable-emblem",
+                    "priceItemName": "찬란한 붉은빛 엠블렘[지능]",
+                    "priceSource": "sameNameCachedItem",
+                },
+            },
+            kind="emblem",
+        )
+
+        self.assertEqual(len(details), 1)
+        self.assertEqual(details[0]["gold"], 123)
+        self.assertEqual(details[0]["priceItemName"], "찬란한 붉은빛 엠블렘[지능]")
+        self.assertEqual(details[0]["note"], "동일 이름 거래품의 캐시 가격")
 
 
 if __name__ == "__main__":

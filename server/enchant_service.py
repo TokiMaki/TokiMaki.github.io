@@ -26,6 +26,7 @@ from .price_cache import (
     add_cache_status,
     get_price_cache_ttl_seconds,
     load_price_cache_from_disk,
+    merge_last_known_auction_prices,
     save_price_cache_to_disk,
     start_cache_refresh,
 )
@@ -569,6 +570,9 @@ def load_creature_upgrades_with_prices(
         "artifactGroups": artifact_groups,
         "errors": errors,
     }
+    with _CACHE_LOCK:
+        previous_payload = _CREATURE_PRICE_CACHE["payload"]
+    payload = merge_last_known_auction_prices(previous_payload, payload)
     expires_at = now + get_price_cache_ttl_seconds(payload)
     with _CACHE_LOCK:
         _CREATURE_PRICE_CACHE["payload"] = payload
@@ -852,6 +856,9 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
         "groups": groups,
         "errors": errors,
     }
+    with _CACHE_LOCK:
+        previous_payload = _TITLE_PRICE_CACHE["payload"]
+    payload = merge_last_known_auction_prices(previous_payload, payload)
     expires_at = now + get_price_cache_ttl_seconds(payload)
     with _CACHE_LOCK:
         _TITLE_PRICE_CACHE["payload"] = payload
@@ -1062,6 +1069,9 @@ def load_enchant_cards_with_prices(force_refresh: bool = False, allow_stale: boo
         "cards": cards,
         "errors": errors,
     }
+    with _CACHE_LOCK:
+        previous_payload = _ENCHANT_PRICE_CACHE["payload"]
+    payload = merge_last_known_auction_prices(previous_payload, payload)
     expires_at = now + get_price_cache_ttl_seconds(payload)
     with _CACHE_LOCK:
         _ENCHANT_PRICE_CACHE["payload"] = payload

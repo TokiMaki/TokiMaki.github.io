@@ -26,9 +26,14 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
             "damageBaseline": {
                 "jobName": "귀검사(남)",
                 "jobGrowName": "眞 웨펀마스터",
+                "statName": "힘",
             },
             "bufferBaseline": None,
-            "enchants": [{"slot": "무기"}],
+            "enchants": [{
+                "slot": "무기",
+                "effects": {"finalDamage": 3, "elementAll": 15},
+                "reinforceSkill": [],
+            }],
             "equipmentUpgrades": [{
                 "slot": "무기",
                 "slotId": "WEAPON",
@@ -40,6 +45,13 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
                 "tuneLevel": 1,
             }],
             "oathUpgrades": {
+                "itemId": "oath-body",
+                "itemName": "황금의 서약",
+                "itemRarity": "에픽",
+                "setName": "황금향",
+                "setOptionName": "찬란한 황금향",
+                "setRarityName": "에픽 III",
+                "setPoint": 2550,
                 "crystals": [{
                     "itemId": "oath-1",
                     "itemName": "서약 결정",
@@ -66,12 +78,25 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
             "label": "세팅 추정 가치",
             "totalGold": 123,
             "breakdown": [],
-            "details": [{
-                "key": "amplification",
-                "label": "증폭 기대값",
-                "gold": 123,
-                "items": [{"label": "무기 +11 증폭", "gold": 123}],
-            }],
+            "details": [
+                {
+                    "key": "amplification",
+                    "label": "증폭 기대값",
+                    "gold": 123,
+                    "items": [{"label": "무기 +11 증폭", "gold": 123}],
+                },
+                {
+                    "key": "enchant",
+                    "label": "마법부여",
+                    "gold": 0,
+                    "items": [{
+                        "slot": "무기",
+                        "effectText": "최종 데미지 +3% / 모든 속성 강화 +15",
+                        "tier": "종결",
+                        "isEnd": True,
+                    }],
+                },
+            ],
         }
 
         with (
@@ -90,7 +115,20 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
         self.assertEqual(result["settingValue"]["totalGold"], 123)
         self.assertEqual(result["settingValue"]["details"][0]["items"][0]["gold"], 123)
         self.assertEqual(result["equipment"][0]["reinforce"], 13)
-        self.assertEqual(result["oath"][0]["itemId"], "oath-1")
+        self.assertEqual(result["statName"], "힘")
+        self.assertEqual(result["equipment"][0]["enchant"]["effects"]["finalDamage"], 3)
+        self.assertEqual(result["equipment"][0]["enchant"]["tier"], "종결")
+        self.assertTrue(result["equipment"][0]["enchant"]["isEnd"])
+        self.assertEqual(
+            result["equipment"][0]["enchant"]["effectText"],
+            "최종 데미지 +3% / 모든 속성 강화 +15",
+        )
+        self.assertEqual(result["oath"][0]["kind"], "oath")
+        self.assertEqual(result["oath"][0]["itemId"], "oath-body")
+        self.assertEqual(result["oath"][0]["setPoint"], 2550)
+        self.assertEqual(result["oath"][1]["kind"], "crystal")
+        self.assertEqual(result["oath"][1]["itemId"], "oath-1")
+        self.assertEqual(result["oath"][1]["tuneLevel"], 2)
         build_value.assert_called_once()
         save_snapshot.assert_called_once()
         saved_snapshot = save_snapshot.call_args.args[0]

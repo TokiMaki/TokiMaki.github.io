@@ -1,3 +1,5 @@
+import { getLoadoutRarityClass } from './loadoutRarity.js';
+
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '머리어깨', key: 'shoulder', side: 'left' },
   { slot: '상의', key: 'top', side: 'left' },
@@ -16,16 +18,66 @@ const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
   { slot: '마법석', key: 'magic-stone', side: 'right' },
 ];
 
+function formatEnchantBadgeNumber(value) {
+  if (!Number.isFinite(value)) return value;
+  const roundedInteger = Math.round(value);
+  if (Math.abs(value - roundedInteger) < 0.000001) return String(roundedInteger);
+  return value.toFixed(3).replace(/\.?0+$/, '');
+}
+
+function getEnchantBadgeBufferStat(effects = {}, baseline = {}) {
+  if (Number.isFinite(effects.allStat)) return Number(effects.allStat || 0);
+  const primaryKey = {
+    힘: 'str',
+    지능: 'int',
+    체력: 'vit',
+    정신력: 'spr',
+  }[String(baseline?.statName || '').trim()] || '';
+  return primaryKey ? Number(effects[primaryKey] || 0) : 0;
+}
+
+function getEnchantBadgeSkillLevel(reinforceSkill = [], jobName = '') {
+  return (reinforceSkill || []).reduce((total, job) => {
+    if (jobName && job?.jobName && !['공통', jobName].includes(job.jobName)) return total;
+    return total + (job?.skills || []).reduce(
+      (sum, skill) => sum + Number(skill?.value || 0),
+      0,
+    );
+  }, 0);
+}
+
+export function getEnchantLoadoutBadge(effects = {}, reinforceSkill = [], bufferBaseline = null) {
+  if (bufferBaseline?.isBuffer) {
+    const parts = [];
+    const primaryStat = getEnchantBadgeBufferStat(effects, bufferBaseline);
+    const skillLevels = getEnchantBadgeSkillLevel(reinforceSkill, bufferBaseline.jobName || '');
+    if (Number.isFinite(primaryStat) && primaryStat > 0) parts.push(formatEnchantBadgeNumber(primaryStat));
+    if (Number.isFinite(skillLevels) && skillLevels > 0) parts.push(`${formatEnchantBadgeNumber(skillLevels)}Lv`);
+    return parts.length ? { text: parts.join('/') } : null;
+  }
+  const parts = [];
+  const attackAmplification = Number(effects.attackAmplification || 0);
+  const finalDamage = Number(effects.finalDamage || 0);
+  const elementAll = Number(effects.elementAll || 0);
+  if (Number.isFinite(attackAmplification) && attackAmplification > 0) {
+    parts.push(`${formatEnchantBadgeNumber(attackAmplification)}%`);
+  }
+  if (Number.isFinite(finalDamage) && finalDamage > 0) {
+    parts.push(`${formatEnchantBadgeNumber(finalDamage)}%`);
+  }
+  if (Number.isFinite(elementAll) && elementAll > 0) {
+    parts.push(formatEnchantBadgeNumber(elementAll));
+  }
+  return parts.length ? { text: parts.join('/') } : null;
+}
+
 export function createEnchantEquipmentLoadoutBoard(deps) {
   const {
     escapeHtml,
     formatEffectNumber,
     formatEffectValue,
     formatEffects,
-    getBufferSelectedStatEffect,
-    getReinforceSkillLevel,
     getCreatureArtifactDisplayEffects,
-    getLoadoutRarityClass,
     slotOrder,
     sweepDurationMs,
     now,
@@ -124,32 +176,6 @@ export function createEnchantEquipmentLoadoutBoard(deps) {
     };
   }
 
-  function getEnchantBadge(effects = {}, reinforceSkill = [], bufferBaseline = null) {
-    if (bufferBaseline?.isBuffer) {
-      const parts = [];
-      const primaryStat = getBufferSelectedStatEffect(effects, bufferBaseline);
-      const skillLevels = getReinforceSkillLevel(reinforceSkill, bufferBaseline.jobName || '');
-      if (Number.isFinite(primaryStat) && primaryStat > 0) parts.push(formatEffectNumber(primaryStat));
-      if (Number.isFinite(skillLevels) && skillLevels > 0) parts.push(`${formatEffectNumber(skillLevels)}Lv`);
-      return parts.length ? { text: parts.join('/') } : null;
-    }
-    const parts = [];
-    const attackAmplification = Number(effects.attackAmplification || 0);
-    const finalDamage = Number(effects.finalDamage || 0);
-    const elementAll = Number(effects.elementAll || 0);
-    if (Number.isFinite(attackAmplification) && attackAmplification > 0) {
-      parts.push(`${attackAmplification}%`);
-    }
-    if (Number.isFinite(finalDamage) && finalDamage > 0) {
-      parts.push(`${finalDamage}%`);
-    }
-    if (Number.isFinite(elementAll) && elementAll > 0) {
-      parts.push(`${elementAll}`);
-    }
-    if (!parts.length) return null;
-    return { text: parts.join('/') };
-  }
-
   function getRoleEquipmentBadge(effects = {}, isBuffer = false) {
     const parts = isBuffer
       ? [
@@ -230,7 +256,7 @@ export function createEnchantEquipmentLoadoutBoard(deps) {
           formatEffects(enchant.effects || {}),
           reinforceSkillText,
         ].filter(Boolean).join(' / ') || '없음';
-        const enchantBadge = getEnchantBadge(
+        const enchantBadge = getEnchantLoadoutBadge(
           enchant.effects || {},
           enchant.reinforceSkill || [],
           currentBufferBaseline,

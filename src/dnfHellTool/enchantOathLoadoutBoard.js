@@ -1,3 +1,5 @@
+import { getLoadoutRarityClass } from './loadoutRarity.js';
+
 const OATH_BOARD_BG_URL = new URL('../../이미지/oathbg.png', import.meta.url).href;
 const OATH_SYMBOL_ASSETS = import.meta.glob('../../이미지/Oath/*/*.{png,webp}', {
   eager: true,
@@ -44,12 +46,36 @@ const OATH_SYMBOL_SET_KEYWORDS = [
 const OATH_LOADOUT_SIDE_SLOT_COUNT = 4;
 const OATH_LOADOUT_BOTTOM_SLOT_COUNT = 3;
 
+function getOathSymbolSetKey(oath = {}) {
+  const text = String(oath.itemName || '');
+  const match = OATH_SYMBOL_SET_KEYWORDS.find(([keyword]) => text.includes(keyword));
+  return match?.[1] || '';
+}
+
+function getOathSymbolRarityKey(oath = {}) {
+  const rarity = String(oath.itemRarity || '').trim();
+  if (rarity.includes('레어')) return 'rare';
+  if (rarity.includes('태초')) return 'primeval';
+  if (rarity.includes('에픽')) return 'epic';
+  if (rarity.includes('레전더리')) return 'legendary';
+  if (rarity.includes('유니크')) return 'unique';
+  return '';
+}
+
+export function getLocalOathSymbolIconUrl(oath = {}) {
+  const setKey = getOathSymbolSetKey(oath);
+  const rarityKey = getOathSymbolRarityKey(oath);
+  const folder = OATH_SYMBOL_SET_FOLDERS[setKey];
+  const fileName = OATH_SYMBOL_FILES_BY_RARITY[rarityKey];
+  if (!folder || !fileName) return '';
+  return OATH_SYMBOL_ASSETS[`../../이미지/Oath/${folder}/${fileName}`] || '';
+}
+
 export function createEnchantOathLoadoutBoard({
   escapeHtml,
   formatEffectValue,
   formatEffectNumber,
   getEffectLabel,
-  getLoadoutRarityClass,
   getOathStageRarityClass,
   getDealerPrimaryStatKey,
   normalizeDealerEnchantDisplayEffects,
@@ -186,31 +212,6 @@ export function createEnchantOathLoadoutBoard({
         ${slots.map((crystal, index) => renderOathLoadoutSlot(crystal, index, area)).join('')}
       </div>
     `;
-  }
-
-  function getOathSymbolSetKey(oath = {}) {
-    const text = String(oath.itemName || '');
-    const match = OATH_SYMBOL_SET_KEYWORDS.find(([keyword]) => text.includes(keyword));
-    return match?.[1] || '';
-  }
-
-  function getOathSymbolRarityKey(oath = {}) {
-    const rarity = String(oath.itemRarity || '').trim();
-    if (rarity.includes('레어')) return 'rare';
-    if (rarity.includes('태초')) return 'primeval';
-    if (rarity.includes('에픽')) return 'epic';
-    if (rarity.includes('레전더리')) return 'legendary';
-    if (rarity.includes('유니크')) return 'unique';
-    return '';
-  }
-
-  function getLocalOathSymbolIconUrl(oath = {}) {
-    const setKey = getOathSymbolSetKey(oath);
-    const rarityKey = getOathSymbolRarityKey(oath);
-    const folder = OATH_SYMBOL_SET_FOLDERS[setKey];
-    const fileName = OATH_SYMBOL_FILES_BY_RARITY[rarityKey];
-    if (!folder || !fileName) return '';
-    return OATH_SYMBOL_ASSETS[`../../이미지/Oath/${folder}/${fileName}`] || '';
   }
 
   function renderOathLoadoutBoard() {

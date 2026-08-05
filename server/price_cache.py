@@ -1,5 +1,6 @@
 import json
 import time
+from copy import deepcopy
 from pathlib import Path
 from threading import Lock, Thread
 
@@ -38,6 +39,98 @@ def add_cache_status(payload: dict, cache: dict, stale: bool = False) -> dict:
         "expiresAt": cache.get("expires_at"),
     }
     return result
+
+
+def _cache_text(value) -> str:
+    return str(value or "").strip()
+
+
+def _is_priced_auction(auction: dict) -> bool:
+    return (
+        isinstance((auction or {}).get("minUnitPrice"), (int, float))
+        and (auction or {}).get("minUnitPrice") > 0
+    )
+
+
+def _get_auction_identity(row: dict):
+    price_item = row.get("priceItem") or {}
+    item_id = _cache_text(price_item.get("itemId") or row.get("itemId"))
+    item_name = _cache_text(price_item.get("itemName") or row.get("itemName"))
+    if item_id:
+        item_key = ("itemId", item_id)
+    elif item_name:
+        item_key = (
+            "itemName",
+            item_name,
+            _cache_text(row.get("itemTypeDetail")),
+        )
+    else:
+        return None
+    return (
+        *item_key,
+        _cache_text(row.get("purchaseRoute")),
+        _cache_text(row.get("sourceType")),
+        _cache_text(row.get("slot")),
+        _cache_text(row.get("targetSlotId")),
+        int(row.get("needCount") or 0),
+        _cache_text(row.get("variant")),
+    )
+
+
+def _collect_priced_auctions(value, result: dict):
+    if isinstance(value, dict):
+        auction = value.get("auction")
+        identity = _get_auction_identity(value)
+        if identity and isinstance(auction, dict) and _is_priced_auction(auction):
+            previous = result.get(identity)
+            if (
+                previous is None
+                or auction.get("minUnitPrice", 10**30) < previous.get("minUnitPrice", 10**30)
+            ):
+                result[identity] = deepcopy(auction)
+        for item in value.values():
+            _collect_priced_auctions(item, result)
+    elif isinstance(value, list):
+        for item in value:
+            _collect_priced_auctions(item, result)
+
+
+def merge_last_known_auction_prices(previous_payload: dict | None, current_payload: dict) -> dict:
+    if not isinstance(current_payload, dict):
+        return current_payload
+    priced_by_identity = {}
+    _collect_priced_auctions(previous_payload or {}, priced_by_identity)
+    if not priced_by_identity:
+        return current_payload
+
+    def merge(value):
+        if isinstance(value, dict):
+            result = {
+                key: merge(item)
+                for key, item in value.items()
+            }
+            auction = result.get("auction")
+            identity = _get_auction_identity(result)
+            previous_auction = priced_by_identity.get(identity)
+            if (
+                identity
+                and isinstance(auction, dict)
+                and not _is_priced_auction(auction)
+                and previous_auction
+            ):
+                lookup_status = _cache_text(auction.get("priceStatus")) or "unlisted"
+                result["auction"] = {
+                    **deepcopy(previous_auction),
+                    "priceStatus": "priced",
+                    "isLastKnownPrice": True,
+                    "lookupPriceStatus": lookup_status,
+                }
+            return result
+        if isinstance(value, list):
+            return [merge(item) for item in value]
+        return deepcopy(value)
+
+    return merge(current_payload)
 
 
 def load_price_cache_from_disk(cache: dict, path: Path) -> bool:

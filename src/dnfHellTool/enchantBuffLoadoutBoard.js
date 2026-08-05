@@ -6,6 +6,7 @@ import {
   getAvatarEmblemBadgeColors,
   getAvatarEmblemDetailColor,
 } from './enchantAvatarEmblemViewHelpers.js';
+import { getLoadoutRarityClass } from './loadoutRarity.js';
 
 const SWITCHING_SKILL_ICON_ASSETS = import.meta.glob('../../이미지/스킬/*/*/*.png', {
   eager: true,
@@ -25,7 +26,6 @@ const DEALER_SWITCHING_MAX_LEVEL_BONUS = 7;
 export function createEnchantBuffLoadoutBoard(deps) {
   const {
     escapeHtml,
-    getLoadoutRarityClass,
     getBuffLoadoutBoardContext,
     getBuffSweepEntry,
     getBuffLoadoutLevelContribution,

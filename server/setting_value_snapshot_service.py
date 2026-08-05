@@ -20,7 +20,7 @@ def _int_value(value) -> int:
         return 0
 
 
-def _build_equipment_snapshot(loadout: dict) -> list[dict]:
+def _build_equipment_snapshot(loadout: dict, enchant_detail_by_slot: dict | None = None) -> list[dict]:
     equipment_slots = {
         "무기", "상의", "하의", "머리어깨", "벨트", "신발",
         "팔찌", "목걸이", "반지", "보조장비", "마법석", "귀걸이",
@@ -35,9 +35,17 @@ def _build_equipment_snapshot(loadout: dict) -> list[dict]:
         for row in ((loadout.get("settingValueInputs") or {}).get("uniqueEquipmentRows") or [])
         if clean_text(row.get("itemId"))
     }
-    return [
-        {
-            "slot": clean_text(row.get("slot")),
+    enchant_detail_by_slot = enchant_detail_by_slot or {}
+    snapshots = []
+    for row in loadout.get("equipmentUpgrades") or []:
+        slot = clean_text(row.get("slot"))
+        if slot not in equipment_slots:
+            continue
+        enchant = enchant_by_slot.get(slot) or {}
+        enchant_detail = enchant_detail_by_slot.get(slot) or {}
+        enchant_tier = clean_text(enchant_detail.get("tier"))
+        snapshots.append({
+            "slot": slot,
             "slotId": clean_text(row.get("slotId")),
             "itemId": clean_text(row.get("itemId")),
             "itemName": clean_text(row.get("itemName")),
@@ -46,26 +54,48 @@ def _build_equipment_snapshot(loadout: dict) -> list[dict]:
             "reinforce": _int_value(row.get("reinforce")),
             "isAmplified": bool(row.get("isAmplified")),
             "tuneLevel": _int_value(row.get("tuneLevel")),
-            "hasEnchant": bool(enchant_by_slot.get(clean_text(row.get("slot")))),
+            "hasEnchant": bool(enchant),
+            "enchant": {
+                "effects": enchant.get("effects") or {},
+                "reinforceSkill": enchant.get("reinforceSkill") or [],
+                "effectText": clean_text(enchant_detail.get("effectText")),
+                "tier": enchant_tier,
+                "isEnd": bool(enchant_detail.get("isEnd")) or enchant_tier == "종결",
+            } if enchant else None,
             "isRelic": clean_text(row.get("itemId")) in unique_item_ids,
-        }
-        for row in loadout.get("equipmentUpgrades") or []
-        if clean_text(row.get("slot")) in equipment_slots
-    ]
+        })
+    return snapshots
 
 
 def _build_oath_snapshot(loadout: dict) -> list[dict]:
-    return [
+    oath = loadout.get("oathUpgrades") or {}
+    rows = []
+    if clean_text(oath.get("itemId")) or clean_text(oath.get("itemName")):
+        rows.append({
+            "kind": "oath",
+            "itemId": clean_text(oath.get("itemId")),
+            "itemName": clean_text(oath.get("itemName")),
+            "itemRarity": clean_text(oath.get("itemRarity")),
+            "iconUrl": clean_text(oath.get("iconUrl")),
+            "setName": clean_text(oath.get("setName")),
+            "setOptionName": clean_text(oath.get("setOptionName")),
+            "setRarityName": clean_text(oath.get("setRarityName")),
+            "setPoint": _int_value(oath.get("setPoint")),
+            "tuneLevel": 0,
+        })
+    rows.extend(
         {
+            "kind": "crystal",
             "itemId": clean_text(row.get("itemId")),
             "itemName": clean_text(row.get("itemName")),
             "itemRarity": clean_text(row.get("itemRarity")),
             "iconUrl": clean_text(row.get("iconUrl")),
             "tuneLevel": _int_value(row.get("tuneLevel")),
         }
-        for row in ((loadout.get("oathUpgrades") or {}).get("crystals") or [])
+        for row in oath.get("crystals") or []
         if clean_text(row.get("itemId"))
-    ]
+    )
+    return rows
 
 
 def finalize_character_setting_value(
@@ -104,6 +134,8 @@ def finalize_character_setting_value(
         aura_catalog=aura_catalog,
         creature_catalog=creature_catalog,
         platinum_price_by_name=inputs.get("platinumPriceByName") or {},
+        buff_title_price_candidate=inputs.get("buffTitlePriceCandidate") or {},
+        buff_creature_price_candidate=inputs.get("buffCreaturePriceCandidate") or {},
     )
     if _int_value(setting_value.get("totalGold")) <= 0:
         raise SettingValueFinalizeUnavailable("세팅 추정 가치를 계산하지 못했습니다.")
@@ -125,18 +157,26 @@ def finalize_character_setting_value(
         for key, value in setting_value.items()
         if key != "details"
     }
+    enchant_detail_by_slot = {
+        clean_text(item.get("slot")): item
+        for group in setting_value.get("details") or []
+        if clean_text(group.get("key")) == "enchant"
+        for item in group.get("items") or []
+        if clean_text(item.get("slot"))
+    }
     stored_snapshot = {
         "serverId": server_id,
         "characterId": character_id,
         "characterName": character_name,
         "jobName": clean_text(baseline.get("jobName")),
         "jobGrowName": clean_text(baseline.get("jobGrowName")),
+        "statName": clean_text(baseline.get("statName")),
         "role": role,
         "fame": _int_value(loadout.get("fame")),
         "equipmentScore": _int_value(score.get("equipmentScore")) or None,
         "buffScore": _int_value(score.get("buffScore")) or None,
         "settingValue": stored_setting_value,
-        "equipment": _build_equipment_snapshot(loadout),
+        "equipment": _build_equipment_snapshot(loadout, enchant_detail_by_slot),
         "oath": _build_oath_snapshot(loadout),
         "updatedAtMs": updated_at_ms,
     }
