@@ -2,6 +2,7 @@ import unittest
 
 from server.calculators.setting_value_calculator import (
     build_setting_value_payload,
+    calculate_current_tune_details,
     calculate_equipment_upgrade_details,
     calculate_equipment_upgrade_values,
     price_expected_cost,
@@ -116,6 +117,80 @@ class SettingValueCalculatorTest(unittest.TestCase):
 
         self.assertEqual(result["amplification"], 0)
         self.assertEqual(result["weaponReinforcement"], 156)
+
+    def test_current_tune_details_price_only_invested_levels(self):
+        material_prices = {
+            "epicSoul": priced(100),
+            "legendarySoul": priced(50),
+            "radiantSoul": priced(10),
+        }
+        oath_tune_db = {
+            "maxTuneLevel": 3,
+            "uniqueCrystalNameKeyword": "안개 결정",
+            "costByRarity": {
+                "레전더리": {
+                    "gold": 480000,
+                    "materialKey": "radiantSoul",
+                    "materialAmount": 60,
+                },
+                "에픽": {
+                    "gold": 800000,
+                    "materialKey": "radiantSoul",
+                    "materialAmount": 100,
+                },
+            },
+        }
+
+        details = calculate_current_tune_details(
+            [
+                {
+                    "slot": "상의",
+                    "itemName": "에픽 상의",
+                    "itemRarity": "에픽",
+                    "tuneLevel": 2,
+                    "tuneRemaining": 1,
+                },
+                {
+                    "slot": "머리어깨",
+                    "itemName": "레전더리 어깨",
+                    "itemRarity": "레전더리",
+                    "tuneLevel": 1,
+                    "tuneRemaining": 2,
+                },
+            ],
+            {
+                "crystals": [
+                    {
+                        "itemName": "에픽 서약 결정",
+                        "itemRarity": "에픽",
+                        "tuneLevel": 3,
+                    },
+                    {
+                        "itemName": "레전더리 서약 결정",
+                        "itemRarity": "레전더리",
+                        "tuneLevel": 1,
+                    },
+                    {
+                        "itemName": "안개 결정",
+                        "itemRarity": "에픽",
+                        "tuneLevel": 3,
+                    },
+                ],
+            },
+            oath_tune_db,
+            material_prices,
+        )
+
+        self.assertEqual(
+            [row["gold"] for row in details["equipmentTune"]],
+            [2002000, 601000],
+        )
+        self.assertEqual(
+            [row["gold"] for row in details["oathTune"]],
+            [2403000, 480600],
+        )
+        self.assertEqual(details["equipmentTune"][0]["level"], 2)
+        self.assertEqual(details["oathTune"][0]["level"], 3)
 
     def test_unpriced_required_material_does_not_turn_into_zero_cost_material(self):
         material_prices = {

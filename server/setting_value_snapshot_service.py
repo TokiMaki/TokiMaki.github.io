@@ -119,6 +119,8 @@ def finalize_character_setting_value(
     setting_value = build_character_setting_value(
         enchant_rows=loadout.get("enchants") or [],
         equipment_upgrades=loadout.get("equipmentUpgrades") or [],
+        oath_upgrades=loadout.get("oathUpgrades") or {},
+        oath_tune_stage_db=loadout.get("oathTuneStageDb") or {},
         title=loadout.get("title") or {},
         aura=loadout.get("aura") or {},
         creature=loadout.get("creature") or {},

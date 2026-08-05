@@ -111,6 +111,8 @@ class SettingValueServiceTest(unittest.TestCase):
                     "reinforceSkill": [],
                 }],
                 equipment_upgrades=[],
+                oath_upgrades={},
+                oath_tune_stage_db={},
                 title={
                     "itemId": "title-main",
                     "variant": "일반",

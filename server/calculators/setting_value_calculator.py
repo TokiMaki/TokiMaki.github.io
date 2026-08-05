@@ -4,6 +4,8 @@ import math
 SETTING_VALUE_CATEGORY_ORDER = (
     ("amplification", "증폭 기대값"),
     ("weaponReinforcement", "무기 강화 기대값"),
+    ("equipmentTune", "장비 조율"),
+    ("oathTune", "서약 결정 조율"),
     ("blackFang", "흑아 변환"),
     ("enchant", "마법부여"),
     ("title", "칭호·칭호 보주"),
@@ -14,6 +16,11 @@ SETTING_VALUE_CATEGORY_ORDER = (
     ("buffEnhancement", "버프강화"),
     ("uniqueEquipment", "유일 장비"),
 )
+
+EQUIPMENT_TUNE_COST_BY_RARITY = {
+    "레전더리": {"gold": 600000, "materialKey": "legendarySoul", "materialAmount": 20},
+    "에픽": {"gold": 1000000, "materialKey": "epicSoul", "materialAmount": 10},
+}
 
 
 def _number(value) -> float:
@@ -207,6 +214,95 @@ def price_expected_cost(cost: dict | None, material_prices: dict, mode: str) -> 
             return None
         total += amount * unit_price
     return total
+
+
+def _build_tune_detail(
+    *,
+    label: str,
+    slot: str,
+    item_name: str,
+    item_rarity: str,
+    level: int,
+    mode: str,
+    cost_rule: dict | None,
+    material_prices: dict,
+) -> dict:
+    gold = None
+    if isinstance(cost_rule, dict):
+        material_key = str(cost_rule.get("materialKey") or "").strip()
+        per_level_cost = {"gold": _number(cost_rule.get("gold"))}
+        material_amount = _number(cost_rule.get("materialAmount"))
+        if material_key and material_amount > 0:
+            per_level_cost[material_key] = material_amount
+        gold = price_expected_cost(
+            multiply_cost(per_level_cost, level),
+            material_prices,
+            mode,
+        )
+    return {
+        "label": label,
+        "slot": slot,
+        "itemName": item_name,
+        "itemRarity": item_rarity,
+        "level": level,
+        "mode": mode,
+        "gold": int(round(gold)) if gold is not None else None,
+        "priceStatus": "priced" if gold is not None else "unpriced",
+        "note": "조율 재료 가격이 준비되지 않음" if gold is None else "",
+    }
+
+
+def calculate_current_tune_details(
+    equipment_upgrades: list,
+    oath_upgrades: dict,
+    oath_tune_db: dict,
+    material_prices: dict,
+) -> dict:
+    details = {
+        "equipmentTune": [],
+        "oathTune": [],
+    }
+    for equipment in equipment_upgrades or []:
+        level = max(0, min(3, int(_number(equipment.get("tuneLevel")))))
+        if level <= 0:
+            continue
+        slot = str(equipment.get("slot") or "").strip()
+        item_name = str(equipment.get("itemName") or "").strip()
+        item_rarity = str(equipment.get("itemRarity") or "").strip()
+        details["equipmentTune"].append(_build_tune_detail(
+            label=f"{slot or '장비'} {level}조율",
+            slot=slot,
+            item_name=item_name,
+            item_rarity=item_rarity,
+            level=level,
+            mode="equipmentTune",
+            cost_rule=EQUIPMENT_TUNE_COST_BY_RARITY.get(item_rarity),
+            material_prices=material_prices,
+        ))
+
+    oath_tune_db = oath_tune_db or {}
+    cost_by_rarity = oath_tune_db.get("costByRarity") or {}
+    unique_keyword = str(oath_tune_db.get("uniqueCrystalNameKeyword") or "안개 결정").strip()
+    max_level = max(0, int(_number(oath_tune_db.get("maxTuneLevel"))) or 3)
+    for crystal in (oath_upgrades or {}).get("crystals") or []:
+        level = max(0, min(max_level, int(_number(crystal.get("tuneLevel")))))
+        if level <= 0:
+            continue
+        item_name = str(crystal.get("itemName") or "").strip()
+        if unique_keyword and unique_keyword in item_name:
+            continue
+        item_rarity = str(crystal.get("itemRarity") or "").strip()
+        details["oathTune"].append(_build_tune_detail(
+            label=f"{item_name or '서약 결정'} {level}조율",
+            slot="서약 결정",
+            item_name=item_name,
+            item_rarity=item_rarity,
+            level=level,
+            mode="oathTune",
+            cost_rule=cost_by_rarity.get(item_rarity),
+            material_prices=material_prices,
+        ))
+    return details
 
 
 def calculate_equipment_upgrade_values(

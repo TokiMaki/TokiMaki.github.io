@@ -3,6 +3,7 @@ import math
 
 from .calculators.setting_value_calculator import (
     build_setting_value_payload,
+    calculate_current_tune_details,
     calculate_equipment_upgrade_details,
     get_priced_row_gold,
     price_cost_row,
@@ -935,10 +936,18 @@ def build_character_setting_value(
     platinum_price_by_name: dict | None = None,
     buff_title_price_candidate: dict | None = None,
     buff_creature_price_candidate: dict | None = None,
+    oath_upgrades: dict | None = None,
+    oath_tune_stage_db: dict | None = None,
 ) -> dict:
     upgrade_details = calculate_equipment_upgrade_details(
         equipment_upgrades,
         upgrade_expected_db,
+        material_prices,
+    )
+    tune_details = calculate_current_tune_details(
+        equipment_upgrades,
+        oath_upgrades,
+        oath_tune_stage_db,
         material_prices,
     )
 
@@ -1072,6 +1081,8 @@ def build_character_setting_value(
     category_details = {
         "amplification": upgrade_details.get("amplification") or [],
         "weaponReinforcement": upgrade_details.get("weaponReinforcement") or [],
+        "equipmentTune": tune_details.get("equipmentTune") or [],
+        "oathTune": tune_details.get("oathTune") or [],
         "blackFang": black_fang_details,
         "enchant": enchant_details,
         "title": title_details,
