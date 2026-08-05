@@ -135,36 +135,83 @@ def save_setting_value_snapshot(snapshot: dict) -> bool:
         return False
 
 
-def load_setting_value_ranking(role: str = "dealer", sort: str = "value", limit: int = 100) -> list[dict]:
-    role = clean_text(role).lower()
-    if role not in {"dealer", "buffer"}:
-        role = "dealer"
-    sort = clean_text(sort).lower()
-    order_sql = {
+def _get_ranking_order_sql(sort: str) -> str:
+    return {
         "score": "COALESCE(buff_score, equipment_score, 0) DESC, total_gold DESC, updated_at_ms DESC",
         "fame": "fame DESC, total_gold DESC, updated_at_ms DESC",
         "value": "total_gold DESC, updated_at_ms DESC",
     }.get(sort, "total_gold DESC, updated_at_ms DESC")
+
+
+def load_setting_value_ranking_page(
+    role: str = "dealer",
+    sort: str = "value",
+    page: int = 1,
+    page_size: int = 20,
+    job: str = "",
+) -> dict:
+    role = clean_text(role).lower()
+    if role not in {"dealer", "buffer"}:
+        role = "dealer"
+    sort = clean_text(sort).lower()
+    order_sql = _get_ranking_order_sql(sort)
+    job = clean_text(job)
     try:
-        limit = max(1, min(200, int(limit)))
+        page = max(1, int(page))
     except (TypeError, ValueError):
-        limit = 100
+        page = 1
+    try:
+        page_size = max(1, min(100, int(page_size)))
+    except (TypeError, ValueError):
+        page_size = 20
+
+    where_sql = "role = ?"
+    where_params = [role]
+    if job:
+        where_sql += " AND COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), '') = ?"
+        where_params.append(job)
 
     try:
         _ensure_setting_value_snapshot_table()
         with closing(_connect_setting_value_db()) as conn:
+            total_count = int(conn.execute(
+                f"SELECT COUNT(*) FROM setting_value_snapshot WHERE {where_sql}",
+                where_params,
+            ).fetchone()[0])
+            total_pages = (total_count + page_size - 1) // page_size
+            if total_pages:
+                page = min(page, total_pages)
+            offset = (page - 1) * page_size
             rows = conn.execute(
                 f"""
                 SELECT payload_json
                 FROM setting_value_snapshot
-                WHERE role = ?
+                WHERE {where_sql}
                 ORDER BY {order_sql}
                 LIMIT ?
+                OFFSET ?
                 """,
-                (role, limit),
+                (*where_params, page_size, offset),
+            ).fetchall()
+            job_rows = conn.execute(
+                """
+                SELECT DISTINCT COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), '') AS job
+                FROM setting_value_snapshot
+                WHERE role = ?
+                  AND COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), '') != ''
+                ORDER BY job COLLATE NOCASE
+                """,
+                (role,),
             ).fetchall()
     except Exception:
-        return []
+        return {
+            "rows": [],
+            "jobs": [],
+            "page": 1,
+            "pageSize": page_size,
+            "totalCount": 0,
+            "totalPages": 0,
+        }
 
     results = []
     for row in rows:
@@ -174,7 +221,83 @@ def load_setting_value_ranking(role: str = "dealer", sort: str = "value", limit:
             continue
         if isinstance(payload, dict):
             results.append(payload)
-    return [
-        {**payload, "rank": index}
-        for index, payload in enumerate(results, start=1)
-    ]
+    offset = (page - 1) * page_size
+    return {
+        "rows": [
+            {**payload, "rank": offset + index}
+            for index, payload in enumerate(results, start=1)
+        ],
+        "jobs": [clean_text(row[0]) for row in job_rows if clean_text(row[0])],
+        "page": page,
+        "pageSize": page_size,
+        "totalCount": total_count,
+        "totalPages": total_pages,
+    }
+
+
+def load_setting_value_character_rank(
+    server_id: str,
+    character_id: str = "",
+    character_name: str = "",
+    sort: str = "value",
+) -> dict | None:
+    server_id = clean_text(server_id).lower()
+    character_id = clean_text(character_id)
+    character_name = clean_text(character_name)
+    if not server_id or (not character_id and not character_name):
+        return None
+    order_sql = _get_ranking_order_sql(clean_text(sort).lower())
+
+    identity_sql = "character_id = ?" if character_id else "character_name = ?"
+    identity_value = character_id or character_name
+    try:
+        _ensure_setting_value_snapshot_table()
+        with closing(_connect_setting_value_db()) as conn:
+            selected = conn.execute(
+                f"""
+                SELECT role, character_id
+                FROM setting_value_snapshot
+                WHERE server_id = ? AND {identity_sql}
+                LIMIT 1
+                """,
+                (server_id, identity_value),
+            ).fetchone()
+            if not selected:
+                return None
+            selected_role, selected_character_id = selected
+            row = conn.execute(
+                f"""
+                WITH ranked AS (
+                    SELECT
+                        server_id,
+                        character_id,
+                        payload_json,
+                        ROW_NUMBER() OVER (ORDER BY {order_sql}) AS rank
+                    FROM setting_value_snapshot
+                    WHERE role = ?
+                )
+                SELECT payload_json, rank
+                FROM ranked
+                WHERE server_id = ? AND character_id = ?
+                LIMIT 1
+                """,
+                (selected_role, server_id, selected_character_id),
+            ).fetchone()
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        payload = json.loads(row[0])
+    except Exception:
+        return None
+    return {**payload, "rank": int(row[1])} if isinstance(payload, dict) else None
+
+
+def load_setting_value_ranking(role: str = "dealer", sort: str = "value", limit: int = 100) -> list[dict]:
+    return load_setting_value_ranking_page(
+        role=role,
+        sort=sort,
+        page=1,
+        page_size=limit,
+    )["rows"]

@@ -3,7 +3,8 @@ import time
 from .neople_client import clean_text
 from .repositories.equipment_score_repository import get_cached_official_equipment_score
 from .repositories.setting_value_repository import (
-    load_setting_value_ranking,
+    load_setting_value_character_rank,
+    load_setting_value_ranking_page,
     save_setting_value_snapshot,
 )
 from .setting_value_service import build_character_setting_value
@@ -190,15 +191,38 @@ def finalize_character_setting_value(
     }
 
 
-def get_setting_value_ranking(role: str = "dealer", sort: str = "value", limit: int = 100) -> dict:
+def get_setting_value_ranking(
+    role: str = "dealer",
+    sort: str = "value",
+    limit: int = 100,
+    page: int = 1,
+    page_size: int | None = None,
+    job: str = "",
+    server_id: str = "",
+    character_id: str = "",
+    character_name: str = "",
+) -> dict:
     normalized_role = clean_text(role).lower()
     if normalized_role not in {"dealer", "buffer"}:
         normalized_role = "dealer"
     normalized_sort = clean_text(sort).lower()
     if normalized_sort not in {"value", "score", "fame"}:
         normalized_sort = "value"
+    ranking = load_setting_value_ranking_page(
+        normalized_role,
+        normalized_sort,
+        page,
+        page_size if page_size is not None else limit,
+        job,
+    )
     return {
         "role": normalized_role,
         "sort": normalized_sort,
-        "rows": load_setting_value_ranking(normalized_role, normalized_sort, limit),
+        **ranking,
+        "selectedRow": load_setting_value_character_rank(
+            server_id,
+            character_id,
+            character_name,
+            normalized_sort,
+        ),
     }

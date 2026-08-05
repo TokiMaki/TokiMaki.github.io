@@ -14,43 +14,6 @@
   text-decoration: none;
 }
 
-.setting-value-title-block {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 18px 4px 4px;
-}
-
-.setting-value-title-block h2 {
-  margin: 3px 0 4px;
-  font-size: 28px;
-  line-height: 1.2;
-}
-
-.setting-value-title-block p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.setting-value-kicker {
-  color: var(--accent-2);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-}
-
-.setting-value-draft-badge {
-  flex: 0 0 auto;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-card) 88%, transparent);
-  font-size: 10px;
-}
-
 .setting-value-filter-panel {
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(180px, 1fr) minmax(210px, 1fr);
@@ -355,13 +318,6 @@
   line-height: 1;
 }
 
-.setting-value-footnote {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 10px;
-  text-align: right;
-}
-
 .setting-value-footer {
   margin-top: 18px;
 }
@@ -390,30 +346,55 @@
     height: 38px;
   }
 
-  .setting-value-title-block {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .setting-value-title-block h2 {
-    font-size: 24px;
-  }
-
   .setting-value-filter-panel {
     grid-template-columns: 1fr;
   }
 
-  .setting-value-footnote {
-    text-align: left;
-  }
+}
+
+.setting-value-section-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.setting-value-selected {
+  display: grid;
+  gap: 8px;
+}
+
+.setting-value-selected .setting-value-row {
+  border-color: color-mix(in srgb, var(--accent-2) 68%, var(--line));
+}
+
+.setting-value-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.setting-value-pagination button {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-deep) 84%, transparent);
+  cursor: pointer;
+}
+
+.setting-value-pagination button.is-active {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+
+.setting-value-pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* 상위권과 희귀 세팅만 조금 과하게 강조하는 VIP 표현 */
-.setting-value-title-block h2 {
-  color: #f6e3ad;
-  text-shadow: 0 0 18px rgb(231 183 78 / 0.18);
-}
-
 .setting-value-filter-panel {
   position: relative;
   overflow: hidden;

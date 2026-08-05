@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { initDnfHellTool } from '../dnfHellTool/initDnfHellTool.js';
 import DnfHellToolMarkup from './DnfHellToolMarkup.jsx';
 
-export default function DnfHellTool() {
+function DnfHellTool() {
   useEffect(() => initDnfHellTool(), []);
 
   return <DnfHellToolMarkup />;
 }
+
+export default memo(DnfHellTool);

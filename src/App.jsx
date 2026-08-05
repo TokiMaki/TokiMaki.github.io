@@ -22,8 +22,10 @@ export default function App() {
   }
 
   const [pathname, setPathname] = useState(() => window.location.pathname);
+  const [hasToolMounted, setHasToolMounted] = useState(() => window.location.pathname === '/');
   useEffect(() => {
     applyMetadataForLocation(window.location);
+    if (pathname === '/') setHasToolMounted(true);
   }, [pathname]);
 
   useEffect(() => {
@@ -63,6 +65,7 @@ export default function App() {
       window.history.pushState({}, '', nextUrl);
       setPathname(nextPathname);
       applyMetadataForLocation(window.location);
+      window.dispatchEvent(new Event('dunpilot:locationchange'));
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     };
 
@@ -82,11 +85,8 @@ export default function App() {
     return <AboutPage />;
   }
 
-  if (pathname === '/stats' || pathname === '/stats/') {
-    return <SettingValueRankingPage />;
-  }
-
-  if (pathname !== '/') {
+  const isStatsPage = pathname === '/stats' || pathname === '/stats/';
+  if (pathname !== '/' && !isStatsPage) {
     return (
       <main className={'not-found-page'}>
         <section className={'not-found-panel'}>
@@ -98,5 +98,15 @@ export default function App() {
     );
   }
 
-  return <DnfHellTool />;
+  const shouldRenderTool = hasToolMounted || pathname === '/';
+  return (
+    <>
+      {shouldRenderTool ? (
+        <div hidden={isStatsPage}>
+          <DnfHellTool />
+        </div>
+      ) : null}
+      {isStatsPage ? <SettingValueRankingPage /> : null}
+    </>
+  );
 }

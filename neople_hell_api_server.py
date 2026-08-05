@@ -938,7 +938,17 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         role = clean_text((query.get("role") or ["dealer"])[0]).lower()
         sort = clean_text((query.get("sort") or ["value"])[0]).lower()
         limit = clean_text((query.get("limit") or ["100"])[0])
-        return self.send_json(get_setting_value_ranking(role, sort, limit))
+        return self.send_json(get_setting_value_ranking(
+            role,
+            sort,
+            limit,
+            clean_text((query.get("page") or ["1"])[0]),
+            clean_text((query.get("pageSize") or [limit])[0]),
+            clean_text((query.get("job") or [""])[0]),
+            clean_text((query.get("serverId") or [""])[0]).lower(),
+            clean_text((query.get("characterId") or [""])[0]),
+            clean_text((query.get("characterName") or [""])[0]),
+        ))
 
     def handle_character_preview(self, parsed):
         query = parse_qs(parsed.query)

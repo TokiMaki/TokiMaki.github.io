@@ -23,6 +23,7 @@ export function createToolDomRefs() {
       hellTabButton: $id('hellTabButton'),
       supplyTabButton: $id('supplyTabButton'),
       enchantTabButton: $id('enchantTabButton'),
+      settingValueTabLink: $id('settingValueTabLink'),
       tabButtons: $all('.tab-button[data-tab-target]'),
 
       // Hell calculator inputs

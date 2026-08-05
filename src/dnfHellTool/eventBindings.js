@@ -330,6 +330,13 @@ export function bindToolEvents(ctx) {
       if (saveRecent && result?.serverId && result?.characterName) {
         saveRecentSearch(result.serverId, result.characterName);
       }
+      if (els.settingValueTabLink && result?.serverId && result?.characterName) {
+        const rankingQuery = new URLSearchParams({
+          serverId: result.serverId,
+          characterName: result.characterName,
+        });
+        els.settingValueTabLink.href = `/stats/?${rankingQuery.toString()}`;
+      }
     });
   };
   const runLandingSearch = () => runEnchantSearch({
@@ -374,17 +381,32 @@ export function bindToolEvents(ctx) {
     }, 1800);
   };
   const applyLocation = () => {
+    if (window.location.pathname !== '/') return;
     const params = new URLSearchParams(window.location.search);
+    const serverId = String(params.get('server') || 'all').trim().toLowerCase();
     const characterName = String(params.get('name') || '').trim();
     if (!characterName) {
       showLanding(false);
       return;
     }
+    const currentCharacter = state.enchantTargetCharacter;
+    if (
+      currentCharacter
+      && serverId !== 'all'
+      && serverId !== 'adventure'
+      && currentCharacter.serverId === serverId
+      && currentCharacter.name === characterName
+    ) {
+      setScreen('results');
+      setActiveTab('enchantPanel');
+      return;
+    }
     runEnchantSearch({
-      serverId: params.get('server') || 'all',
+      serverId,
       characterName,
       updateHistory: false,
       saveRecent: false,
+
     });
   };
 
@@ -491,6 +513,8 @@ const bindRecentSearchList = (list) => {
 };
 bindRecentSearchList(els.landingRecentSearchList);
 window.addEventListener('popstate', applyLocation);
+window.addEventListener('dunpilot:locationchange', applyLocation);
+
 renderRecentSearches();
 loadLandingNotices();
 lifecycle.setTimeout(applyLocation, 0);
