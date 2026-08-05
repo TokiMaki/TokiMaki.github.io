@@ -264,9 +264,9 @@ export default function SettingValueRankingPage() {
             <img className={'site-logo-image'} src={logoImage} alt={'던파일럿'} />
           </a>
         </h1>
-        <nav className={'tab-bar'} aria-label={'주요 메뉴'}>
-          <a className={'tab-button setting-value-nav-link'} href={'/'}>스펙업 순서</a>
-          <a className={'tab-button active setting-value-nav-link'} href={'/stats/'} aria-current={'page'}>세팅 가치</a>
+        <nav className={'tab-bar site-header-tabs'} aria-label={'주요 메뉴'}>
+          <a className={'tab-button site-header-tab setting-value-nav-link'} href={'/'}>스펙업 순서</a>
+          <a className={'tab-button site-header-tab active setting-value-nav-link'} href={'/stats/'} aria-current={'page'}>세팅 가치</a>
         </nav>
       </header>
 

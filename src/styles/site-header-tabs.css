@@ -1,0 +1,90 @@
+.site-header-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(112px, 1fr);
+  gap: 0;
+  min-width: 236px;
+  min-height: 40px;
+  border: 1px solid rgb(92 70 39 / 0.72);
+  border-radius: 2px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 56%),
+    color-mix(in srgb, var(--panel-2) 86%, var(--bg-deep));
+  box-shadow:
+    0 1px 0 rgb(0 0 0 / 0.32),
+    inset 0 1px 0 rgb(255 232 170 / 0.025);
+}
+
+.tab-button.site-header-tab {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--muted) 86%, #d6c39a);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: none;
+  transform: none;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.tab-button.site-header-tab + .tab-button.site-header-tab {
+  border-left: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.tab-button.site-header-tab:hover,
+.tab-button.site-header-tab:focus-visible {
+  border-color: transparent;
+  background: rgb(255 255 255 / 0.035);
+  color: color-mix(in srgb, var(--text) 72%, #d6c39a);
+  box-shadow: none;
+  transform: none;
+}
+
+.tab-button.site-header-tab:focus-visible {
+  outline: 1px solid color-mix(in srgb, #d6a93a 68%, #f1dfa8);
+  outline-offset: -3px;
+}
+
+.tab-button.site-header-tab.active {
+  border-color: transparent;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #d6a93a 18%, transparent), transparent 42%),
+    rgb(255 255 255 / 0.045);
+  color: color-mix(in srgb, var(--text) 82%, #f1dfa8);
+  box-shadow: none;
+}
+
+.tab-button.site-header-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: color-mix(in srgb, #d6a93a 78%, #f1dfa8);
+}
+
+@media (max-width: 700px) {
+  .site-header-tabs {
+    grid-auto-columns: minmax(90px, 1fr);
+    min-width: 188px;
+    min-height: 36px;
+  }
+
+  .tab-button.site-header-tab {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
