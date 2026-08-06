@@ -120,7 +120,7 @@
 }
 
 .setting-value-character:hover {
-  background: rgb(255 255 255 / 0.035);
+  background: rgb(255 255 255 / 0.06);
 }
 
 .setting-value-character:focus-visible {
@@ -416,7 +416,6 @@
   position: relative;
   isolation: isolate;
   background: radial-gradient(circle at 12% 0%, rgb(235 191 91 / 0.04), transparent 32%), color-mix(in srgb, var(--surface-panel) 96%, var(--bg-deep));
-  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .setting-value-row::before {
@@ -426,13 +425,6 @@
   z-index: -1;
   background: linear-gradient(112deg, transparent 22%, rgb(255 229 157 / 0.045) 43%, transparent 61%);
   pointer-events: none;
-}
-
-.setting-value-row:hover {
-  z-index: 2;
-  transform: translateY(-2px);
-  border-color: rgb(180 142 72 / 0.72);
-  box-shadow: 0 13px 30px rgb(0 0 0 / 0.34), 0 0 20px rgb(210 160 63 / 0.09);
 }
 
 .setting-value-row.is-rank-1 {
