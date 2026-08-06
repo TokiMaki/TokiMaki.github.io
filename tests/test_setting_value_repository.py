@@ -72,6 +72,30 @@ class SettingValueRepositoryTest(unittest.TestCase):
         self.assertEqual(selected["rank"], 2)
         self.assertEqual(selected["rankingTotalCount"], 2)
 
+    def test_selected_character_rank_uses_requested_sort(self):
+        repository.save_setting_value_snapshot(
+            self.snapshot("value", 500, fame=100, equipment_score=1000)
+        )
+        repository.save_setting_value_snapshot(
+            self.snapshot("score", 300, fame=200, equipment_score=2000)
+        )
+        repository.save_setting_value_snapshot(
+            self.snapshot("fame", 100, fame=300, equipment_score=500)
+        )
+
+        self.assertEqual(
+            repository.load_setting_value_character_rank("cain", "value", sort="value")["rank"],
+            1,
+        )
+        self.assertEqual(
+            repository.load_setting_value_character_rank("cain", "score", sort="score")["rank"],
+            1,
+        )
+        self.assertEqual(
+            repository.load_setting_value_character_rank("cain", "fame", sort="fame")["rank"],
+            1,
+        )
+
     def test_selected_character_rank_uses_job_filter_population(self):
         repository.save_setting_value_snapshot(self.snapshot("first", 500))
         repository.save_setting_value_snapshot(self.snapshot("second", 300))

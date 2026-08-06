@@ -55,6 +55,16 @@ def _ensure_setting_value_snapshot_table():
                 "CREATE INDEX IF NOT EXISTS idx_setting_value_snapshot_role_score "
                 "ON setting_value_snapshot(role, equipment_score DESC, buff_score DESC, updated_at_ms DESC)"
             )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_setting_value_snapshot_role_fame "
+                "ON setting_value_snapshot(role, fame DESC, total_gold DESC, updated_at_ms DESC)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_setting_value_snapshot_role_job "
+                "ON setting_value_snapshot("
+                "role, COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), '')"
+                ")"
+            )
             conn.commit()
         _SETTING_VALUE_SNAPSHOT_INITIALIZED = True
 
@@ -136,11 +146,49 @@ def save_setting_value_snapshot(snapshot: dict) -> bool:
 
 
 def _get_ranking_order_sql(sort: str) -> str:
-    return {
+    order_sql = {
         "score": "COALESCE(buff_score, equipment_score, 0) DESC, total_gold DESC, updated_at_ms DESC",
         "fame": "fame DESC, total_gold DESC, updated_at_ms DESC",
         "value": "total_gold DESC, updated_at_ms DESC",
     }.get(sort, "total_gold DESC, updated_at_ms DESC")
+    return f"{order_sql}, server_id ASC, character_id ASC"
+
+
+def _build_preceding_rank_condition(sort: str, selected: dict) -> tuple[str, list]:
+    if sort == "score":
+        fields = [
+            ("COALESCE(buff_score, equipment_score, 0)", selected["score"], "DESC"),
+            ("total_gold", selected["totalGold"], "DESC"),
+            ("updated_at_ms", selected["updatedAtMs"], "DESC"),
+        ]
+    elif sort == "fame":
+        fields = [
+            ("fame", selected["fame"], "DESC"),
+            ("total_gold", selected["totalGold"], "DESC"),
+            ("updated_at_ms", selected["updatedAtMs"], "DESC"),
+        ]
+    else:
+        fields = [
+            ("total_gold", selected["totalGold"], "DESC"),
+            ("updated_at_ms", selected["updatedAtMs"], "DESC"),
+        ]
+    fields.extend([
+        ("server_id", selected["serverId"], "ASC"),
+        ("character_id", selected["characterId"], "ASC"),
+    ])
+
+    clauses = []
+    params = []
+    for index, (expression, value, direction) in enumerate(fields):
+        parts = []
+        for previous_expression, previous_value, _ in fields[:index]:
+            parts.append(f"{previous_expression} = ?")
+            params.append(previous_value)
+        comparator = ">" if direction == "DESC" else "<"
+        parts.append(f"{expression} {comparator} ?")
+        params.append(value)
+        clauses.append(f"({' AND '.join(parts)})")
+    return " OR ".join(clauses), params
 
 
 def load_setting_value_ranking_page(
@@ -248,7 +296,7 @@ def load_setting_value_character_rank(
     job = clean_text(job)
     if not server_id or (not character_id and not character_name):
         return None
-    order_sql = _get_ranking_order_sql(clean_text(sort).lower())
+    sort = clean_text(sort).lower()
 
     identity_sql = "character_id = ?" if character_id else "character_name = ?"
     identity_value = character_id or character_name
@@ -257,7 +305,17 @@ def load_setting_value_character_rank(
         with closing(_connect_setting_value_db()) as conn:
             selected = conn.execute(
                 f"""
-                SELECT role, character_id
+                SELECT
+                    role,
+                    character_id,
+                    job_name,
+                    job_grow_name,
+                    fame,
+                    equipment_score,
+                    buff_score,
+                    total_gold,
+                    updated_at_ms,
+                    payload_json
                 FROM setting_value_snapshot
                 WHERE server_id = ? AND {identity_sql}
                 LIMIT 1
@@ -266,43 +324,60 @@ def load_setting_value_character_rank(
             ).fetchone()
             if not selected:
                 return None
-            selected_role, selected_character_id = selected
+            (
+                selected_role,
+                selected_character_id,
+                selected_job_name,
+                selected_job_grow_name,
+                selected_fame,
+                selected_equipment_score,
+                selected_buff_score,
+                selected_total_gold,
+                selected_updated_at_ms,
+                selected_payload_json,
+            ) = selected
+            if job and clean_text(selected_job_grow_name or selected_job_name) != job:
+                return None
             ranking_where_sql = "role = ?"
             ranking_params = [selected_role]
             if job:
                 ranking_where_sql += " AND COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), '') = ?"
                 ranking_params.append(job)
-            row = conn.execute(
+            selected_values = {
+                "serverId": server_id,
+                "characterId": selected_character_id,
+                "fame": int(selected_fame or 0),
+                "score": int(selected_buff_score or selected_equipment_score or 0),
+                "totalGold": int(selected_total_gold or 0),
+                "updatedAtMs": int(selected_updated_at_ms or 0),
+            }
+            preceding_sql, preceding_params = _build_preceding_rank_condition(
+                sort,
+                selected_values,
+            )
+            ranking_total_count = int(conn.execute(
+                f"SELECT COUNT(*) FROM setting_value_snapshot WHERE {ranking_where_sql}",
+                ranking_params,
+            ).fetchone()[0])
+            preceding_count = int(conn.execute(
                 f"""
-                WITH ranked AS (
-                    SELECT
-                        server_id,
-                        character_id,
-                        payload_json,
-                        ROW_NUMBER() OVER (ORDER BY {order_sql}) AS rank,
-                        COUNT(*) OVER () AS ranking_total_count
-                    FROM setting_value_snapshot
-                    WHERE {ranking_where_sql}
-                )
-                SELECT payload_json, rank, ranking_total_count
-                FROM ranked
-                WHERE server_id = ? AND character_id = ?
-                LIMIT 1
+                SELECT COUNT(*)
+                FROM setting_value_snapshot
+                WHERE {ranking_where_sql}
+                  AND ({preceding_sql})
                 """,
-                (*ranking_params, server_id, selected_character_id),
-            ).fetchone()
+                (*ranking_params, *preceding_params),
+            ).fetchone()[0])
     except Exception:
         return None
-    if not row:
-        return None
     try:
-        payload = json.loads(row[0])
+        payload = json.loads(selected_payload_json)
     except Exception:
         return None
     return {
         **payload,
-        "rank": int(row[1]),
-        "rankingTotalCount": int(row[2]),
+        "rank": preceding_count + 1,
+        "rankingTotalCount": ranking_total_count,
     } if isinstance(payload, dict) else None
 
 
