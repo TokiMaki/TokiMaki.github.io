@@ -186,6 +186,17 @@ function RankingRow({ row, role, showPercentile = false }) {
   const topPercent = showPercentile
     ? formatTopPercent(row.rank, row.rankingTotalCount)
     : '';
+  const rankDigits = String(row.rank ?? '').length;
+  const rankNumberClassName = [
+    'setting-value-rank-number',
+    rankDigits >= 5
+      ? 'is-five-digits'
+      : rankDigits >= 4
+        ? 'is-four-digits'
+        : rankDigits >= 3
+          ? 'is-three-digits'
+          : '',
+  ].filter(Boolean).join(' ');
 
   useLayoutEffect(() => {
     const rowViewport = rowViewportRef.current;
@@ -315,7 +326,7 @@ function RankingRow({ row, role, showPercentile = false }) {
     <div className={'setting-value-row-viewport'} ref={rowViewportRef}>
       <article className={`setting-value-row is-rank-${row.rank}`} ref={rowRef}>
       <div className={'setting-value-rank'}>
-        <span className={'setting-value-rank-number'}>{row.rank}</span>
+        <span className={rankNumberClassName}>{row.rank}</span>
         {topPercent ? <span className={'setting-value-rank-percentile'}>상위 {topPercent}</span> : null}
       </div>
       <a

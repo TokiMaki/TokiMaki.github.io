@@ -106,8 +106,23 @@
 }
 
 .setting-value-rank-number {
+  max-width: calc(100% - 4px);
   font-size: 27px;
   line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.setting-value-rank-number.is-three-digits {
+  font-size: 20px;
+}
+
+.setting-value-rank-number.is-four-digits {
+  font-size: 15px;
+}
+
+.setting-value-rank-number.is-five-digits {
+  font-size: 12px;
 }
 
 .setting-value-rank-percentile {
@@ -414,6 +429,18 @@
 
   .setting-value-rank-number {
     font-size: 22px;
+  }
+
+  .setting-value-rank-number.is-three-digits {
+    font-size: 17px;
+  }
+
+  .setting-value-rank-number.is-four-digits {
+    font-size: 13px;
+  }
+
+  .setting-value-rank-number.is-five-digits {
+    font-size: 11px;
   }
 
   .setting-value-rank-percentile {
