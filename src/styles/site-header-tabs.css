@@ -88,3 +88,17 @@
     font-size: 12px;
   }
 }
+
+@media (max-width: 410px) {
+  .site-header-tabs {
+    grid-auto-columns: minmax(66px, 1fr);
+    min-width: 132px;
+    min-height: 32px;
+  }
+
+  .tab-button.site-header-tab {
+    min-height: 32px;
+    padding: 0 3px;
+    font-size: 10.5px;
+  }
+}

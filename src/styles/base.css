@@ -616,6 +616,23 @@
       max-width: min(300px, 52vw);
       object-fit: contain;
     }
+    @media (max-width: 410px) {
+      .tool-shell > .hero,
+      .setting-value-hero {
+        gap: 6px;
+        padding: 7px 8px;
+      }
+      .site-logo-heading,
+      .site-logo-home-button {
+        min-width: 0;
+      }
+      .tool-shell .site-logo-image,
+      .setting-value-hero .site-logo-image {
+        width: min(128px, 32vw);
+        height: auto;
+        max-width: none;
+      }
+    }
     .hero p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
     .utility-footer {
       display: flex;
