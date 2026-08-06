@@ -25,6 +25,15 @@ assert.equal(
   true,
   'enchant view must finalize the value from the completed upgrade-order context',
 );
+const finalizeFunctionStart = enchantViewSource.indexOf('async function finalizeCurrentSettingValue');
+const finalizeFunctionEnd = enchantViewSource.indexOf('async function loadEnchantRecommendationsAsync', finalizeFunctionStart);
+const finalizeFunctionSource = enchantViewSource.slice(finalizeFunctionStart, finalizeFunctionEnd);
+assert.ok(
+  finalizeFunctionSource.includes('globalThis.fetch(')
+    && finalizeFunctionSource.includes('keepalive: true')
+    && !finalizeFunctionSource.includes('lifecycle.fetch('),
+  'setting-value finalize must continue independently after the tool lifecycle is disposed',
+);
 assert.equal(
   enchantViewSource.includes('settingValue.details'),
   true,
@@ -52,7 +61,7 @@ const finalizeIndex = loadFunctionSource.indexOf('void finalizeCurrentSettingVal
 assert.ok(loadFunctionStart >= 0 && loadFunctionEnd > loadFunctionStart);
 assert.ok(renderIndex >= 0, 'upgrade-order render must remain in the completed load flow');
 assert.ok(timingIndex > renderIndex, 'completed timing must remain after the render');
-assert.ok(scoreWaitIndex > timingIndex, 'official score must complete before the ranking snapshot is saved');
-assert.ok(finalizeIndex > scoreWaitIndex, 'setting-value finalize must run only after upgrade-order loading and score lookup complete');
+assert.ok(finalizeIndex > timingIndex, 'setting-value finalize must run only after upgrade-order loading and render complete');
+assert.ok(scoreWaitIndex > finalizeIndex, 'setting-value finalize must be dispatched before waiting for the score UI update');
 
 console.log('setting value finalize flow tests passed');

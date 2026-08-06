@@ -7044,9 +7044,9 @@ export function installEnchantView(ctx) {
       characterId: character.characterId,
     });
     try {
-      const response = await lifecycle.fetch(
+      const response = await globalThis.fetch(
         `${API_BASE}/api/setting-value/finalize?${query.toString()}`,
-        { method: 'POST', cache: 'no-store' },
+        { method: 'POST', cache: 'no-store', keepalive: true },
       );
       const payload = await parseApiJsonResponse(response, '세팅 추정 가치 저장에 실패했습니다.');
       const currentCharacter = getSelectedEnchantCharacter();
@@ -7117,9 +7117,9 @@ export function installEnchantView(ctx) {
       renderEnchantCharacterPortrait();
       renderEnchantTable();
       flushEnchantTiming('complete');
+      void finalizeCurrentSettingValue(requestId);
       await officialScorePromise;
       if (requestId !== state.enchantRequestId) return;
-      void finalizeCurrentSettingValue(requestId);
     } catch (error) {
       if (!lifecycle.active || requestId !== state.enchantRequestId) return;
       state.currentBufferScoreStatus = 'idle';

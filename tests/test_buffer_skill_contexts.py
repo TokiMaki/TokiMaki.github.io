@@ -191,6 +191,12 @@ class BufferSkillContextSupplyTest(unittest.TestCase):
             "load_oath_tune_stage_db": Mock(return_value={}),
             "load_upgrade_expected_db": Mock(return_value={}),
             "build_character_enchants_payload": Mock(side_effect=lambda _p, _d, b, *_a: {"bufferBaseline": b}),
+            "build_equipped_black_fang_cost_rows": Mock(
+                side_effect=AssertionError("ranking black fang lookup on enchant path")
+            ),
+            "build_equipped_relic_cost_rows": Mock(
+                side_effect=AssertionError("ranking relic lookup on enchant path")
+            ),
         }
         with patch.multiple(service, **mocks):
             result = service.load_character_enchants("server", "character", include_skill_details=True)
@@ -201,6 +207,7 @@ class BufferSkillContextSupplyTest(unittest.TestCase):
         self.assertNotIn("_bufferSkillDetails", result["bufferBaseline"])
         self.assertEqual(result["_bufferSkillDetails"], {CONTEXT_KEY: skill_detail()})
         self.assertEqual(result["_bufferSwitchingSkillLevels"], {CONTEXT_KEY: 12})
+        self.assertEqual(result["_settingValueEquipmentInputs"]["status"], "pending")
 
     def test_loadout_reuses_loaded_baseline_details_and_current_rows(self):
         loaded_baseline = baseline()
@@ -208,6 +215,9 @@ class BufferSkillContextSupplyTest(unittest.TestCase):
             "serverId": "server", "characterId": "character", "bufferBaseline": loaded_baseline,
             "damageBaseline": {}, "_bufferSkillDetails": {CONTEXT_KEY: skill_detail()},
             "_bufferSwitchingSkillLevels": {CONTEXT_KEY: 12},
+            "_settingValueEquipmentInputs": {
+                "status": "pending",
+            },
         }
         mocks = {
             "start_api_fanout_trace": Mock(return_value="trace"),
@@ -229,6 +239,24 @@ class BufferSkillContextSupplyTest(unittest.TestCase):
             "build_buff_loadout_payload": Mock(return_value={}),
             "load_character_buffer_baseline": Mock(side_effect=AssertionError("duplicate baseline load")),
             "get_skill_detail": Mock(side_effect=AssertionError("duplicate skill lookup")),
+            "get_lowest_auction_prices_for_items": Mock(
+                side_effect=AssertionError("ranking price lookup on loadout path")
+            ),
+            "_load_setting_value_switching_title_price": Mock(
+                side_effect=AssertionError("ranking title price lookup on loadout path")
+            ),
+            "_load_setting_value_switching_creature_price": Mock(
+                side_effect=AssertionError("ranking creature price lookup on loadout path")
+            ),
+            "_build_setting_value_platinum_price_by_name": Mock(
+                side_effect=AssertionError("ranking platinum price lookup on loadout path")
+            ),
+            "build_equipped_black_fang_cost_rows": Mock(
+                side_effect=AssertionError("ranking black fang lookup on loadout path")
+            ),
+            "build_equipped_relic_cost_rows": Mock(
+                side_effect=AssertionError("ranking relic lookup on loadout path")
+            ),
         }
         with patch.multiple(service, **mocks):
             result = service.load_character_loadout("server", "character")
@@ -240,6 +268,71 @@ class BufferSkillContextSupplyTest(unittest.TestCase):
             mocks[name].assert_called_once_with("server", "character")
         mocks["load_character_avatar"].assert_called_once_with("server", "character", loaded_baseline)
         self.assertEqual(result["bufferSkillContexts"][SWITCHING_CONTEXT_KEY]["maxReachableLevel"], 13)
+        self.assertEqual(result["settingValueInputs"]["status"], "pending")
+        self.assertEqual(result["settingValueInputs"]["blackFangRows"], [])
+
+    def test_pending_setting_value_inputs_are_completed_after_loadout(self):
+        loadout = {
+            "serverId": "server",
+            "characterId": "character",
+            "title": {"itemId": "title"},
+            "aura": {"itemId": "aura"},
+            "creature": {"itemId": "creature"},
+            "avatar": {"avatar": {"slots": [{"slotId": "JACKET"}]}},
+            "buffLoadout": {
+                "equipment": [{"slotId": "TITLE", "itemId": "buff-title"}],
+                "creature": [{"itemId": "buff-creature"}],
+            },
+            "settingValueInputs": {
+                "schemaVersion": 1,
+                "status": "pending",
+            },
+        }
+        direct_prices = {"direct": {"minUnitPrice": 100}}
+        with (
+            patch.object(
+                service,
+                "get_character_cached_payload",
+                return_value={"equipment": [{"itemId": "equipment"}]},
+            ),
+            patch.object(
+                service,
+                "build_equipped_black_fang_cost_rows",
+                return_value=[{"itemId": "black-fang"}],
+            ),
+            patch.object(
+                service,
+                "build_equipped_relic_cost_rows",
+                return_value=[{"itemId": "unique"}],
+            ),
+            patch.object(service, "collect_setting_value_direct_items", return_value=[{"itemId": "direct"}]),
+            patch.object(service, "_enrich_setting_value_direct_items", return_value=[{"itemId": "direct"}]),
+            patch.object(service, "get_lowest_auction_prices_for_items", return_value=direct_prices),
+            patch.object(
+                service,
+                "_load_setting_value_switching_title_price",
+                return_value={"itemId": "buff-title-price"},
+            ),
+            patch.object(
+                service,
+                "_load_setting_value_switching_creature_price",
+                return_value={"itemId": "buff-creature-price"},
+            ),
+            patch.object(
+                service,
+                "_build_setting_value_platinum_price_by_name",
+                return_value={"플래티넘": {"minUnitPrice": 200}},
+            ),
+        ):
+            result = service.complete_setting_value_inputs(loadout)
+
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["directPrices"], direct_prices)
+        self.assertEqual(result["buffTitlePriceCandidate"]["itemId"], "buff-title-price")
+        self.assertEqual(result["buffCreaturePriceCandidate"]["itemId"], "buff-creature-price")
+        self.assertEqual(result["platinumPriceByName"]["플래티넘"]["minUnitPrice"], 200)
+        self.assertEqual(result["blackFangRows"], [{"itemId": "black-fang"}])
+        self.assertEqual(result["uniqueEquipmentRows"], [{"itemId": "unique"}])
 
 
 class SkillRepositoryCacheTest(unittest.TestCase):

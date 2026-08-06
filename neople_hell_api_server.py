@@ -15,6 +15,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 from server.character_equipment_service import (
     build_buffer_enchant_skill_context_payload,
+    complete_setting_value_inputs,
     load_character_aura,
     load_character_avatar,
     load_character_creature,
@@ -908,12 +909,18 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                 status=HTTPStatus.CONFLICT,
             )
         try:
-            snapshot = finalize_character_setting_value(
-                loadout,
-                price_payloads["enchant"],
-                price_payloads["title"],
-                price_payloads["aura"],
-                price_payloads["creature"],
+            snapshot = self.run_heavy_api_operation(
+                parsed,
+                lambda: finalize_character_setting_value(
+                    {
+                        **loadout,
+                        "settingValueInputs": complete_setting_value_inputs(loadout),
+                    },
+                    price_payloads["enchant"],
+                    price_payloads["title"],
+                    price_payloads["aura"],
+                    price_payloads["creature"],
+                ),
             )
             setting_value = snapshot.get("settingValue") or {}
             response_snapshot = {
@@ -930,6 +937,8 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             })
         except SettingValueFinalizeUnavailable as exc:
             return self.send_json({"error": str(exc)}, status=HTTPStatus.CONFLICT)
+        except HeavyRequestRejected as exc:
+            return self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
         except Exception as exc:
             return self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
 

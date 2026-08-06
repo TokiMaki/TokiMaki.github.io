@@ -1209,38 +1209,9 @@ def load_character_enchants(
         lambda: build_relic_craft_recommendations_debug(payload.get("equipment") or [], upgrade_material_prices),
     )
     relic_craft_recommendations = relic_craft_debug.get("recommendations") or []
-    setting_value_equipment_inputs = {}
-    if include_skill_details:
-        setting_value_input_ready = True
-        try:
-            equipped_black_fang_rows = _measure_step(
-                steps,
-                "build_equipped_black_fang_cost_rows",
-                lambda: build_equipped_black_fang_cost_rows(
-                    payload.get("equipment") or [],
-                    upgrade_material_prices,
-                ),
-            )
-        except Exception:
-            equipped_black_fang_rows = []
-            setting_value_input_ready = False
-        try:
-            equipped_unique_rows = _measure_step(
-                steps,
-                "build_equipped_relic_cost_rows",
-                lambda: build_equipped_relic_cost_rows(
-                    payload.get("equipment") or [],
-                    upgrade_material_prices,
-                ),
-            )
-        except Exception:
-            equipped_unique_rows = []
-            setting_value_input_ready = False
-        setting_value_equipment_inputs = {
-            "status": "ready" if setting_value_input_ready else "incomplete",
-            "blackFangRows": equipped_black_fang_rows,
-            "uniqueEquipmentRows": equipped_unique_rows,
-        }
+    setting_value_equipment_inputs = {
+        "status": "pending",
+    } if include_skill_details else {}
     oath_upgrades = _measure_step(
         steps,
         "load_character_oath_upgrades",
@@ -3644,6 +3615,112 @@ def _enrich_setting_value_direct_items(items: list[dict]) -> list[dict]:
         for item in items or []
     ]
 
+
+def complete_setting_value_inputs(loadout: dict) -> dict:
+    inputs = loadout.get("settingValueInputs") or {}
+    status = clean_text(inputs.get("status"))
+    if int(inputs.get("schemaVersion") or 0) != 1 or status == "incomplete":
+        return inputs
+    if status == "ready":
+        return inputs
+    if status != "pending":
+        return {**inputs, "status": "incomplete"}
+
+    server_id = clean_text(loadout.get("serverId")).lower()
+    character_id = clean_text(loadout.get("characterId"))
+    title = loadout.get("title") or {}
+    aura = loadout.get("aura") or {}
+    creature = loadout.get("creature") or {}
+    buff_loadout = loadout.get("buffLoadout") or {}
+    avatar_slots = ((loadout.get("avatar") or {}).get("avatar") or {}).get("slots") or []
+    setting_value_input_ready = bool(server_id and character_id)
+
+    try:
+        equipment_payload = get_character_cached_payload(
+            server_id,
+            character_id,
+            "equipment",
+            "equip/equipment",
+        )
+        equipment_rows = equipment_payload.get("equipment") or []
+        material_prices = loadout.get("upgradeMaterialPrices") or {}
+        black_fang_rows = build_equipped_black_fang_cost_rows(
+            equipment_rows,
+            material_prices,
+        )
+        unique_equipment_rows = build_equipped_relic_cost_rows(
+            equipment_rows,
+            material_prices,
+        )
+    except Exception:
+        black_fang_rows = []
+        unique_equipment_rows = []
+        setting_value_input_ready = False
+
+    try:
+        direct_prices = get_lowest_auction_prices_for_items(
+            _enrich_setting_value_direct_items(collect_setting_value_direct_items(
+                title,
+                aura,
+                creature,
+                avatar_slots,
+                buff_loadout,
+            )),
+        )
+    except Exception:
+        direct_prices = {}
+        setting_value_input_ready = False
+
+    buff_title_row = next((
+        row for row in buff_loadout.get("equipment") or []
+        if clean_text(row.get("slotId")) == "TITLE"
+    ), {})
+    buff_creature_row = next(iter(buff_loadout.get("creature") or []), {})
+    buff_title_price = {}
+    buff_creature_price = {}
+    if buff_title_row:
+        try:
+            buff_title_price = _load_setting_value_switching_title_price(
+                server_id,
+                character_id,
+                buff_loadout,
+                loadout.get("bufferBaseline"),
+            )
+        except Exception:
+            buff_title_price = {}
+    if buff_creature_row and not _has_setting_value_direct_price(
+        buff_creature_row,
+        direct_prices,
+    ):
+        try:
+            buff_creature_price = _load_setting_value_switching_creature_price(
+                server_id,
+                character_id,
+                buff_loadout,
+                loadout.get("bufferBaseline"),
+            )
+        except Exception:
+            buff_creature_price = {}
+    try:
+        platinum_prices = _build_setting_value_platinum_price_by_name(
+            avatar_slots,
+            buff_loadout,
+        )
+    except Exception:
+        platinum_prices = {}
+        setting_value_input_ready = False
+
+    return {
+        **inputs,
+        "status": "ready" if setting_value_input_ready else "incomplete",
+        "blackFangRows": black_fang_rows,
+        "uniqueEquipmentRows": unique_equipment_rows,
+        "directPrices": direct_prices,
+        "platinumPriceByName": platinum_prices,
+        "buffTitlePriceCandidate": buff_title_price,
+        "buffCreaturePriceCandidate": buff_creature_price,
+    }
+
 def load_character_loadout(
     server_id: str,
     character_id: str,
@@ -3750,83 +3827,15 @@ def load_character_loadout(
             )
             if clean_text(damage_baseline.get("jobName")) == "다크나이트" and stat_post_multiplier > 0:
                 damage_baseline["statPostMultiplier"] = stat_post_multiplier
-        avatar_slots = ((avatar_payload.get("avatar") or {}).get("slots") or [])
-        setting_value_input_ready = clean_text(setting_value_equipment_inputs.get("status")) == "ready"
-        try:
-            setting_value_direct_prices = _measure_step(
-                steps,
-                "load_setting_value_direct_prices",
-                lambda: get_lowest_auction_prices_for_items(_enrich_setting_value_direct_items(collect_setting_value_direct_items(
-                    title_payload.get("title") or {},
-                    aura_payload.get("aura") or {},
-                    creature_payload.get("creature") or {},
-                    avatar_slots,
-                    buff_loadout,
-                ))),
-            )
-        except Exception:
-            setting_value_direct_prices = {}
-            setting_value_input_ready = False
-
-        buff_title_row = next((
-            row for row in buff_loadout.get("equipment") or []
-            if clean_text(row.get("slotId")) == "TITLE"
-        ), {})
-        buff_creature_row = next(iter(buff_loadout.get("creature") or []), {})
-        setting_value_buff_title_price = {}
-        setting_value_buff_creature_price = {}
-        if buff_title_row:
-            try:
-                setting_value_buff_title_price = _measure_step(
-                    steps,
-                    "load_setting_value_switching_title_price",
-                    lambda: _load_setting_value_switching_title_price(
-                        server_id,
-                        character_id,
-                        buff_loadout,
-                        enchant_payload.get("bufferBaseline"),
-                    ),
-                )
-            except Exception:
-                setting_value_buff_title_price = {}
-        if buff_creature_row and not _has_setting_value_direct_price(
-            buff_creature_row,
-            setting_value_direct_prices,
-        ):
-            try:
-                setting_value_buff_creature_price = _measure_step(
-                    steps,
-                    "load_setting_value_switching_creature_price",
-                    lambda: _load_setting_value_switching_creature_price(
-                        server_id,
-                        character_id,
-                        buff_loadout,
-                        enchant_payload.get("bufferBaseline"),
-                    ),
-                )
-            except Exception:
-                setting_value_buff_creature_price = {}
-        try:
-            setting_value_platinum_prices = _measure_step(
-                steps,
-                "load_setting_value_platinum_prices",
-                lambda: _build_setting_value_platinum_price_by_name(
-                    avatar_slots,
-                    buff_loadout,
-                ),
-            )
-        except Exception:
-            setting_value_platinum_prices = {}
-            setting_value_input_ready = False
         setting_value_inputs = {
             "schemaVersion": 1,
-            "status": "ready" if setting_value_input_ready else "incomplete",
+            "status": (
+                "pending"
+                if clean_text(setting_value_equipment_inputs.get("status")) in {"pending", "ready"}
+                else "incomplete"
+            ),
             "blackFangRows": setting_value_equipment_inputs.get("blackFangRows") or [],
             "uniqueEquipmentRows": setting_value_equipment_inputs.get("uniqueEquipmentRows") or [],
-            "directPrices": setting_value_direct_prices,
-            "platinumPriceByName": setting_value_platinum_prices,
-            "buffTitlePriceCandidate": setting_value_buff_title_price,
-            "buffCreaturePriceCandidate": setting_value_buff_creature_price,
         }
         return {
             "serverId": enchant_payload.get("serverId"),
