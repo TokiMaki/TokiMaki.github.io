@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import logoImage from '../../이미지/로고/logo.png';
 import equipmentScoreIcon from '../../이미지/equipmentScore.png';
 import bufferScoreIcon from '../../이미지/bufferScore.png';
@@ -13,6 +13,10 @@ import SiteLegalFooter from './SiteLegalFooter.jsx';
 import '../styles/setting-value-ranking.css';
 
 const PAGE_SIZE = 20;
+const RANKING_SINGLE_LINE_FIXED_WIDTH = 388;
+const RANKING_COMPACT_STACKED_MIN_WIDTH = 266;
+const RANKING_ROW_ZOOM_GUTTER = 2;
+const MIN_READABLE_LOADOUT_ZOOM = 0.75;
 
 const SERVER_LABELS = {
   cain: '카인',
@@ -155,6 +159,10 @@ function AccessoryIcon({ item, label }) {
 }
 
 function RankingRow({ row, role }) {
+  const rowViewportRef = useRef(null);
+  const rowRef = useRef(null);
+  const loadoutViewportRef = useRef(null);
+  const loadoutContentRef = useRef(null);
   const score = role === 'buffer' ? row.buffScore : row.equipmentScore;
   const scoreLabel = role === 'buffer' ? '버프점수' : '장비점수';
   const scoreIcon = role === 'buffer' ? bufferScoreIcon : equipmentScoreIcon;
@@ -165,8 +173,147 @@ function RankingRow({ row, role }) {
   const bufferBaseline = role === 'buffer'
     ? { isBuffer: true, statName: row.statName, jobName: row.jobName }
     : null;
+
+  useLayoutEffect(() => {
+    const rowViewport = rowViewportRef.current;
+    const rowElement = rowRef.current;
+    const viewport = loadoutViewportRef.current;
+    const content = loadoutContentRef.current;
+    const rowContainer = rowViewport?.parentElement;
+    if (!rowViewport || !rowElement || !viewport || !content || !rowContainer) return undefined;
+
+    const responsiveQuery = window.matchMedia('(max-width: 956px)');
+    const singleLineQuery = window.matchMedia('(min-width: 751px) and (max-width: 956px)');
+    let animationFrame = 0;
+
+    const setCustomProperty = (element, propertyName, value) => {
+      const nextValue = value.toFixed(4);
+      if (element.style.getPropertyValue(propertyName) !== nextValue) {
+        element.style.setProperty(propertyName, nextValue);
+      }
+    };
+
+    const clearResponsiveScale = () => {
+      rowViewport.classList.remove('is-row-zoomed');
+      rowElement.classList.remove('is-stacked-loadout');
+      rowElement.style.removeProperty('--setting-value-row-width');
+      rowElement.style.removeProperty('--setting-value-row-zoom');
+      content.style.removeProperty('--setting-value-loadout-zoom');
+    };
+
+    const updateZoom = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        if (!responsiveQuery.matches) {
+          clearResponsiveScale();
+          return;
+        }
+
+
+
+        rowViewport.classList.remove('is-row-zoomed');
+        rowElement.style.removeProperty('--setting-value-row-width');
+        rowElement.style.setProperty('--setting-value-row-zoom', '1');
+        content.style.setProperty('--setting-value-loadout-zoom', '1');
+
+        const reliableNaturalWidth = content.scrollWidth;
+        const containerWidth = rowContainer.clientWidth;
+        if (reliableNaturalWidth <= 0 || containerWidth <= 0) return;
+
+        const rowStyle = window.getComputedStyle(rowElement);
+        const rowBorderWidth = Number.parseFloat(rowStyle.borderLeftWidth || 0)
+          + Number.parseFloat(rowStyle.borderRightWidth || 0);
+        const rowViewportStyle = window.getComputedStyle(rowViewport);
+        const rowSidePadding = Number.parseFloat(
+          rowViewportStyle.getPropertyValue('--setting-value-row-side-padding'),
+        ) || 0;
+
+        let isStacked = !singleLineQuery.matches;
+        let singleLineZoom = 1;
+        if (singleLineQuery.matches) {
+          const singleLineAvailableWidth = Math.max(
+            0,
+            containerWidth - RANKING_SINGLE_LINE_FIXED_WIDTH - rowBorderWidth,
+          );
+          singleLineZoom = singleLineAvailableWidth / reliableNaturalWidth;
+          isStacked = singleLineZoom <= MIN_READABLE_LOADOUT_ZOOM;
+        }
+        rowElement.classList.toggle('is-stacked-loadout', isStacked && singleLineQuery.matches);
+
+        const viewportStyle = window.getComputedStyle(viewport);
+        const horizontalPadding = Number.parseFloat(viewportStyle.paddingLeft || 0)
+          + Number.parseFloat(viewportStyle.paddingRight || 0);
+
+        let logicalRowWidth = containerWidth;
+        let rowZoom = 1;
+        let loadoutZoom = Math.min(1, singleLineZoom);
+        if (isStacked) {
+
+
+
+          const requiredLogicalWidth = Math.ceil(Math.max(
+            RANKING_COMPACT_STACKED_MIN_WIDTH + rowBorderWidth,
+            reliableNaturalWidth * MIN_READABLE_LOADOUT_ZOOM
+              + horizontalPadding
+              + rowBorderWidth
+              + RANKING_ROW_ZOOM_GUTTER,
+          ));
+          const rowPaddingWidth = rowSidePadding * 2;
+          const shouldZoomRow = containerWidth < requiredLogicalWidth + rowPaddingWidth;
+          rowViewport.classList.toggle('is-row-zoomed', shouldZoomRow);
+          const availableRowWidth = shouldZoomRow
+            ? Math.max(0, containerWidth - rowPaddingWidth)
+            : containerWidth;
+          logicalRowWidth = Math.max(availableRowWidth, requiredLogicalWidth);
+          rowZoom = shouldZoomRow
+            ? Math.max(0, (availableRowWidth - RANKING_ROW_ZOOM_GUTTER) / logicalRowWidth)
+            : 1;
+          const logicalAvailableWidth = logicalRowWidth - horizontalPadding - rowBorderWidth;
+          loadoutZoom = shouldZoomRow
+            ? MIN_READABLE_LOADOUT_ZOOM
+            : Math.min(1, logicalAvailableWidth / reliableNaturalWidth);
+        }
+
+        if (rowZoom < 1) {
+          const nextRowWidth = `${logicalRowWidth.toFixed(2)}px`;
+          if (rowElement.style.getPropertyValue('--setting-value-row-width') !== nextRowWidth) {
+            rowElement.style.setProperty('--setting-value-row-width', nextRowWidth);
+          }
+        } else {
+          rowElement.style.removeProperty('--setting-value-row-width');
+        }
+        setCustomProperty(rowElement, '--setting-value-row-zoom', rowZoom);
+        setCustomProperty(content, '--setting-value-loadout-zoom', loadoutZoom);
+
+
+
+
+
+      });
+    };
+
+    const observer = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(updateZoom)
+      : null;
+    observer?.observe(rowContainer);
+    window.addEventListener('resize', updateZoom);
+    responsiveQuery.addEventListener?.('change', updateZoom);
+    singleLineQuery.addEventListener?.('change', updateZoom);
+    updateZoom();
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      observer?.disconnect();
+      window.removeEventListener('resize', updateZoom);
+      responsiveQuery.removeEventListener?.('change', updateZoom);
+      singleLineQuery.removeEventListener?.('change', updateZoom);
+      clearResponsiveScale();
+    };
+  }, [row.equipment?.length, row.oath?.length]);
+
   return (
-    <article className={`setting-value-row is-rank-${row.rank}`}>
+    <div className={'setting-value-row-viewport'} ref={rowViewportRef}>
+      <article className={`setting-value-row is-rank-${row.rank}`} ref={rowRef}>
       <div className={'setting-value-rank'}>{row.rank}</div>
       <a
         className={'setting-value-character'}
@@ -194,32 +341,35 @@ function RankingRow({ row, role }) {
           <strong>{formatSettingValue(row.settingValue?.totalGold)}</strong>
         </div>
       </div>
-      <div className={'setting-value-loadout'}>
-        <div className={'setting-value-accessory-stack'} aria-label={'오라, 칭호, 크리쳐'}>
-          <AccessoryIcon item={row.aura} label={'오라'} />
-          <AccessoryIcon item={row.title} label={'칭호'} />
-          <AccessoryIcon item={row.creature} label={'크리쳐'} />
-        </div>
-        <div className={'setting-value-loadout-strips'}>
-          <div className={'setting-value-loadout-line'}>
-            <div className={'setting-value-equipment-strip'} aria-label={'장비'}>
-              {(row.equipment || []).map((equipment) => (
-                <EquipmentIcon
-                  equipment={equipment}
-                  bufferBaseline={bufferBaseline}
-                  key={equipment.slotId || equipment.slot}
-                />
-              ))}
-            </div>
+      <div className={'setting-value-loadout'} ref={loadoutViewportRef}>
+        <div className={'setting-value-loadout-content'} ref={loadoutContentRef}>
+          <div className={'setting-value-accessory-stack'} aria-label={'오라, 칭호, 크리쳐'}>
+            <AccessoryIcon item={row.aura} label={'오라'} />
+            <AccessoryIcon item={row.title} label={'칭호'} />
+            <AccessoryIcon item={row.creature} label={'크리쳐'} />
           </div>
-          <div className={'setting-value-loadout-line'}>
-            <div className={'setting-value-oath-strip'} aria-label={'서약'}>
-              {(row.oath || []).map((oath, index) => <OathIcon oath={oath} index={index} key={`${oath.itemId || oath.itemName}-${index}`} />)}
+          <div className={'setting-value-loadout-strips'}>
+            <div className={'setting-value-loadout-line'}>
+              <div className={'setting-value-equipment-strip'} aria-label={'장비'}>
+                {(row.equipment || []).map((equipment) => (
+                  <EquipmentIcon
+                    equipment={equipment}
+                    bufferBaseline={bufferBaseline}
+                    key={equipment.slotId || equipment.slot}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className={'setting-value-loadout-line'}>
+              <div className={'setting-value-oath-strip'} aria-label={'서약'}>
+                {(row.oath || []).map((oath, index) => <OathIcon oath={oath} index={index} key={`${oath.itemId || oath.itemName}-${index}`} />)}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </article>
+      </article>
+    </div>
   );
 }
 
@@ -325,21 +475,21 @@ export default function SettingValueRankingPage() {
         ) : null}
 
         <section className={'panel setting-value-filter-panel'} aria-label={'랭킹 필터'}>
-          <div className={'setting-value-filter-group'}>
+          <div className={'setting-value-filter-group setting-value-filter-role'}>
             <span>역할</span>
             <div className={'setting-value-role-buttons'}>
               <button type={'button'} className={role === 'dealer' ? 'is-active' : ''} onClick={() => { setRole('dealer'); setJob('all'); setPage(1); }}>딜러</button>
               <button type={'button'} className={role === 'buffer' ? 'is-active' : ''} onClick={() => { setRole('buffer'); setJob('all'); setPage(1); }}>버퍼</button>
             </div>
           </div>
-          <label className={'setting-value-filter-group'}>
+          <label className={'setting-value-filter-group setting-value-filter-job'}>
             <span>직업</span>
             <select value={job} onChange={(event) => { setJob(event.target.value); setPage(1); }}>
               <option value={'all'}>전체 직업</option>
               {jobs.map((jobName) => <option value={jobName} key={jobName}>{jobName}</option>)}
             </select>
           </label>
-          <label className={'setting-value-filter-group'}>
+          <label className={'setting-value-filter-group setting-value-filter-sort'}>
             <span>정렬</span>
             <select value={sort} onChange={(event) => { setSort(event.target.value); setPage(1); }}>
               <option value={'score'}>{role === 'buffer' ? '버프점수' : '장비점수'} 순</option>
