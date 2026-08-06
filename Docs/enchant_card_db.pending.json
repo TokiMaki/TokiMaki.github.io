@@ -78,6 +78,7 @@
   ],
   "materialEnchantItems": [
     {
+      "itemId": "fe887adb31c2c7ca3b3972e9426f1dcf",
       "searchName": "미카엘라 딜러 하의 보주(최종 데미지 1%)",
       "slotName": "하의",
       "acquisition": {
@@ -85,12 +86,14 @@
         "label": "미카엘라 재료 구매",
         "materialSearchName": "여명의 빛망울",
         "materialLabel": "빛망울",
+        "materialIconUrl": "/asset/enchant/dawnLightOrb.png",
         "amount": 240
       }
     }
   ],
   "bufferMaterialEnchantItems": [
     {
+      "itemId": "1ef632e78b3e16a6993419dd94605549",
       "searchName": "미카엘라 버퍼 하의 보주(힘, 지능, 체력, 정신력 +120, 버퍼 전직 패시브 스킬 Lv +3)",
       "slotName": "하의",
       "acquisition": {
@@ -98,6 +101,7 @@
         "label": "미카엘라 재료 구매",
         "materialSearchName": "여명의 빛망울",
         "materialLabel": "빛망울",
+        "materialIconUrl": "/asset/enchant/dawnLightOrb.png",
         "amount": 240
       }
     }
