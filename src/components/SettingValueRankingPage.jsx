@@ -59,7 +59,7 @@ function CharacterFace({ row }) {
 function EquipmentIcon({ equipment, bufferBaseline }) {
   const displayTuneLevel = Math.max(0, Math.min(3, Number(equipment.tuneLevel || 0)));
   const upgradeVisualClass = getEquipmentUpgradeVisualClass(equipment);
-  const highlightClass = `${equipment.isRelic ? ' is-relic' : ''}${upgradeVisualClass ? ` ${upgradeVisualClass}` : ''}`;
+  const highlightClass = `${equipment.isRelic ? ' is-relic' : ''}${equipment.isRelic && Number(equipment.precisionPercent) >= 100 ? ' is-relic-precision-max' : ''}${upgradeVisualClass ? ` ${upgradeVisualClass}` : ''}`;
   const rarityClass = getLoadoutRarityClass(equipment.itemRarity);
   const iconUrl = equipment.iconUrl || itemIconUrl(equipment.itemId);
   const enchant = equipment.enchant || null;

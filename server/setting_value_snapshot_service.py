@@ -65,6 +65,7 @@ def _build_equipment_snapshot(loadout: dict, enchant_detail_by_slot: dict | None
             "iconUrl": clean_text(row.get("iconUrl")),
             "reinforce": _int_value(row.get("reinforce")),
             "isAmplified": bool(row.get("isAmplified")),
+            "precisionPercent": _int_value(row.get("precisionPercent")),
             "tuneLevel": _int_value(row.get("tuneLevel")),
             "hasEnchant": bool(enchant),
             "enchant": {

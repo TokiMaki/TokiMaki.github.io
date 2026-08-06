@@ -29,6 +29,31 @@ assert.equal(
   true,
   'end-tier enchants must keep the gold ranking badge class',
 );
+assert.equal(
+  rankingSource.includes("equipment.isRelic && Number(equipment.precisionPercent) >= 100 ? ' is-relic-precision-max' : ''"),
+  true,
+  'ranking relic sheen must only activate at 100 percent precision',
+);
+
+const rankingCss = readFileSync(
+  new URL('../src/styles/setting-value-ranking.css', import.meta.url),
+  'utf8',
+);
+assert.equal(
+  rankingCss.includes('.setting-value-equipment-item.is-relic.is-relic-precision-max .enchant-character-slot::before'),
+  true,
+  'ranking internal relic sheen must require maximum precision',
+);
+assert.equal(
+  rankingCss.includes('will-change: background-position, opacity'),
+  true,
+  'ranking relic sheen must hint the animated paint properties',
+);
+assert.equal(
+  rankingCss.includes('90% { opacity: 1; }'),
+  true,
+  'ranking relic sheen must fade out before its loop resets',
+);
 
 const loadoutSource = readFileSync(
   new URL('../src/dnfHellTool/enchantEquipmentLoadoutBoard.js', import.meta.url),
@@ -43,6 +68,56 @@ assert.equal(
   loadoutSource.includes("${data.isEndEnchant ? ' is-end' : ''}${data.isSimulatedEnchant ? ' is-simulated' : ''}"),
   true,
   'simulated end enchants must render both classes so simulation styling can win',
+);
+assert.equal(
+  loadoutSource.includes('isRelic: Boolean(equipment.isRelic)'),
+  true,
+  'the upgrade-order loadout must retain the server-provided relic state',
+);
+assert.equal(
+  loadoutSource.includes('equipment.isRelic && Number(equipment.precisionPercent) >= 100'),
+  true,
+  'the internal relic sheen must only activate at 100 percent precision',
+);
+assert.equal(
+  loadoutSource.includes("${data?.isMaxRelicPrecision ? ' is-relic-precision-max' : ''}"),
+  true,
+  'maximum-precision relic equipment must render the dedicated sheen class',
+);
+assert.equal(
+  loadoutSource.includes("${data?.isRelic ? ' is-relic' : ''}"),
+  true,
+  'relic equipment must render the shared relic visual class',
+);
+
+const relicCss = readFileSync(
+  new URL('../src/styles/equipment-relic-visual.css', import.meta.url),
+  'utf8',
+);
+assert.equal(
+  relicCss.includes('.enchant-character-slot-wrap.equipment-loadout-item.is-relic::after'),
+  true,
+  'the upgrade-order loadout must use the full prismatic relic frame',
+);
+assert.equal(
+  relicCss.includes('.enchant-character-slot-wrap.equipment-loadout-item.is-relic::before'),
+  true,
+  'relic corner facets must use the wrapper layer so simulator sweep remains visible',
+);
+assert.equal(
+  relicCss.includes('.is-relic.is-relic-precision-max .enchant-character-slot::before'),
+  true,
+  'the moving internal sheen must require maximum relic precision',
+);
+assert.equal(
+  relicCss.includes('will-change: background-position, opacity'),
+  true,
+  'loadout relic sheen must hint the animated paint properties',
+);
+assert.equal(
+  relicCss.includes('90% { opacity: 1; }'),
+  true,
+  'loadout relic sheen must fade out before its loop resets',
 );
 
 const supplyCss = readFileSync(

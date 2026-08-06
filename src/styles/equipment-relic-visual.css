@@ -1,0 +1,108 @@
+@property --equipment-relic-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.enchant-character-slot-wrap.equipment-loadout-item.is-relic::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  box-sizing: border-box;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--equipment-relic-angle),
+    rgb(224 255 252 / 0.98),
+    rgb(45 212 191 / 0.98) 18%,
+    rgb(56 189 248 / 0.98) 38%,
+    rgb(167 139 250 / 0.98) 60%,
+    rgb(244 114 182 / 0.9) 80%,
+    rgb(224 255 252 / 0.98)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: equipment-relic-prismatic-frame 6.4s linear infinite;
+  pointer-events: none;
+}
+
+.enchant-character-slot-wrap.equipment-loadout-item.is-relic .enchant-character-slot {
+  animation: equipment-relic-glow 7.2s ease-in-out infinite;
+}
+
+.enchant-character-slot-wrap.equipment-loadout-item.is-relic.is-relic-precision-max .enchant-character-slot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(118deg, transparent 0 28%, rgb(255 255 255 / 0.3) 42%, rgb(126 249 234 / 0.18) 50%, transparent 64%),
+    linear-gradient(118deg, transparent 0 50%, rgb(167 139 250 / 0.18) 60%, transparent 72%);
+  background-size: 260% 100%, 320% 100%;
+  opacity: 0;
+  animation: equipment-relic-inner-sheen 4.6s linear infinite;
+  will-change: background-position, opacity;
+  pointer-events: none;
+}
+
+.enchant-character-slot-wrap.equipment-loadout-item.is-relic::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  background:
+    linear-gradient(90deg, rgb(224 255 252 / 0.92) 0 7px, transparent 7px) top left / 8px 1px no-repeat,
+    linear-gradient(180deg, rgb(224 255 252 / 0.92) 0 7px, transparent 7px) top left / 1px 8px no-repeat,
+    linear-gradient(270deg, rgb(244 114 182 / 0.78) 0 7px, transparent 7px) bottom right / 8px 1px no-repeat,
+    linear-gradient(0deg, rgb(167 139 250 / 0.86) 0 7px, transparent 7px) bottom right / 1px 8px no-repeat;
+  animation: equipment-relic-facets 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes equipment-relic-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 1px rgb(6 17 23 / 0.88),
+      inset 0 0 8px rgb(45 212 191 / 0.09);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgb(8 28 35 / 0.82),
+      inset 0 0 13px rgb(129 140 248 / 0.16);
+  }
+}
+
+@keyframes equipment-relic-prismatic-frame {
+  from { --equipment-relic-angle: 0deg; }
+  to { --equipment-relic-angle: 360deg; }
+}
+
+@keyframes equipment-relic-inner-sheen {
+  0% {
+    background-position: 120% 50%, 140% 50%;
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% {
+    background-position: -160% 50%, -180% 50%;
+    opacity: 0;
+  }
+}
+
+@keyframes equipment-relic-facets {
+  0%, 100% { opacity: 0.62; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enchant-character-slot-wrap.equipment-loadout-item.is-relic::after,
+  .enchant-character-slot-wrap.equipment-loadout-item.is-relic::before,
+  .enchant-character-slot-wrap.equipment-loadout-item.is-relic .enchant-character-slot,
+  .enchant-character-slot-wrap.equipment-loadout-item.is-relic.is-relic-precision-max .enchant-character-slot::before {
+    animation: none;
+  }
+}

@@ -537,8 +537,16 @@
 }
 
 @keyframes setting-value-relic-inner-sheen {
-  0% { background-position: 120% 50%, 140% 50%; }
-  100% { background-position: -160% 50%, -180% 50%; }
+  0% {
+    background-position: 120% 50%, 140% 50%;
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% {
+    background-position: -160% 50%, -180% 50%;
+    opacity: 0;
+  }
 }
 
 @keyframes setting-value-relic-facets {
@@ -546,7 +554,7 @@
   50% { opacity: 1; }
 }
 
-.setting-value-equipment-item.is-relic .enchant-character-slot::before {
+.setting-value-equipment-item.is-relic.is-relic-precision-max .enchant-character-slot::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -555,7 +563,9 @@
     linear-gradient(118deg, transparent 0 28%, rgb(255 255 255 / 0.3) 42%, rgb(126 249 234 / 0.18) 50%, transparent 64%),
     linear-gradient(118deg, transparent 0 50%, rgb(167 139 250 / 0.18) 60%, transparent 72%);
   background-size: 260% 100%, 320% 100%;
+  opacity: 0;
   animation: setting-value-relic-inner-sheen 4.6s linear infinite;
+  will-change: background-position, opacity;
   pointer-events: none;
 }
 
@@ -775,7 +785,7 @@
   .setting-value-equipment-item.is-high-reinforcement .enchant-character-slot-badge-reinforce,
   .setting-value-equipment-item.is-relic::after,
   .setting-value-equipment-item.is-relic .enchant-character-slot,
-  .setting-value-equipment-item.is-relic .enchant-character-slot::before,
+  .setting-value-equipment-item.is-relic.is-relic-precision-max .enchant-character-slot::before,
   .setting-value-equipment-item.is-relic .enchant-character-slot::after {
     animation: none;
   }

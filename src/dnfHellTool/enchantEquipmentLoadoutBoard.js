@@ -282,6 +282,10 @@ export function createEnchantEquipmentLoadoutBoard(deps) {
           iconUrl: equipment.iconUrl || '',
           itemName: equipment.itemName || slot,
           itemRarity: equipment.itemRarity || '',
+          isRelic: Boolean(equipment.isRelic),
+          isMaxRelicPrecision: Boolean(
+            equipment.isRelic && Number(equipment.precisionPercent) >= 100
+          ),
           enchantBadge,
           isEndEnchant: Boolean(enchant.isEnd || enchant.tier === '종결'),
           isSimulatedEnchant: Boolean(enchant.simulatedEnchantItemName),
@@ -438,7 +442,7 @@ export function createEnchantEquipmentLoadoutBoard(deps) {
     const isEquipmentSlot = slotOrder.includes(slot);
     const sweepStyle = hasActiveSweep ? ` style="--simulator-sweep-delay: -${Math.floor(sweepElapsedMs)}ms"` : '';
     return `
-      <span class="enchant-character-slot-wrap${isEquipmentSlot ? ' equipment-loadout-item' : ''} enchant-character-slot-wrap-${escapeHtml(key)} enchant-character-slot-wrap-${escapeHtml(side)}${data?.upgradeVisualClass ? ` equipment-upgrade-visual ${escapeHtml(data.upgradeVisualClass)}` : ''}${hasActiveSweep ? ' is-simulator-sweep' : ''}"${sweepStyle}>
+      <span class="enchant-character-slot-wrap${isEquipmentSlot ? ' equipment-loadout-item' : ''}${data?.isRelic ? ' is-relic' : ''}${data?.isMaxRelicPrecision ? ' is-relic-precision-max' : ''} enchant-character-slot-wrap-${escapeHtml(key)} enchant-character-slot-wrap-${escapeHtml(side)}${data?.upgradeVisualClass ? ` equipment-upgrade-visual ${escapeHtml(data.upgradeVisualClass)}` : ''}${hasActiveSweep ? ' is-simulator-sweep' : ''}"${sweepStyle}>
         <span class="enchant-character-slot${isEmpty ? ' is-empty' : ''}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}" tabindex="0" aria-label="${escapeHtml(title)}" data-detail-title="${escapeHtml(title)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
           ${data?.iconUrl
             ? `<img src="${escapeHtml(data.iconUrl)}" alt="" loading="lazy" decoding="async" />`

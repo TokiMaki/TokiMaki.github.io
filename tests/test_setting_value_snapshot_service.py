@@ -60,6 +60,7 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
                 "itemRarity": "에픽",
                 "reinforce": 13,
                 "isAmplified": False,
+                "precisionPercent": 100,
                 "tuneLevel": 1,
             }],
             "oathUpgrades": {
@@ -81,7 +82,7 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
                 "schemaVersion": 1,
                 "status": "ready",
                 "blackFangRows": [],
-                "uniqueEquipmentRows": [],
+                "uniqueEquipmentRows": [{"itemId": "weapon"}],
                 "directPrices": {},
                 "platinumPriceByName": {},
             },
@@ -133,6 +134,8 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
         self.assertEqual(result["settingValue"]["totalGold"], 123)
         self.assertEqual(result["settingValue"]["details"][0]["items"][0]["gold"], 123)
         self.assertEqual(result["equipment"][0]["reinforce"], 13)
+        self.assertTrue(result["equipment"][0]["isRelic"])
+        self.assertEqual(result["equipment"][0]["precisionPercent"], 100)
         self.assertEqual(result["statName"], "힘")
         self.assertEqual(result["equipment"][0]["enchant"]["effects"]["finalDamage"], 3)
         self.assertEqual(result["equipment"][0]["enchant"]["tier"], "종결")

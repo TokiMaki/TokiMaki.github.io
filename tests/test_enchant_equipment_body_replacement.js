@@ -81,6 +81,7 @@ const applied = replaceEquipmentBodyPreservingState(base, perfume);
 assert.equal(applied.itemId, perfume.itemId);
 assert.deepEqual(applied.bodyEffects, perfume.effects);
 assert.equal(applied.precisionPercent, 100);
+assert.equal(applied.isRelic, true);
 assert.equal(applied.precisionAdventureFame, 1000);
 assert.equal(applied.tuneSetPoint, 145);
 assert.equal(applied.tuneLevel, 0);

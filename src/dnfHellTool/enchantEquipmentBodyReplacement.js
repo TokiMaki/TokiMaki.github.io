@@ -65,6 +65,14 @@ export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targe
   nextEquipment.itemName = targetBody.itemName || nextEquipment.itemName || '';
   nextEquipment.iconUrl = targetBody.iconUrl || '';
   nextEquipment.itemRarity = targetBody.itemRarity || nextEquipment.itemRarity || '';
+  if (
+    targetBody.sourceType === 'relicCraft'
+    || Number.isFinite(Number(targetBody.precisionPercent))
+  ) {
+    nextEquipment.isRelic = true;
+  } else if (typeof targetBody.isRelic === 'boolean') {
+    nextEquipment.isRelic = targetBody.isRelic;
+  }
   nextEquipment.bodyEffects = cloneValue(targetBody.effects || {});
   nextEquipment.conditionalEffects = cloneValue(targetBody.conditionalEffects || {});
   if (Number.isFinite(Number(targetBody.precisionPercent))) {
