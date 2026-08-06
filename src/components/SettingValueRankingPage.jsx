@@ -377,6 +377,7 @@ function RankingRow({ row, role, showPercentile = false }) {
 }
 
 export default function SettingValueRankingPage() {
+  const selectedRoleInitializedRef = useRef(false);
   const selectedCharacter = useMemo(() => {
     const query = new URLSearchParams(window.location.search);
     return {
@@ -431,10 +432,13 @@ export default function SettingValueRankingPage() {
           page: Number(payload.page || 1),
           totalPages: Number(payload.totalPages || 0),
         });
-        if (payload.selectedRow?.role && payload.selectedRow.role !== role) {
-          setRole(payload.selectedRow.role);
-          setPage(1);
-          return;
+        if (!selectedRoleInitializedRef.current) {
+          selectedRoleInitializedRef.current = true;
+          if (payload.selectedRow?.role && payload.selectedRow.role !== role) {
+            setRole(payload.selectedRow.role);
+            setPage(1);
+            return;
+          }
         }
         setStatus('ready');
       })
@@ -453,6 +457,13 @@ export default function SettingValueRankingPage() {
     const end = Math.min(totalPages, start + 4);
     return Array.from({ length: end - start + 1 }, (_, index) => start + index);
   }, [pagination.page, pagination.totalPages]);
+
+  const selectRole = (nextRole) => {
+    selectedRoleInitializedRef.current = true;
+    setRole(nextRole);
+    setJob('all');
+    setPage(1);
+  };
 
   return (
     <div className={'wrap setting-value-page'}>
@@ -480,8 +491,8 @@ export default function SettingValueRankingPage() {
           <div className={'setting-value-filter-group setting-value-filter-role'}>
             <span>역할</span>
             <div className={'setting-value-role-buttons'}>
-              <button type={'button'} className={role === 'dealer' ? 'is-active' : ''} onClick={() => { setRole('dealer'); setJob('all'); setPage(1); }}>딜러</button>
-              <button type={'button'} className={role === 'buffer' ? 'is-active' : ''} onClick={() => { setRole('buffer'); setJob('all'); setPage(1); }}>버퍼</button>
+              <button type={'button'} className={role === 'dealer' ? 'is-active' : ''} onClick={() => selectRole('dealer')}>딜러</button>
+              <button type={'button'} className={role === 'buffer' ? 'is-active' : ''} onClick={() => selectRole('buffer')}>버퍼</button>
             </div>
           </div>
           <label className={'setting-value-filter-group setting-value-filter-job'}>

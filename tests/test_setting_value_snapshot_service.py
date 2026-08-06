@@ -5,6 +5,29 @@ from server import setting_value_snapshot_service as service
 
 
 class SettingValueSnapshotServiceTest(unittest.TestCase):
+    def test_ranking_falls_back_to_overall_rank_when_selected_character_is_outside_job_filter(self):
+        overall_row = {"characterId": "character-1", "rank": 3, "rankingTotalCount": 20}
+        with (
+            patch.object(service, "load_setting_value_ranking_page", return_value={"rows": []}),
+            patch.object(
+                service,
+                "load_setting_value_character_rank",
+                side_effect=[None, overall_row],
+            ) as load_rank,
+        ):
+            result = service.get_setting_value_ranking(
+                role="dealer",
+                sort="score",
+                job="眞 소울브링어",
+                server_id="cain",
+                character_id="character-1",
+            )
+
+        self.assertEqual(result["selectedRow"], overall_row)
+        self.assertEqual(load_rank.call_count, 2)
+        self.assertEqual(load_rank.call_args_list[0].args[-1], "眞 소울브링어")
+        self.assertEqual(len(load_rank.call_args_list[1].args), 4)
+
     def test_incomplete_loadout_is_not_saved(self):
         with patch.object(service, "save_setting_value_snapshot") as save_snapshot:
             with self.assertRaises(service.SettingValueFinalizeUnavailable):

@@ -72,6 +72,29 @@ class SettingValueRepositoryTest(unittest.TestCase):
         self.assertEqual(selected["rank"], 2)
         self.assertEqual(selected["rankingTotalCount"], 2)
 
+    def test_selected_character_rank_uses_job_filter_population(self):
+        repository.save_setting_value_snapshot(self.snapshot("first", 500))
+        repository.save_setting_value_snapshot(self.snapshot("second", 300))
+        other_job = self.snapshot("other", 700)
+        other_job["jobGrowName"] = "眞 소울브링어"
+        repository.save_setting_value_snapshot(other_job)
+
+        selected = repository.load_setting_value_character_rank(
+            "cain",
+            "second",
+            sort="value",
+            job="眞 웨펀마스터",
+        )
+
+        self.assertEqual(selected["rank"], 2)
+        self.assertEqual(selected["rankingTotalCount"], 2)
+        self.assertIsNone(repository.load_setting_value_character_rank(
+            "cain",
+            "second",
+            sort="value",
+            job="眞 소울브링어",
+        ))
+
 
 if __name__ == "__main__":
     unittest.main()

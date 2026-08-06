@@ -230,14 +230,23 @@ def get_setting_value_ranking(
         page_size if page_size is not None else limit,
         job,
     )
-    return {
-        "role": normalized_role,
-        "sort": normalized_sort,
-        **ranking,
-        "selectedRow": load_setting_value_character_rank(
+    selected_row = load_setting_value_character_rank(
+        server_id,
+        character_id,
+        character_name,
+        normalized_sort,
+        job,
+    )
+    if selected_row is None and clean_text(job):
+        selected_row = load_setting_value_character_rank(
             server_id,
             character_id,
             character_name,
             normalized_sort,
-        ),
+        )
+    return {
+        "role": normalized_role,
+        "sort": normalized_sort,
+        **ranking,
+        "selectedRow": selected_row,
     }

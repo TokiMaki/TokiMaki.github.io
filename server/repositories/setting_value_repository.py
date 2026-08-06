@@ -240,10 +240,12 @@ def load_setting_value_character_rank(
     character_id: str = "",
     character_name: str = "",
     sort: str = "value",
+    job: str = "",
 ) -> dict | None:
     server_id = clean_text(server_id).lower()
     character_id = clean_text(character_id)
     character_name = clean_text(character_name)
+    job = clean_text(job)
     if not server_id or (not character_id and not character_name):
         return None
     order_sql = _get_ranking_order_sql(clean_text(sort).lower())
@@ -265,6 +267,11 @@ def load_setting_value_character_rank(
             if not selected:
                 return None
             selected_role, selected_character_id = selected
+            ranking_where_sql = "role = ?"
+            ranking_params = [selected_role]
+            if job:
+                ranking_where_sql += " AND COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), '') = ?"
+                ranking_params.append(job)
             row = conn.execute(
                 f"""
                 WITH ranked AS (
@@ -275,14 +282,14 @@ def load_setting_value_character_rank(
                         ROW_NUMBER() OVER (ORDER BY {order_sql}) AS rank,
                         COUNT(*) OVER () AS ranking_total_count
                     FROM setting_value_snapshot
-                    WHERE role = ?
+                    WHERE {ranking_where_sql}
                 )
                 SELECT payload_json, rank, ranking_total_count
                 FROM ranked
                 WHERE server_id = ? AND character_id = ?
                 LIMIT 1
                 """,
-                (selected_role, server_id, selected_character_id),
+                (*ranking_params, server_id, selected_character_id),
             ).fetchone()
     except Exception:
         return None

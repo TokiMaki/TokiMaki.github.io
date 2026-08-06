@@ -3775,10 +3775,7 @@ def load_character_loadout(
         buff_creature_row = next(iter(buff_loadout.get("creature") or []), {})
         setting_value_buff_title_price = {}
         setting_value_buff_creature_price = {}
-        if buff_title_row and not _has_setting_value_direct_price(
-            buff_title_row,
-            setting_value_direct_prices,
-        ):
+        if buff_title_row:
             try:
                 setting_value_buff_title_price = _measure_step(
                     steps,

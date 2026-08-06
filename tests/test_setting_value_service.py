@@ -520,7 +520,9 @@ class SettingValueServiceTest(unittest.TestCase):
             material_prices={},
             black_fang_rows=[],
             unique_equipment_rows=[],
-            direct_prices={},
+            direct_prices={
+                "untradable-switch-title": auction(10),
+            },
             enchant_catalog={},
             title_catalog={},
             aura_catalog={},
@@ -545,6 +547,41 @@ class SettingValueServiceTest(unittest.TestCase):
         self.assertEqual([row["gold"] for row in details["buffEnhancement"]], [70, 30])
         self.assertEqual(details["buffEnhancement"][0]["priceItemName"], "모험가의 의지[어둠]")
         self.assertEqual(details["buffEnhancement"][1]["priceItemName"], "2026 쁘띠 바이킹 알")
+
+    def test_buff_title_does_not_fallback_to_the_unenchanted_body_price(self):
+        result = setting_value_service.build_character_setting_value(
+            enchant_rows=[],
+            equipment_upgrades=[],
+            title={"itemId": "main-title"},
+            aura={},
+            creature={},
+            avatar_slots=[],
+            buff_loadout={
+                "equipment": [{
+                    "slotId": "TITLE",
+                    "slotName": "칭호",
+                    "itemId": "switch-title",
+                    "itemName": "버프강화 칭호",
+                    "buffContribution": {"skillLevel": 3},
+                }],
+            },
+            upgrade_expected_db={},
+            material_prices={},
+            black_fang_rows=[],
+            unique_equipment_rows=[],
+            direct_prices={"switch-title": auction(10)},
+            enchant_catalog={},
+            title_catalog={},
+            aura_catalog={},
+            creature_catalog={},
+            buff_title_price_candidate={},
+        )
+
+        breakdown = {row["key"]: row["gold"] for row in result["breakdown"]}
+        details = {row["key"]: row["items"] for row in result["details"]}
+        self.assertEqual(breakdown["buffEnhancement"], 0)
+        self.assertIsNone(details["buffEnhancement"][0]["gold"])
+        self.assertEqual(details["buffEnhancement"][0]["priceStatus"], "unpriced")
 
     def test_collect_direct_item_ids_uses_only_current_setting_items(self):
         result = setting_value_service.collect_setting_value_direct_item_ids(

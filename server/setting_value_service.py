@@ -803,11 +803,7 @@ def _get_buff_enhancement_details(
             if not item_id or item_id == main_title_id:
                 continue
             candidate = buff_title_price_candidate or {}
-            preferred = get_priced_row_gold(candidate)
-            if preferred is None:
-                candidate, preferred = _get_title_candidate_match(equipment, title_candidates)
-            direct_fallback = preferred is None
-            price = _get_item_gold_with_fallback(equipment, preferred, direct_prices)
+            price = get_priced_row_gold(candidate)
             details.append(_build_equivalent_item_detail(
                 equipment,
                 candidate,
@@ -815,7 +811,7 @@ def _get_buff_enhancement_details(
                 label="버프강화 칭호",
                 slot="버프강화 칭호",
                 kind="buffTitle",
-                direct_fallback=direct_fallback,
+                direct_fallback=False,
             ))
             continue
         if not (equipment.get("buffContribution") or {}).get("isDenseFragment"):

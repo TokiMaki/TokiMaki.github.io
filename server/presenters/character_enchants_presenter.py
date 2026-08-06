@@ -47,19 +47,18 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     tune_level = max([int(parse_percent_or_number(tune.get("level"))) for tune in tune_rows] or [0])
     tune_set_point = get_equipment_tune_set_point(equipment)
     tune_upgradeable = any(tune.get("upgrade") is not False for tune in tune_rows)
-    is_unique_equipment = (
-        item_id in _get_relic_equipment_item_ids()
-        or re.match(r"^고유\s*[:\-]", item_name) is not None
-    )
+    is_relic_equipment = item_id in _get_relic_equipment_item_ids()
+    is_named_unique_equipment = re.match(r"^고유\s*[:\-]", item_name) is not None
     precision_percent = (
         resolve_relic_precision_percent(equipment.get("potency"))
-        if is_unique_equipment
+        if is_relic_equipment
         else None
     )
     is_tune_target = (
         slot_name in EQUIPMENT_TUNE_SLOT_NAMES
         and item_rarity in {"에픽", "레전더리"}
-        and not is_unique_equipment
+        and not is_relic_equipment
+        and not is_named_unique_equipment
     )
     tune_remaining = max(0, 3 - tune_level) if is_tune_target and tune_upgradeable else 0
     return {
@@ -73,7 +72,7 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
         "refine": refine,
         "amplificationName": amplification_name,
         "isAmplified": bool(amplification_name),
-        "isRelic": is_unique_equipment,
+        "isRelic": is_relic_equipment,
         "precisionPercent": precision_percent,
         "tuneLevel": tune_level,
         "tuneSetPoint": tune_set_point,

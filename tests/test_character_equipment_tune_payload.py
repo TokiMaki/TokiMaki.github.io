@@ -74,7 +74,7 @@ class EquipmentTunePayloadTest(unittest.TestCase):
                 self.assertEqual(payload["tuneRemaining"], 3)
                 self.assertEqual(payload["tuneSetPoint"], 215)
 
-    def test_unique_equipment_is_marked_as_relic(self):
+    def test_named_unique_equipment_is_not_treated_as_relic_craft_equipment(self):
         payload = build_equipment_upgrade_payload({
             "slotName": "상의",
             "slotId": "JACKET",
@@ -84,8 +84,9 @@ class EquipmentTunePayloadTest(unittest.TestCase):
             "tune": [{"level": 0, "setPoint": 215, "upgrade": True}],
         })
 
-        self.assertTrue(payload["isRelic"])
+        self.assertFalse(payload["isRelic"])
         self.assertFalse(payload["tuneUpgradeable"])
+        self.assertEqual(payload["tuneRemaining"], 0)
 
     def test_primeval_set_point_is_preserved_without_tune_eligibility(self):
         payload = build_equipment_upgrade_payload({
