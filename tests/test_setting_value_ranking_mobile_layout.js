@@ -21,12 +21,13 @@ assert.match(
 );
 assert.match(
   styles,
-  /grid-template-columns: 34px minmax\(110px, 132px\) minmax\(122px, 1fr\)/,
+  /grid-template-columns: 34px minmax\(132px, 160px\) minmax\(100px, 1fr\)/,
 );
 assert.match(styles, /\.setting-value-loadout-content\s*\{[^}]*zoom: var\(--setting-value-loadout-zoom, 1\)/s);
 assert.match(styles, /\.setting-value-gold strong\s*\{[^}]*white-space: normal/s);
 assert.match(styles, /\.setting-value-row\s*\{[^}]*min-width: 0/s);
 assert.match(styles, /\.setting-value-ranking-list\s*\{[^}]*overflow-x: visible/s);
+assert.match(styles, /\.setting-value-character-copy strong\s*\{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s);
 assert.match(source, /window\.matchMedia\('\(max-width: 956px\)'\)/);
 assert.match(source, /const RANKING_COMPACT_STACKED_MIN_WIDTH = 266/);
 assert.match(source, /const RANKING_ROW_ZOOM_GUTTER = 2/);
@@ -48,7 +49,7 @@ assert.match(styles, /@media \(max-width: 750px\)/);
 assert.match(styles, /@media \(min-width: 751px\) and \(max-width: 956px\)/);
 assert.match(
   styles,
-  /grid-template-columns: 44px 150px 166px minmax\(0, 1fr\)/,
+  /grid-template-columns: 44px 190px 166px minmax\(0, 1fr\)/,
 );
 assert.match(styles, /grid-template-areas: 'rank character metrics loadout'/);
 assert.match(

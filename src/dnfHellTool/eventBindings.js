@@ -466,7 +466,7 @@ if (els.enchantCandidatePanel) {
     const serverId = String(card.dataset.candidateServerId || '').trim().toLowerCase();
     const characterName = String(card.dataset.candidateCharacterName || '').trim();
     if (!serverId || !characterName) return;
-    runEnchantSearch({ serverId, characterName, preserveInputs: true });
+    runEnchantSearch({ serverId, characterName, preserveInputs: true, saveRecent: false });
   });
 }
 if (els.enchantCharacterNameInput) {

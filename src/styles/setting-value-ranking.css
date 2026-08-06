@@ -84,7 +84,7 @@
 
 .setting-value-row {
   display: grid;
-  grid-template-columns: 44px 150px 166px minmax(0, 1fr);
+  grid-template-columns: 44px 190px 166px minmax(0, 1fr);
   min-height: 132px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -135,7 +135,8 @@
 .setting-value-character {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 12px;
   color: inherit;
   text-decoration: none;
   cursor: pointer;
@@ -152,8 +153,8 @@
 }
 
 .setting-value-character-avatar.character-avatar-shell {
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   margin: 0;
   border-radius: 5px;
   border-color: color-mix(in srgb, var(--accent-2) 38%, var(--line));
@@ -169,7 +170,7 @@
 .setting-value-character-copy strong {
   overflow: hidden;
   color: var(--text);
-  font-size: 16px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -398,7 +399,7 @@
   }
 
   .setting-value-row {
-    grid-template-columns: 34px minmax(110px, 132px) minmax(122px, 1fr);
+    grid-template-columns: 34px minmax(132px, 160px) minmax(100px, 1fr);
     grid-template-areas:
       'rank character metrics'
       'loadout loadout loadout';
@@ -421,18 +422,18 @@
 
   .setting-value-character {
     grid-area: character;
-    gap: 7px;
-    padding: 8px;
+    gap: 5px;
+    padding: 6px;
     border-bottom: 1px solid var(--line);
   }
 
   .setting-value-character-avatar.character-avatar-shell {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
 
   .setting-value-character-copy strong {
-    font-size: 14px;
+    font-size: 11px;
   }
 
   .setting-value-character-copy span {
@@ -506,7 +507,7 @@
   }
 
   .setting-value-row {
-    grid-template-columns: 44px 150px 166px minmax(0, 1fr);
+    grid-template-columns: 44px 190px 166px minmax(0, 1fr);
     grid-template-areas: 'rank character metrics loadout';
     min-width: 0;
     min-height: 132px;
@@ -518,18 +519,18 @@
   }
 
   .setting-value-character {
-    gap: 10px;
-    padding: 14px;
+    gap: 8px;
+    padding: 12px;
     border-bottom: 0;
   }
 
   .setting-value-character-avatar.character-avatar-shell {
-    width: 46px;
-    height: 46px;
+    width: 42px;
+    height: 42px;
   }
 
   .setting-value-character-copy strong {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .setting-value-character-copy span {
@@ -592,7 +593,7 @@
   }
 
   .setting-value-row.is-stacked-loadout {
-    grid-template-columns: 44px 150px minmax(166px, 1fr);
+    grid-template-columns: 44px 190px minmax(166px, 1fr);
     grid-template-areas:
       'rank character metrics'
       'loadout loadout loadout';

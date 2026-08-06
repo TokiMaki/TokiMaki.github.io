@@ -13,7 +13,7 @@ import SiteLegalFooter from './SiteLegalFooter.jsx';
 import '../styles/setting-value-ranking.css';
 
 const PAGE_SIZE = 10;
-const RANKING_SINGLE_LINE_FIXED_WIDTH = 388;
+const RANKING_SINGLE_LINE_FIXED_WIDTH = 428;
 const RANKING_COMPACT_STACKED_MIN_WIDTH = 266;
 const RANKING_ROW_ZOOM_GUTTER = 2;
 const MIN_READABLE_LOADOUT_ZOOM = 0.75;
