@@ -2,7 +2,9 @@ import re
 
 from ..effects import normalize_enchant_status, parse_percent_or_number
 from ..equipment_body import get_equipment_tune_set_point
+from ..enchant_service import load_enchant_tier_cards
 from ..neople_client import clean_text, get_item_icon_url
+from ..setting_value_service import annotate_current_enchant_tiers
 
 
 EQUIPMENT_TUNE_SLOT_NAMES = {
@@ -78,6 +80,10 @@ def build_equipment_enchant_rows_and_upgrades(equipment_rows: list) -> tuple[lis
             "reinforceSkill": reinforce_skill,
             "rawStatus": status_rows,
         })
+    try:
+        rows = annotate_current_enchant_tiers(rows, load_enchant_tier_cards())
+    except Exception:
+        rows = annotate_current_enchant_tiers(rows, [])
     return rows, equipment_upgrades
 
 

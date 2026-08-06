@@ -5,6 +5,7 @@ import bufferScoreIcon from '../../이미지/bufferScore.png';
 import fameIcon from '../../이미지/fame.png';
 import { getCharacterAvatarClass, getCharacterAvatarUrl } from '../dnfHellTool/characterPresentation.js';
 import { getEnchantLoadoutBadge } from '../dnfHellTool/enchantEquipmentLoadoutBoard.js';
+import { getEquipmentUpgradeVisualClass } from '../dnfHellTool/equipmentUpgradeVisual.js';
 import { getLoadoutRarityClass } from '../dnfHellTool/loadoutRarity.js';
 import { getLocalOathSymbolIconUrl } from '../dnfHellTool/enchantOathLoadoutBoard.js';
 import { API_BASE } from '../dnfHellTool/storageKeys.js';
@@ -55,25 +56,10 @@ function CharacterFace({ row }) {
   );
 }
 
-function getAmplificationLevelClass(equipment) {
-  if (!equipment.isAmplified) return '';
-  const level = Math.floor(Number(equipment.reinforce || 0));
-  if (!Number.isFinite(level) || level < 12) return '';
-  return ` is-amplification-${Math.min(17, level)}`;
-}
-
-function getReinforcementLevelClass(equipment) {
-  if (equipment.isAmplified || equipment.slot !== '무기') return '';
-  const level = Math.floor(Number(equipment.reinforce || 0));
-  if (!Number.isFinite(level) || level < 14) return '';
-  return ` is-reinforcement-${Math.min(17, level)}`;
-}
-
 function EquipmentIcon({ equipment, bufferBaseline }) {
   const displayTuneLevel = Math.max(0, Math.min(3, Number(equipment.tuneLevel || 0)));
-  const amplificationClass = getAmplificationLevelClass(equipment);
-  const reinforcementClass = getReinforcementLevelClass(equipment);
-  const highlightClass = `${equipment.isRelic ? ' is-relic' : ''}${amplificationClass ? ` is-high-amplification${amplificationClass}` : ''}${reinforcementClass ? ` is-high-reinforcement${reinforcementClass}` : ''}`;
+  const upgradeVisualClass = getEquipmentUpgradeVisualClass(equipment);
+  const highlightClass = `${equipment.isRelic ? ' is-relic' : ''}${upgradeVisualClass ? ` ${upgradeVisualClass}` : ''}`;
   const rarityClass = getLoadoutRarityClass(equipment.itemRarity);
   const iconUrl = equipment.iconUrl || itemIconUrl(equipment.itemId);
   const enchant = equipment.enchant || null;
@@ -86,7 +72,7 @@ function EquipmentIcon({ equipment, bufferBaseline }) {
     enchant?.effectText ? `마법부여: ${enchant.effectText}` : '',
   ].filter(Boolean).join(' · ');
   return (
-    <span className={`setting-value-equipment-item${highlightClass}`} title={title}>
+    <span className={`setting-value-equipment-item equipment-loadout-item equipment-upgrade-visual${highlightClass}`} title={title}>
       <span className={`enchant-character-slot${rarityClass ? ` ${rarityClass}` : ''}`} aria-label={equipment.slot}>
         {iconUrl ? <img src={iconUrl} alt={''} loading={'lazy'} decoding={'async'} /> : null}
         {enchantBadge ? (

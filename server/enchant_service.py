@@ -50,6 +50,7 @@ from .upgrade_payloads import (
 CREATURE_PRICE_CACHE_SCHEMA_VERSION = 8
 AURA_PRICE_CACHE_SCHEMA_VERSION = 3
 TITLE_PRICE_CACHE_SCHEMA_VERSION = 11
+_ENCHANT_TIER_CARD_CACHE = None
 
 
 def get_enchant_bead_search_names(card: dict) -> list:
@@ -383,6 +384,76 @@ def build_enchant_sources_from_detail(card: dict, detail: dict) -> list:
             "searchName": search_name,
         })
     return sources or fallback_sources
+
+
+def load_enchant_tier_cards() -> list:
+    global _ENCHANT_TIER_CARD_CACHE
+    with _CACHE_LOCK:
+        if _ENCHANT_TIER_CARD_CACHE is not None:
+            return _ENCHANT_TIER_CARD_CACHE
+
+    load_price_cache_from_disk(_ENCHANT_PRICE_CACHE, ENCHANT_PRICE_CACHE_PATH)
+    with _CACHE_LOCK:
+        cached_payload = _ENCHANT_PRICE_CACHE.get("payload") or {}
+        cached_cards = cached_payload.get("cards") or []
+        if (
+            cached_payload.get("schemaVersion") == ENCHANT_PRICE_CACHE_SCHEMA_VERSION
+            and cached_cards
+        ):
+            _ENCHANT_TIER_CARD_CACHE = cached_cards
+            return _ENCHANT_TIER_CARD_CACHE
+
+    with ENCHANT_DB_PATH.open("r", encoding="utf-8") as handle:
+        card_db = json.load(handle)
+
+    card_rows = [
+        {**card, "role": clean_text(card.get("role")) or "dealer"}
+        for card in card_db.get("cards") or []
+    ] + [
+        {**card, "role": clean_text(card.get("role")) or "buffer"}
+        for card in card_db.get("bufferCards") or []
+    ]
+    material_rows = [
+        {**item, "role": clean_text(item.get("role")) or "dealer"}
+        for item in card_db.get("materialEnchantItems") or []
+    ] + [
+        {**item, "role": clean_text(item.get("role")) or "buffer"}
+        for item in card_db.get("bufferMaterialEnchantItems") or []
+    ]
+
+    resolved_rows = []
+    for row in [*card_rows, *material_rows]:
+        item_id = clean_text(row.get("itemId"))
+        if not item_id:
+            search_name = clean_text(row.get("searchName") or row.get("itemName"))
+            resolved = resolve_exact_item_by_name(search_name, "") if search_name else {}
+            item_id = clean_text(resolved.get("itemId"))
+        resolved_rows.append(({**row, "itemId": item_id}, item_id))
+
+    detail_item_ids = list(dict.fromkeys(
+        item_id for _, item_id in resolved_rows if item_id
+    ))
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(detail_item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    tier_cards = []
+    card_count = len(card_rows)
+    for index, (row, item_id) in enumerate(resolved_rows):
+        detail = detail_by_id.get(item_id) or {}
+        sources = (
+            build_enchant_sources_from_detail(row, detail)
+            if index < card_count
+            else build_material_enchant_sources(row, detail)
+        )
+        if sources:
+            tier_cards.append({**row, "sources": sources})
+
+    with _CACHE_LOCK:
+        if _ENCHANT_TIER_CARD_CACHE is None and tier_cards:
+            _ENCHANT_TIER_CARD_CACHE = tier_cards
+        return _ENCHANT_TIER_CARD_CACHE or tier_cards
 
 
 def get_enchant_detail_max_upgrade(detail: dict) -> int:

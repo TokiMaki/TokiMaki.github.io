@@ -1,0 +1,217 @@
+.equipment-loadout-item {
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.equipment-loadout-item > .enchant-character-slot {
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+}
+
+.equipment-loadout-item > .enchant-character-slot-badge,
+.equipment-loadout-item > .enchant-character-slot-tune-mark {
+  box-sizing: border-box;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-high-amplification .enchant-character-slot-badge-amplify,
+.equipment-loadout-item.equipment-upgrade-visual.is-high-reinforcement .enchant-character-slot-badge-reinforce {
+  z-index: 8;
+  isolation: isolate;
+  overflow: hidden;
+  clip-path: inset(0);
+  contain: paint;
+  transform-origin: left bottom;
+  will-change: background-position, filter, box-shadow;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-12 .enchant-character-slot-badge-amplify {
+  color: #e987ba;
+  border-color: rgb(229 105 174 / 0.38);
+  background: rgb(42 10 30 / 0.88);
+  box-shadow: 0 0 3px rgb(224 83 163 / 0.18);
+  text-shadow: 0 0 3px rgb(238 125 188 / 0.38);
+  animation: none;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-13 .enchant-character-slot-badge-amplify {
+  color: #ff65bd;
+  border-color: rgb(255 101 189 / 0.46);
+  background: rgb(45 5 30 / 0.9);
+  box-shadow: 0 0 4px rgb(255 74 183 / 0.24);
+  text-shadow: 0 0 4px rgb(255 78 184 / 0.56);
+  animation: none;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-14 .enchant-character-slot-badge-amplify {
+  color: #ff4eb5;
+  border-color: rgb(255 87 187 / 0.58);
+  background: rgb(55 4 35 / 0.9);
+  text-shadow: 0 0 5px rgb(255 48 169 / 0.68);
+  animation: equipment-upgrade-amplification-14-badge 4.2s ease-in-out infinite;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-15 .enchant-character-slot-badge-amplify {
+  color: #fff5fb;
+  border-color: rgb(255 137 211 / 0.72);
+  background: linear-gradient(112deg, rgb(95 7 64 / 0.97) 0 38%, rgb(255 197 232 / 0.38) 47%, rgb(38 3 50 / 0.97) 56% 100%);
+  background-size: 260% 100%;
+  text-shadow: 0 0 2px rgb(255 255 255 / 0.76), 0 0 6px rgb(255 29 158 / 0.72);
+  animation:
+    equipment-upgrade-amplification-15-badge 4.6s ease-in-out infinite,
+    equipment-upgrade-amplification-badge-flow 7s linear infinite alternate;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-16 .enchant-character-slot-badge-amplify {
+  color: #fff;
+  border-color: rgb(218 149 255 / 0.76);
+  background: linear-gradient(110deg, rgb(112 8 77 / 0.98), rgb(90 12 120 / 0.98), rgb(166 33 135 / 0.9), rgb(52 10 91 / 0.98));
+  background-size: 240% 100%;
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.92);
+  animation: equipment-upgrade-amplification-badge-flow 5.4s linear infinite alternate;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-17 .enchant-character-slot-badge-amplify {
+  width: auto;
+  height: 11px;
+  color: #fff;
+  border-color: rgb(255 207 241 / 0.82);
+  background: linear-gradient(112deg, rgb(139 9 91 / 0.99) 0 35%, rgb(255 245 252 / 0.58) 46%, rgb(118 43 184 / 0.99) 55% 72%, rgb(58 12 116 / 0.99) 100%);
+  background-size: 280% 100%;
+  font-size: 8px;
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.92);
+  animation: equipment-upgrade-amplification-badge-flow 4.6s linear infinite alternate;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-16 .enchant-character-slot-badge-amplify::after,
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-17 .enchant-character-slot-badge-amplify::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    112deg,
+    transparent 0 28%,
+    rgb(255 255 255 / 0.78) 42%,
+    rgb(255 126 211 / 0.32) 50%,
+    transparent 64%
+  );
+  transform: translateX(-145%);
+  pointer-events: none;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-16 .enchant-character-slot-badge-amplify::after {
+  animation: equipment-upgrade-amplification-16-badge 3.6s linear infinite;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-amplification-17 .enchant-character-slot-badge-amplify::after {
+  animation: equipment-upgrade-amplification-17-badge 2.9s linear infinite;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-reinforcement-14 .enchant-character-slot-badge-reinforce {
+  color: #a7e8ff;
+  border-color: rgb(77 194 255 / 0.62);
+  background: rgb(4 31 52 / 0.92);
+  box-shadow: 0 0 4px rgb(42 174 255 / 0.3);
+  text-shadow: 0 0 5px rgb(86 204 255 / 0.72);
+  animation: equipment-upgrade-reinforcement-14-badge 4.2s ease-in-out infinite;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual.is-reinforcement-15 .enchant-character-slot-badge-reinforce,
+.equipment-loadout-item.equipment-upgrade-visual.is-reinforcement-16 .enchant-character-slot-badge-reinforce,
+.equipment-loadout-item.equipment-upgrade-visual.is-reinforcement-17 .enchant-character-slot-badge-reinforce {
+  color: #f4fcff;
+  border-color: rgb(118 220 255 / 0.82);
+  background: linear-gradient(112deg, rgb(4 40 71 / 0.97) 0 36%, rgb(207 246 255 / 0.5) 47%, rgb(5 24 58 / 0.97) 58% 100%);
+  background-size: 260% 100%;
+  box-shadow: 0 0 6px rgb(38 179 255 / 0.42);
+  text-shadow: 0 0 2px rgb(255 255 255 / 0.8), 0 0 7px rgb(51 188 255 / 0.9);
+  animation:
+    equipment-upgrade-reinforcement-15-badge 4.6s ease-in-out infinite,
+    equipment-upgrade-reinforcement-badge-flow 7s linear infinite alternate;
+}
+
+.equipment-loadout-item.equipment-upgrade-visual .enchant-character-slot-badge.is-simulated {
+  border-color: rgb(117 210 91 / 0.96) !important;
+  outline: none;
+}
+
+@keyframes equipment-upgrade-amplification-14-badge {
+  0%, 100% {
+    filter: brightness(1);
+    box-shadow: 0 0 4px rgb(255 48 169 / 0.26);
+  }
+  50% {
+    filter: brightness(1.08);
+    box-shadow: 0 0 6px rgb(255 48 169 / 0.46);
+  }
+}
+
+@keyframes equipment-upgrade-amplification-15-badge {
+  0%, 100% {
+    filter: brightness(1);
+    box-shadow: 0 0 5px rgb(255 35 168 / 0.34);
+  }
+  50% {
+    filter: brightness(1.12);
+    box-shadow: 0 0 7px rgb(255 35 168 / 0.58), 0 0 10px rgb(156 58 255 / 0.22);
+  }
+}
+
+@keyframes equipment-upgrade-amplification-16-badge {
+  0% { transform: translateX(-145%); opacity: 0.26; }
+  50% { opacity: 0.88; }
+  100% { transform: translateX(145%); opacity: 0.26; }
+}
+
+@keyframes equipment-upgrade-amplification-17-badge {
+  0% { transform: translateX(-150%); opacity: 0.34; }
+  50% { opacity: 1; }
+  100% { transform: translateX(150%); opacity: 0.34; }
+}
+
+@keyframes equipment-upgrade-reinforcement-14-badge {
+  0%, 100% {
+    filter: brightness(1);
+    box-shadow: 0 0 4px rgb(42 174 255 / 0.28);
+  }
+  50% {
+    filter: brightness(1.1);
+    box-shadow: 0 0 7px rgb(42 174 255 / 0.52);
+  }
+}
+
+@keyframes equipment-upgrade-reinforcement-15-badge {
+  0%, 100% {
+    filter: brightness(1);
+    box-shadow: 0 0 5px rgb(38 179 255 / 0.36);
+  }
+  50% {
+    filter: brightness(1.14);
+    box-shadow: 0 0 8px rgb(38 179 255 / 0.62), 0 0 11px rgb(82 122 255 / 0.24);
+  }
+}
+
+@keyframes equipment-upgrade-reinforcement-badge-flow {
+  0% { background-position: 100% 50%; }
+  100% { background-position: -100% 50%; }
+}
+
+@keyframes equipment-upgrade-amplification-badge-flow {
+  0% { background-position: 100% 50%; }
+  100% { background-position: -100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .equipment-loadout-item.equipment-upgrade-visual.is-high-amplification .enchant-character-slot-badge-amplify,
+  .equipment-loadout-item.equipment-upgrade-visual.is-high-reinforcement .enchant-character-slot-badge-reinforce {
+    animation: none;
+  }
+}

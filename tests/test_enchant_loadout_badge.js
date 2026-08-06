@@ -30,4 +30,32 @@ assert.equal(
   'end-tier enchants must keep the gold ranking badge class',
 );
 
+const loadoutSource = readFileSync(
+  new URL('../src/dnfHellTool/enchantEquipmentLoadoutBoard.js', import.meta.url),
+  'utf8',
+);
+assert.equal(
+  loadoutSource.includes("isEndEnchant: Boolean(enchant.isEnd || enchant.tier === '종결')"),
+  true,
+  'the upgrade-order loadout must retain the server-provided end-tier state',
+);
+assert.equal(
+  loadoutSource.includes("${data.isEndEnchant ? ' is-end' : ''}${data.isSimulatedEnchant ? ' is-simulated' : ''}"),
+  true,
+  'simulated end enchants must render both classes so simulation styling can win',
+);
+
+const supplyCss = readFileSync(
+  new URL('../src/styles/supply.css', import.meta.url),
+  'utf8',
+);
+const endStyleIndex = supplyCss.indexOf('.enchant-character-slot-enchant-badge.is-end');
+const simulatedStyleIndex = supplyCss.indexOf('.enchant-character-slot-enchant-badge.is-simulated');
+assert.equal(endStyleIndex >= 0, true, 'the end-tier enchant style must be shared');
+assert.equal(
+  simulatedStyleIndex > endStyleIndex,
+  true,
+  'simulation styling must follow and override the end-tier gold style',
+);
+
 console.log('enchant loadout badge tests passed');

@@ -213,6 +213,34 @@ def _is_same_enchant_tier_source(current: dict, source: dict) -> bool:
     return current_skill == source_skill
 
 
+def _get_current_enchant_tier(current: dict, cards: list) -> str:
+    tier_priority = {"종결": 3, "준종결": 2, "가성비": 1}
+    matched_tiers = [
+        clean_text(source.get("tier") or card.get("tier"))
+        for card in cards or []
+        for source in card.get("sources") or []
+        if _is_same_enchant_tier_source(current, source)
+        and clean_text(source.get("tier") or card.get("tier"))
+    ]
+    return max(
+        matched_tiers,
+        key=lambda tier: tier_priority.get(tier, 0),
+        default=clean_text(current.get("tier")),
+    )
+
+
+def annotate_current_enchant_tiers(current_rows: list, cards: list) -> list:
+    annotated = []
+    for current in current_rows or []:
+        tier = _get_current_enchant_tier(current, cards)
+        annotated.append({
+            **current,
+            "tier": tier,
+            "isEnd": tier == "종결",
+        })
+    return annotated
+
+
 def _get_current_enchant_details(current_rows: list, cards: list) -> list:
     details = []
     for current in current_rows or []:
@@ -227,23 +255,7 @@ def _get_current_enchant_details(current_rows: list, cards: list) -> list:
             for source in card.get("sources") or []
             if _is_same_enchant_source(current, source)
         ]
-        tier_matches = [
-            (card, source)
-            for card in cards or []
-            for source in card.get("sources") or []
-            if _is_same_enchant_tier_source(current, source)
-        ]
-        tier_priority = {"종결": 3, "준종결": 2, "가성비": 1}
-        matched_tiers = [
-            clean_text(source.get("tier") or card.get("tier"))
-            for card, source in tier_matches
-            if clean_text(source.get("tier") or card.get("tier"))
-        ]
-        matched_tier = max(
-            matched_tiers,
-            key=lambda tier: tier_priority.get(tier, 0),
-            default="",
-        )
+        matched_tier = _get_current_enchant_tier(current, cards)
         is_end = matched_tier == "종결"
         priced = []
         for card, source in matched:

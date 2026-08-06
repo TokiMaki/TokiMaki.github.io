@@ -237,6 +237,27 @@ class SettingValueServiceTest(unittest.TestCase):
         self.assertTrue(details[0]["isEnd"])
         self.assertIsNone(details[0]["gold"])
 
+    def test_annotate_current_enchant_tiers_marks_end_enchants(self):
+        cards = [{
+            "sources": [{
+                "slot": "상의",
+                "tier": "종결",
+                "role": "dealer",
+                "effects": {"finalDamage": 3, "allStat": 90},
+                "reinforceSkill": [],
+            }],
+        }]
+        rows = setting_value_service.annotate_current_enchant_tiers(
+            [{
+                "slot": "상의",
+                "effects": {"finalDamage": 3, "str": 90, "int": 90},
+                "reinforceSkill": [],
+            }],
+            cards,
+        )
+        self.assertEqual(rows[0]["tier"], "종결")
+        self.assertTrue(rows[0]["isEnd"])
+
     def test_aura_value_reuses_exact_upgrade_candidate_price(self):
         current = {"itemId": "current-aura"}
         candidates = [

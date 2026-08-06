@@ -1,3 +1,4 @@
+import { getEquipmentUpgradeVisualClass } from './equipmentUpgradeVisual.js';
 import { getLoadoutRarityClass } from './loadoutRarity.js';
 
 const ENCHANT_PORTRAIT_SLOT_LAYOUT = [
@@ -282,8 +283,10 @@ export function createEnchantEquipmentLoadoutBoard(deps) {
           itemName: equipment.itemName || slot,
           itemRarity: equipment.itemRarity || '',
           enchantBadge,
+          isEndEnchant: Boolean(enchant.isEnd || enchant.tier === '종결'),
           isSimulatedEnchant: Boolean(enchant.simulatedEnchantItemName),
           upgradeBadge: getUpgradeBadge(equipment),
+          upgradeVisualClass: getEquipmentUpgradeVisualClass(equipment),
           isSimulatedProgression,
           tuneBadge,
           isSimulatedTune,
@@ -432,15 +435,16 @@ export function createEnchantEquipmentLoadoutBoard(deps) {
     const activeSweep = getSweepEntry(slot);
     const sweepElapsedMs = activeSweep ? now() - activeSweep.startedAt : sweepDurationMs;
     const hasActiveSweep = sweepElapsedMs >= 0 && sweepElapsedMs < sweepDurationMs;
+    const isEquipmentSlot = slotOrder.includes(slot);
     const sweepStyle = hasActiveSweep ? ` style="--simulator-sweep-delay: -${Math.floor(sweepElapsedMs)}ms"` : '';
     return `
-      <span class="enchant-character-slot-wrap enchant-character-slot-wrap-${escapeHtml(key)} enchant-character-slot-wrap-${escapeHtml(side)}${hasActiveSweep ? ' is-simulator-sweep' : ''}"${sweepStyle}>
+      <span class="enchant-character-slot-wrap${isEquipmentSlot ? ' equipment-loadout-item' : ''} enchant-character-slot-wrap-${escapeHtml(key)} enchant-character-slot-wrap-${escapeHtml(side)}${data?.upgradeVisualClass ? ` equipment-upgrade-visual ${escapeHtml(data.upgradeVisualClass)}` : ''}${hasActiveSweep ? ' is-simulator-sweep' : ''}"${sweepStyle}>
         <span class="enchant-character-slot${isEmpty ? ' is-empty' : ''}${rarityClass ? ` ${escapeHtml(rarityClass)}` : ''}" tabindex="0" aria-label="${escapeHtml(title)}" data-detail-title="${escapeHtml(title)}" data-detail-lines="${escapeHtml(JSON.stringify(detailLines))}">
           ${data?.iconUrl
             ? `<img src="${escapeHtml(data.iconUrl)}" alt="" loading="lazy" decoding="async" />`
             : `<span class="enchant-character-slot-placeholder" aria-hidden="true"></span>`}
           ${data?.enchantBadge
-            ? `<span class="enchant-character-slot-enchant-badges"><span class="enchant-character-slot-enchant-badge${data.isSimulatedEnchant ? ' is-simulated' : ''}">${escapeHtml(data.enchantBadge.text)}</span></span>`
+            ? `<span class="enchant-character-slot-enchant-badges"><span class="enchant-character-slot-enchant-badge${data.isEndEnchant ? ' is-end' : ''}${data.isSimulatedEnchant ? ' is-simulated' : ''}">${escapeHtml(data.enchantBadge.text)}</span></span>`
             : ''}
         </span>
         ${data?.upgradeBadge
