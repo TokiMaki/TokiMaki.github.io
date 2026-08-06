@@ -147,7 +147,7 @@ const ELEMENT_LABEL_BY_NAME = {
   dark: '암속성',
   all: '모든속성',
 };
-const MATERIAL_ENCHANT_MATERIAL_ORDER = ['은화', '비단', '잔해', '소명'];
+const MATERIAL_ENCHANT_MATERIAL_ORDER = ['은화', '비단', '잔해', '소명', '빛망울'];
 const BUFFER_JOB_GROW_NAMES = new Set(['眞 크루세이더', '眞 인챈트리스', '眞 뮤즈', '眞 패러메딕']);
 const UPGRADE_MATERIAL_LABELS = {
   harmonyCrystal: '무결점 조화의 결정체',
