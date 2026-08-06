@@ -532,8 +532,9 @@
         padding: 92px 0 16px;
       }
       .hero.landing-hero {
-        top: 14px;
+        top: 10px;
         width: calc(100% - 20px);
+        min-height: 58px;
         align-items: center;
       }
       .landing-card {
@@ -616,7 +617,16 @@
       max-width: min(300px, 52vw);
       object-fit: contain;
     }
+    @media (min-width: 411px) and (max-width: 700px) {
+      .tool-shell > .hero .site-logo-image {
+        height: 38px;
+      }
+    }
     @media (max-width: 410px) {
+      .hero.landing-hero {
+        min-height: 52px;
+      }
+      .hero.landing-hero,
       .tool-shell > .hero,
       .setting-value-hero {
         gap: 6px;
@@ -626,7 +636,7 @@
       .site-logo-home-button {
         min-width: 0;
       }
-      .tool-shell .site-logo-image,
+      .tool-shell > .hero .site-logo-image,
       .setting-value-hero .site-logo-image {
         width: min(128px, 32vw);
         height: auto;

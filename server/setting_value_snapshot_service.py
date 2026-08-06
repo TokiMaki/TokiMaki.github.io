@@ -209,7 +209,7 @@ def finalize_character_setting_value(
 def get_setting_value_ranking(
     role: str = "dealer",
     sort: str = "value",
-    limit: int = 100,
+    limit: int = 10,
     page: int = 1,
     page_size: int | None = None,
     job: str = "",

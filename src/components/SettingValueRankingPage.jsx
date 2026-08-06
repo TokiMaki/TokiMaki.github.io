@@ -12,7 +12,7 @@ import { API_BASE } from '../dnfHellTool/storageKeys.js';
 import SiteLegalFooter from './SiteLegalFooter.jsx';
 import '../styles/setting-value-ranking.css';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 const RANKING_SINGLE_LINE_FIXED_WIDTH = 388;
 const RANKING_COMPACT_STACKED_MIN_WIDTH = 266;
 const RANKING_ROW_ZOOM_GUTTER = 2;
@@ -40,6 +40,16 @@ function formatSettingValue(value) {
   if (eok > 0) return `${eok.toLocaleString('ko-KR')}억${man ? ` ${man.toLocaleString('ko-KR')}만` : ''} 골드`;
   if (man > 0) return `${man.toLocaleString('ko-KR')}만 골드`;
   return `${gold.toLocaleString('ko-KR')} 골드`;
+}
+
+function formatTopPercent(rank, totalCount) {
+  const normalizedRank = Number(rank);
+  const normalizedTotalCount = Number(totalCount);
+  if (!(normalizedRank > 0) || !(normalizedTotalCount > 0)) return '';
+  const percent = normalizedTotalCount === 1
+    ? 0
+    : Math.min(100, Math.ceil(((normalizedRank - 1) / (normalizedTotalCount - 1)) * 1000) / 10);
+  return `${percent.toFixed(percent === 0 || percent === 100 ? 0 : 1)}%`;
 }
 
 function CharacterFace({ row }) {
@@ -158,7 +168,7 @@ function AccessoryIcon({ item, label }) {
   );
 }
 
-function RankingRow({ row, role }) {
+function RankingRow({ row, role, showPercentile = false }) {
   const rowViewportRef = useRef(null);
   const rowRef = useRef(null);
   const loadoutViewportRef = useRef(null);
@@ -173,6 +183,9 @@ function RankingRow({ row, role }) {
   const bufferBaseline = role === 'buffer'
     ? { isBuffer: true, statName: row.statName, jobName: row.jobName }
     : null;
+  const topPercent = showPercentile
+    ? formatTopPercent(row.rank, row.rankingTotalCount)
+    : '';
 
   useLayoutEffect(() => {
     const rowViewport = rowViewportRef.current;
@@ -194,7 +207,6 @@ function RankingRow({ row, role }) {
     };
 
     const clearResponsiveScale = () => {
-      rowViewport.classList.remove('is-row-zoomed');
       rowElement.classList.remove('is-stacked-loadout');
       rowElement.style.removeProperty('--setting-value-row-width');
       rowElement.style.removeProperty('--setting-value-row-zoom');
@@ -209,9 +221,6 @@ function RankingRow({ row, role }) {
           return;
         }
 
-
-
-        rowViewport.classList.remove('is-row-zoomed');
         rowElement.style.removeProperty('--setting-value-row-width');
         rowElement.style.setProperty('--setting-value-row-zoom', '1');
         content.style.setProperty('--setting-value-loadout-zoom', '1');
@@ -223,11 +232,6 @@ function RankingRow({ row, role }) {
         const rowStyle = window.getComputedStyle(rowElement);
         const rowBorderWidth = Number.parseFloat(rowStyle.borderLeftWidth || 0)
           + Number.parseFloat(rowStyle.borderRightWidth || 0);
-        const rowViewportStyle = window.getComputedStyle(rowViewport);
-        const rowSidePadding = Number.parseFloat(
-          rowViewportStyle.getPropertyValue('--setting-value-row-side-padding'),
-        ) || 0;
-
         let isStacked = !singleLineQuery.matches;
         let singleLineZoom = 1;
         if (singleLineQuery.matches) {
@@ -258,12 +262,8 @@ function RankingRow({ row, role }) {
               + rowBorderWidth
               + RANKING_ROW_ZOOM_GUTTER,
           ));
-          const rowPaddingWidth = rowSidePadding * 2;
-          const shouldZoomRow = containerWidth < requiredLogicalWidth + rowPaddingWidth;
-          rowViewport.classList.toggle('is-row-zoomed', shouldZoomRow);
-          const availableRowWidth = shouldZoomRow
-            ? Math.max(0, containerWidth - rowPaddingWidth)
-            : containerWidth;
+          const shouldZoomRow = containerWidth < requiredLogicalWidth;
+          const availableRowWidth = containerWidth;
           logicalRowWidth = Math.max(availableRowWidth, requiredLogicalWidth);
           rowZoom = shouldZoomRow
             ? Math.max(0, (availableRowWidth - RANKING_ROW_ZOOM_GUTTER) / logicalRowWidth)
@@ -314,7 +314,10 @@ function RankingRow({ row, role }) {
   return (
     <div className={'setting-value-row-viewport'} ref={rowViewportRef}>
       <article className={`setting-value-row is-rank-${row.rank}`} ref={rowRef}>
-      <div className={'setting-value-rank'}>{row.rank}</div>
+      <div className={'setting-value-rank'}>
+        <span className={'setting-value-rank-number'}>{row.rank}</span>
+        {topPercent ? <span className={'setting-value-rank-percentile'}>상위 {topPercent}</span> : null}
+      </div>
       <a
         className={'setting-value-character'}
         href={characterHref}
@@ -395,7 +398,7 @@ export default function SettingValueRankingPage() {
   const [rows, setRows] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 0, totalCount: 0 });
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 0 });
   const [status, setStatus] = useState('loading');
 
   useEffect(() => {
@@ -427,7 +430,6 @@ export default function SettingValueRankingPage() {
         setPagination({
           page: Number(payload.page || 1),
           totalPages: Number(payload.totalPages || 0),
-          totalCount: Number(payload.totalCount || 0),
         });
         if (payload.selectedRow?.role && payload.selectedRow.role !== role) {
           setRole(payload.selectedRow.role);
@@ -470,7 +472,7 @@ export default function SettingValueRankingPage() {
         {selectedRow ? (
           <section className={'setting-value-selected'} aria-label={'현재 검색 캐릭터 순위'}>
             <div className={'setting-value-section-label'}>현재 검색 캐릭터</div>
-            <RankingRow row={selectedRow} role={selectedRow.role || role} />
+            <RankingRow row={selectedRow} role={selectedRow.role || role} showPercentile />
           </section>
         ) : null}
 
@@ -500,7 +502,6 @@ export default function SettingValueRankingPage() {
         </section>
 
         <section className={'setting-value-ranking-list'} aria-label={'랭킹'}>
-          <div className={'setting-value-section-label'}>전체 랭킹 · {pagination.totalCount.toLocaleString('ko-KR')}명</div>
           {status === 'loading' ? <div className={'panel'}>랭킹을 불러오는 중...</div> : null}
           {status === 'error' ? <div className={'panel'}>랭킹을 불러오지 못했습니다.</div> : null}
           {status === 'ready' && !rows.length ? <div className={'panel'}>아직 저장된 캐릭터가 없습니다.</div> : null}

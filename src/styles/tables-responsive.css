@@ -126,7 +126,7 @@
       }
     }
     @media (max-width: 720px) {
-      .wrap { padding: 14px; }
+      .wrap { padding: 10px; }
       .hero {
         align-items: center;
         flex-direction: row;

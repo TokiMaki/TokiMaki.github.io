@@ -77,14 +77,9 @@
 }
 
 .setting-value-row-viewport {
-  --setting-value-row-side-padding: 10px;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-}
-
-.setting-value-row-viewport.is-row-zoomed {
-  padding-inline: var(--setting-value-row-side-padding);
 }
 
 .setting-value-row {
@@ -99,13 +94,30 @@
 }
 
 .setting-value-rank {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 3px;
   border-right: 1px solid var(--line);
   color: var(--accent-2);
-  font-size: 27px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+.setting-value-rank-number {
+  font-size: 27px;
+  line-height: 1;
+}
+
+.setting-value-rank-percentile {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: none;
+  white-space: normal;
 }
 
 .setting-value-character,
@@ -397,7 +409,14 @@
   .setting-value-rank {
     grid-area: rank;
     border-bottom: 1px solid var(--line);
+  }
+
+  .setting-value-rank-number {
     font-size: 22px;
+  }
+
+  .setting-value-rank-percentile {
+    font-size: 7px;
   }
 
   .setting-value-character {

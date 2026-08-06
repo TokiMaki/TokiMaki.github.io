@@ -147,7 +147,7 @@ def load_setting_value_ranking_page(
     role: str = "dealer",
     sort: str = "value",
     page: int = 1,
-    page_size: int = 20,
+    page_size: int = 10,
     job: str = "",
 ) -> dict:
     role = clean_text(role).lower()
@@ -163,7 +163,7 @@ def load_setting_value_ranking_page(
     try:
         page_size = max(1, min(100, int(page_size)))
     except (TypeError, ValueError):
-        page_size = 20
+        page_size = 10
 
     where_sql = "role = ?"
     where_params = [role]
@@ -272,11 +272,12 @@ def load_setting_value_character_rank(
                         server_id,
                         character_id,
                         payload_json,
-                        ROW_NUMBER() OVER (ORDER BY {order_sql}) AS rank
+                        ROW_NUMBER() OVER (ORDER BY {order_sql}) AS rank,
+                        COUNT(*) OVER () AS ranking_total_count
                     FROM setting_value_snapshot
                     WHERE role = ?
                 )
-                SELECT payload_json, rank
+                SELECT payload_json, rank, ranking_total_count
                 FROM ranked
                 WHERE server_id = ? AND character_id = ?
                 LIMIT 1
@@ -291,7 +292,11 @@ def load_setting_value_character_rank(
         payload = json.loads(row[0])
     except Exception:
         return None
-    return {**payload, "rank": int(row[1])} if isinstance(payload, dict) else None
+    return {
+        **payload,
+        "rank": int(row[1]),
+        "rankingTotalCount": int(row[2]),
+    } if isinstance(payload, dict) else None
 
 
 def load_setting_value_ranking(role: str = "dealer", sort: str = "value", limit: int = 100) -> list[dict]:

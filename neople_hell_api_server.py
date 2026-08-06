@@ -937,7 +937,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         query = parse_qs(parsed.query)
         role = clean_text((query.get("role") or ["dealer"])[0]).lower()
         sort = clean_text((query.get("sort") or ["value"])[0]).lower()
-        limit = clean_text((query.get("limit") or ["100"])[0])
+        limit = clean_text((query.get("limit") or ["10"])[0])
         return self.send_json(get_setting_value_ranking(
             role,
             sort,

@@ -34,8 +34,8 @@ assert.match(source, /const MIN_READABLE_LOADOUT_ZOOM = 0\.75/);
 assert.match(source, /isStacked = singleLineZoom <= MIN_READABLE_LOADOUT_ZOOM/);
 assert.match(source, /classList\.toggle\('is-stacked-loadout', isStacked && singleLineQuery\.matches\)/);
 assert.match(source, /const reliableNaturalWidth = content\.scrollWidth/);
-assert.match(source, /const rowPaddingWidth = rowSidePadding \* 2/);
-assert.match(source, /const shouldZoomRow = containerWidth < requiredLogicalWidth \+ rowPaddingWidth/);
+assert.match(source, /const shouldZoomRow = containerWidth < requiredLogicalWidth/);
+assert.match(source, /const availableRowWidth = containerWidth/);
 assert.match(source, /logicalRowWidth = Math\.max\(availableRowWidth, requiredLogicalWidth\)/);
 assert.match(source, /setCustomProperty\(rowElement, '--setting-value-row-zoom', rowZoom\)/);
 assert.match(source, /className=\{'setting-value-row-viewport'\}/);
@@ -66,12 +66,12 @@ assert.match(
   styles,
   /width: var\(--setting-value-row-width, 100%\);[\s\S]*?zoom: var\(--setting-value-row-zoom, 1\)/,
 );
-assert.match(styles, /\.setting-value-row-viewport\s*\{[^}]*--setting-value-row-side-padding: 10px;/s);
-assert.match(styles, /\.setting-value-row-viewport\.is-row-zoomed\s*\{[^}]*padding-inline: var\(--setting-value-row-side-padding\)/s);
+assert.doesNotMatch(styles, /--setting-value-row-side-padding/);
+assert.doesNotMatch(styles, /\.setting-value-row-viewport\.is-row-zoomed/);
 assert.match(styles, /\.setting-value-row\.is-stacked-loadout \.setting-value-loadout\s*\{[^}]*padding: 10px 10px 12px;/s);
 assert.doesNotMatch(styles, /transform: scale\(var\(--setting-value-row-scale/);
 assert.match(source, /reliableNaturalWidth \* MIN_READABLE_LOADOUT_ZOOM[\s\S]*?\+ RANKING_ROW_ZOOM_GUTTER/);
-assert.match(source, /containerWidth - rowPaddingWidth/);
+assert.doesNotMatch(source, /rowPaddingWidth|rowSidePadding|is-row-zoomed/);
 assert.match(source, /\(availableRowWidth - RANKING_ROW_ZOOM_GUTTER\) \/ logicalRowWidth/);
 assert.match(source, /loadoutZoom = shouldZoomRow[\s\S]*?\? MIN_READABLE_LOADOUT_ZOOM/);
 
