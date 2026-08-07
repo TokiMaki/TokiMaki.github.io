@@ -47,24 +47,45 @@ def _ensure_setting_value_snapshot_table():
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_setting_value_snapshot_role_value "
-                "ON setting_value_snapshot(role, total_gold DESC, updated_at_ms DESC)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_setting_value_snapshot_role_score "
-                "ON setting_value_snapshot(role, equipment_score DESC, buff_score DESC, updated_at_ms DESC)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_setting_value_snapshot_role_fame "
-                "ON setting_value_snapshot(role, fame DESC, total_gold DESC, updated_at_ms DESC)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_setting_value_snapshot_role_job "
-                "ON setting_value_snapshot("
-                "role, COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), '')"
-                ")"
-            )
+            ranking_indexes = {
+                "idx_setting_value_snapshot_role_value_order": (
+                    "role, total_gold DESC, updated_at_ms DESC, server_id ASC, character_id ASC"
+                ),
+                "idx_setting_value_snapshot_role_score_order": (
+                    "role, COALESCE(buff_score, equipment_score, 0) DESC, "
+                    "total_gold DESC, updated_at_ms DESC, server_id ASC, character_id ASC"
+                ),
+                "idx_setting_value_snapshot_role_fame_order": (
+                    "role, fame DESC, total_gold DESC, updated_at_ms DESC, "
+                    "server_id ASC, character_id ASC"
+                ),
+                "idx_setting_value_snapshot_role_job_value_order": (
+                    "role, COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), ''), "
+                    "total_gold DESC, updated_at_ms DESC, server_id ASC, character_id ASC"
+                ),
+                "idx_setting_value_snapshot_role_job_score_order": (
+                    "role, COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), ''), "
+                    "COALESCE(buff_score, equipment_score, 0) DESC, total_gold DESC, "
+                    "updated_at_ms DESC, server_id ASC, character_id ASC"
+                ),
+                "idx_setting_value_snapshot_role_job_fame_order": (
+                    "role, COALESCE(NULLIF(job_grow_name, ''), NULLIF(job_name, ''), ''), "
+                    "fame DESC, total_gold DESC, updated_at_ms DESC, "
+                    "server_id ASC, character_id ASC"
+                ),
+            }
+            for index_name, index_columns in ranking_indexes.items():
+                conn.execute(
+                    f"CREATE INDEX IF NOT EXISTS {index_name} "
+                    f"ON setting_value_snapshot({index_columns})"
+                )
+            for obsolete_index_name in (
+                "idx_setting_value_snapshot_role_value",
+                "idx_setting_value_snapshot_role_score",
+                "idx_setting_value_snapshot_role_fame",
+                "idx_setting_value_snapshot_role_job",
+            ):
+                conn.execute(f"DROP INDEX IF EXISTS {obsolete_index_name}")
             conn.commit()
         _SETTING_VALUE_SNAPSHOT_INITIALIZED = True
 
