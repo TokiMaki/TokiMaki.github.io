@@ -7320,7 +7320,8 @@ export function installEnchantView(ctx) {
       if (!skipImmediateRender) {
         renderEnchantTable();
       }
-      const errorCount = Number(payload.errors?.length || 0) + Number(creaturePayload.errors?.length || 0) + Number(titlePayload.errors?.length || 0) + Number(auraPayload.errors?.length || 0);
+      const errorCount = [payload, creaturePayload, titlePayload, auraPayload]
+        .reduce((total, item) => total + Number(item.errorCount ?? item.errors?.length ?? 0), 0);
       const creatureCount = getCreatureRows(state.creatureUpgradeGroups).length;
       const artifactCount = getCreatureArtifactRows(state.creatureArtifactGroups).length;
       const titleCount = getTitleRows(state.titleUpgradeGroups, state.currentTitle).length + getSwitchingTitleRows(state.switchingTitleRecommendations).length;

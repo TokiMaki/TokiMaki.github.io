@@ -98,8 +98,46 @@ class HeavyRequestRejected(Exception):
     pass
 
 
+PUBLIC_RESPONSE_INTERNAL_FIELDS = frozenset({
+    "_debugTimings",
+    "cached",
+    "debug",
+    "debugTimings",
+    "expiresAt",
+    "officialCharacterKey",
+    "officialProfileUrl",
+    "rawStatus",
+    "schemaVersion",
+    "source",
+    "sourcePolicy",
+    "sourceRank",
+    "stale",
+    "updatedAt",
+})
+
+
+def prepare_public_response_payload(value):
+    if API_SERVER_MODE != "prod":
+        return value
+    if isinstance(value, list):
+        return [prepare_public_response_payload(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+
+    result = {}
+    for key, item in value.items():
+        if key in PUBLIC_RESPONSE_INTERNAL_FIELDS:
+            continue
+        if key == "errors" and isinstance(item, list):
+            result["errorCount"] = len(item)
+            continue
+        result[key] = prepare_public_response_payload(item)
+    return result
+
+
 def json_response(payload: dict) -> bytes:
-    return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+    public_payload = prepare_public_response_payload(payload)
+    return json.dumps(public_payload, ensure_ascii=False, indent=2).encode("utf-8")
 
 
 def truncate_log_text(value: str, limit: int = 24) -> str:
@@ -995,18 +1033,16 @@ class HellApiHandler(SimpleHTTPRequestHandler):
                 score.get("equipmentScore"),
                 score.get("buffScore"),
             )
-            self.send_json(score)
+            self.send_json({
+                "equipmentScore": score.get("equipmentScore"),
+                "buffScore": score.get("buffScore"),
+            })
         except ValueError as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception:
             self.send_json({
                 "equipmentScore": None,
                 "buffScore": None,
-                "officialCharacterKey": None,
-                "officialProfileUrl": None,
-                "source": "df.nexon.com",
-                "cached": False,
-                "stale": False,
             })
 
     def handle_creature_upgrades(self, parsed):

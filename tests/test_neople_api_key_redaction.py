@@ -12,6 +12,32 @@ from server import neople_client, ops_log
 
 
 class NeopleApiKeyRedactionTest(unittest.TestCase):
+    def test_production_response_omits_internal_metadata(self):
+        payload = {
+            "equipmentScore": 349578,
+            "source": "df.nexon.com",
+            "debug": {"request": "internal"},
+            "debugTimings": {"steps": []},
+            "rawStatus": [{"name": "힘", "value": 1}],
+            "cache": {
+                "stale": True,
+                "refreshing": True,
+                "expiresAt": 123,
+            },
+            "errors": [{"error": "upstream detail"}],
+        }
+
+        with patch.object(neople_hell_api_server, "API_SERVER_MODE", "prod"):
+            public_payload = json.loads(
+                neople_hell_api_server.json_response(payload).decode("utf-8")
+            )
+
+        self.assertEqual(public_payload["equipmentScore"], 349578)
+        self.assertEqual(public_payload["cache"], {"refreshing": True})
+        self.assertEqual(public_payload["errorCount"], 1)
+        for field in ("source", "debug", "debugTimings", "rawStatus", "errors"):
+            self.assertNotIn(field, public_payload)
+
     def test_credential_is_redacted_from_exception_public_payload_and_logs(self):
         credential = "fake-" + "credential-for-redaction-test"
         request_url = "https://api.neople.co.kr/df/auction?" + urlencode({
