@@ -40,29 +40,29 @@ const ROOT_METADATA = {
 };
 
 const ABOUT_METADATA = {
-  title: '던파일럿 소개 | 던파 스펙업 순서·효율 분석',
+  title: '던파일럿 이용 가이드 | 던파 스펙업 순서·시뮬레이터',
   description: '던파일럿이 캐릭터별 던파 스펙업 순서와 골드 효율을 계산하는 방법, 장비점수·버프점수, 딜러·버퍼 시뮬레이터 이용 방법을 안내합니다.',
   robots: 'index,follow',
   canonical: `${SITE_URL}about/`,
   openGraph: {
-    title: '던파일럿 소개 | 던파 스펙업 순서·효율 분석',
-    description: '캐릭터 장비와 세팅을 기준으로 스펙업 상승량과 예상 비용을 비교하는 방법을 확인하세요.',
+    title: '던파일럿 이용 가이드 | 던파 스펙업 순서·시뮬레이터',
+    description: '캐릭터 검색부터 스펙업 추천 적용, 누적 골드와 랭킹 확인까지 던파일럿 이용 방법을 안내합니다.',
     url: `${SITE_URL}about/`,
     type: 'website',
     image: SITE_IMAGE_URL,
   },
   twitter: {
     card: 'summary',
-    title: '던파일럿 소개 | 던파 스펙업 순서·효율 분석',
-    description: '캐릭터별 스펙업 순서와 골드 효율, 딜러·버퍼 시뮬레이터 이용 방법을 안내합니다.',
+    title: '던파일럿 이용 가이드 | 던파 스펙업 순서·시뮬레이터',
+    description: '캐릭터 검색부터 스펙업 추천 적용, 누적 골드와 랭킹 확인까지 던파일럿 이용 방법을 안내합니다.',
     image: SITE_IMAGE_URL,
   },
   structuredData: {
     '@context': 'https://schema.org',
     '@type': 'AboutPage',
-    name: '던파일럿 소개',
+    name: '던파일럿 이용 가이드',
     url: `${SITE_URL}about/`,
-    description: '던파일럿의 캐릭터 장비 분석과 골드 대비 스펙업 추천 기능을 소개합니다.',
+    description: '던파일럿의 캐릭터 분석, 스펙업 추천, 시뮬레이터와 랭킹 이용 방법을 안내합니다.',
     isPartOf: {
       '@type': 'WebSite',
       name: '던파일럿',

@@ -145,6 +145,67 @@ def save_setting_value_snapshot(snapshot: dict) -> bool:
         return False
 
 
+def update_setting_value_snapshot_score(
+    server_id: str,
+    character_id: str = "",
+    character_name: str = "",
+    equipment_score=None,
+    buff_score=None,
+) -> bool:
+    server_id = clean_text(server_id).lower()
+    character_id = clean_text(character_id)
+    character_name = clean_text(character_name)
+    equipment_score = _positive_int_or_none(equipment_score)
+    buff_score = _positive_int_or_none(buff_score)
+    if not server_id or (not character_id and not character_name) \
+            or (equipment_score is None and buff_score is None):
+        return False
+
+    identity_sql = "character_id = ?" if character_id else "character_name = ?"
+    identity_value = character_id or character_name
+    try:
+        _ensure_setting_value_snapshot_table()
+        with _SETTING_VALUE_SNAPSHOT_LOCK:
+            with closing(_connect_setting_value_db()) as conn:
+                row = conn.execute(
+                    f"""
+                    SELECT character_id, equipment_score, buff_score, payload_json
+                    FROM setting_value_snapshot
+                    WHERE server_id = ? AND {identity_sql}
+                    LIMIT 1
+                    """,
+                    (server_id, identity_value),
+                ).fetchone()
+                if not row:
+                    return False
+                stored_character_id, stored_equipment_score, stored_buff_score, payload_json = row
+                payload = json.loads(payload_json)
+                if not isinstance(payload, dict):
+                    return False
+                resolved_equipment_score = equipment_score or _positive_int_or_none(stored_equipment_score)
+                resolved_buff_score = buff_score or _positive_int_or_none(stored_buff_score)
+                payload["equipmentScore"] = resolved_equipment_score
+                payload["buffScore"] = resolved_buff_score
+                conn.execute(
+                    """
+                    UPDATE setting_value_snapshot
+                    SET equipment_score = ?, buff_score = ?, payload_json = ?
+                    WHERE server_id = ? AND character_id = ?
+                    """,
+                    (
+                        resolved_equipment_score,
+                        resolved_buff_score,
+                        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                        server_id,
+                        stored_character_id,
+                    ),
+                )
+                conn.commit()
+        return True
+    except Exception:
+        return False
+
+
 def _get_ranking_order_sql(sort: str) -> str:
     order_sql = {
         "score": "COALESCE(buff_score, equipment_score, 0) DESC, total_gold DESC, updated_at_ms DESC",

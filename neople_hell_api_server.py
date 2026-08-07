@@ -37,6 +37,7 @@ from server.setting_value_snapshot_service import (
     finalize_character_setting_value,
     get_setting_value_ranking,
 )
+from server.repositories.setting_value_repository import update_setting_value_snapshot_score
 from server.avatar_skill_optimizer import load_avatar_skill_efficiency_response
 from server.enchant_service import (
     load_aura_upgrades_with_prices,
@@ -977,6 +978,7 @@ class HellApiHandler(SimpleHTTPRequestHandler):
     def handle_equipment_score(self, parsed):
         query = parse_qs(parsed.query)
         server_id = clean_text((query.get("serverId") or [""])[0]).lower()
+        character_id = clean_text((query.get("characterId") or [""])[0])
         character_name = clean_text((query.get("characterName") or [""])[0])
         if not server_id or not character_name:
             return self.send_json(
@@ -985,7 +987,15 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             )
 
         try:
-            self.send_json(load_official_equipment_score(server_id, character_name))
+            score = load_official_equipment_score(server_id, character_name)
+            update_setting_value_snapshot_score(
+                server_id,
+                character_id,
+                character_name,
+                score.get("equipmentScore"),
+                score.get("buffScore"),
+            )
+            self.send_json(score)
         except ValueError as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception:

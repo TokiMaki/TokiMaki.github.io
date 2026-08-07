@@ -1,10 +1,68 @@
 {
-  "schemaVersion": 3,
-  "updatedAt": "2026-06-21",
+  "schemaVersion": 4,
+  "updatedAt": "2026-08-07",
   "source": {
     "type": "manual_item_id_index_from_neople_item_search",
-    "note": "titleItems는 네오플 /df/items wordType=full 검색으로 확인한 칭호 본체 itemId다. 경매장 가격은 itemId 기준으로 조회하고, 칭호 보주 조합은 서버의 칭호 보주 옵션 로더가 별도로 처리한다."
+    "note": "titleItems는 네오플 /df/items 검색으로 확인한 칭호 본체 itemId다. titleBeadItems는 네오플 경매장 exact-name 검색으로 확인한 속성별 스페셜 칭호 보주 itemId다. 가격은 itemId 기준으로 조회한다."
   },
+  "titleBeadItems": [
+    {
+      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[화속성 & 모든스탯]",
+      "itemId": "cc92504d78aa76c2f7adb11c20cf8451",
+      "element": "fire",
+      "elementValue": 6,
+      "allStat": 25
+    },
+    {
+      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[수속성 & 모든스탯]",
+      "itemId": "f515765f20a0d054a472fbeabb2ffff4",
+      "element": "water",
+      "elementValue": 6,
+      "allStat": 25
+    },
+    {
+      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[명속성 & 모든스탯]",
+      "itemId": "fc712a0bb01527b01e4dd2e4263d1cb4",
+      "element": "light",
+      "elementValue": 6,
+      "allStat": 25
+    },
+    {
+      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[암속성 & 모든스탯]",
+      "itemId": "ce808ad0108ee2b329a177f478aaa501",
+      "element": "dark",
+      "elementValue": 6,
+      "allStat": 25
+    },
+    {
+      "itemName": "DNF X NBA 스페셜 칭호 보주[화속성 & 모든스탯]",
+      "itemId": "06dc11ce66f6b3c71f628717293fd9db",
+      "element": "fire",
+      "elementValue": 6,
+      "allStat": 25
+    },
+    {
+      "itemName": "DNF X NBA 스페셜 칭호 보주[수속성 & 모든스탯]",
+      "itemId": "e0059fc5ad1dcb52a39e0855f9815272",
+      "element": "water",
+      "elementValue": 6,
+      "allStat": 25
+    },
+    {
+      "itemName": "DNF X NBA 스페셜 칭호 보주[명속성 & 모든스탯]",
+      "itemId": "06784fd6af1de36277ea72c952d3ce8b",
+      "element": "light",
+      "elementValue": 6,
+      "allStat": 25
+    },
+    {
+      "itemName": "DNF X NBA 스페셜 칭호 보주[암속성 & 모든스탯]",
+      "itemId": "8ff597a8cb25bde0ad591625b955c2a8",
+      "element": "dark",
+      "elementValue": 6,
+      "allStat": 25
+    }
+  ],
   "groups": [
     {
       "groupName": "천공의 지배자",

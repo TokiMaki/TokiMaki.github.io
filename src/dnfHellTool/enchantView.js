@@ -6883,14 +6883,18 @@ export function installEnchantView(ctx) {
     try {
       const query = new URLSearchParams({
         serverId: character.serverId,
+        characterId: character.characterId || '',
         characterName,
       });
-      const response = await lifecycle.fetch(`${API_BASE}/api/equipment-score?${query.toString()}`, { cache: 'no-store' });
+      const response = await globalThis.fetch(
+        `${API_BASE}/api/equipment-score?${query.toString()}`,
+        { cache: 'no-store', keepalive: true },
+      );
       const payload = await parseApiJsonResponse(response, '공식 점수 조회에 실패했습니다.');
       const activeCharacterKey = isBuffer
         ? state.currentOfficialBufferScoreCharacterKey
         : state.currentOfficialEquipmentScoreCharacterKey;
-      if (requestId !== state.enchantRequestId || activeCharacterKey !== characterKey) return;
+      if (!lifecycle.active || requestId !== state.enchantRequestId || activeCharacterKey !== characterKey) return;
       if (isBuffer) {
         const score = Number(payload.buffScore);
         state.currentOfficialBufferScore = Number.isFinite(score) && score > 0 ? score : null;
@@ -7099,7 +7103,6 @@ export function installEnchantView(ctx) {
     try {
       await loadCurrentCharacterLoadout(requestId);
       if (requestId !== state.enchantRequestId) return;
-      const officialScorePromise = loadCurrentOfficialEquipmentScore(requestId);
       if (
         state.currentBufferBaseline?.isBuffer
         || !state.enchantPriceLoaded
@@ -7118,8 +7121,7 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       flushEnchantTiming('complete');
       void finalizeCurrentSettingValue(requestId);
-      await officialScorePromise;
-      if (requestId !== state.enchantRequestId) return;
+      void loadCurrentOfficialEquipmentScore(requestId);
     } catch (error) {
       if (!lifecycle.active || requestId !== state.enchantRequestId) return;
       state.currentBufferScoreStatus = 'idle';

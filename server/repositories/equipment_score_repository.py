@@ -3,6 +3,7 @@ import json
 import sqlite3
 import time
 from contextlib import closing
+from threading import Lock
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -10,14 +11,17 @@ from ..neople_client import clean_text
 from .character_repository import CHARACTER_CACHE_DIR, CHARACTER_SQLITE_CACHE_PATH
 
 
-OFFICIAL_EQUIPMENT_SCORE_CACHE_TTL_MS = 60 * 1000
+OFFICIAL_EQUIPMENT_SCORE_CACHE_TTL_MS = 10 * 60 * 1000
 OFFICIAL_EQUIPMENT_SCORE_STALE_TTL_MS = 24 * 60 * 60 * 1000
 OFFICIAL_EQUIPMENT_SCORE_SOURCE = "df.nexon.com"
 OFFICIAL_CHARACTER_SEARCH_ENDPOINT = "https://df.nexon.com/world/character/fetch"
 OFFICIAL_CHARACTER_PROFILE_BASE_URL = "https://df.nexon.com/world/character"
 OFFICIAL_SEARCH_TIMEOUT_SECONDS = 3
+OFFICIAL_SCORE_REQUEST_INTERVAL_SECONDS = 1.0
 
 _OFFICIAL_SCORE_CACHE_INITIALIZED = False
+_OFFICIAL_SCORE_FETCH_LOCK = Lock()
+_OFFICIAL_SCORE_LAST_REQUEST_MONOTONIC = 0.0
 
 _OFFICIAL_SERVER_NAMES = {
     "anton": "ANTON",
@@ -299,6 +303,8 @@ def get_cached_official_equipment_score(server_id: str, character_name: str) -> 
 
 
 def load_official_equipment_score(server_id: str, character_name: str) -> dict:
+    global _OFFICIAL_SCORE_LAST_REQUEST_MONOTONIC
+
     server_id = clean_text(server_id).lower()
     character_name = clean_text(character_name)
     server_name = get_official_server_name(server_id)
@@ -312,13 +318,31 @@ def load_official_equipment_score(server_id: str, character_name: str) -> dict:
         return _to_response(cached_payload, cached=True, stale=False)
 
     try:
-        rows = _fetch_official_character_rows(server_name, character_name)
-        row = _select_exact_character_row(rows, server_id, server_name, character_name)
-        payload = _build_payload(server_id, server_name, character_name, row or {}, now_ms) if row else None
-        if not payload:
-            return _null_response(cached=False, stale=False)
-        _save_cached_payload(cache_key, server_id, server_name, character_name, payload, now_ms)
-        return _to_response(payload, cached=False, stale=False)
+        with _OFFICIAL_SCORE_FETCH_LOCK:
+            now_ms = int(time.time() * 1000)
+            refreshed_payload, refreshed_is_stale = _load_cached_payload(cache_key, now_ms)
+            if refreshed_payload and not refreshed_is_stale and "buffScore" in refreshed_payload:
+                return _to_response(refreshed_payload, cached=True, stale=False)
+            if refreshed_payload:
+                cached_payload = refreshed_payload
+
+            wait_seconds = max(
+                0.0,
+                _OFFICIAL_SCORE_LAST_REQUEST_MONOTONIC
+                + OFFICIAL_SCORE_REQUEST_INTERVAL_SECONDS
+                - time.monotonic(),
+            )
+            if wait_seconds > 0:
+                time.sleep(wait_seconds)
+            _OFFICIAL_SCORE_LAST_REQUEST_MONOTONIC = time.monotonic()
+
+            rows = _fetch_official_character_rows(server_name, character_name)
+            row = _select_exact_character_row(rows, server_id, server_name, character_name)
+            payload = _build_payload(server_id, server_name, character_name, row or {}, now_ms) if row else None
+            if not payload:
+                return _null_response(cached=False, stale=False)
+            _save_cached_payload(cache_key, server_id, server_name, character_name, payload, now_ms)
+            return _to_response(payload, cached=False, stale=False)
     except Exception:
         if cached_payload:
             return _to_response(cached_payload, cached=True, stale=True)

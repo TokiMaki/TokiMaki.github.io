@@ -63,6 +63,19 @@ class SettingValueRepositoryTest(unittest.TestCase):
         self.assertEqual(repository.load_setting_value_ranking("dealer", "score", 10)[0]["characterId"], "score")
         self.assertEqual(repository.load_setting_value_ranking("dealer", "fame", 10)[0]["characterId"], "fame")
 
+    def test_official_score_postprocess_updates_existing_snapshot(self):
+        self.assertTrue(repository.save_setting_value_snapshot(self.snapshot("one", 100, equipment_score=1000)))
+
+        self.assertTrue(repository.update_setting_value_snapshot_score(
+            "cain",
+            character_id="one",
+            equipment_score=2345,
+        ))
+
+        row = repository.load_setting_value_ranking("dealer", "score", 10)[0]
+        self.assertEqual(row["equipmentScore"], 2345)
+        self.assertEqual(row["settingValue"]["totalGold"], 100)
+
     def test_selected_character_rank_includes_role_population_count(self):
         repository.save_setting_value_snapshot(self.snapshot("first", 500))
         repository.save_setting_value_snapshot(self.snapshot("second", 300))

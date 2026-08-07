@@ -34,6 +34,10 @@ assert.ok(
     && !finalizeFunctionSource.includes('lifecycle.fetch('),
   'setting-value finalize must continue independently after the tool lifecycle is disposed',
 );
+assert.ok(
+  enchantViewSource.includes('/api/equipment-score'),
+  'official score must use its own post-render refresh path',
+);
 assert.equal(
   enchantViewSource.includes('settingValue.details'),
   true,
@@ -55,13 +59,14 @@ const loadFunctionEnd = enchantViewSource.indexOf('async function searchEnchantC
 const loadFunctionSource = enchantViewSource.slice(loadFunctionStart, loadFunctionEnd);
 const renderIndex = loadFunctionSource.indexOf('renderEnchantTable();');
 const timingIndex = loadFunctionSource.indexOf("flushEnchantTiming('complete');");
-const scoreWaitIndex = loadFunctionSource.indexOf('await officialScorePromise;');
 const finalizeIndex = loadFunctionSource.indexOf('void finalizeCurrentSettingValue(requestId);');
+const scoreRefreshIndex = loadFunctionSource.indexOf('void loadCurrentOfficialEquipmentScore(requestId);');
 
 assert.ok(loadFunctionStart >= 0 && loadFunctionEnd > loadFunctionStart);
 assert.ok(renderIndex >= 0, 'upgrade-order render must remain in the completed load flow');
 assert.ok(timingIndex > renderIndex, 'completed timing must remain after the render');
 assert.ok(finalizeIndex > timingIndex, 'setting-value finalize must run only after upgrade-order loading and render complete');
-assert.ok(scoreWaitIndex > finalizeIndex, 'setting-value finalize must be dispatched before waiting for the score UI update');
+assert.ok(scoreRefreshIndex > timingIndex, 'official score refresh must run independently after the completed render');
+assert.notEqual(finalizeIndex, scoreRefreshIndex, 'ranking finalize and official score refresh must remain separate jobs');
 
 console.log('setting value finalize flow tests passed');

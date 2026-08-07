@@ -49,7 +49,7 @@ from .upgrade_payloads import (
 
 CREATURE_PRICE_CACHE_SCHEMA_VERSION = 8
 AURA_PRICE_CACHE_SCHEMA_VERSION = 3
-TITLE_PRICE_CACHE_SCHEMA_VERSION = 11
+TITLE_PRICE_CACHE_SCHEMA_VERSION = 12
 _ENCHANT_TIER_CARD_CACHE = None
 
 
@@ -197,42 +197,33 @@ def enrich_creature_groups_for_character(groups: list, server_id: str, character
     } for group in groups or []]
 
 
-def load_title_bead_options(get_cached_auction, errors: list) -> list:
-    element_keywords = {
-        "fire": "화속성",
-        "water": "수속성",
-        "light": "명속성",
-        "dark": "암속성",
-    }
-    options = []
-    for element, label in element_keywords.items():
-        try:
-            matched_rows = [
-                row for row in search_items_by_name(f"칭호 보주[{label} & 모든스탯]")
-                if clean_text(row.get("itemTypeDetail")) == "보주"
-                and "칭호 보주" in clean_text(row.get("itemName"))
-                and f"[{label} & 모든스탯]" in clean_text(row.get("itemName"))
-            ]
-        except Exception as exc:
-            errors.append({"keyword": f"칭호 보주[{label} & 모든스탯]", "error": str(exc)})
+def load_title_bead_options(title_db: dict, get_cached_auction, errors: list) -> list:
+    options_by_element = {}
+    for row in title_db.get("titleBeadItems") or []:
+        item_id = clean_text(row.get("itemId"))
+        element = clean_text(row.get("element"))
+        if not item_id or element not in {"fire", "water", "light", "dark"}:
             continue
+        try:
+            auction = get_cached_auction(item_id)
+        except Exception as exc:
+            auction = build_unavailable_auction_price()
+            errors.append({"itemId": item_id, "itemName": row.get("itemName"), "error": str(exc)})
+        options_by_element.setdefault(element, []).append({
+            "itemId": item_id,
+            "itemName": clean_text(row.get("itemName")),
+            "iconUrl": get_item_icon_url(item_id),
+            "element": element,
+            # titleEnchantElement가 실제 속성을 나타내고 elementAll은 기존 계산용 수치 필드다.
+            "effects": {
+                "elementAll": float(row.get("elementValue") or 0),
+                "allStat": float(row.get("allStat") or 0),
+            },
+            "auction": auction,
+        })
 
-        element_options = []
-        for row in matched_rows:
-            item_id = row.get("itemId")
-            try:
-                auction = get_cached_auction(item_id)
-            except Exception as exc:
-                auction = build_unavailable_auction_price()
-                errors.append({"itemId": item_id, "itemName": row.get("itemName"), "error": str(exc)})
-            element_options.append({
-                "itemId": item_id,
-                "itemName": clean_text(row.get("itemName")),
-                "iconUrl": get_item_icon_url(item_id),
-                "element": element,
-                "effects": {"elementAll": 6, "allStat": 25},
-                "auction": auction,
-            })
+    options = []
+    for element_options in options_by_element.values():
         priced_options = [
             option for option in element_options
             if isinstance(option.get("auction", {}).get("minUnitPrice"), (int, float))
@@ -700,15 +691,20 @@ def load_aura_upgrades_with_prices(
 
 def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bool = True) -> dict:
     now = time.time()
+    schema_mismatch = False
     if allow_stale:
         load_price_cache_from_disk(_TITLE_PRICE_CACHE, TITLE_PRICE_CACHE_PATH)
     with _CACHE_LOCK:
         payload = _TITLE_PRICE_CACHE["payload"]
         expires_at = _TITLE_PRICE_CACHE["expires_at"]
         if payload is not None and payload.get("schemaVersion") != TITLE_PRICE_CACHE_SCHEMA_VERSION:
+            schema_mismatch = True
             payload = None
             _TITLE_PRICE_CACHE["payload"] = None
             _TITLE_PRICE_CACHE["expires_at"] = 0
+
+    if allow_stale and schema_mismatch:
+        return load_title_upgrades_with_prices(force_refresh=True, allow_stale=False)
 
     if allow_stale and payload is not None:
         if not force_refresh and expires_at > now:
@@ -753,7 +749,7 @@ def load_title_upgrades_with_prices(force_refresh: bool = False, allow_stale: bo
             auction_cache[item_id] = get_lowest_auction_price(item_id)
         return auction_cache[item_id]
 
-    title_bead_options = load_title_bead_options(get_cached_auction, errors)
+    title_bead_options = load_title_bead_options(title_db, get_cached_auction, errors)
     title_groups = build_title_upgrade_groups(title_db)
     for title_group in title_groups:
         resolved_sources = resolve_title_group_sources(title_group, fetch_item_details, search_items_by_name)
