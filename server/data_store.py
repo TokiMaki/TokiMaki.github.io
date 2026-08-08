@@ -14,11 +14,13 @@ AVATAR_OPTION_DB_PATH = ROOT / "Docs" / "avatar_option_db.json"
 SWITCHING_AVATAR_DB_PATH = ROOT / "Docs" / "switching_avatar_db.json"
 OATH_TUNE_STAGE_DB_PATH = ROOT / "Docs" / "oath_tune_stage_db.json"
 JOB_BASE_STAT_PATH = ROOT / "Docs" / "jobBaseStat.json"
+JOB_ATTACK_TYPE_DB_PATH = ROOT / "Docs" / "job_attack_type_db.json"
 AMPLIFICATION_EXPECTED_DB_PATH = ROOT / "Docs" / "amplification_expected_db.json"
 REINFORCEMENT_EXPECTED_DB_PATH = ROOT / "Docs" / "reinforcement_expected_db.json"
 RELIC_CRAFT_DB_PATH = ROOT / "Docs" / "relic_craft_db.json"
 
 _JOB_BASE_STAT_CACHE = None
+_JOB_ATTACK_TYPE_DB_CACHE = None
 _UPGRADE_EXPECTED_DB_CACHE = None
 _AVATAR_OPTION_DB_CACHE = None
 _SWITCHING_AVATAR_DB_CACHE = None
@@ -114,6 +116,30 @@ def load_job_base_stats() -> dict:
 def resolve_job_base_stat_row(job_name: str, job_grow_name: str) -> dict:
     lookup_key = _JOB_BASE_STAT_LOOKUP_ALIASES.get((job_name, job_grow_name), job_grow_name)
     return load_job_base_stats().get(lookup_key) or {}
+
+
+def load_job_attack_type_db() -> dict:
+    global _JOB_ATTACK_TYPE_DB_CACHE
+    if _JOB_ATTACK_TYPE_DB_CACHE is None:
+        try:
+            with JOB_ATTACK_TYPE_DB_PATH.open("r", encoding="utf-8") as handle:
+                _JOB_ATTACK_TYPE_DB_CACHE = json.load(handle)
+        except FileNotFoundError:
+            _JOB_ATTACK_TYPE_DB_CACHE = {}
+    return _JOB_ATTACK_TYPE_DB_CACHE
+
+
+def resolve_job_attack_sources(job_id: str, job_grow_id: str) -> list[str]:
+    valid_sources = {"physical", "magical", "independent"}
+    for row in load_job_attack_type_db().get("jobs") or []:
+        if row.get("jobId") != job_id or row.get("jobGrowId") != job_grow_id:
+            continue
+        return [
+            source
+            for source in row.get("attackSources") or []
+            if source in valid_sources
+        ]
+    return []
 
 
 def load_oath_tune_stage_db() -> dict:

@@ -10,6 +10,7 @@ from .data_store import (
     load_dealer_switching_title_db,
     load_oath_tune_stage_db,
     resolve_job_base_stat_row,
+    resolve_job_attack_sources,
     load_switching_avatar_db,
     load_upgrade_expected_db,
 )
@@ -592,16 +593,21 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
         if "속성 피해" in key
     ) if any("속성 피해" in key for key in status) else 0
     element_damage = status_element_damage + equipment_base_element * 0.45 if status_element_damage else 0
-    attack_value = max(
-        status.get("물리 공격", 0),
-        status.get("마법 공격", 0),
-        status.get("독립 공격", 0),
+    attack_status_names = {
+        "physical": "물리 공격",
+        "magical": "마법 공격",
+        "independent": "독립 공격",
+    }
+    configured_attack_sources = resolve_job_attack_sources(
+        clean_text(payload.get("jobId")),
+        clean_text(payload.get("jobGrowId")),
     )
-    attack_source = "physical"
-    if attack_value == status.get("마법 공격", 0):
-        attack_source = "magical"
-    if attack_value == status.get("독립 공격", 0):
-        attack_source = "independent"
+    attack_sources = configured_attack_sources or ["independent", "magical", "physical"]
+    attack_source = max(
+        attack_sources,
+        key=lambda source: status.get(attack_status_names[source], 0),
+    )
+    attack_value = status.get(attack_status_names[attack_source], 0)
     return {
         "stat": status.get(selected_stat_name, 0),
         "statName": selected_stat_name,

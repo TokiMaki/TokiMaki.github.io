@@ -35,6 +35,7 @@
 - 최근 마부 DB: 2026-08-06 미카엘라 레이드 신규 딜러/버퍼 카드와 빛망울 구매 하의 보주를 실제 상세 itemId로 추가했다. 동명 후보는 `cardInfo.enchant` 업그레이드 단계가 있는 상세를 사용하고, 기존 종결은 최대 강화 효과가 밀린 부위만 준종결로 내린다.
 - 최근 마부 교정: `acquisition.label`이 있는 재료 마법부여는 경매장 `unlisted` 상태와 무관하게 골드 0의 유효한 시뮬레이터 적용 대상으로 처리한다. 일반 가격 미확인 마부의 적용 차단은 유지한다.
 - 최근 강화/증폭 정책: 무기 강화/증폭 추천은 현재 공격력 기준이 독립공격력이고 무기 재련이 있으면 115레벨 재련 독공 표를 반영한다. 독공 실효 증가는 `max(강화/증폭 독공, 현재 재련 독공)` 전후 차이만 인정하고, 12강 이상 최종 데미지 보너스는 기존처럼 별도 반영한다. 독공 비증폭 무기는 안전강화와 무기 증폭 후보를 비교해 효율 좋은 1개만 남긴다.
+- 최근 공격 타입 정책: `Docs/job_attack_type_db.json`은 공식 직업 목록의 `jobId + jobGrowId`별 `attackSources`를 관리한다. 값이 있으면 허용된 물공/마공/독공만 비교하고, 하이브리드는 복수 타입을 허용하며, 빈 배열은 기존 전체 최댓값 판정으로 fallback한다.
 - 최근 버프강화 정책: 딜러 스위칭 칭호/크리쳐 contribution 계산은 `buffSkillName`과 `equivalentSwitchingPlatinumSkills`를 함께 인정한다. 레벨 범위형 효과는 target skill별 requiredLevel을 독립 합산하고, 추천 실효 상승량은 스위칭 레벨 cap 7을 적용한다.
 - 최근 버프강화 UI: `buffLoadout` 슬롯에는 기존 판별 helper로 계산한 선택적 `buffContribution` 요약만 추가하며, 프론트 툴팁은 원본 enchant/emblems/detail 없이 해당 표시값을 그대로 사용한다.
 - 최근 서약 정책: `서약 결정 초월`/`서약 정가` 추천은 각각 `oathTranscendRecommendations`/`oathCraftRecommendations` 별도 필드와 `oathTranscend`/`oathCraft` sourceType으로 기존 `oathUpgrades`/서약 조율과 분리한다. 장비 세트포인트 2550 미만 또는 미확인 캐릭터는 초월/정가 추천을 생성하지 않는다. target 서약 결정은 exact item search/detail 검증 후 생성하고, 딜러/버퍼별 유효 옵션과 세트포인트 교체 효과를 반영하며, 에픽/태초 추천은 rarity별 최상위 1개와 일반 에픽 8칸/태초 3칸 cap을 반영한다. 고유 current는 허용하되 target 고유는 제외하고, target family는 중앙 서약 표시의 원본인 `setInfo.setOptionName`의 family 접두사로 정한다. `창조의 안개 결정 - 반지`는 딜러 current 최종 데미지 19%로 계산한다.
