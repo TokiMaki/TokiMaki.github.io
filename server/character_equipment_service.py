@@ -116,6 +116,7 @@ from .upgrade_payloads import (
 
 
 AVATAR_PLATINUM_FINAL_DAMAGE_PERCENT = 1.62
+BASE_ATTACK_POTENTIAL = 95
 AVATAR_BRILLIANT_RED_STAT = 25
 AVATAR_BRILLIANT_YELLOW_STAT = 15
 AVATAR_BRILLIANT_GREEN_STAT = 15
@@ -568,7 +569,143 @@ def get_equipment_base_element_bonus(equipment_rows: list) -> float:
     return _get_equipment_base_element_bonus_debug(equipment_rows).get("value") or 0
 
 
-def build_damage_baseline_from_status_payload(payload: dict, equipment_base_element: float = 0) -> dict:
+ATTACK_STATUS_NAMES = {
+    "physical": ("물리 공격", "물리 공격력"),
+    "magical": ("마법 공격", "마법 공격력"),
+    "independent": ("독립 공격", "독립 공격력"),
+}
+
+
+def resolve_damage_attack_source(payload: dict, status: dict | None = None) -> str:
+    status = status or status_rows_to_map(payload.get("status") or [])
+    configured_attack_sources = resolve_job_attack_sources(
+        clean_text(payload.get("jobId")),
+        clean_text(payload.get("jobGrowId")),
+    )
+    attack_sources = configured_attack_sources or ["independent", "magical", "physical"]
+    return max(
+        attack_sources,
+        key=lambda source: status.get(ATTACK_STATUS_NAMES[source][0], 0),
+    )
+
+
+def get_flat_attack_from_status_rows(status_rows: list, attack_source: str) -> float:
+    target_names = set(ATTACK_STATUS_NAMES.get(attack_source) or [])
+    return max([
+        parse_percent_or_number(row.get("value"))
+        for row in status_rows or []
+        if clean_text(row.get("name")) in target_names
+    ] or [0])
+
+
+def get_equipment_upgrade_attack(equipment: dict, attack_source: str, upgrade_db: dict) -> float:
+    reinforcement = (upgrade_db or {}).get("reinforcement") or {}
+    reinforce_level = int(parse_percent_or_number(equipment.get("reinforce")))
+    effect_row = next((
+        row for row in reinforcement.get("effectsByLevel") or []
+        if int(parse_percent_or_number(row.get("level"))) == reinforce_level
+    ), {})
+    slot_id = clean_text(equipment.get("slotId"))
+    if slot_id == "EARRING":
+        return parse_percent_or_number((effect_row.get("earring") or {}).get("attack"))
+    if slot_id != "WEAPON":
+        return 0
+
+    reinforce_attack = parse_percent_or_number((effect_row.get("weapon") or {}).get("attack"))
+    if attack_source != "independent":
+        return reinforce_attack
+    refine_level = int(parse_percent_or_number(equipment.get("refine")))
+    refine_row = next((
+        row for row in reinforcement.get("weaponRefineIndependentAttackByLevel115") or []
+        if int(parse_percent_or_number(row.get("level"))) == refine_level
+    ), {})
+    return max(
+        reinforce_attack,
+        parse_percent_or_number(refine_row.get("independentAttack")),
+    )
+
+
+def _get_character_base_attack_debug(
+    equipment_rows: list,
+    avatar_rows: list,
+    creature: dict,
+    attack_source: str,
+) -> dict:
+    item_ids = []
+    for row in equipment_rows or []:
+        item_id = clean_text(row.get("itemId"))
+        if item_id:
+            item_ids.append(item_id)
+    for row in avatar_rows or []:
+        if clean_text(row.get("slotId")) != "AURORA":
+            continue
+        item_id = resolve_effective_aura_item_id(row)
+        if item_id:
+            item_ids.append(item_id)
+    creature_item_id = clean_text((creature or {}).get("itemId"))
+    if creature_item_id:
+        item_ids.append(creature_item_id)
+    artifact_rows = [
+        row for row in (creature or {}).get("artifact") or []
+        if isinstance(row, dict)
+    ]
+    for row in artifact_rows:
+        item_id = clean_text(row.get("itemId"))
+        if item_id:
+            item_ids.append(item_id)
+
+    unique_item_ids = list(dict.fromkeys(item_ids))
+    detail_by_id = {
+        clean_text(detail.get("itemId")): detail
+        for detail in fetch_item_details(unique_item_ids)
+        if clean_text(detail.get("itemId"))
+    }
+    missing_item_ids = [item_id for item_id in unique_item_ids if item_id not in detail_by_id]
+    if missing_item_ids:
+        return {"value": None, "missingItemIds": missing_item_ids}
+
+    body_attack = sum(
+        get_flat_attack_from_status_rows((detail_by_id.get(item_id) or {}).get("itemStatus") or [], attack_source)
+        for item_id in item_ids
+    )
+    enchant_attack = sum(
+        get_flat_attack_from_status_rows(((row.get("enchant") or {}).get("status") or []), attack_source)
+        for row in equipment_rows or []
+    )
+    upgrade_db = load_upgrade_expected_db()
+    upgrade_attack = sum(
+        get_equipment_upgrade_attack(row, attack_source, upgrade_db)
+        for row in equipment_rows or []
+    )
+    return {
+        "value": BASE_ATTACK_POTENTIAL + body_attack + enchant_attack + upgrade_attack,
+        "basePotential": BASE_ATTACK_POTENTIAL,
+        "bodyAttack": body_attack,
+        "enchantAttack": enchant_attack,
+        "upgradeAttack": upgrade_attack,
+        "missingItemIds": [],
+    }
+
+
+def get_character_base_attack(
+    equipment_rows: list,
+    avatar_rows: list,
+    creature: dict,
+    attack_source: str,
+) -> float | None:
+    return _get_character_base_attack_debug(
+        equipment_rows,
+        avatar_rows,
+        creature,
+        attack_source,
+    ).get("value")
+
+
+def build_damage_baseline_from_status_payload(
+    payload: dict,
+    equipment_base_element: float = 0,
+    character_base_attack: float | None = None,
+) -> dict:
     status = status_rows_to_map(payload.get("status") or [])
     job_name = clean_text(payload.get("jobName"))
     job_grow_name = clean_text(payload.get("jobGrowName"))
@@ -593,21 +730,12 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
         if "속성 피해" in key
     ) if any("속성 피해" in key for key in status) else 0
     element_damage = status_element_damage + equipment_base_element * 0.45 if status_element_damage else 0
-    attack_status_names = {
-        "physical": "물리 공격",
-        "magical": "마법 공격",
-        "independent": "독립 공격",
-    }
-    configured_attack_sources = resolve_job_attack_sources(
-        clean_text(payload.get("jobId")),
-        clean_text(payload.get("jobGrowId")),
+    attack_source = resolve_damage_attack_source(payload, status)
+    attack_value = (
+        character_base_attack
+        if character_base_attack is not None
+        else status.get(ATTACK_STATUS_NAMES[attack_source][0], 0)
     )
-    attack_sources = configured_attack_sources or ["independent", "magical", "physical"]
-    attack_source = max(
-        attack_sources,
-        key=lambda source: status.get(attack_status_names[source], 0),
-    )
-    attack_value = status.get(attack_status_names[attack_source], 0)
     return {
         "stat": status.get(selected_stat_name, 0),
         "statName": selected_stat_name,
@@ -627,9 +755,29 @@ def build_damage_baseline_from_status_payload(payload: dict, equipment_base_elem
     }
 
 
-def load_character_damage_baseline(server_id: str, character_id: str, equipment_base_element: float = 0) -> dict:
+def load_character_damage_baseline(
+    server_id: str,
+    character_id: str,
+    equipment_base_element: float = 0,
+    equipment_rows: list | None = None,
+) -> dict:
     payload = get_character_cached_payload(server_id, character_id, "status", "status")
-    return build_damage_baseline_from_status_payload(payload, equipment_base_element)
+    character_base_attack = None
+    if equipment_rows is not None:
+        avatar_payload = get_character_cached_payload(server_id, character_id, "avatar", "equip/avatar")
+        creature_payload = get_character_cached_payload(server_id, character_id, "creature", "equip/creature")
+        attack_source = resolve_damage_attack_source(payload)
+        character_base_attack = get_character_base_attack(
+            equipment_rows,
+            avatar_payload.get("avatar") or [],
+            creature_payload.get("creature") or {},
+            attack_source,
+        )
+    return build_damage_baseline_from_status_payload(
+        payload,
+        equipment_base_element,
+        character_base_attack,
+    )
 
 
 def load_character_buffer_baseline(
@@ -1196,7 +1344,12 @@ def load_character_enchants(
     damage_baseline = _measure_step(
         steps,
         "load_character_damage_baseline",
-        lambda: load_character_damage_baseline(server_id, character_id, equipment_base_element),
+        lambda: load_character_damage_baseline(
+            server_id,
+            character_id,
+            equipment_base_element,
+            payload.get("equipment") or [],
+        ),
     )
     upgrade_material_prices = _measure_step(
         steps,

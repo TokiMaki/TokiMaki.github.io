@@ -1,7 +1,11 @@
 import unittest
+from unittest.mock import patch
 
 import server.data_store as data_store
-from server.character_equipment_service import build_damage_baseline_from_status_payload
+from server.character_equipment_service import (
+    _get_character_base_attack_debug,
+    build_damage_baseline_from_status_payload,
+)
 from server.data_store import (
     load_job_attack_type_db,
     load_job_base_stats,
@@ -87,6 +91,72 @@ class JobBaseStatResolverTest(unittest.TestCase):
             self.assertEqual((hybrid["attackSource"], hybrid["attack"]), ("magical", 3200))
         finally:
             data_store._JOB_ATTACK_TYPE_DB_CACHE = original_cache
+
+    def test_character_base_attack_sums_unmodified_attack_sources(self):
+        equipment = [
+            {
+                "slotId": "WEAPON",
+                "itemId": "weapon",
+                "reinforce": 13,
+                "refine": 0,
+                "enchant": {"status": [{"name": "물리 공격력", "value": 30}]},
+            },
+            {
+                "slotId": "EARRING",
+                "itemId": "earring",
+                "reinforce": 11,
+                "enchant": {"status": []},
+            },
+            {
+                "slotId": "JACKET",
+                "itemId": "jacket",
+                "reinforce": 11,
+                "enchant": {"status": [{"name": "물리 공격력", "value": 260}]},
+            },
+        ]
+        avatar = [{"slotId": "AURORA", "itemId": "aura"}]
+        creature = {
+            "itemId": "creature",
+            "artifact": [{"itemId": "artifact"}],
+        }
+        details = [
+            {"itemId": "weapon", "itemStatus": [{"name": "물리 공격력", "value": 1757}]},
+            {"itemId": "earring", "itemStatus": []},
+            {"itemId": "jacket", "itemStatus": []},
+            {"itemId": "aura", "itemStatus": [{"name": "물리 공격력", "value": 50}]},
+            {"itemId": "creature", "itemStatus": []},
+            {"itemId": "artifact", "itemStatus": [{"name": "물리 공격력", "value": 25}]},
+        ]
+
+        with patch("server.character_equipment_service.fetch_item_details", return_value=details):
+            result = _get_character_base_attack_debug(
+                equipment,
+                avatar,
+                creature,
+                "physical",
+            )
+
+        self.assertEqual(result["basePotential"], 95)
+        self.assertEqual(result["bodyAttack"], 1832)
+        self.assertEqual(result["enchantAttack"], 290)
+        self.assertEqual(result["upgradeAttack"], 1211)
+        self.assertEqual(result["value"], 3428)
+
+    def test_explicit_character_base_attack_ignores_mastery_inflated_status(self):
+        result = build_damage_baseline_from_status_payload({
+            "jobId": "fighter-female",
+            "jobGrowId": "striker",
+            "jobName": "격투가(여)",
+            "jobGrowName": "眞 스트라이커",
+            "status": [
+                {"name": "힘", "value": 5000},
+                {"name": "물리 공격", "value": 5042},
+                {"name": "마법 공격", "value": 3428},
+                {"name": "독립 공격", "value": 3428},
+            ],
+        }, character_base_attack=3428)
+
+        self.assertEqual((result["attackSource"], result["attack"]), ("physical", 3428))
 
 
 if __name__ == "__main__":
