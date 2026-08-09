@@ -19,6 +19,10 @@ export function createEnchantDealerDamageMetric(deps) {
   const ELEMENT_DAMAGE_PER_ELEMENT = 0.45;
   const ELEMENT_BASE_DAMAGE_PERCENT = 5;
 
+  function getAttackIncreaseAmplificationFactor(attackIncrease = 0, attackAmplification = 0) {
+    return 1 + (Number(attackIncrease || 0) / 100) * (1 + Number(attackAmplification || 0) / 100);
+  }
+
   function getDealerPrimaryStatKey(baseline = {}) {
     if (baseline?.statName === '힘') return 'str';
     if (baseline?.statName === '지능') return 'int';
@@ -89,12 +93,16 @@ export function createEnchantDealerDamageMetric(deps) {
     const currentFinalDamageMultiplier = 1 + base.finalDamage / 100;
     const candidateFinalDamageMultiplier = 1 + (base.finalDamage + Number(effects.finalDamage || 0)) / 100;
     const finalDamageMultiplier = candidateFinalDamageMultiplier / currentFinalDamageMultiplier;
-    const currentAttackIncreaseMultiplier = 1 + base.attackIncrease / 100;
-    const candidateAttackIncreaseMultiplier = 1 + (base.attackIncrease + Number(effects.attackIncrease || 0)) / 100;
-    const attackIncreaseMultiplier = candidateAttackIncreaseMultiplier / currentAttackIncreaseMultiplier;
-    const currentAttackAmplificationMultiplier = 1 + base.attackAmplification / 100;
-    const candidateAttackAmplificationMultiplier = 1 + (base.attackAmplification + Number(effects.attackAmplification || 0)) / 100;
-    const attackAmplificationMultiplier = candidateAttackAmplificationMultiplier / currentAttackAmplificationMultiplier;
+    const currentAttackIncreaseAmplificationFactor = getAttackIncreaseAmplificationFactor(
+      base.attackIncrease,
+      base.attackAmplification,
+    );
+    const candidateAttackIncreaseAmplificationFactor = getAttackIncreaseAmplificationFactor(
+      base.attackIncrease + Number(effects.attackIncrease || 0),
+      base.attackAmplification + Number(effects.attackAmplification || 0),
+    );
+    const attackIncreaseAmplificationMultiplier = candidateAttackIncreaseAmplificationFactor
+      / currentAttackIncreaseAmplificationFactor;
     const currentElementDamage = base.elementDamage;
     const candidateElementDamage = currentElementDamage + Number(effects.elementAll || 0) * ELEMENT_DAMAGE_PER_ELEMENT;
     const currentElementMultiplier = 1 + currentElementDamage / 100;
@@ -120,7 +128,7 @@ export function createEnchantDealerDamageMetric(deps) {
     const skillDamageMultiplier = Number.isFinite(explicitSkillDamageMultiplier) && explicitSkillDamageMultiplier > 0
       ? explicitSkillDamageMultiplier
       : 1;
-    return finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier;
+    return finalDamageMultiplier * attackIncreaseAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier;
   }
 
   return {

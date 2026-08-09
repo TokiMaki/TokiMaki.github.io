@@ -73,19 +73,27 @@ export function createEnchantDealerRecommendation(deps) {
     return 1;
   }
 
+  function getAttackIncreaseAmplificationFactor(attackIncrease = 0, attackAmplification = 0) {
+    return 1 + (Number(attackIncrease || 0) / 100) * (1 + Number(attackAmplification || 0) / 100);
+  }
+
   function getReplacementIncrementalDamagePercent(row, current, baseline) {
     const currentEffects = current?.effects || {};
     const targetEffects = row.effects || {};
     const base = getDamageBaseline(baseline);
     const finalDamageMultiplier = getFinalDamageReplacementMultiplier(currentEffects, targetEffects);
     const baseAttackIncrease = Math.max(0, base.attackIncrease - Number(currentEffects.attackIncrease || 0));
-    const currentAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(currentEffects.attackIncrease || 0)) / 100;
-    const targetAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(targetEffects.attackIncrease || 0)) / 100;
-    const attackIncreaseMultiplier = targetAttackIncreaseMultiplier / currentAttackIncreaseMultiplier;
     const baseAttackAmplification = Math.max(0, base.attackAmplification - Number(currentEffects.attackAmplification || 0));
-    const currentAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(currentEffects.attackAmplification || 0)) / 100;
-    const targetAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(targetEffects.attackAmplification || 0)) / 100;
-    const attackAmplificationMultiplier = targetAttackAmplificationMultiplier / currentAttackAmplificationMultiplier;
+    const currentAttackIncreaseAmplificationFactor = getAttackIncreaseAmplificationFactor(
+      baseAttackIncrease + Number(currentEffects.attackIncrease || 0),
+      baseAttackAmplification + Number(currentEffects.attackAmplification || 0),
+    );
+    const targetAttackIncreaseAmplificationFactor = getAttackIncreaseAmplificationFactor(
+      baseAttackIncrease + Number(targetEffects.attackIncrease || 0),
+      baseAttackAmplification + Number(targetEffects.attackAmplification || 0),
+    );
+    const attackIncreaseAmplificationMultiplier = targetAttackIncreaseAmplificationFactor
+      / currentAttackIncreaseAmplificationFactor;
     const elementMultiplier = estimateDamageMultiplier(getElementDeltaEffects(targetEffects, currentEffects), baseline);
     const baseAttack = base.attack - Number(currentEffects.attack || 0);
     const currentAttack = baseAttack + REGION_ATTACK_FLAT + Number(currentEffects.attack || 0);
@@ -109,7 +117,7 @@ export function createEnchantDealerRecommendation(deps) {
     const currentSkillDamageMultiplier = getSkillDamageMultiplier(current);
     const targetSkillDamageMultiplier = getSkillDamageMultiplier(row);
     const skillDamageMultiplier = targetSkillDamageMultiplier / currentSkillDamageMultiplier;
-    return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier - 1) * 100;
+    return (finalDamageMultiplier * attackIncreaseAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier - 1) * 100;
   }
 
   function getCurrentElementPreferenceOrder(currentCreature, currentTitle, topElements = []) {
@@ -299,13 +307,17 @@ export function createEnchantDealerRecommendation(deps) {
     const adjustedBase = getDamageBaseline(adjustedBaseline);
     const finalDamageMultiplier = getFinalDamageReplacementMultiplier(currentEffects, targetEffects);
     const baseAttackIncrease = Math.max(0, base.attackIncrease - Number(currentEffects.attackIncrease || 0));
-    const currentAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(currentEffects.attackIncrease || 0)) / 100;
-    const targetAttackIncreaseMultiplier = 1 + (baseAttackIncrease + Number(targetEffects.attackIncrease || 0)) / 100;
-    const attackIncreaseMultiplier = targetAttackIncreaseMultiplier / currentAttackIncreaseMultiplier;
     const baseAttackAmplification = Math.max(0, base.attackAmplification - Number(currentEffects.attackAmplification || 0));
-    const currentAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(currentEffects.attackAmplification || 0)) / 100;
-    const targetAttackAmplificationMultiplier = 1 + (baseAttackAmplification + Number(targetEffects.attackAmplification || 0)) / 100;
-    const attackAmplificationMultiplier = targetAttackAmplificationMultiplier / currentAttackAmplificationMultiplier;
+    const currentAttackIncreaseAmplificationFactor = getAttackIncreaseAmplificationFactor(
+      baseAttackIncrease + Number(currentEffects.attackIncrease || 0),
+      baseAttackAmplification + Number(currentEffects.attackAmplification || 0),
+    );
+    const targetAttackIncreaseAmplificationFactor = getAttackIncreaseAmplificationFactor(
+      baseAttackIncrease + Number(targetEffects.attackIncrease || 0),
+      baseAttackAmplification + Number(targetEffects.attackAmplification || 0),
+    );
+    const attackIncreaseAmplificationMultiplier = targetAttackIncreaseAmplificationFactor
+      / currentAttackIncreaseAmplificationFactor;
     const elementMultiplier = (1 + adjustedBase.elementDamage / 100) / (1 + base.elementDamage / 100);
     const baseAttack = base.attack - Number(currentEffects.attack || 0);
     const currentAttack = baseAttack + REGION_ATTACK_FLAT + Number(currentEffects.attack || 0);
@@ -329,7 +341,7 @@ export function createEnchantDealerRecommendation(deps) {
     const currentSkillDamageMultiplier = getSkillDamageMultiplier(current);
     const targetSkillDamageMultiplier = getSkillDamageMultiplier(row);
     const skillDamageMultiplier = targetSkillDamageMultiplier / currentSkillDamageMultiplier;
-    return (finalDamageMultiplier * attackIncreaseMultiplier * attackAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier - 1) * 100;
+    return (finalDamageMultiplier * attackIncreaseAmplificationMultiplier * elementMultiplier * attackMultiplier * statMultiplier * skillDamageMultiplier - 1) * 100;
   }
 
   function isFinitePositivePrice(row) {

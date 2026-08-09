@@ -275,8 +275,16 @@ function testDamageMultiplierSentinelsProductPercentRatioAndImmutability() {
   };
   const expected = {
     finalDamage: (1 + (base.finalDamage + 9) / 100) / (1 + base.finalDamage / 100),
-    attackIncrease: (1 + (base.attackIncrease + 11) / 100) / (1 + base.attackIncrease / 100),
-    attackAmplification: (1 + (base.attackAmplification + 5) / 100) / (1 + base.attackAmplification / 100),
+    attackIncrease: (
+      1 + ((base.attackIncrease + 11) / 100) * (1 + base.attackAmplification / 100)
+    ) / (
+      1 + (base.attackIncrease / 100) * (1 + base.attackAmplification / 100)
+    ),
+    attackAmplification: (
+      1 + (base.attackIncrease / 100) * (1 + (base.attackAmplification + 5) / 100)
+    ) / (
+      1 + (base.attackIncrease / 100) * (1 + base.attackAmplification / 100)
+    ),
     element: (1 + (base.elementDamage + 13 * 0.45) / 100) / (1 + base.elementDamage / 100),
     attack: (base.attack + 31215 + 777) / (base.attack + 31215),
     stat: (
@@ -294,7 +302,18 @@ function testDamageMultiplierSentinelsProductPercentRatioAndImmutability() {
   const combined = deepFreeze(Object.assign({}, ...Object.values(sentinels)));
   const baselineSnapshot = clone(baseline);
   const combinedSnapshot = clone(combined);
-  const combinedExpected = Object.values(expected).reduce((product, value) => product * value, 1);
+  const combinedAttackIncreaseAmplification = (
+    1
+    + ((base.attackIncrease + 11) / 100) * (1 + (base.attackAmplification + 5) / 100)
+  ) / (
+    1 + (base.attackIncrease / 100) * (1 + base.attackAmplification / 100)
+  );
+  const combinedExpected = expected.finalDamage
+    * combinedAttackIncreaseAmplification
+    * expected.element
+    * expected.attack
+    * expected.stat
+    * expected.skillDamage;
   assertClose(estimateDamageMultiplier(combined, baseline), combinedExpected);
   assertClose(
     estimateDamagePercent(combined, baseline),
