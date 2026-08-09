@@ -18,6 +18,8 @@ OFFICIAL_CHARACTER_SEARCH_ENDPOINT = "https://df.nexon.com/world/character/fetch
 OFFICIAL_CHARACTER_PROFILE_BASE_URL = "https://df.nexon.com/world/character"
 OFFICIAL_SEARCH_TIMEOUT_SECONDS = 3
 OFFICIAL_SCORE_REQUEST_INTERVAL_SECONDS = 1.0
+OFFICIAL_POINT_XOR_SUFFIX = bytes([94, 105, 48, 89, 125, 105, 88, 96, 45, 120, 42, 89])
+OFFICIAL_POINT_TRIM_SUFFIX = bytes([104, 95, 52, 69, 43, 59, 115, 110, 42, 59, 33, 42])
 
 _OFFICIAL_SCORE_CACHE_INITIALIZED = False
 _OFFICIAL_SCORE_FETCH_LOCK = Lock()
@@ -209,8 +211,8 @@ def decode_official_point(value: str, key: str, salt: str) -> int | None:
         key_bytes = base64.b64decode(clean_text(key))
         salt_bytes = base64.b64decode(clean_text(salt))
         raw = base64.b64decode(clean_text(value))
-        xor_key = key_bytes + bytes([103, 50, 75, 38, 42, 97, 117, 99, 57, 88, 64, 56])
-        trim_key = salt_bytes + bytes([84, 122, 51, 36, 76, 119, 56, 110, 66, 101, 33, 49])
+        xor_key = key_bytes + OFFICIAL_POINT_XOR_SUFFIX
+        trim_key = salt_bytes + OFFICIAL_POINT_TRIM_SUFFIX
         decoded = bytes(byte ^ xor_key[index % len(xor_key)] for index, byte in enumerate(raw))
         decoded_text = decoded.decode("utf-8")
         trim_text = trim_key.decode("utf-8")
