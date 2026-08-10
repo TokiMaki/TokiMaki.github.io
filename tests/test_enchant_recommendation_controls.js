@@ -24,12 +24,13 @@ const DEFAULT_INCLUDE_KEYS = [
   '강화/증폭:강화',
   '강화/증폭:증폭',
   '장비:조율',
-  '장비:유일',
+  '장비:흑아',
   '장비:잠식',
   '장비:축성',
+  '유일:제작',
+  '유일:정밀',
   '서약:조율',
   '서약:초월/정가',
-  '흑아:흑아',
 ];
 const SLOT_ORDER = [
   '무기',
@@ -222,14 +223,14 @@ test('storage null은 기본 HTML과 기본-disabled 서약 상태를 보존한�
   assert.deepEqual(storage.calls, []);
   controls.renderEnchantIncludeControls();
 
-  assert.equal(includeControls.innerHTML.length, 8297);
+  assert.equal(includeControls.innerHTML.length, 8547);
   assert.equal(
     sha256(includeControls.innerHTML),
-    'cd2d07c116a680d60711f44a9ee53cb0d0cc56096f17a003d1f3e33e8fb085c3',
+    'a932cf40010210781a98ea0270d85d82fd746a31b4185dafbd7a811b525fe3d8',
   );
-  assert.equal(includeControls.inputs.length, 24);
+  assert.equal(includeControls.inputs.length, 25);
   assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
-  assert.equal(checkedValues(includeControls).length, 24);
+  assert.equal(checkedValues(includeControls).length, 25);
   assert.deepEqual(storage.calls, [['getItem', INCLUDE_KEY]]);
 });
 
@@ -268,9 +269,9 @@ test('정상 저장값은 기존 DOM보다 우선하고 매 호출마다 다시 
   controls.renderEnchantIncludeControls();
   assert.deepEqual(checkedValues(includeControls), ['마법부여:준종결']);
 
-  storage.values.set(INCLUDE_KEY, JSON.stringify(['흑아:흑아']));
+  storage.values.set(INCLUDE_KEY, JSON.stringify(['장비:흑아']));
   controls.renderEnchantIncludeControls();
-  assert.deepEqual(checkedValues(includeControls), ['흑아:흑아']);
+  assert.deepEqual(checkedValues(includeControls), ['장비:흑아']);
   assert.deepEqual(storage.calls.map((call) => call.slice(0, 2)), [
     ['getItem', INCLUDE_KEY],
     ['getItem', KNOWN_KEY],
@@ -340,38 +341,49 @@ test('legacy oath migration은 Set delete/add 순서와 저장 배열을 보존�
   ]);
 });
 
-test('legacy 유일 제작 체크 상태는 장비 유일로 이동한다', () => {
+test('legacy 장비 유일 체크 상태는 유일 제작과 정밀로 이동한다', () => {
   const storage = new FakeStorage({
-    [INCLUDE_KEY]: JSON.stringify(['마법부여:가성비', '유일:제작']),
-    [KNOWN_KEY]: JSON.stringify([
-      ...DEFAULT_INCLUDE_KEYS.filter((key) => key !== '장비:유일'),
-      '유일:제작',
-    ]),
+    [INCLUDE_KEY]: JSON.stringify(['마법부여:가성비', '장비:유일']),
+    [KNOWN_KEY]: JSON.stringify([...DEFAULT_INCLUDE_KEYS, '장비:유일']),
   });
   const { controls, includeControls } = createHarness({ storage });
 
   controls.renderEnchantIncludeControls();
 
-  assert.equal(getInput(includeControls, '장비:유일').checked, true);
-  assert.equal(getInput(includeControls, '유일:제작'), undefined);
-  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '장비:유일']);
+  assert.equal(getInput(includeControls, '유일:제작').checked, true);
+  assert.equal(getInput(includeControls, '유일:정밀').checked, true);
+  assert.equal(getInput(includeControls, '장비:유일'), undefined);
+  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '유일:제작', '유일:정밀']);
   assertStoredJson(storage, KNOWN_KEY, DEFAULT_INCLUDE_KEYS);
 });
 
-test('legacy 유일 제작을 해제했던 사용자는 장비 유일도 해제 상태를 유지한다', () => {
+test('legacy 장비 유일을 해제했던 사용자는 제작과 정밀도 해제 상태를 유지한다', () => {
   const storage = new FakeStorage({
     [INCLUDE_KEY]: JSON.stringify(['마법부여:가성비']),
-    [KNOWN_KEY]: JSON.stringify([
-      ...DEFAULT_INCLUDE_KEYS.filter((key) => key !== '장비:유일'),
-      '유일:제작',
-    ]),
+    [KNOWN_KEY]: JSON.stringify([...DEFAULT_INCLUDE_KEYS, '장비:유일']),
   });
   const { controls, includeControls } = createHarness({ storage });
 
   controls.renderEnchantIncludeControls();
 
-  assert.equal(getInput(includeControls, '장비:유일').checked, false);
+  assert.equal(getInput(includeControls, '유일:제작').checked, false);
+  assert.equal(getInput(includeControls, '유일:정밀').checked, false);
   assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비']);
+  assertStoredJson(storage, KNOWN_KEY, DEFAULT_INCLUDE_KEYS);
+});
+
+test('legacy 흑아 탭 체크 상태는 장비 흑아로 이동한다', () => {
+  const storage = new FakeStorage({
+    [INCLUDE_KEY]: JSON.stringify(['흑아:흑아']),
+    [KNOWN_KEY]: JSON.stringify([...DEFAULT_INCLUDE_KEYS, '흑아:흑아']),
+  });
+  const { controls, includeControls } = createHarness({ storage });
+
+  controls.renderEnchantIncludeControls();
+
+  assert.equal(getInput(includeControls, '장비:흑아').checked, true);
+  assert.equal(getInput(includeControls, '흑아:흑아'), undefined);
+  assertStoredJson(storage, INCLUDE_KEY, ['장비:흑아']);
   assertStoredJson(storage, KNOWN_KEY, DEFAULT_INCLUDE_KEYS);
 });
 
@@ -385,14 +397,16 @@ test('legacy fixture HTML 해시를 보존한다', () => {
 
   assert.equal(
     sha256(includeControls.innerHTML),
-    'b885b1d38e71b333a9d268b5a1b2084a07dd771673dbe639eba593e4322fb95a',
+    'e1b15d8b985a7f340b49bdf471e07c22a282545e6979a8a58e7ed4e54e8f9f4f',
   );
 });
 
 test('신규 일반 key는 자동 체크하고 신규 default-disabled key는 체크하지 않는다', () => {
   const knownWithoutNewKeys = DEFAULT_INCLUDE_KEYS.filter((key) => ![
     '서약:초월/정가',
-    '흑아:흑아',
+    '장비:흑아',
+    '유일:제작',
+    '유일:정밀',
   ].includes(key));
   const storage = new FakeStorage({
     [INCLUDE_KEY]: JSON.stringify(['마법부여:가성비']),
@@ -402,9 +416,11 @@ test('신규 일반 key는 자동 체크하고 신규 default-disabled key는 �
 
   controls.renderEnchantIncludeControls();
 
-  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '서약:초월/정가', '흑아:흑아']);
+  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '장비:흑아', '유일:제작', '유일:정밀', '서약:초월/정가']);
   assertStoredJson(storage, KNOWN_KEY, DEFAULT_INCLUDE_KEYS);
-  assert.equal(getInput(includeControls, '흑아:흑아').checked, true);
+  assert.equal(getInput(includeControls, '장비:흑아').checked, true);
+  assert.equal(getInput(includeControls, '유일:제작').checked, true);
+  assert.equal(getInput(includeControls, '유일:정밀').checked, true);
   assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
   assert.deepEqual(storage.calls.map((call) => call.slice(0, 2)), [
     ['getItem', INCLUDE_KEY],
@@ -435,14 +451,14 @@ test('첫 setItem 실패 후에도 known setItem을 독립적으로 시도한다
 test('두 번째 setItem 실패는 현재 렌더 체크 상태를 바꾸지 않는다', () => {
   const storage = new FakeStorage({
     [INCLUDE_KEY]: JSON.stringify(['마법부여:가성비']),
-    [KNOWN_KEY]: JSON.stringify(DEFAULT_INCLUDE_KEYS.filter((key) => key !== '흑아:흑아')),
+    [KNOWN_KEY]: JSON.stringify(DEFAULT_INCLUDE_KEYS.filter((key) => key !== '장비:흑아')),
   }, { writeThrowKeys: [KNOWN_KEY] });
   const { controls, includeControls } = createHarness({ storage });
 
   controls.renderEnchantIncludeControls();
 
-  assert.equal(getInput(includeControls, '흑아:흑아').checked, true);
-  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '흑아:흑아']);
+  assert.equal(getInput(includeControls, '장비:흑아').checked, true);
+  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '장비:흑아']);
   assert.deepEqual(storage.calls.map((call) => call.slice(0, 2)), [
     ['getItem', INCLUDE_KEY],
     ['getItem', KNOWN_KEY],

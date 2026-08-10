@@ -253,6 +253,21 @@ def _build_recipe_recommendation(
     if target_reason:
         return {}, {"reason": target_reason}
 
+    base_precision_target_body = {}
+    if mode == "craft":
+        base_precision_target_body, base_target_reason = normalize_relic_craft_target_equipment_body(
+            target_config=target_config,
+            target_detail=target_detail,
+            normalized_status=normalized_target_status,
+            precision=precision,
+            authoritative_effects=authoritative_effects,
+            icon_url=get_item_icon_url(target_item_id),
+            item_explain=get_item_explain(target_detail),
+            precision_percent=0,
+        )
+        if base_target_reason:
+            return {}, {"reason": base_target_reason}
+
     if mode == "precision":
         current_body, current_reason = normalize_relic_craft_target_equipment_body(
             target_config=target_config,
@@ -348,6 +363,7 @@ def _build_recipe_recommendation(
         target_precision_effects=target_precision_effects,
         current_equipment_body=current_body,
         target_equipment_body=target_body,
+        base_precision_target_equipment_body=base_precision_target_body,
         auction={
             "listingCount": 0,
             "minUnitPrice": fixed_gold,

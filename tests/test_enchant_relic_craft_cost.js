@@ -52,6 +52,21 @@ assert.deepEqual(adjusted.materials.map(({ amount, craftAmount, tuneAmount, tune
   { amount: 2000, craftAmount: 1000, tuneAmount: 1000, tuneAmountPerAttempt: 20 },
   { amount: 5, craftAmount: 5, tuneAmount: 0, tuneAmountPerAttempt: 0 },
 ]);
+
+const basePrecisionCraft = applyRelicCraftTuneAttemptCosts({
+  ...baseRow,
+  targetPrecisionPercent: 0,
+}, 50);
+assert.equal(basePrecisionCraft.expectedGold, 100000000);
+assert.equal(basePrecisionCraft.precisionOperationCount, 0);
+assert.deepEqual(basePrecisionCraft.materials.map(({ amount, craftAmount, tuneAmount }) => ({
+  amount,
+  craftAmount,
+  tuneAmount,
+})), [
+  { amount: 1000, craftAmount: 1000, tuneAmount: 0 },
+  { amount: 5, craftAmount: 5, tuneAmount: 0 },
+]);
 assert.equal(baseRow.expectedGold, 200000000);
 assert.equal(baseRow.materials[0].amount, 1500);
 

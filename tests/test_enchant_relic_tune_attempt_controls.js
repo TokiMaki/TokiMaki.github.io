@@ -36,9 +36,10 @@ assert.match(styles, /\.enchant-relic-tune-attempt-control\[data-tooltip\]::afte
 assert.match(styles, /\.enchant-relic-tune-attempt-control\[data-tooltip\]:hover::after/);
 assert.match(styles, /\.enchant-relic-tune-attempt-control\[data-tooltip\]:focus-within::after/);
 
-assert.match(view, /applyRelicCraftTuneAttemptCosts\(rawCandidate, tuneAttempts\)/);
+assert.match(view, /applyRelicCraftTuneAttemptCosts\(selectedCandidate, tuneAttempts\)/);
+assert.match(view, /basePrecisionTargetEquipmentBody/);
 assert.match(view, /getRelicCraftTuneAttempts\(\)/);
-assert.match(view, /조율 재료 \('/);
+assert.match(view, /정밀 재료 \('/);
 assert.match(view, /selection\.appliedRecommendationSnapshot = adjustedSnapshot/);
 assert.match(view, /selection\.goldWithoutMaterials = getRecommendationGold\(adjustedSnapshot, false\)/);
 assert.match(view, /selection\.goldWithMaterials = getRecommendationGold\(adjustedSnapshot, true\)/);

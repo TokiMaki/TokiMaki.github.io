@@ -382,6 +382,13 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         self.assertEqual(row["minimumCurrentEquipmentSetPoint"], 2620.0)
         self.assertEqual(row["targetEquipmentBody"]["tuneSetPoint"], 145.0)
         self.assertEqual(row["targetEquipmentBody"]["effects"]["buffPower"], 17580.0)
+        self.assertEqual(row["basePrecisionTargetEquipmentBody"]["precisionPercent"], 0)
+        self.assertEqual(row["basePrecisionTargetEquipmentBody"]["effects"]["buffPower"], 12930.0)
+        self.assertTrue(math.isclose(
+            row["basePrecisionTargetEquipmentBody"]["effects"]["finalDamage"],
+            48.9,
+            abs_tol=1e-10,
+        ))
         self.assertTrue(math.isclose(
             row["targetEquipmentBody"]["effects"]["finalDamage"],
             70.67376612,
@@ -546,6 +553,12 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         ))
         self.assertEqual(cube_row["targetEffects"]["buffPower"], 17580.0)
         self.assertEqual(cube_row["targetEquipmentBody"]["tuneUpgradeable"], False)
+        self.assertEqual(cube_row["basePrecisionTargetEquipmentBody"]["precisionPercent"], 0)
+        self.assertTrue(math.isclose(
+            cube_row["basePrecisionTargetEquipmentBody"]["effects"]["finalDamage"],
+            52.6022237,
+            abs_tol=1e-7,
+        ))
         self.assertEqual(cube_row["targetEquipmentSetPoint"], 2550.0)
         heart_row = result["recommendations"][2]
         self.assertTrue(math.isclose(

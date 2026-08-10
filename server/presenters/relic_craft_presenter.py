@@ -21,6 +21,7 @@ def build_relic_craft_recommendation_row(**values) -> dict:
         "targetPrecisionEffects": values.get("target_precision_effects") or {},
         "currentEquipmentBody": current_body,
         "targetEquipmentBody": target_body,
+        "basePrecisionTargetEquipmentBody": values.get("base_precision_target_equipment_body") or {},
         "auction": values["auction"],
         "expectedGold": values["expected_gold"],
         "craftFixedGold": values["craft_fixed_gold"],

@@ -5,9 +5,9 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '버프강화', items: ['칭호', '크리쳐', '짙편린', '아바타'], breakBefore: true },
   { title: '아바타', items: ['엠블렘', '플래티넘 엠블렘'] },
   { title: '강화/증폭', items: ['강화', '증폭'] },
-  { title: '장비', items: ['조율', '유일', '잠식', '축성'] },
+  { title: '장비', items: ['조율', '흑아', '잠식', '축성'] },
+  { title: '유일', items: ['제작', '정밀'] },
   { title: '서약', items: ['조율', '초월/정가'] },
-  { title: '흑아', items: ['흑아'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
 const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set();
@@ -53,11 +53,14 @@ export function createEnchantRecommendationControls({
       const hadLegacyOathSelection = legacyOathKeys.some((key) => storedChecked.has(key));
       legacyOathKeys.forEach((key) => storedChecked.delete(key));
       if (hadLegacyOathSelection) storedChecked.add('서약:초월/정가');
-      const legacyRelicKey = '유일:제작';
-      const currentRelicKey = '장비:유일';
-      const hadLegacyRelicSelection = storedChecked.has(legacyRelicKey);
-      storedChecked.delete(legacyRelicKey);
-      if (hadLegacyRelicSelection) storedChecked.add(currentRelicKey);
+      const legacyRelicKey = '장비:유일';
+      const relicKeys = ['유일:제작', '유일:정밀'];
+      const hadLegacyRelicSelection = storedChecked.delete(legacyRelicKey);
+      if (hadLegacyRelicSelection) relicKeys.forEach((key) => storedChecked.add(key));
+      const legacyBlackFangKey = '흑아:흑아';
+      const currentBlackFangKey = '장비:흑아';
+      const hadLegacyBlackFangSelection = storedChecked.delete(legacyBlackFangKey);
+      if (hadLegacyBlackFangSelection) storedChecked.add(currentBlackFangKey);
       let knownKeys = null;
       if (includeKnownFilterStorageKey) {
         try {
@@ -70,9 +73,10 @@ export function createEnchantRecommendationControls({
       const hadKnownKeys = Boolean(knownKeys);
       knownKeys = knownKeys || new Set(ENCHANT_INCLUDE_ORDER);
       legacyOathKeys.forEach((key) => knownKeys.delete(key));
-      const hadLegacyRelicKnownKey = knownKeys.has(legacyRelicKey);
-      knownKeys.delete(legacyRelicKey);
-      if (hadLegacyRelicKnownKey) knownKeys.add(currentRelicKey);
+      const hadLegacyRelicKnownKey = knownKeys.delete(legacyRelicKey);
+      if (hadLegacyRelicKnownKey) relicKeys.forEach((key) => knownKeys.add(key));
+      const hadLegacyBlackFangKnownKey = knownKeys.delete(legacyBlackFangKey);
+      if (hadLegacyBlackFangKnownKey) knownKeys.add(currentBlackFangKey);
       let addedNewKey = false;
       ENCHANT_INCLUDE_ORDER.forEach((key) => {
         if (!knownKeys.has(key)) {
@@ -87,14 +91,14 @@ export function createEnchantRecommendationControls({
         ...ENCHANT_INCLUDE_ORDER.filter((key) => knownKeys.has(key)),
         ...[...knownKeys].filter((key) => !ENCHANT_INCLUDE_ORDER.includes(key)),
       ]);
-      if ((addedNewKey || hadLegacyOathSelection || hadLegacyRelicSelection) && includeFilterStorageKey) {
+      if ((addedNewKey || hadLegacyOathSelection || hadLegacyRelicSelection || hadLegacyBlackFangSelection) && includeFilterStorageKey) {
         try {
           storage.setItem(includeFilterStorageKey, JSON.stringify([...storedChecked]));
         } catch {
           // 저장소를 쓸 수 없어도 현재 렌더에서는 신규 항목을 켠다.
         }
       }
-      if ((!hadKnownKeys || addedNewKey || hadLegacyRelicKnownKey) && includeKnownFilterStorageKey) {
+      if ((!hadKnownKeys || addedNewKey || hadLegacyRelicKnownKey || hadLegacyBlackFangKnownKey) && includeKnownFilterStorageKey) {
         try {
           storage.setItem(includeKnownFilterStorageKey, JSON.stringify([...knownKeys]));
         } catch {

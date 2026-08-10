@@ -23,10 +23,14 @@ export function normalizeRelicCraftTuneAttempts(value, fallback = RELIC_CRAFT_TU
 
 export function applyRelicCraftTuneAttemptCosts(row = {}, tuneAttempts = RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT) {
   if (row?.sourceType !== 'relicCraft') return row;
-  const fullAttempts = normalizeRelicCraftTuneAttempts(
-    tuneAttempts,
-    row.fullPrecisionOperationCount || row.precisionOperationCount,
-  );
+  const isBasePrecisionCraft = row.relicCraftMode !== 'precision'
+    && Number(row.targetPrecisionPercent) === 0;
+  const fullAttempts = isBasePrecisionCraft
+    ? 0
+    : normalizeRelicCraftTuneAttempts(
+      tuneAttempts,
+      row.fullPrecisionOperationCount || row.precisionOperationCount,
+    );
   const currentPrecisionPercent = Math.min(100, Math.max(0, finiteNumber(row.currentPrecisionPercent)));
   const remainingRatio = row.relicCraftMode === 'precision'
     ? (100 - currentPrecisionPercent) / 100

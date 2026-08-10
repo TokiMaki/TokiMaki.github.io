@@ -719,8 +719,10 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'avatar') {
     return [`아바타:${row.kind === 'platinumEmblem' ? '플래티넘 엠블렘' : '엠블렘'}`];
   }
-  if (row.sourceType === 'blackFang') return ['흑아:흑아'];
-  if (row.sourceType === 'relicCraft') return ['장비:유일'];
+  if (row.sourceType === 'blackFang') return ['장비:흑아'];
+  if (row.sourceType === 'relicCraft') {
+    return [row.relicCraftMode === 'precision' ? '유일:정밀' : '유일:제작'];
+  }
   if (row.sourceType === 'raidArmorUpgrade') return [`장비:${row.upgradeStageLabel || row.tier}`];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
@@ -936,9 +938,24 @@ function getRelicCraftRows(
   tuneAttempts = RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT,
   materialPrices = {},
   bufferBaseline = null,
+  includePrecision = true,
 ) {
   return (recommendations || []).flatMap((rawCandidate) => {
-    const candidate = applyRelicCraftTuneAttemptCosts(rawCandidate, tuneAttempts);
+    if (rawCandidate.relicCraftMode === 'precision' && !includePrecision) return [];
+    const basePrecisionTarget = rawCandidate.basePrecisionTargetEquipmentBody || null;
+    const useBasePrecisionTarget = rawCandidate.relicCraftMode !== 'precision' && !includePrecision;
+    if (useBasePrecisionTarget && !basePrecisionTarget?.itemId) return [];
+    const selectedCandidate = useBasePrecisionTarget
+      ? {
+        ...rawCandidate,
+        targetEquipmentBody: basePrecisionTarget,
+        targetEffects: basePrecisionTarget.effects || {},
+        targetPrecisionPercent: 0,
+        precisionOperationCount: 0,
+        itemExplain: `${rawCandidate.currentEquipmentBody?.itemName || ''} -> ${basePrecisionTarget.itemName} (정밀도 0%)`,
+      }
+      : rawCandidate;
+    const candidate = applyRelicCraftTuneAttemptCosts(selectedCandidate, tuneAttempts);
     const targetEquipmentBody = candidate.targetEquipmentBody || null;
     const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || {});
     const targetSlotName = resolveCanonicalEquipmentSlotName(targetEquipmentBody || {});
@@ -5816,6 +5833,55 @@ export function installEnchantView(ctx) {
     }
   }
 
+  function removeActiveRelicSelectionsForPrecisionFilter(includePrecision) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || simulator.applyingRecommendationId) return false;
+    const activeEntries = Object.entries(simulator.activeSelectionByGroup || {})
+      .filter(([, selection]) => {
+        const snapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
+        if (snapshot.sourceType !== 'relicCraft') return false;
+        const targetPrecisionPercent = Number(
+          snapshot.targetPrecisionPercent
+          ?? snapshot.targetEquipmentBody?.precisionPercent
+          ?? 0,
+        );
+        const hasTargetPrecision = Number.isFinite(targetPrecisionPercent)
+          && targetPrecisionPercent > 0;
+        return includePrecision
+          ? snapshot.relicCraftMode !== 'precision' && !hasTargetPrecision
+          : snapshot.relicCraftMode === 'precision' || hasTargetPrecision;
+      });
+    if (!activeEntries.length) return false;
+    const rollbackSnapshot = createSimulatorSnapshot();
+    try {
+      const changedSlots = [];
+      activeEntries.forEach(([exclusiveGroupKey, selection]) => {
+        const result = removeSimulatorAction(selection);
+        if (!result) throw new Error('relic precision removal failed');
+        delete simulator.activeSelectionByGroup[exclusiveGroupKey];
+        const selectionChangedSlots = Array.isArray(result.changedSlots) && result.changedSlots.length
+          ? result.changedSlots
+          : [selection.targetSlot];
+        changedSlots.push(...selectionChangedSlots.filter(Boolean));
+      });
+      const lastSelection = activeEntries.at(-1)?.[1] || {};
+      simulator.totalGold = getDealerSimulatorTotalGold(simulator);
+      simulator.selectedRecommendationId = '';
+      simulator.lastChangedTarget = {
+        targetTab: lastSelection.targetTab,
+        targetSlot: lastSelection.targetSlot,
+        applyType: lastSelection.applyType,
+      };
+      state.enchantLoadoutTab = lastSelection.targetTab || 'equipment';
+      changedSlots.forEach(triggerDealerSimulatorSweep);
+      return true;
+    } catch {
+      restoreSimulatorSnapshot(rollbackSnapshot);
+      setEnchantCharacterStatus('유일 정밀 시뮬레이션 적용 해제에 실패했습니다.');
+      return false;
+    }
+  }
+
   function clearDealerSimulator() {
     const simulator = state.dealerSimulator;
     if (!simulator || simulator.applyingRecommendationId) return;
@@ -6132,6 +6198,14 @@ export function installEnchantView(ctx) {
       }
       return;
     }
+    const selectedIncludeTiersBeforeRender = getSelectedEnchantIncludeTiers();
+    const includeRelicPrecision = isEnchantIncludeKeySelected(
+      '유일:정밀',
+      selectedIncludeTiersBeforeRender,
+    );
+    if (removeActiveRelicSelectionsForPrecisionFilter(includeRelicPrecision)) {
+      renderEnchantCharacterPortrait();
+    }
     syncDealerSimulatorMaterialCostState();
     const includeMaterialCosts = els.enchantMaterialCostToggle?.checked === true;
     const activeDamageBaseline = getActiveDamageBaseline();
@@ -6165,6 +6239,7 @@ export function installEnchantView(ctx) {
         getRelicCraftTuneAttempts(),
         state.upgradeMaterialPrices,
         state.currentBufferBaseline,
+        includeRelicPrecision,
       ),
       ...getRaidArmorUpgradeRows(
         state.currentRaidArmorUpgradeRecommendations,
@@ -6176,6 +6251,9 @@ export function installEnchantView(ctx) {
     const slotFilter = els.enchantSlotFilter?.value || 'all';
     const tierFilter = els.enchantTierFilter?.value || 'all';
     const includeTiers = getSelectedEnchantIncludeTiers();
+    if (els.enchantRelicTuneAttemptRange) {
+      els.enchantRelicTuneAttemptRange.disabled = !isEnchantIncludeKeySelected('유일:정밀', includeTiers);
+    }
     const isBuffer = Boolean(state.currentBufferBaseline?.isBuffer);
     const rows = allRows
       .filter((row) => (
