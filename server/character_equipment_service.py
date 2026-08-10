@@ -53,6 +53,7 @@ from .candidates.relic_craft import (
     build_equipped_relic_cost_rows,
     build_relic_craft_recommendations_debug,
 )
+from .candidates.raid_armor_upgrade import build_raid_armor_upgrade_recommendations_debug
 from .candidates.oath_transcend import build_oath_craft_recommendations_debug, build_oath_transcend_recommendations_debug
 from .candidates.switching_fragment import (
     SWITCHING_FRAGMENT_TARGET_SLOTS,
@@ -1368,6 +1369,15 @@ def load_character_enchants(
         lambda: build_relic_craft_recommendations_debug(payload.get("equipment") or [], upgrade_material_prices),
     )
     relic_craft_recommendations = relic_craft_debug.get("recommendations") or []
+    raid_armor_upgrade_debug = _measure_step(
+        steps,
+        "build_raid_armor_upgrade_recommendations",
+        lambda: build_raid_armor_upgrade_recommendations_debug(
+            payload.get("equipment") or [],
+            upgrade_material_prices,
+        ),
+    )
+    raid_armor_upgrade_recommendations = raid_armor_upgrade_debug.get("recommendations") or []
     setting_value_equipment_inputs = {
         "status": "pending",
     } if include_skill_details else {}
@@ -1425,6 +1435,7 @@ def load_character_enchants(
         load_oath_tune_stage_db(),
         black_fang_recommendations,
         relic_craft_recommendations,
+        raid_armor_upgrade_recommendations,
         load_upgrade_expected_db(),
         upgrade_material_prices,
         steps,
@@ -1432,6 +1443,7 @@ def load_character_enchants(
             "get_equipment_base_element_bonus": equipment_base_element_debug.get("steps") or [],
             "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
             "build_relic_craft_recommendations": relic_craft_debug.get("steps") or [],
+            "build_raid_armor_upgrade_recommendations": raid_armor_upgrade_debug.get("steps") or [],
             "build_oath_transcend_recommendations": oath_transcend_debug.get("steps") or [],
             "build_oath_craft_recommendations": oath_craft_debug.get("steps") or [],
         },
@@ -4011,6 +4023,7 @@ def load_character_loadout(
             "oathTuneStageDb": enchant_payload.get("oathTuneStageDb") or {},
             "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
             "relicCraftRecommendations": enchant_payload.get("relicCraftRecommendations") or [],
+            "raidArmorUpgradeRecommendations": enchant_payload.get("raidArmorUpgradeRecommendations") or [],
             "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
             "upgradeMaterialPrices": enchant_payload.get("upgradeMaterialPrices"),
             "creature": creature_payload.get("creature"),

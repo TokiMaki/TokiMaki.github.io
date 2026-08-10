@@ -33,6 +33,8 @@ const PUBLIC_OUTPUTS = [
   'getBlackFangCandidateSignature',
   'getRelicCraftExclusiveGroupKey',
   'getRelicCraftCandidateSignature',
+  'getRaidArmorUpgradeExclusiveGroupKey',
+  'getRaidArmorUpgradeCandidateSignature',
   'getAvatarEmblemExclusiveGroupKey',
   'getAvatarEmblemCandidateSignature',
   'getAvatarPlatinumExclusiveGroupKey',
@@ -70,6 +72,7 @@ const EXCLUSIVE_DISPATCH_ORDER = [
   'getOathAcquisitionExclusiveGroupKey',
   'getBlackFangExclusiveGroupKey',
   'getRelicCraftExclusiveGroupKey',
+  'getRaidArmorUpgradeExclusiveGroupKey',
   'getEquipmentProgressionExclusiveGroupKey',
   'getAvatarEmblemExclusiveGroupKey',
   'getAvatarPlatinumExclusiveGroupKey',
@@ -99,6 +102,7 @@ const CANDIDATE_DISPATCH_ORDER = [
   'getOathAcquisitionCandidateSignature',
   'getBlackFangCandidateSignature',
   'getRelicCraftCandidateSignature',
+  'getRaidArmorUpgradeCandidateSignature',
   'getEquipmentProgressionCandidateSignature',
   'getAvatarEmblemCandidateSignature',
   'getAvatarPlatinumCandidateSignature',
@@ -361,6 +365,25 @@ function testDealerSourceIdentityMatrix() {
       slotName: '보조장비',
     },
   }), '');
+
+  const raidArmorUpgrade = {
+    sourceType: 'raidArmorUpgrade',
+    targetSlotId: 'JACKET',
+    targetEquipmentBody: {
+      slotId: 'JACKET',
+      slotName: '상의',
+      itemId: 'consecrated-jacket',
+      effects: { finalDamage: 15, attack: 20 },
+    },
+  };
+  assert.equal(
+    identity.getRaidArmorUpgradeExclusiveGroupKey(raidArmorUpgrade),
+    'raidArmorUpgrade:상의',
+  );
+  assert.equal(
+    identity.getRaidArmorUpgradeCandidateSignature(raidArmorUpgrade),
+    'raidArmorUpgrade:상의:consecrated-jacket:finalDamage:15|attack:20',
+  );
 }
 
 function testAvatarAndBuffSwitchingIdentityMatrix() {

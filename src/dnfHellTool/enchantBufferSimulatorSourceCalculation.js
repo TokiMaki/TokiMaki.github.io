@@ -74,16 +74,17 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
   function getBufferEquipmentBodyBaseRelativeChanges(row = {}, baseline = {}) {
     const targetBody = row.targetEquipmentBody || {};
     const currentBody = row.currentEquipmentBody || {};
+    const baseBody = row.baseEquipmentBody || currentBody;
     const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody || row);
-    const currentSlotId = resolveCanonicalEquipmentSlotId(currentBody || row);
+    const baseSlotId = resolveCanonicalEquipmentSlotId(baseBody || row);
     if (
       !isEquipmentBodyReplacementSource(row)
       || !targetSlotId
-      || targetSlotId !== currentSlotId
+      || targetSlotId !== baseSlotId
       || !targetBody.itemId
     ) return null;
     const targetEffects = getRoleRelevantEffects(targetBody.effects || {}, true);
-    const baseEffects = getRoleRelevantEffects(currentBody.effects || {}, true);
+    const baseEffects = getRoleRelevantEffects(baseBody.effects || {}, true);
     const changedKeys = new Set([
       ...Object.keys(targetEffects),
       ...Object.keys(baseEffects),
@@ -95,7 +96,11 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
       - getBufferSelectedStatEffect(baseEffects, baseline);
     const buffPowerDelta = Number(targetEffects.buffPower || 0)
       - Number(baseEffects.buffPower || 0)
-      + Number(row.equipmentTuneBuffPowerDelta || 0);
+      + Number(
+        row.baseEquipmentTuneBuffPowerDelta
+        ?? row.equipmentTuneBuffPowerDelta
+        ?? 0,
+      );
     const buffAmplificationDelta = Number(targetEffects.buffAmplification || 0)
       - Number(baseEffects.buffAmplification || 0);
     const buffSkillLevelDelta = getItemSkillLevelBonus(
@@ -103,13 +108,13 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
       baseline,
       baseline.buffSkillName,
       30,
-    ) - getItemSkillLevelBonus(currentBody, baseline, baseline.buffSkillName, 30);
+    ) - getItemSkillLevelBonus(baseBody, baseline, baseline.buffSkillName, 30);
     const awakeningSkillLevelDelta = getItemSkillLevelBonus(
       targetBody,
       baseline,
       baseline.awakeningSkillName,
       50,
-    ) - getItemSkillLevelBonus(currentBody, baseline, baseline.awakeningSkillName, 50);
+    ) - getItemSkillLevelBonus(baseBody, baseline, baseline.awakeningSkillName, 50);
     if (![
       statDelta,
       buffPowerDelta,
@@ -124,7 +129,7 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
       switchingBuffAmplificationDelta: buffAmplificationDelta,
       buffSkillLevelDelta,
       awakeningSkillLevelDelta,
-      baseSkillContributions: getBufferItemSkillContributions(currentBody, baseline),
+      baseSkillContributions: getBufferItemSkillContributions(baseBody, baseline),
       targetSkillContributions: getBufferItemSkillContributions(targetBody, baseline),
     };
   }

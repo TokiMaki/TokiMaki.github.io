@@ -13,6 +13,7 @@ from server.equipment_body import (
     get_relic_craft_final_damage_percent,
     normalize_relic_craft_target_equipment_body,
 )
+from server.repositories.material_price_repository import get_upgrade_material_config
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -228,7 +229,7 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         )
         self.assertEqual(
             material_by_key["plagueSeed"]["itemId"],
-            base_material_by_key["plagueSeed"]["itemId"],
+            get_upgrade_material_config("plagueSeed")["itemId"],
         )
         self.assertEqual(material_by_key["blackHeartPulse"]["auction"]["priceSource"], "displayOnly")
         self.assertEqual(material_by_key["plagueSeed"]["auction"]["minUnitPrice"], 0)

@@ -22,16 +22,27 @@ UPGRADE_MATERIAL_PRICE_ITEMS = {
     "radiantSoul": {"label": "광휘의 소울 결정", "itemId": "27a5877768a40a3a0eccc493d0a53b9b"},
     "highElementalCrystal": {"label": "상급 원소결정", "itemId": "b682af8902d22554c7b90386abd18762"},
     "primordialSoul": {"label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888"},
-    "behemothTear": {"label": "베히모스의 눈물(1회 교환 가능)", "itemId": ""},
+    "behemothTear": {"label": "베히모스의 눈물(1회 교환 가능)", "itemId": "cbeb05e1c979e159f6a7501d6a294378"},
     "ignoranceDream": {"label": "무지의 꿈(1회 교환 가능)", "itemId": "56b00a8dfeda29398997e7b378effcb6"},
-    "historiaQuartz": {"label": "히스토리아 쿼츠", "itemId": ""},
+    "historiaQuartz": {"label": "히스토리아 쿼츠", "itemId": "c1e1dd70d4dbdf410fe715b339000821"},
     "pilgrimSeal": {"label": "순례의 인장(1회 교환 가능)", "itemId": "d7e9443a19fe81a9cc8364c201f6ab55"},
 }
 UPGRADE_MATERIAL_DISPLAY_ITEMS = {
     "radiantSoul": {"label": "광휘의 소울", "itemId": "6307b8165444a9bd5c4c4aa2d7eae41d"},
     "solidSoul": {"label": "솔리드 소울", "iconUrl": "/asset/soul/solidSoul.png"},
     "oathCrystalFragment": {"label": "서약 결정 조각", "iconUrl": "/asset/oath/oathCrystalFragment.png"},
+    "plagueSeed": {"label": "역병의 씨앗", "itemId": "f4404a61f4522fa0a2a280366104033b"},
+    "dawnLightBud": {"label": "여명의 빛망울", "iconUrl": "/asset/enchant/dawnLightOrb.png"},
 }
+
+
+def get_upgrade_material_config(key: str) -> dict:
+    key = clean_text(key)
+    if key in UPGRADE_MATERIAL_PRICE_ITEMS:
+        return {**UPGRADE_MATERIAL_PRICE_ITEMS[key], "priceSource": "materialResolver"}
+    if key in UPGRADE_MATERIAL_DISPLAY_ITEMS:
+        return {**UPGRADE_MATERIAL_DISPLAY_ITEMS[key], "priceSource": "displayOnly"}
+    return {}
 
 
 def find_upgrade_material_price_config_by_label(label: str) -> dict:
@@ -128,7 +139,7 @@ def build_upgrade_material_display_rows(materials: list) -> list:
     for material in materials or []:
         row = dict(material)
         key = clean_text(row.get("key"))
-        config = UPGRADE_MATERIAL_DISPLAY_ITEMS.get(key) or UPGRADE_MATERIAL_PRICE_ITEMS.get(key) or {}
+        config = get_upgrade_material_config(key)
         label = clean_text(row.get("label") or config.get("label"))
         item_id = clean_text(row.get("itemId") or config.get("itemId"))
         icon_url = clean_text(row.get("iconUrl") or config.get("iconUrl"))

@@ -1,0 +1,1653 @@
+{
+  "schemaVersion": 1,
+  "source": "Neople Open API item search/detail",
+  "stageOrder": [
+    "base",
+    "encroached",
+    "consecrated"
+  ],
+  "allowedTransitions": [
+    {
+      "from": "base",
+      "to": "encroached",
+      "label": "잠식",
+      "fixedGold": 1500000,
+      "materials": [
+        {
+          "key": "epicSoul",
+          "amount": 3
+        },
+        {
+          "key": "plagueSeed",
+          "amount": 480
+        }
+      ]
+    },
+    {
+      "from": "encroached",
+      "to": "consecrated",
+      "label": "축성",
+      "fixedGold": 1000000,
+      "materials": [
+        {
+          "key": "epicSoul",
+          "amount": 1
+        },
+        {
+          "key": "dawnLightBud",
+          "amount": 240
+        }
+      ]
+    },
+    {
+      "from": "base",
+      "to": "consecrated",
+      "label": "축성",
+      "fixedGold": 2500000,
+      "materials": [
+        {
+          "key": "epicSoul",
+          "amount": 4
+        },
+        {
+          "key": "dawnLightBud",
+          "amount": 360
+        }
+      ]
+    }
+  ],
+  "families": [
+    {
+      "familyKey": "854dc8c01b1bc231e132dae5df3c52bc",
+      "familyType": "equipmentSet",
+      "setItemId": "854dc8c01b1bc231e132dae5df3c52bc",
+      "setItemName": "고대 전장의 발키리 세트"
+    },
+    {
+      "familyKey": "3af7c961e7d8cd8b5b42c5f82af2a0ad",
+      "familyType": "equipmentSet",
+      "setItemId": "3af7c961e7d8cd8b5b42c5f82af2a0ad",
+      "setItemName": "그림자에 숨은 죽음 세트"
+    },
+    {
+      "familyKey": "8e9cb65cb6285d7e2f084f440aa18870",
+      "familyType": "equipmentSet",
+      "setItemId": "8e9cb65cb6285d7e2f084f440aa18870",
+      "setItemName": "마력의 영역 세트"
+    },
+    {
+      "familyKey": "e23286107ba4328af86c83aabc347e9e",
+      "familyType": "equipmentSet",
+      "setItemId": "e23286107ba4328af86c83aabc347e9e",
+      "setItemName": "무리 사냥의 길잡이 세트"
+    },
+    {
+      "familyKey": "7c9c8335b72c2907df20786f8f5b27f0",
+      "familyType": "equipmentSet",
+      "setItemId": "7c9c8335b72c2907df20786f8f5b27f0",
+      "setItemName": "세렌디피티 세트"
+    },
+    {
+      "familyKey": "4ee7bd5912cda6e2a24c1f36d5202b46",
+      "familyType": "equipmentSet",
+      "setItemId": "4ee7bd5912cda6e2a24c1f36d5202b46",
+      "setItemName": "소울 페어리 세트"
+    },
+    {
+      "familyKey": "4e65968c4d30898e6879434dc641b6e4",
+      "familyType": "equipmentSet",
+      "setItemId": "4e65968c4d30898e6879434dc641b6e4",
+      "setItemName": "압도적인 자연 세트"
+    },
+    {
+      "familyKey": "93e7825053bdec4e0f4c12837cf4f57e",
+      "familyType": "equipmentSet",
+      "setItemId": "93e7825053bdec4e0f4c12837cf4f57e",
+      "setItemName": "에테리얼 오브 아츠 세트"
+    },
+    {
+      "familyKey": "7f788a703a87d783079b41d0fe6448c9",
+      "familyType": "equipmentSet",
+      "setItemId": "7f788a703a87d783079b41d0fe6448c9",
+      "setItemName": "영원히 이어지는 황금향 세트"
+    },
+    {
+      "familyKey": "b92ca7784123b5fea9cea40144925194",
+      "familyType": "equipmentSet",
+      "setItemId": "b92ca7784123b5fea9cea40144925194",
+      "setItemName": "용투장의 난 세트"
+    },
+    {
+      "familyKey": "11f7d203a05ea6f13300c0facb39f11e",
+      "familyType": "equipmentSet",
+      "setItemId": "11f7d203a05ea6f13300c0facb39f11e",
+      "setItemName": "칠흑의 정화 세트"
+    },
+    {
+      "familyKey": "2877466bc2fc8bedf7799d88167c9fe3",
+      "familyType": "equipmentSet",
+      "setItemId": "2877466bc2fc8bedf7799d88167c9fe3",
+      "setItemName": "한계를 넘어선 에너지 세트"
+    },
+    {
+      "familyKey": "uniqueEpicArmor",
+      "familyType": "uniqueEpic",
+      "setItemId": null,
+      "setItemName": null
+    }
+  ],
+  "pieces": [
+    {
+      "familyKey": "854dc8c01b1bc231e132dae5df3c52bc",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "d2eab2379f837186577472d3e49e1130",
+          "itemName": "불멸의 발키리 어깨 보호대"
+        },
+        "encroached": {
+          "itemId": "13cfb6aa1160471254df4437ada5dd85",
+          "itemName": "잠식 : 불멸의 발키리 어깨 보호대"
+        },
+        "consecrated": {
+          "itemId": "473b52478a229f32d7ae35850af02ecd",
+          "itemName": "축성 : 불멸의 발키리 어깨 보호대"
+        }
+      }
+    },
+    {
+      "familyKey": "854dc8c01b1bc231e132dae5df3c52bc",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "48b5ccac766242cf4f11485b617aca2d",
+          "itemName": "불멸의 발키리 신성 갑옷"
+        },
+        "encroached": {
+          "itemId": "b03b07f35612f9472b874878c95f0425",
+          "itemName": "잠식 : 불멸의 발키리 신성 갑옷"
+        },
+        "consecrated": {
+          "itemId": "7461ef33a35559e6b23e7d517c9f7dd6",
+          "itemName": "축성 : 불멸의 발키리 신성 갑옷"
+        }
+      }
+    },
+    {
+      "familyKey": "854dc8c01b1bc231e132dae5df3c52bc",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "40a606b94d58c4dc3552e49d731cfa9f",
+          "itemName": "불멸의 발키리 드레스"
+        },
+        "encroached": {
+          "itemId": "af8e7941c7c63bef9499c49ca7637783",
+          "itemName": "잠식 : 불멸의 발키리 드레스"
+        },
+        "consecrated": {
+          "itemId": "d53389fcd6d9e643222217222f6972b8",
+          "itemName": "축성 : 불멸의 발키리 드레스"
+        }
+      }
+    },
+    {
+      "familyKey": "854dc8c01b1bc231e132dae5df3c52bc",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "6a20433cb0401d19ee8b9c32bc2744a1",
+          "itemName": "불멸의 발키리 수호띠"
+        },
+        "encroached": {
+          "itemId": "5e9c3ddc4ae81a73a688fbf7fd4054fc",
+          "itemName": "잠식 : 불멸의 발키리 수호띠"
+        },
+        "consecrated": {
+          "itemId": "eb4f84dfc493e57158902d5c9e4452c7",
+          "itemName": "축성 : 불멸의 발키리 수호띠"
+        }
+      }
+    },
+    {
+      "familyKey": "854dc8c01b1bc231e132dae5df3c52bc",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "c8ac17e59f841dee73ac5c2b43e09900",
+          "itemName": "불멸의 발키리 발걸음"
+        },
+        "encroached": {
+          "itemId": "943127f37759f6d62a49379f7abcb47a",
+          "itemName": "잠식 : 불멸의 발키리 발걸음"
+        },
+        "consecrated": {
+          "itemId": "1459bd739646352b22e557b3e4d2c624",
+          "itemName": "축성 : 불멸의 발키리 발걸음"
+        }
+      }
+    },
+    {
+      "familyKey": "3af7c961e7d8cd8b5b42c5f82af2a0ad",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "810b6286f4f6cf8c4489641a5ed77d9e",
+          "itemName": "짙은 그림자가 드리운 얼굴"
+        },
+        "encroached": {
+          "itemId": "0222a63fabf29ca6d3b8210445b60711",
+          "itemName": "잠식 : 짙은 그림자가 드리운 얼굴"
+        },
+        "consecrated": {
+          "itemId": "65a0f67f484532d5858c2627c75195d5",
+          "itemName": "축성 : 짙은 그림자가 드리운 얼굴"
+        }
+      }
+    },
+    {
+      "familyKey": "3af7c961e7d8cd8b5b42c5f82af2a0ad",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "712eef49bfaeef17d21b4d984b6c28b0",
+          "itemName": "짙은 그림자를 입은 죽음 상의"
+        },
+        "encroached": {
+          "itemId": "82167cd052bfb6f3b8f3017a941da668",
+          "itemName": "잠식 : 짙은 그림자를 입은 죽음 상의"
+        },
+        "consecrated": {
+          "itemId": "af510dfd9dfecd8d965bd2c6508c2bbd",
+          "itemName": "축성 : 짙은 그림자를 입은 죽음 상의"
+        }
+      }
+    },
+    {
+      "familyKey": "3af7c961e7d8cd8b5b42c5f82af2a0ad",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "f2111bcc7ad8b1a005fb78e515ad785b",
+          "itemName": "짙은 그림자를 녹여내는 하의"
+        },
+        "encroached": {
+          "itemId": "d5fbe4c41da36056a76e459cecf93f9b",
+          "itemName": "잠식 : 짙은 그림자를 녹여내는 하의"
+        },
+        "consecrated": {
+          "itemId": "995181aec033e67576b12db2847a47d8",
+          "itemName": "축성 : 짙은 그림자를 녹여내는 하의"
+        }
+      }
+    },
+    {
+      "familyKey": "3af7c961e7d8cd8b5b42c5f82af2a0ad",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "ef642579883c03010e0d38aa1794997b",
+          "itemName": "짙은 그림자를 자아내는 벨트"
+        },
+        "encroached": {
+          "itemId": "45f82f399d378e7b04a4b56762983990",
+          "itemName": "잠식 : 짙은 그림자를 자아내는 벨트"
+        },
+        "consecrated": {
+          "itemId": "b77b6a297c9d47496fca9f5d5cc21420",
+          "itemName": "축성 : 짙은 그림자를 자아내는 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "3af7c961e7d8cd8b5b42c5f82af2a0ad",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "6c36d06d09dc447ba97c495554741da4",
+          "itemName": "짙은 그림자의 걸음"
+        },
+        "encroached": {
+          "itemId": "267c5969bca1ae7f1649d50e7d2452e2",
+          "itemName": "잠식 : 짙은 그림자의 걸음"
+        },
+        "consecrated": {
+          "itemId": "107178f1e897c46911a8b0038bc88671",
+          "itemName": "축성 : 짙은 그림자의 걸음"
+        }
+      }
+    },
+    {
+      "familyKey": "8e9cb65cb6285d7e2f084f440aa18870",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "1317ae1cbfce072ddfa2a6ae9cf8b239",
+          "itemName": "가득찬 마력의 영역 어깨"
+        },
+        "encroached": {
+          "itemId": "26e9595817dbf29165134abbee87b879",
+          "itemName": "잠식 : 가득찬 마력의 영역 어깨"
+        },
+        "consecrated": {
+          "itemId": "056bfdaeadf7915e97bd49fb6424809f",
+          "itemName": "축성 : 가득찬 마력의 영역 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "8e9cb65cb6285d7e2f084f440aa18870",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "3dd0c7bfef142dab5a70e9b079cae599",
+          "itemName": "가득찬 마력의 영역 상의"
+        },
+        "encroached": {
+          "itemId": "f9187d424ad941381963bba1f18e1996",
+          "itemName": "잠식 : 가득찬 마력의 영역 상의"
+        },
+        "consecrated": {
+          "itemId": "a37b7a18e80176227d85a40b91edb56e",
+          "itemName": "축성 : 가득찬 마력의 영역 상의"
+        }
+      }
+    },
+    {
+      "familyKey": "8e9cb65cb6285d7e2f084f440aa18870",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "0df1839062b9b71a77a312ea9d020004",
+          "itemName": "가득찬 마력의 영역 하의"
+        },
+        "encroached": {
+          "itemId": "cb892622b037d2973f6668a87f2956c9",
+          "itemName": "잠식 : 가득찬 마력의 영역 하의"
+        },
+        "consecrated": {
+          "itemId": "051e5c6b08faa0762695d8e08d71191a",
+          "itemName": "축성 : 가득찬 마력의 영역 하의"
+        }
+      }
+    },
+    {
+      "familyKey": "8e9cb65cb6285d7e2f084f440aa18870",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "13453828fa83065a8bfb018067ced1f2",
+          "itemName": "가득찬 마력의 영역 벨트"
+        },
+        "encroached": {
+          "itemId": "388dba33c43c37e9e3561d60d39ca7c5",
+          "itemName": "잠식 : 가득찬 마력의 영역 벨트"
+        },
+        "consecrated": {
+          "itemId": "3c1efb46dd5952b8c6e62856b1fd5785",
+          "itemName": "축성 : 가득찬 마력의 영역 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "8e9cb65cb6285d7e2f084f440aa18870",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "3ae1dd27d6fdc59d072c5896dd0526cf",
+          "itemName": "가득찬 마력의 영역 신발"
+        },
+        "encroached": {
+          "itemId": "9336cf2bf80666a278d1c334c91d2096",
+          "itemName": "잠식 : 가득찬 마력의 영역 신발"
+        },
+        "consecrated": {
+          "itemId": "125e5aa331a73cc9042caee6c7bdc311",
+          "itemName": "축성 : 가득찬 마력의 영역 신발"
+        }
+      }
+    },
+    {
+      "familyKey": "e23286107ba4328af86c83aabc347e9e",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "0a1fac8d26d5dd6723fbd7bc8d2eed60",
+          "itemName": "무리의 베테랑 투구"
+        },
+        "encroached": {
+          "itemId": "50ebe0d4d65b35c545fda9fb6592281d",
+          "itemName": "잠식 : 무리의 베테랑 투구"
+        },
+        "consecrated": {
+          "itemId": "2441f5398af23b66bb996fe4c5df6c4b",
+          "itemName": "축성 : 무리의 베테랑 투구"
+        }
+      }
+    },
+    {
+      "familyKey": "e23286107ba4328af86c83aabc347e9e",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "660443400103e59e4c2563649e037608",
+          "itemName": "무리의 베테랑 상의"
+        },
+        "encroached": {
+          "itemId": "a1069cb291c88c04ddfc12dd240aac12",
+          "itemName": "잠식 : 무리의 베테랑 상의"
+        },
+        "consecrated": {
+          "itemId": "9d5e634b9ddf6f5821389863cbd661e1",
+          "itemName": "축성 : 무리의 베테랑 상의"
+        }
+      }
+    },
+    {
+      "familyKey": "e23286107ba4328af86c83aabc347e9e",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "dc3885a9411b36832169cacff46b584c",
+          "itemName": "무리의 베테랑 하의"
+        },
+        "encroached": {
+          "itemId": "ea7a61bfa35b5fe75e1d15e9b4fcf611",
+          "itemName": "잠식 : 무리의 베테랑 하의"
+        },
+        "consecrated": {
+          "itemId": "d7e76286efa40303acc4b79c652049c1",
+          "itemName": "축성 : 무리의 베테랑 하의"
+        }
+      }
+    },
+    {
+      "familyKey": "e23286107ba4328af86c83aabc347e9e",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "051a0eb63ef8356b6047a46c4a033118",
+          "itemName": "무리의 베테랑 벨트"
+        },
+        "encroached": {
+          "itemId": "5c6a8482df428324a60796f3983c6e47",
+          "itemName": "잠식 : 무리의 베테랑 벨트"
+        },
+        "consecrated": {
+          "itemId": "6d9c5d3621a115f9ce4586c978076089",
+          "itemName": "축성 : 무리의 베테랑 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "e23286107ba4328af86c83aabc347e9e",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "6bc34e0a3c3a464a8dbb548042675af0",
+          "itemName": "무리의 베테랑 신발"
+        },
+        "encroached": {
+          "itemId": "1b74bc5839845b12db12c5ce1911522a",
+          "itemName": "잠식 : 무리의 베테랑 신발"
+        },
+        "consecrated": {
+          "itemId": "da40fcb3f0276f246ddf14971709e8d9",
+          "itemName": "축성 : 무리의 베테랑 신발"
+        }
+      }
+    },
+    {
+      "familyKey": "7c9c8335b72c2907df20786f8f5b27f0",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "239d2af2297915233c131ed83e382dbb",
+          "itemName": "확고한 행운을 부르는 견장"
+        },
+        "encroached": {
+          "itemId": "2a444a084ca1836989315dd199fd2d93",
+          "itemName": "잠식 : 확고한 행운을 부르는 견장"
+        },
+        "consecrated": {
+          "itemId": "6c0c5df1f4ab1e472ca4df240a71659b",
+          "itemName": "축성 : 확고한 행운을 부르는 견장"
+        }
+      }
+    },
+    {
+      "familyKey": "7c9c8335b72c2907df20786f8f5b27f0",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "2719b52c25246cedc2c06d5489e2c3c1",
+          "itemName": "확고한 행운을 부르는 자켓"
+        },
+        "encroached": {
+          "itemId": "9aafbf4efbaee55abb7ca97c1229138b",
+          "itemName": "잠식 : 확고한 행운을 부르는 자켓"
+        },
+        "consecrated": {
+          "itemId": "fd29d4aa24e8e22a254e09e1f3cdb7e7",
+          "itemName": "축성 : 확고한 행운을 부르는 자켓"
+        }
+      }
+    },
+    {
+      "familyKey": "7c9c8335b72c2907df20786f8f5b27f0",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "e49db849c86b9817936e28c9523a1813",
+          "itemName": "확고한 행운을 부르는 바지"
+        },
+        "encroached": {
+          "itemId": "093be5f30e39e7d3d59d00f58cea7daf",
+          "itemName": "잠식 : 확고한 행운을 부르는 바지"
+        },
+        "consecrated": {
+          "itemId": "6b0e9534ef132ce4caac25b2916b7b6b",
+          "itemName": "축성 : 확고한 행운을 부르는 바지"
+        }
+      }
+    },
+    {
+      "familyKey": "7c9c8335b72c2907df20786f8f5b27f0",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "dcc0739231586874b81a2377b3c91e33",
+          "itemName": "확고한 행운을 부르는 벨트"
+        },
+        "encroached": {
+          "itemId": "fcdfe2cab1c3e7f9f18408d8a7749ccc",
+          "itemName": "잠식 : 확고한 행운을 부르는 벨트"
+        },
+        "consecrated": {
+          "itemId": "619d0d5c5bbc9b75ed90dc1e50c83698",
+          "itemName": "축성 : 확고한 행운을 부르는 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "7c9c8335b72c2907df20786f8f5b27f0",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "69e6ac45f1d76be33e26fd9b53313781",
+          "itemName": "확고한 행운을 부르는 부츠"
+        },
+        "encroached": {
+          "itemId": "8d27089b00ae61b34e0363a78ab8b0c0",
+          "itemName": "잠식 : 확고한 행운을 부르는 부츠"
+        },
+        "consecrated": {
+          "itemId": "284186faf5dc623b71afda3c1bf80398",
+          "itemName": "축성 : 확고한 행운을 부르는 부츠"
+        }
+      }
+    },
+    {
+      "familyKey": "4ee7bd5912cda6e2a24c1f36d5202b46",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "29f5d0e0643c18eb213ec39a0f54863b",
+          "itemName": "노블 페어리 어깨"
+        },
+        "encroached": {
+          "itemId": "97f979a0a5e0fd5b47d9ac34a67571b6",
+          "itemName": "잠식 : 노블 페어리 어깨"
+        },
+        "consecrated": {
+          "itemId": "e33e3fae99ec0ce9f11439c10fd1ae5d",
+          "itemName": "축성 : 노블 페어리 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "4ee7bd5912cda6e2a24c1f36d5202b46",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "6bddee1482930a1654617768003cd00d",
+          "itemName": "노블 페어리 상의"
+        },
+        "encroached": {
+          "itemId": "2b9753caf05686862b3f3d46e03c1c0e",
+          "itemName": "잠식 : 노블 페어리 상의"
+        },
+        "consecrated": {
+          "itemId": "6c8e9b2f11cecd539f956eac3e7c09a6",
+          "itemName": "축성 : 노블 페어리 상의"
+        }
+      }
+    },
+    {
+      "familyKey": "4ee7bd5912cda6e2a24c1f36d5202b46",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "1cdff16c1ee7de1697c4f4ced568360a",
+          "itemName": "노블 페어리 하의"
+        },
+        "encroached": {
+          "itemId": "61dfbf6b981e3daa257fed9773fa49c1",
+          "itemName": "잠식 : 노블 페어리 하의"
+        },
+        "consecrated": {
+          "itemId": "fd915c69a72450a268c36cf71afc23b0",
+          "itemName": "축성 : 노블 페어리 하의"
+        }
+      }
+    },
+    {
+      "familyKey": "4ee7bd5912cda6e2a24c1f36d5202b46",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "660527937b8a1089c9192e6aeb07d9ac",
+          "itemName": "노블 페어리 벨트"
+        },
+        "encroached": {
+          "itemId": "11ef6d8f18c5d3d0c56df86dd86046ed",
+          "itemName": "잠식 : 노블 페어리 벨트"
+        },
+        "consecrated": {
+          "itemId": "0beda3bb0116b2ceb573cf2304e563f4",
+          "itemName": "축성 : 노블 페어리 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "4ee7bd5912cda6e2a24c1f36d5202b46",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "92716e38cfda9c78009d410f825cd1fe",
+          "itemName": "노블 페어리 신발"
+        },
+        "encroached": {
+          "itemId": "3c8ba6cf3f8103dfea6c0477817e815f",
+          "itemName": "잠식 : 노블 페어리 신발"
+        },
+        "consecrated": {
+          "itemId": "2899df699505e632d151ec5a5de0c287",
+          "itemName": "축성 : 노블 페어리 신발"
+        }
+      }
+    },
+    {
+      "familyKey": "4e65968c4d30898e6879434dc641b6e4",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "91439d051d622370da855fc6bd31c18e",
+          "itemName": "자연의 폭주 어깨"
+        },
+        "encroached": {
+          "itemId": "fdced53099883444bd3a116fcbb60f0f",
+          "itemName": "잠식 : 자연의 폭주 어깨"
+        },
+        "consecrated": {
+          "itemId": "93ad21a179096c8814b1039e8fa11cb4",
+          "itemName": "축성 : 자연의 폭주 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "4e65968c4d30898e6879434dc641b6e4",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "7f9d0231bec0fbc0932fdf1bcd4937f1",
+          "itemName": "자연의 폭주 상의"
+        },
+        "encroached": {
+          "itemId": "37c0fd5134a007f9c4c6a9f88bac96f1",
+          "itemName": "잠식 : 자연의 폭주 상의"
+        },
+        "consecrated": {
+          "itemId": "5df6094cea9038ea79e4db455beefad8",
+          "itemName": "축성 : 자연의 폭주 상의"
+        }
+      }
+    },
+    {
+      "familyKey": "4e65968c4d30898e6879434dc641b6e4",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "05dcc777641fa89e55871fa8c6dcf5f8",
+          "itemName": "자연의 폭주 하의"
+        },
+        "encroached": {
+          "itemId": "764d16683ff2d6a76b0a3257ba197f40",
+          "itemName": "잠식 : 자연의 폭주 하의"
+        },
+        "consecrated": {
+          "itemId": "cf6d6068beea568b404b9f70601fe844",
+          "itemName": "축성 : 자연의 폭주 하의"
+        }
+      }
+    },
+    {
+      "familyKey": "4e65968c4d30898e6879434dc641b6e4",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "166df2b402ca0a93ce9d2dbd7ff76918",
+          "itemName": "자연의 폭주 벨트"
+        },
+        "encroached": {
+          "itemId": "6898658f09160a88a03140dbd9dcb2c5",
+          "itemName": "잠식 : 자연의 폭주 벨트"
+        },
+        "consecrated": {
+          "itemId": "db0397605c222c424507628a8cfc881a",
+          "itemName": "축성 : 자연의 폭주 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "4e65968c4d30898e6879434dc641b6e4",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "5517ee879635f9cc58b3439b8e6ced62",
+          "itemName": "자연의 폭주 신발"
+        },
+        "encroached": {
+          "itemId": "02c7cc029b91830f55360752c3e2d6c7",
+          "itemName": "잠식 : 자연의 폭주 신발"
+        },
+        "consecrated": {
+          "itemId": "a6b4c5fb449c2d4e67552f6ddda2ccae",
+          "itemName": "축성 : 자연의 폭주 신발"
+        }
+      }
+    },
+    {
+      "familyKey": "93e7825053bdec4e0f4c12837cf4f57e",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "cd4d0bef1ee8cf810ee7842f1abd7b38",
+          "itemName": "고위 여우의 보호 어깨"
+        },
+        "encroached": {
+          "itemId": "cdd7c198b96057075e83ca211f0a3eb7",
+          "itemName": "잠식 : 고위 여우의 보호 어깨"
+        },
+        "consecrated": {
+          "itemId": "241faadafaa1b5cea4ace3772d924a94",
+          "itemName": "축성 : 고위 여우의 보호 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "93e7825053bdec4e0f4c12837cf4f57e",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "601b5793f84d5a068b332e6c135c8ce1",
+          "itemName": "고위 여우의 상의"
+        },
+        "encroached": {
+          "itemId": "0efcdbccbbd49d154b3b0cd8d9324ada",
+          "itemName": "잠식 : 고위 여우의 상의"
+        },
+        "consecrated": {
+          "itemId": "8a03a42411719f3e32c1a1c40c574143",
+          "itemName": "축성 : 고위 여우의 상의"
+        }
+      }
+    },
+    {
+      "familyKey": "93e7825053bdec4e0f4c12837cf4f57e",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "48ec8f172a79b69fbe36bee44a471727",
+          "itemName": "고위 여우의 그림자 하의"
+        },
+        "encroached": {
+          "itemId": "f64b85871fcfa7e73012ea6584ae94cb",
+          "itemName": "잠식 : 고위 여우의 그림자 하의"
+        },
+        "consecrated": {
+          "itemId": "7f90b11502491d33c778c54f80543aa9",
+          "itemName": "축성 : 고위 여우의 그림자 하의"
+        }
+      }
+    },
+    {
+      "familyKey": "93e7825053bdec4e0f4c12837cf4f57e",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "1948b78828c8cf07218ee1a55c1d09a0",
+          "itemName": "고위 여우의 비밀 벨트"
+        },
+        "encroached": {
+          "itemId": "c14c4ec9fbad8cc76397447020b339c5",
+          "itemName": "잠식 : 고위 여우의 비밀 벨트"
+        },
+        "consecrated": {
+          "itemId": "79ce556b2b3e4400e5e51e0843f7ee29",
+          "itemName": "축성 : 고위 여우의 비밀 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "93e7825053bdec4e0f4c12837cf4f57e",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "e7a7e71d3e7c9b3ad70b7b672be35703",
+          "itemName": "고위 여우의 은빛 신발"
+        },
+        "encroached": {
+          "itemId": "6fd4dd925518f8c2f0f5578359cb04f2",
+          "itemName": "잠식 : 고위 여우의 은빛 신발"
+        },
+        "consecrated": {
+          "itemId": "5ab999771e8decdb1ec4271721103950",
+          "itemName": "축성 : 고위 여우의 은빛 신발"
+        }
+      }
+    },
+    {
+      "familyKey": "7f788a703a87d783079b41d0fe6448c9",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "6c1950a1769f2dc1f38d94166aa6db4a",
+          "itemName": "찬란한 황금향의 플레이트 숄더"
+        },
+        "encroached": {
+          "itemId": "57b894751ac458069a7df9338f1de23b",
+          "itemName": "잠식 : 찬란한 황금향의 플레이트 숄더"
+        },
+        "consecrated": {
+          "itemId": "90e09e1ad869e07977b94fbf9cd6acce",
+          "itemName": "축성 : 찬란한 황금향의 플레이트 숄더"
+        }
+      }
+    },
+    {
+      "familyKey": "7f788a703a87d783079b41d0fe6448c9",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "a1b024bc3c80c0028e8408a5e008f915",
+          "itemName": "찬란한 황금향의 플레이트 아머"
+        },
+        "encroached": {
+          "itemId": "447e2906aee1c31574dea25387c876b0",
+          "itemName": "잠식 : 찬란한 황금향의 플레이트 아머"
+        },
+        "consecrated": {
+          "itemId": "d6cc73e1e4f4b83d6cecb5c310014977",
+          "itemName": "축성 : 찬란한 황금향의 플레이트 아머"
+        }
+      }
+    },
+    {
+      "familyKey": "7f788a703a87d783079b41d0fe6448c9",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "fa186dfbbdef647418f4581cedec7ea8",
+          "itemName": "찬란한 황금향의 플레이트 레깅스"
+        },
+        "encroached": {
+          "itemId": "c0c61c2e5a0510bc68a2a6a26b3b7990",
+          "itemName": "잠식 : 찬란한 황금향의 플레이트 레깅스"
+        },
+        "consecrated": {
+          "itemId": "700fb5abf341de4f8f210213ccc5e7df",
+          "itemName": "축성 : 찬란한 황금향의 플레이트 레깅스"
+        }
+      }
+    },
+    {
+      "familyKey": "7f788a703a87d783079b41d0fe6448c9",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "2be538b914d1b161d99bd54ef37a2308",
+          "itemName": "찬란한 황금향의 플레이트 코일"
+        },
+        "encroached": {
+          "itemId": "7efae00cb4879db8804d107ae1c3b909",
+          "itemName": "잠식 : 찬란한 황금향의 플레이트 코일"
+        },
+        "consecrated": {
+          "itemId": "9c026e5d38dec89186fe2ac1f9a7da5c",
+          "itemName": "축성 : 찬란한 황금향의 플레이트 코일"
+        }
+      }
+    },
+    {
+      "familyKey": "7f788a703a87d783079b41d0fe6448c9",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "6cb8c6f4e78084084e459c42b92a2940",
+          "itemName": "찬란한 황금향의 플레이트 부츠"
+        },
+        "encroached": {
+          "itemId": "e6606418d01e3bd4944aaa3af786c346",
+          "itemName": "잠식 : 찬란한 황금향의 플레이트 부츠"
+        },
+        "consecrated": {
+          "itemId": "92d13dc1c38895202ee62b05e2b5d11e",
+          "itemName": "축성 : 찬란한 황금향의 플레이트 부츠"
+        }
+      }
+    },
+    {
+      "familyKey": "b92ca7784123b5fea9cea40144925194",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "107e13c44d4b6d9a92e5febe5a0615be",
+          "itemName": "용왕의 태풍을 부르는 어깨"
+        },
+        "encroached": {
+          "itemId": "9682460967c40651dd1fd198e9d0d6de",
+          "itemName": "잠식 : 용왕의 태풍을 부르는 어깨"
+        },
+        "consecrated": {
+          "itemId": "c3942f2fb4eaf36b357fffe982ca4d44",
+          "itemName": "축성 : 용왕의 태풍을 부르는 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "b92ca7784123b5fea9cea40144925194",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "90949bfa792ca2b0b5df790096bdf4aa",
+          "itemName": "용왕의 불을 뿜는 갑주"
+        },
+        "encroached": {
+          "itemId": "677009a6faa5c69e3772ad745a403eda",
+          "itemName": "잠식 : 용왕의 불을 뿜는 갑주"
+        },
+        "consecrated": {
+          "itemId": "4615fbfd1e4f7abb53a8f7692dec7015",
+          "itemName": "축성 : 용왕의 불을 뿜는 갑주"
+        }
+      }
+    },
+    {
+      "familyKey": "b92ca7784123b5fea9cea40144925194",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "7debe03f88a52df4163fbea691606ce2",
+          "itemName": "용왕의 벼락 치는 각반"
+        },
+        "encroached": {
+          "itemId": "791a51e94891757193835b4c7ce4267b",
+          "itemName": "잠식 : 용왕의 벼락 치는 각반"
+        },
+        "consecrated": {
+          "itemId": "52fee7a51ef977c830529c22b8333d20",
+          "itemName": "축성 : 용왕의 벼락 치는 각반"
+        }
+      }
+    },
+    {
+      "familyKey": "b92ca7784123b5fea9cea40144925194",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "413f82801f1c0dabadbc9650eeb08d77",
+          "itemName": "용왕의 대지를 가르는 허리"
+        },
+        "encroached": {
+          "itemId": "991705263b497ff6e27bb22ff67cac47",
+          "itemName": "잠식 : 용왕의 대지를 가르는 허리"
+        },
+        "consecrated": {
+          "itemId": "16c20d64e618a6269210840552a9d439",
+          "itemName": "축성 : 용왕의 대지를 가르는 허리"
+        }
+      }
+    },
+    {
+      "familyKey": "b92ca7784123b5fea9cea40144925194",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "34530ab9431075fbbba5964b91de10eb",
+          "itemName": "용왕의 하늘을 찢는 발톱"
+        },
+        "encroached": {
+          "itemId": "405bb6e266b117ae4a0a9ffa01d2b274",
+          "itemName": "잠식 : 용왕의 하늘을 찢는 발톱"
+        },
+        "consecrated": {
+          "itemId": "929d75dd6416dcb8f9ac05ccf44c0681",
+          "itemName": "축성 : 용왕의 하늘을 찢는 발톱"
+        }
+      }
+    },
+    {
+      "familyKey": "11f7d203a05ea6f13300c0facb39f11e",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "29de998d42303d1333e8309af0344aef",
+          "itemName": "칠흑의 정화 어깨"
+        },
+        "encroached": {
+          "itemId": "af69f31a097f36466b335eb2b3951fa6",
+          "itemName": "잠식 : 칠흑의 정화 어깨"
+        },
+        "consecrated": {
+          "itemId": "1411123f8393e57af10a7aeef33c483c",
+          "itemName": "축성 : 칠흑의 정화 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "11f7d203a05ea6f13300c0facb39f11e",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "d51d0071c181d4fe99b04e19f2fd6a82",
+          "itemName": "칠흑의 정화 상의"
+        },
+        "encroached": {
+          "itemId": "0e944978b8e69cc5ec088995713305ee",
+          "itemName": "잠식 : 칠흑의 정화 상의"
+        },
+        "consecrated": {
+          "itemId": "fc6be2db9857338ad5a17a0d202bd34f",
+          "itemName": "축성 : 칠흑의 정화 상의"
+        }
+      }
+    },
+    {
+      "familyKey": "11f7d203a05ea6f13300c0facb39f11e",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "94884ed108c1b7edf1082298bb5dd9ac",
+          "itemName": "칠흑의 정화 하의"
+        },
+        "encroached": {
+          "itemId": "5af335df168b46a51c05462b246f8484",
+          "itemName": "잠식 : 칠흑의 정화 하의"
+        },
+        "consecrated": {
+          "itemId": "71085a9389839043a87b6ef6c29e8875",
+          "itemName": "축성 : 칠흑의 정화 하의"
+        }
+      }
+    },
+    {
+      "familyKey": "11f7d203a05ea6f13300c0facb39f11e",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "6fb2ab3331418a5afa6200fb88aa5855",
+          "itemName": "칠흑의 정화 벨트"
+        },
+        "encroached": {
+          "itemId": "ebcdf9f573b5baee8e43e33b07e6691a",
+          "itemName": "잠식 : 칠흑의 정화 벨트"
+        },
+        "consecrated": {
+          "itemId": "d687b2d94eefb217a39d09784670509d",
+          "itemName": "축성 : 칠흑의 정화 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "11f7d203a05ea6f13300c0facb39f11e",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "6f6202187264130623fb7386af92735f",
+          "itemName": "칠흑의 정화 신발"
+        },
+        "encroached": {
+          "itemId": "7761ada30f6888dadb90b5f05c8400d0",
+          "itemName": "잠식 : 칠흑의 정화 신발"
+        },
+        "consecrated": {
+          "itemId": "f9ec0ece26ea9cda37e1d16618d240d5",
+          "itemName": "축성 : 칠흑의 정화 신발"
+        }
+      }
+    },
+    {
+      "familyKey": "2877466bc2fc8bedf7799d88167c9fe3",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "86b82b8b264595db44c437370f796e9a",
+          "itemName": "충전 - 한계를 부수는 어깨"
+        },
+        "encroached": {
+          "itemId": "36e839e1104abfba784737de40fcffbb",
+          "itemName": "잠식 : 충전 - 한계를 부수는 어깨"
+        },
+        "consecrated": {
+          "itemId": "c56989329fdf44aa3a1926b1f75dba5b",
+          "itemName": "축성 : 충전 - 한계를 부수는 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "2877466bc2fc8bedf7799d88167c9fe3",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "4dd1689341b804524e064f3be673b7cd",
+          "itemName": "충전 - 한계를 허무는 힘"
+        },
+        "encroached": {
+          "itemId": "8ddcd82496dbefc1bdee8577d4c6602b",
+          "itemName": "잠식 : 충전 - 한계를 허무는 힘"
+        },
+        "consecrated": {
+          "itemId": "bb4da8d99997c418971012eae165ccd8",
+          "itemName": "축성 : 충전 - 한계를 허무는 힘"
+        }
+      }
+    },
+    {
+      "familyKey": "2877466bc2fc8bedf7799d88167c9fe3",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "bd5491daca84b6e920291bb098a7549d",
+          "itemName": "충전 - 한계를 무너뜨리는 다리"
+        },
+        "encroached": {
+          "itemId": "840727faf8085439978a46b24e1c5fe0",
+          "itemName": "잠식 : 충전 - 한계를 무너뜨리는 다리"
+        },
+        "consecrated": {
+          "itemId": "bb4a9f9c7fc73048139e278bdeba14e6",
+          "itemName": "축성 : 충전 - 한계를 무너뜨리는 다리"
+        }
+      }
+    },
+    {
+      "familyKey": "2877466bc2fc8bedf7799d88167c9fe3",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "6e6932cb4995cfb2b26e701912a6f871",
+          "itemName": "충전 - 한계를 분쇄하는 허리"
+        },
+        "encroached": {
+          "itemId": "d8f5421b0076e5326f056f5f3af7ccef",
+          "itemName": "잠식 : 충전 - 한계를 분쇄하는 허리"
+        },
+        "consecrated": {
+          "itemId": "1d19179f82164ceb8695d8da230f4a3c",
+          "itemName": "축성 : 충전 - 한계를 분쇄하는 허리"
+        }
+      }
+    },
+    {
+      "familyKey": "2877466bc2fc8bedf7799d88167c9fe3",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "1781b439158ddadba6057feedf66bedb",
+          "itemName": "충전 - 한계를 파괴하는 발"
+        },
+        "encroached": {
+          "itemId": "6d9844a6481626f03fa44737131e9915",
+          "itemName": "잠식 : 충전 - 한계를 파괴하는 발"
+        },
+        "consecrated": {
+          "itemId": "51102ff2c1fb4d0eb0fcf1df6bb854a4",
+          "itemName": "축성 : 충전 - 한계를 파괴하는 발"
+        }
+      }
+    },
+    {
+      "familyKey": "uniqueEpicArmor",
+      "slotId": "SHOULDER",
+      "itemTypeDetail": "머리어깨",
+      "stages": {
+        "base": {
+          "itemId": "ae84a4bfea94d5fc53ee8df633653c09",
+          "itemName": "고유 - 자라난 요기의 어깨"
+        },
+        "encroached": {
+          "itemId": "d4fbd27c3522cd38d593e2414e552f28",
+          "itemName": "잠식 : 고유 - 자라난 요기의 어깨"
+        },
+        "consecrated": {
+          "itemId": "4b519764b0827bd40a24ced27b14e2f1",
+          "itemName": "축성 : 고유 - 자라난 요기의 어깨"
+        }
+      }
+    },
+    {
+      "familyKey": "uniqueEpicArmor",
+      "slotId": "JACKET",
+      "itemTypeDetail": "상의",
+      "stages": {
+        "base": {
+          "itemId": "ce31b81cbf34524dc31e8dfdb0920b64",
+          "itemName": "고유 - 철면의 읍곡 아머"
+        },
+        "encroached": {
+          "itemId": "529cc36c56203cf745b164323e836738",
+          "itemName": "잠식 : 고유 - 철면의 읍곡 아머"
+        },
+        "consecrated": {
+          "itemId": "3c005f4be38e98bb8ec8ea5f7ed65ded",
+          "itemName": "축성 : 고유 - 철면의 읍곡 아머"
+        }
+      }
+    },
+    {
+      "familyKey": "uniqueEpicArmor",
+      "slotId": "PANTS",
+      "itemTypeDetail": "하의",
+      "stages": {
+        "base": {
+          "itemId": "e6a28563ef56dc1fb4d19cd15bf13806",
+          "itemName": "고유 - 청해의 굳건한 각반"
+        },
+        "encroached": {
+          "itemId": "a8ab87be7ec6b97a6361620aca3ca039",
+          "itemName": "잠식 : 고유 - 청해의 굳건한 각반"
+        },
+        "consecrated": {
+          "itemId": "f5d3a1e304a43882276a09edf612e940",
+          "itemName": "축성 : 고유 - 청해의 굳건한 각반"
+        }
+      }
+    },
+    {
+      "familyKey": "uniqueEpicArmor",
+      "slotId": "WAIST",
+      "itemTypeDetail": "벨트",
+      "stages": {
+        "base": {
+          "itemId": "5cb147c7591fc8646b4bee3f24453aa2",
+          "itemName": "고유 - 요살자의 분노 벨트"
+        },
+        "encroached": {
+          "itemId": "fe5ed03cce7c7587bfaca82616f6cc70",
+          "itemName": "잠식 : 고유 - 요살자의 분노 벨트"
+        },
+        "consecrated": {
+          "itemId": "c811a7e412ed547b93710446c6ef544d",
+          "itemName": "축성 : 고유 - 요살자의 분노 벨트"
+        }
+      }
+    },
+    {
+      "familyKey": "uniqueEpicArmor",
+      "slotId": "SHOES",
+      "itemTypeDetail": "신발",
+      "stages": {
+        "base": {
+          "itemId": "66b13391328f88630c91ce81639d4023",
+          "itemName": "고유 - 비통한 달 사냥꾼의 신발"
+        },
+        "encroached": {
+          "itemId": "253f00bfb5aa41facac427075a6487cf",
+          "itemName": "잠식 : 고유 - 비통한 달 사냥꾼의 신발"
+        },
+        "consecrated": {
+          "itemId": "dd563bb9758037e3dac573f3449bf57d",
+          "itemName": "축성 : 고유 - 비통한 달 사냥꾼의 신발"
+        }
+      }
+    }
+  ],
+  "finalTransformation": {
+    "status": "registeredForRelicSets",
+    "sourceStage": "consecrated",
+    "requiredSlots": [
+      "SHOULDER",
+      "JACKET",
+      "PANTS",
+      "WAIST",
+      "SHOES"
+    ],
+    "targetsByFamily": {
+      "854dc8c01b1bc231e132dae5df3c52bc": {
+        "SHOULDER": {
+          "itemId": "b2b87ac141f7eb6abe28cf6dd25b9ced",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "fad2de6377c523c366d8333a4cbf4114",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "1930bf4b8c06c65798587002be154496",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "d0b767b97911504ab6704e7cadfaa39d",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "c6738a2a183340fcb5e62bd96124659a",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "3af7c961e7d8cd8b5b42c5f82af2a0ad": {
+        "SHOULDER": {
+          "itemId": "cd5697ca4f68d2f06b5965ee2fc5662b",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "ce653434e129a67945878c1c2e66ce73",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "2fe1185d9c958b52272cf57f36ffbc80",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "6195206e63ffc979e7cd8c0ae01ebfd3",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "2912e0efaa521dbceef5b00e7b29fd43",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "8e9cb65cb6285d7e2f084f440aa18870": {
+        "SHOULDER": {
+          "itemId": "0efa1142ea97a7393a3752b4c7528b86",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "69299cc74cb75e3da2a802870c7a4c12",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "b5744285a3d5edb950ebca0d29d3c23e",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "785fe9470fe935f67553f75315668f0a",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "9c781395a844ec94283263bf80c1c88e",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "e23286107ba4328af86c83aabc347e9e": {
+        "SHOULDER": {
+          "itemId": "bfe3021c86eb7d8186183c8711226076",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "d4aef44b773506b88925a0ae9a723b3e",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "f6414f7c18e1bb338fb2c230b6fbd43f",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "b3289c39d0fb253097e06a9f13256953",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "da458415a7633cfdb242b62e0d1ec2ae",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "7c9c8335b72c2907df20786f8f5b27f0": {
+        "SHOULDER": {
+          "itemId": "44a64cbd5b1e5cfa14da263ceb18dc25",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "7b973287f7a5e53837f58cdeb21dd995",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "6a463e985d14276100d208b54bad10ee",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "9e209b112d22a8286b3cc93b637b10fc",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "51e9ec3c18e5ff9161f659531f45d69b",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "4ee7bd5912cda6e2a24c1f36d5202b46": {
+        "SHOULDER": {
+          "itemId": "2d81feba3c9977d5ffa32fd378785bf0",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "11f55a9437e514d46ee55c8a8ae82b7e",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "607ee0da46bf24a4b211bff52f3c05f1",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "20c367fa5eaccbaa7b9fe372d4b94170",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "e6360b073291b20bd81c830fe5b52962",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "4e65968c4d30898e6879434dc641b6e4": {
+        "SHOULDER": {
+          "itemId": "09f0209114fe7456ae786b5d04afee58",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "47b783bd269732293208e991024893d9",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "db51eaf8b343975f0d387fec6e738ade",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "500e56fa4e5608d9d1cd3d7b69e6efb1",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "18c4594187c2f9d727bc63aa8aa176c8",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "93e7825053bdec4e0f4c12837cf4f57e": {
+        "SHOULDER": {
+          "itemId": "1b62c240c5a0a893a77149ef5b923bbb",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "2d23a5dc389016bdc3a3e3fd142b38ce",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "cd04be485e258d9879cd6d3b9bb3f2c6",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "e73e2b5f535f2ec8edbf29d5ba1ef2e9",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "a4e3544bd415bcf6399809025bc3de32",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "7f788a703a87d783079b41d0fe6448c9": {
+        "SHOULDER": {
+          "itemId": "c4de6c27c8c1cce1474341a170f06351",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "847ec8e923e46351dc2c747cd121b7f0",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "2eee49706bce42e0bd022b9a86e7e3c9",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "ed24b65d57244bbbde424696bb46e59a",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "3dc40d93e54a55bb1e13a4a2633c6efb",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "b92ca7784123b5fea9cea40144925194": {
+        "SHOULDER": {
+          "itemId": "9d2004a5a541e719c46c9199076f4bea",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "7ed6efcd447e9f92726492bf8c07f8e6",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "e35fae842f744668a2b80a60db255650",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "9fedbd1ce57302d5ed821335ec9d972f",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "46afa7de9be53814c19618ecbc46afc0",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "11f7d203a05ea6f13300c0facb39f11e": {
+        "SHOULDER": {
+          "itemId": "1fd5aa7227fb90d934620fd2b9bfbef6",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "43803200c544fd434d9ab5c9880bebd3",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "0bf45c3b01cddaf53ee81a5271b20ae4",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "951150903ca24cb8598e758ba4875995",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "a771af545571ab8a78f45c463bab947a",
+          "itemName": "고요한 안식의 신발"
+        }
+      },
+      "2877466bc2fc8bedf7799d88167c9fe3": {
+        "SHOULDER": {
+          "itemId": "20443520b128350859b9062b376c9f19",
+          "itemName": "숭고한 심판의 어깨"
+        },
+        "JACKET": {
+          "itemId": "416b382789bc0b50fe07087a63b2a0e9",
+          "itemName": "긍휼 속 자비의 상의"
+        },
+        "PANTS": {
+          "itemId": "583002211f7907d63e1de59cf9d37928",
+          "itemName": "명예로운 공경의 하의"
+        },
+        "WAIST": {
+          "itemId": "30a4dbdbc267aa97f6dc984f42041cd5",
+          "itemName": "완전한 침묵의 벨트"
+        },
+        "SHOES": {
+          "itemId": "2af35244017d9d2daf702ef7aba3139d",
+          "itemName": "고요한 안식의 신발"
+        }
+      }
+    }
+  }
+}

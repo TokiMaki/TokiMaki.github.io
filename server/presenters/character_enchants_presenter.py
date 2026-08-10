@@ -119,6 +119,7 @@ def build_character_enchants_payload(
     oath_tune_stage_db: dict,
     black_fang_recommendations: list,
     relic_craft_recommendations: list,
+    raid_armor_upgrade_recommendations: list,
     upgrade_expected_db,
     upgrade_material_prices: dict,
     steps: list,
@@ -139,6 +140,7 @@ def build_character_enchants_payload(
         "oathTuneStageDb": oath_tune_stage_db,
         "blackFangRecommendations": black_fang_recommendations,
         "relicCraftRecommendations": relic_craft_recommendations,
+        "raidArmorUpgradeRecommendations": raid_armor_upgrade_recommendations,
         "upgradeExpectedDb": upgrade_expected_db,
         "upgradeMaterialPrices": upgrade_material_prices,
         "debugTimings": {

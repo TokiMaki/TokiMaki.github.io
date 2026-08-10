@@ -315,6 +315,33 @@ assert.deepEqual(bufferBodyCalculation.getBufferEquipmentBodyBaseRelativeChanges
   baseSkillContributions: [],
   targetSkillContributions: [],
 });
+const sequentialRaidArmorRow = {
+  sourceType: 'raidArmorUpgrade',
+  equipmentTuneBuffPowerDelta: 0,
+  baseEquipmentTuneBuffPowerDelta: 80,
+  baseEquipmentBody: {
+    slotId: 'JACKET',
+    itemId: 'base-jacket',
+    effects: { buffPower: 10720 },
+  },
+  currentEquipmentBody: {
+    slotId: 'JACKET',
+    itemId: 'encroached-jacket',
+    effects: { buffPower: 11040 },
+  },
+  targetEquipmentBody: {
+    slotId: 'JACKET',
+    itemId: 'consecrated-jacket',
+    effects: { buffPower: 11640 },
+  },
+};
+assert.equal(
+  bufferBodyCalculation.getBufferEquipmentBodyBaseRelativeChanges(
+    deepFreeze(sequentialRaidArmorRow),
+    deepFreeze(bodyReplacementBaseline),
+  ).buffPowerDelta,
+  1000,
+);
 assert.equal(
   calculation.getBufferEquipmentBodyBaseRelativeChanges({
     ...blackFangRow,

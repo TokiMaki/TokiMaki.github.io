@@ -18,6 +18,7 @@ JOB_ATTACK_TYPE_DB_PATH = ROOT / "Docs" / "job_attack_type_db.json"
 AMPLIFICATION_EXPECTED_DB_PATH = ROOT / "Docs" / "amplification_expected_db.json"
 REINFORCEMENT_EXPECTED_DB_PATH = ROOT / "Docs" / "reinforcement_expected_db.json"
 RELIC_CRAFT_DB_PATH = ROOT / "Docs" / "relic_craft_db.json"
+RAID_ARMOR_UPGRADE_DB_PATH = ROOT / "Docs" / "raid_armor_upgrade_db.json"
 
 _JOB_BASE_STAT_CACHE = None
 _JOB_ATTACK_TYPE_DB_CACHE = None
@@ -29,6 +30,7 @@ _DEALER_SWITCHING_TITLE_DB_CACHE = None
 _DEALER_SWITCHING_CREATURE_DB_CACHE = None
 _OATH_TUNE_STAGE_DB_CACHE = None
 _RELIC_CRAFT_DB_CACHE = None
+_RAID_ARMOR_UPGRADE_DB_CACHE = None
 
 _JOB_BASE_STAT_LOOKUP_ALIASES = {
     ("프리스트(남)", "眞 크루세이더"): "眞 크루세이더(남)",
@@ -162,3 +164,14 @@ def load_relic_craft_db() -> dict:
         except FileNotFoundError:
             _RELIC_CRAFT_DB_CACHE = {}
     return _RELIC_CRAFT_DB_CACHE
+
+
+def load_raid_armor_upgrade_db() -> dict:
+    global _RAID_ARMOR_UPGRADE_DB_CACHE
+    if _RAID_ARMOR_UPGRADE_DB_CACHE is None:
+        try:
+            with RAID_ARMOR_UPGRADE_DB_PATH.open("r", encoding="utf-8") as handle:
+                _RAID_ARMOR_UPGRADE_DB_CACHE = json.load(handle)
+        except FileNotFoundError:
+            _RAID_ARMOR_UPGRADE_DB_CACHE = {}
+    return _RAID_ARMOR_UPGRADE_DB_CACHE

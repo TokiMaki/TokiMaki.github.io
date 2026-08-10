@@ -14,7 +14,10 @@ from ..equipment_body import (
 from ..neople_client import clean_text, get_item_explain, get_item_icon_url
 from ..presenters.relic_craft_presenter import build_relic_craft_recommendation_row
 from ..repositories.item_repository import fetch_item_details, resolve_exact_item_by_name
-from ..repositories.material_price_repository import build_upgrade_material_display_rows
+from ..repositories.material_price_repository import (
+    build_upgrade_material_display_rows,
+    get_upgrade_material_config,
+)
 
 
 def _number(value) -> float:
@@ -98,7 +101,10 @@ def _build_materials(
         amount = _number(material.get("amount"))
         if amount <= 0:
             continue
-        price_source = clean_text(material.get("priceSource"))
+        material_config = get_upgrade_material_config(key)
+        price_source = clean_text(material.get("priceSource") or material_config.get("priceSource"))
+        material_label = clean_text(material.get("label") or material_config.get("label"))
+        material_item_id = clean_text(material.get("itemId") or material_config.get("itemId"))
         if price_source == "displayOnly":
             auction = {
                 "listingCount": 0,
@@ -108,8 +114,8 @@ def _build_materials(
                 "priceSource": "displayOnly",
                 "isSynthetic": True,
             }
-            label = clean_text(material.get("label"))
-            item_id = clean_text(material.get("itemId"))
+            label = material_label
+            item_id = material_item_id
         elif price_source == "localManual":
             price = _number(((recipe.get("manualPrices") or {}).get(key) or {}).get("unitPrice"))
             if price <= 0:
@@ -122,17 +128,17 @@ def _build_materials(
                 "priceSource": "localManual",
                 "isSynthetic": True,
             }
-            label = clean_text(material.get("label"))
+            label = material_label
             item = resolve_exact_item_by_name(label) if label else {}
             label = clean_text(item.get("itemName")) or label
-            item_id = clean_text(material.get("itemId") or item.get("itemId"))
+            item_id = clean_text(material_item_id or item.get("itemId"))
         else:
             price_row = material_prices.get(key) or {}
             auction = dict(price_row.get("auction") or {})
             if _number(auction.get("minUnitPrice")) <= 0:
                 return []
-            label = clean_text(price_row.get("label") or material.get("label"))
-            item_id = clean_text(price_row.get("itemId") or material.get("itemId"))
+            label = clean_text(price_row.get("label") or material_label)
+            item_id = clean_text(price_row.get("itemId") or material_item_id)
         rows.append({
             "key": key,
             "label": label,

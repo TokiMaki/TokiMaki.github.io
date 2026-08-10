@@ -144,6 +144,26 @@ export function createEnchantSimulatorIdentity(deps) {
     ].join(':');
   }
 
+  function getRaidArmorUpgradeExclusiveGroupKey(row = {}) {
+    const targetBody = row.targetEquipmentBody || row;
+    const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody);
+    const targetSlotName = resolveCanonicalEquipmentSlotName(targetBody);
+    return row.sourceType === 'raidArmorUpgrade' && targetSlotId && targetSlotName
+      ? `raidArmorUpgrade:${targetSlotName}`
+      : '';
+  }
+
+  function getRaidArmorUpgradeCandidateSignature(row = {}) {
+    const groupKey = getRaidArmorUpgradeExclusiveGroupKey(row);
+    const targetBody = row.targetEquipmentBody || {};
+    if (!groupKey || !targetBody.itemId) return '';
+    return [
+      groupKey,
+      targetBody.itemId,
+      getEffectSignature(targetBody.effects || {}),
+    ].join(':');
+  }
+
   function getAvatarEmblemExclusiveGroupKey(row = {}) {
     const targetSlotId = String(row.targetSlotId || '').trim();
     return row.sourceType === 'avatar' && row.kind === 'brilliantEmblem' && targetSlotId
@@ -252,6 +272,8 @@ export function createEnchantSimulatorIdentity(deps) {
     getBlackFangCandidateSignature,
     getRelicCraftExclusiveGroupKey,
     getRelicCraftCandidateSignature,
+    getRaidArmorUpgradeExclusiveGroupKey,
+    getRaidArmorUpgradeCandidateSignature,
     getAvatarEmblemExclusiveGroupKey,
     getAvatarEmblemCandidateSignature,
     getAvatarPlatinumExclusiveGroupKey,

@@ -25,6 +25,8 @@ const DEFAULT_INCLUDE_KEYS = [
   '강화/증폭:증폭',
   '장비:조율',
   '장비:유일',
+  '장비:잠식',
+  '장비:축성',
   '서약:조율',
   '서약:초월/정가',
   '흑아:흑아',
@@ -220,14 +222,14 @@ test('storage null은 기본 HTML과 기본-disabled 서약 상태를 보존한�
   assert.deepEqual(storage.calls, []);
   controls.renderEnchantIncludeControls();
 
-  assert.equal(includeControls.innerHTML.length, 7797);
+  assert.equal(includeControls.innerHTML.length, 8297);
   assert.equal(
     sha256(includeControls.innerHTML),
-    '6e7db9311e157ddecb5afc6ade5890e338c563f4648b1d835456eab19a448cfb',
+    'cd2d07c116a680d60711f44a9ee53cb0d0cc56096f17a003d1f3e33e8fb085c3',
   );
-  assert.equal(includeControls.inputs.length, 22);
+  assert.equal(includeControls.inputs.length, 24);
   assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
-  assert.equal(checkedValues(includeControls).length, 22);
+  assert.equal(checkedValues(includeControls).length, 24);
   assert.deepEqual(storage.calls, [['getItem', INCLUDE_KEY]]);
 });
 
@@ -383,7 +385,7 @@ test('legacy fixture HTML 해시를 보존한다', () => {
 
   assert.equal(
     sha256(includeControls.innerHTML),
-    'e92e98778a9ab0aeb798dbc91f6e1be92b6e345253e135a7ee767c59269bc8f0',
+    'b885b1d38e71b333a9d268b5a1b2084a07dd771673dbe639eba593e4322fb95a',
   );
 });
 

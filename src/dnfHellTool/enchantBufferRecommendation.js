@@ -258,7 +258,7 @@ export function createEnchantBufferRecommendation(deps) {
     (rows || []).forEach((row) => {
       if (!isRelicCraftEquipmentSetPointEligible(row)) return;
       if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft'].includes(row.sourceType)) return;
+      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade'].includes(row.sourceType)) return;
       if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && simulator?.role === 'buffer') {
         row = adaptOathAcquisitionRecommendation(row, simulator);
         if (!row) return;
@@ -308,8 +308,7 @@ export function createEnchantBufferRecommendation(deps) {
       if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
       if (
         !['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType) &&
-        row.sourceType !== 'blackFang' &&
-        row.sourceType !== 'relicCraft' &&
+        !isEquipmentBodyReplacementSource(row) &&
         row.sourceType !== 'oathTranscend' &&
         row.sourceType !== 'oathCraft' &&
         current?.itemId &&
@@ -586,7 +585,9 @@ export function createEnchantBufferRecommendation(deps) {
           }
         }
         if (isEquipmentBodyReplacementSource(row)) {
-          delete referenceEquipmentBodyChangesBySlot[row.slot];
+          if (row.sourceType !== 'raidArmorUpgrade') {
+            delete referenceEquipmentBodyChangesBySlot[row.slot];
+          }
         }
         if (row.sourceType === 'creature') delete referenceCreatureChangesBySource.creature;
         if (row.sourceType === 'aura') delete referenceAuraChangesBySource.aura;

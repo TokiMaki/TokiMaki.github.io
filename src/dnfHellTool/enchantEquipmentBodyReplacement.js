@@ -16,7 +16,11 @@ const EQUIPMENT_SLOT_ID_BY_NAME = Object.fromEntries(
   Object.entries(EQUIPMENT_SLOT_NAME_BY_ID).map(([slotId, slotName]) => [slotName, slotId]),
 );
 
-const EQUIPMENT_BODY_REPLACEMENT_SOURCE_TYPES = new Set(['blackFang', 'relicCraft']);
+const EQUIPMENT_BODY_REPLACEMENT_SOURCE_TYPES = new Set([
+  'blackFang',
+  'relicCraft',
+  'raidArmorUpgrade',
+]);
 
 function cloneValue(value) {
   if (typeof structuredClone === 'function') return structuredClone(value);

@@ -30,9 +30,9 @@
         "fixedGold": 100000000,
         "materials": [
           { "key": "perfumeBottle", "label": "힘을 잃은 기품의 향수병", "itemId": "679cacdbd935ea441d207501ebe4b0cb", "amount": 1, "priceSource": "localManual" },
-          { "key": "behemothTear", "label": "베히모스의 눈물(1회 교환 가능)", "itemId": "cbeb05e1c979e159f6a7501d6a294378", "amount": 1000, "priceSource": "materialResolver" },
-          { "key": "historiaQuartz", "label": "히스토리아 쿼츠", "itemId": "c1e1dd70d4dbdf410fe715b339000821", "amount": 2000, "priceSource": "materialResolver" },
-          { "key": "primordialSoul", "label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888", "amount": 5, "priceSource": "materialResolver" }
+          { "key": "behemothTear", "amount": 1000 },
+          { "key": "historiaQuartz", "amount": 2000 },
+          { "key": "primordialSoul", "amount": 5 }
         ]
       },
       "precision100": {
@@ -105,9 +105,9 @@
         "fixedGold": 100000000,
         "materials": [
           { "key": "weatherCubeShell", "label": "힘을 잃은 날씨의 큐브", "itemId": "5a6fffbe89d6d4ffc92b606dfce09b77", "amount": 1, "priceSource": "localManual" },
-          { "key": "ignoranceDream", "label": "무지의 꿈(1회 교환 가능)", "itemId": "56b00a8dfeda29398997e7b378effcb6", "amount": 1000, "priceSource": "materialResolver" },
-          { "key": "historiaQuartz", "label": "히스토리아 쿼츠", "itemId": "c1e1dd70d4dbdf410fe715b339000821", "amount": 2000, "priceSource": "materialResolver" },
-          { "key": "primordialSoul", "label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888", "amount": 5, "priceSource": "materialResolver" }
+          { "key": "ignoranceDream", "amount": 1000 },
+          { "key": "historiaQuartz", "amount": 2000 },
+          { "key": "primordialSoul", "amount": 5 }
         ]
       },
       "precision100": {
@@ -174,9 +174,9 @@
         "fixedGold": 100000000,
         "materials": [
           { "key": "blackHeartPulse", "label": "검은 심장의 맥박", "itemId": "165e92536134e83a5f58db786ede0c66", "amount": 1, "priceSource": "displayOnly" },
-          { "key": "plagueSeed", "label": "역병의 씨앗", "itemId": "f4404a61f4522fa0a2a280366104033b", "amount": 1200, "priceSource": "displayOnly" },
-          { "key": "epicSoul", "label": "에픽 소울 결정", "itemId": "c7d845c65ab9dbcff6e55dc910fbea87", "amount": 500, "priceSource": "materialResolver" },
-          { "key": "primordialSoul", "label": "태초 소울 결정", "itemId": "d288ebf406a65f4ec23d1f9c33227888", "amount": 25, "priceSource": "materialResolver" }
+          { "key": "plagueSeed", "amount": 1200 },
+          { "key": "epicSoul", "amount": 500 },
+          { "key": "primordialSoul", "amount": 25 }
         ]
       },
       "precision100": {
