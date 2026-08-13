@@ -166,6 +166,19 @@ BUFFER_SCORE_SKILLS = {
         "auraStat": {"apius::대응체계();"},
     },
 }
+BUFFER_BUFF_SKILL_LEVEL_CAPS = {
+    "영광의 축복": 32,
+    "용맹의 축복": 32,
+    "금단의 저주": 32,
+    "러블리 템포": 32,
+    "squad::무기강화();": 32,
+}
+
+
+def normalize_buffer_buff_skill_level(buff_skill_name: str, level: int) -> int:
+    level = int(level or 0)
+    maximum = int(BUFFER_BUFF_SKILL_LEVEL_CAPS.get(clean_text(buff_skill_name)) or 0)
+    return maximum if maximum and level == maximum + 1 else level
 
 
 def combine_effects(*effect_rows: dict) -> dict:
@@ -494,7 +507,10 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
         "skillInfo": {
             "skillId": clean_text(skill_info.get("skillId")),
             "name": clean_text(skill_info.get("name")),
-            "level": int(((skill_info.get("option") or {}).get("level")) or 0),
+            "level": normalize_buffer_buff_skill_level(
+                buff_skill_name,
+                int(((skill_info.get("option") or {}).get("level")) or 0),
+            ),
             "maxLevel": max_skill_level,
             "iconUrl": "",
             "currentCoefficients": current_coefficients,
@@ -1173,7 +1189,11 @@ def load_character_buffer_skill_levels(server_id: str, character_id: str, job_na
         "skill/buff/equip/equipment",
     )
     skill_info = ((buff_payload.get("skill") or {}).get("buff") or {}).get("skillInfo") or {}
-    buff_skill_level = int(((skill_info.get("option") or {}).get("level")) or 0)
+    buff_skill_name = clean_text(skill_info.get("name"))
+    buff_skill_level = normalize_buffer_buff_skill_level(
+        buff_skill_name,
+        int(((skill_info.get("option") or {}).get("level")) or 0),
+    )
 
     style_payload = get_character_cached_payload(server_id, character_id, "skill_style", "skill/style")
     awakening_row = next(
@@ -1216,7 +1236,7 @@ def load_character_buffer_skill_levels(server_id: str, character_id: str, job_na
     )
     avatar_option_bonus = get_avatar_awakening_level_bonus(avatar_rows, awakening_skill_name)
     return {
-        "buffSkillName": clean_text(skill_info.get("name")),
+        "buffSkillName": buff_skill_name,
         "buffSkillLevel": buff_skill_level,
         "awakeningSkillName": awakening_skill_name,
         "awakeningBaseLevel": awakening_base_level,

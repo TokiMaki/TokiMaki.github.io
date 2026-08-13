@@ -6,6 +6,7 @@ from pathlib import Path
 
 SOURCE_PATH = Path(__file__).resolve().parents[1] / "server" / "character_equipment_service.py"
 TARGET_FUNCTIONS = {
+    "normalize_buffer_buff_skill_level",
     "build_buff_loadout_item_payload",
     "build_buff_loadout_avatar_payload",
     "resolve_effective_buff_avatar_rows",
@@ -42,6 +43,7 @@ def load_target_namespace():
         "re": re,
         "clean_text": clean_text,
         "fetch_item_details": lambda _item_ids: [],
+        "BUFFER_BUFF_SKILL_LEVEL_CAPS": {"러블리 템포": 32},
     }
     exec(compile(ast.Module(body=functions, type_ignores=[]), str(SOURCE_PATH), "exec"), namespace)
     return namespace
@@ -121,7 +123,7 @@ class SwitchingAvatarContributionTest(unittest.TestCase):
                 "skill": {"buff": {"skillInfo": {
                     "skillId": "lovely-tempo",
                     "name": "러블리 템포",
-                    "option": {"level": 10},
+                    "option": {"level": 33},
                 }, "equipment": []}},
             },
             "buff_avatar": {"skill": {"buff": {"avatar": []}}},
@@ -151,6 +153,7 @@ class SwitchingAvatarContributionTest(unittest.TestCase):
 
         payload = ns["build_buff_loadout_payload"]("cain", "makimuse")
 
+        self.assertEqual(payload["skillInfo"]["level"], 32)
         self.assertEqual(len(payload["avatar"]), 1)
         self.assertEqual(payload["avatar"][0]["buffAvatarSource"], "wornFallback")
         self.assertEqual(payload["avatar"][0]["buffContribution"], {

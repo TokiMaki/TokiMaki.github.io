@@ -61,6 +61,21 @@ def build_context(groups, context_key=CONTEXT_KEY, switching_levels=None, maximu
     )[context_key]
 
 
+class BufferBuffSkillLevelCapTest(unittest.TestCase):
+    def test_pc_room_level_is_trimmed_only_at_exactly_one_above_cap(self):
+        normalize = service.normalize_buffer_buff_skill_level
+
+        self.assertEqual(normalize("러블리 템포", 33), 32)
+        self.assertEqual(normalize("러블리 템포", 32), 32)
+        self.assertEqual(normalize("러블리 템포", 34), 34)
+
+    def test_all_buffer_jobs_use_the_same_confirmed_cap(self):
+        for buff_skill in service.BUFFER_BUFF_SKILL_LEVEL_CAPS:
+            with self.subTest(buff_skill=buff_skill):
+                self.assertEqual(service.BUFFER_BUFF_SKILL_LEVEL_CAPS[buff_skill], 32)
+                self.assertEqual(service.normalize_buffer_buff_skill_level(buff_skill, 33), 32)
+
+
 class BufferSkillContextRangeTest(unittest.TestCase):
     def test_independent_groups_add_but_same_group_candidates_do_not(self):
         independent = build_context({
