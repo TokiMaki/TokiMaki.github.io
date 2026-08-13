@@ -540,6 +540,61 @@ function testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly() {
   assert.ok(result.incrementalBuffScore > 0);
 }
 
+function testWeaponTuneUsesBufferPowerWithoutDealerFinalDamage() {
+  const { getBufferRecommendationRows } = createRecommendation();
+  const baseline = {
+    isBuffer: true,
+    bufferKey: 'femaleCrusader',
+    jobName: '프리스트(여)',
+    statName: '지능',
+    stat: 12000,
+    activeSelfStat: 500,
+    switchingStatDelta: 200,
+    buffPower: 18000,
+    buffAmplification: 20,
+    switchingBuffAmplificationDelta: 5,
+    buffSkillName: '버프',
+    buffSkillLevel: 40,
+    awakeningSkillName: '각성',
+    awakeningSkillLevel: 40,
+    auraStat: 500,
+    auraAttack: 100,
+    currentSelfStatSkills: {},
+  };
+  const currentEffects = { finalDamage: 376.7, buffPower: 44261 };
+  const targetEffects = { finalDamage: 398.2, buffPower: 45961 };
+  const [result] = getBufferRecommendationRows(
+    [{
+      sourceType: 'weaponTune',
+      slot: '무기',
+      itemId: 'primeval-weapon',
+      effects: { finalDamage: 21.5, buffPower: 1700 },
+      currentEffects,
+      targetEffects,
+      currentEquipmentBody: {
+        slotId: 'WEAPON',
+        itemId: 'primeval-weapon',
+        effects: currentEffects,
+      },
+      targetEquipmentBody: {
+        slotId: 'WEAPON',
+        itemId: 'primeval-weapon',
+        effects: targetEffects,
+      },
+      expectedGold: 500000,
+      auction: { minUnitPrice: 500000 },
+    }],
+    [],
+    null,
+    null,
+    null,
+    deepFreeze(baseline),
+  );
+  assert.ok(result);
+  assert.equal(result.bufferBuffPowerDelta, 1700);
+  assert.ok(result.incrementalBuffScore > 0);
+}
+
 const tests = [
   testFactoryContract,
   testCalculateBufferScoreFixturesAndEdges,
@@ -547,6 +602,7 @@ const tests = [
   testRecommendationRowBoundaries,
   testSimulatorResolutionFailureFallsBackToBaseScoring,
   testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly,
+  testWeaponTuneUsesBufferPowerWithoutDealerFinalDamage,
 ];
 
 let failures = 0;

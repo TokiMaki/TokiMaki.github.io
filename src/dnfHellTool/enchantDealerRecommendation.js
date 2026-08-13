@@ -50,7 +50,6 @@ export function createEnchantDealerRecommendation(deps) {
   }
 
   function getRecommendationDamageEffects(row, current) {
-    if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
     if (isEquipmentBodyReplacementSource(row)) {
       const targetEffects = row.targetEquipmentBody?.effects
         || row.targetEffects
@@ -58,6 +57,7 @@ export function createEnchantDealerRecommendation(deps) {
       const currentEffects = row.currentEquipmentBody?.effects || row.currentEffects || {};
       return subtractEffects(targetEffects, currentEffects);
     }
+    if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
     if (['avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType)) return row.effects || {};
     return subtractEffects(row.effects || {}, current?.effects || {});
   }
@@ -668,10 +668,10 @@ export function createEnchantDealerRecommendation(deps) {
         : row;
       let current = row.sourceType === 'upgrade'
         ? { effects: {} }
-        : TUNE_SOURCE_TYPES.has(row.sourceType)
-          ? { effects: {} }
         : isEquipmentBodyReplacementSource(row)
           ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
+        : TUNE_SOURCE_TYPES.has(row.sourceType)
+          ? { effects: {} }
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { effects: row.currentEffects || {} }
         : row.sourceType === 'avatar'

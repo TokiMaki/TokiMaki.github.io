@@ -164,6 +164,40 @@ export function createEnchantSimulatorIdentity(deps) {
     ].join(':');
   }
 
+  function getWeaponTuneExclusiveGroupKey(row = {}) {
+    const targetBody = row.targetEquipmentBody || row;
+    const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody);
+    return row.sourceType === 'weaponTune' && targetSlotId === 'WEAPON'
+      ? 'weaponTune:무기'
+      : '';
+  }
+
+  function getWeaponTuneCandidateSignature(row = {}) {
+    const groupKey = getWeaponTuneExclusiveGroupKey(row);
+    const targetBody = row.targetEquipmentBody || {};
+    const mode = String(row.weaponTuneMode || 'tune').trim();
+    const targetReleasePercent = Number(row.targetWeaponReleasePercent);
+    const targetStage = Number(row.targetWeaponTuneStage);
+    if (!groupKey || !targetBody.itemId) return '';
+    if (mode === 'release') {
+      if (!Number.isFinite(targetReleasePercent)) return '';
+      return [
+        groupKey,
+        mode,
+        targetReleasePercent,
+        targetBody.itemId,
+        getEffectSignature(targetBody.effects || {}),
+      ].join(':');
+    }
+    if (!Number.isFinite(targetStage)) return '';
+    return [
+      groupKey,
+      targetStage,
+      targetBody.itemId,
+      getEffectSignature(targetBody.effects || {}),
+    ].join(':');
+  }
+
   function getAvatarEmblemExclusiveGroupKey(row = {}) {
     const targetSlotId = String(row.targetSlotId || '').trim();
     return row.sourceType === 'avatar' && row.kind === 'brilliantEmblem' && targetSlotId
@@ -274,6 +308,8 @@ export function createEnchantSimulatorIdentity(deps) {
     getRelicCraftCandidateSignature,
     getRaidArmorUpgradeExclusiveGroupKey,
     getRaidArmorUpgradeCandidateSignature,
+    getWeaponTuneExclusiveGroupKey,
+    getWeaponTuneCandidateSignature,
     getAvatarEmblemExclusiveGroupKey,
     getAvatarEmblemCandidateSignature,
     getAvatarPlatinumExclusiveGroupKey,

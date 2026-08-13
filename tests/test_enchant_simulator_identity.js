@@ -35,6 +35,8 @@ const PUBLIC_OUTPUTS = [
   'getRelicCraftCandidateSignature',
   'getRaidArmorUpgradeExclusiveGroupKey',
   'getRaidArmorUpgradeCandidateSignature',
+  'getWeaponTuneExclusiveGroupKey',
+  'getWeaponTuneCandidateSignature',
   'getAvatarEmblemExclusiveGroupKey',
   'getAvatarEmblemCandidateSignature',
   'getAvatarPlatinumExclusiveGroupKey',
@@ -73,6 +75,7 @@ const EXCLUSIVE_DISPATCH_ORDER = [
   'getBlackFangExclusiveGroupKey',
   'getRelicCraftExclusiveGroupKey',
   'getRaidArmorUpgradeExclusiveGroupKey',
+  'getWeaponTuneExclusiveGroupKey',
   'getEquipmentProgressionExclusiveGroupKey',
   'getAvatarEmblemExclusiveGroupKey',
   'getAvatarPlatinumExclusiveGroupKey',
@@ -103,6 +106,7 @@ const CANDIDATE_DISPATCH_ORDER = [
   'getBlackFangCandidateSignature',
   'getRelicCraftCandidateSignature',
   'getRaidArmorUpgradeCandidateSignature',
+  'getWeaponTuneCandidateSignature',
   'getEquipmentProgressionCandidateSignature',
   'getAvatarEmblemCandidateSignature',
   'getAvatarPlatinumCandidateSignature',
@@ -383,6 +387,36 @@ function testDealerSourceIdentityMatrix() {
   assert.equal(
     identity.getRaidArmorUpgradeCandidateSignature(raidArmorUpgrade),
     'raidArmorUpgrade:상의:consecrated-jacket:finalDamage:15|attack:20',
+  );
+
+  const weaponTune = {
+    sourceType: 'weaponTune',
+    targetWeaponTuneStage: 4,
+    targetEquipmentBody: {
+      slotId: 'WEAPON',
+      slotName: '무기',
+      itemId: 'black-disease-weapon',
+      effects: { finalDamage: 500, attack: 20 },
+    },
+  };
+  assert.equal(identity.getWeaponTuneExclusiveGroupKey(weaponTune), 'weaponTune:무기');
+  assert.equal(
+    identity.getWeaponTuneCandidateSignature(weaponTune),
+    'weaponTune:무기:4:black-disease-weapon:finalDamage:500|attack:20',
+  );
+  const weaponRelease = {
+    sourceType: 'weaponTune',
+    weaponTuneMode: 'release',
+    targetWeaponReleasePercent: 100,
+    targetEquipmentBody: {
+      slotId: 'WEAPON',
+      itemId: 'released-weapon',
+      effects: { finalDamage: 500 },
+    },
+  };
+  assert.equal(
+    identity.getWeaponTuneCandidateSignature(weaponRelease),
+    'weaponTune:무기:release:100:released-weapon:finalDamage:500|attack:0',
   );
 }
 

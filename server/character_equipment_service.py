@@ -54,6 +54,7 @@ from .candidates.relic_craft import (
     build_relic_craft_recommendations_debug,
 )
 from .candidates.raid_armor_upgrade import build_raid_armor_upgrade_recommendations_debug
+from .candidates.weapon_tune import build_weapon_tune_recommendations_debug
 from .candidates.oath_transcend import build_oath_craft_recommendations_debug, build_oath_transcend_recommendations_debug
 from .candidates.switching_fragment import (
     SWITCHING_FRAGMENT_TARGET_SLOTS,
@@ -1378,6 +1379,15 @@ def load_character_enchants(
         ),
     )
     raid_armor_upgrade_recommendations = raid_armor_upgrade_debug.get("recommendations") or []
+    weapon_tune_debug = _measure_step(
+        steps,
+        "build_weapon_tune_recommendations",
+        lambda: build_weapon_tune_recommendations_debug(
+            payload.get("equipment") or [],
+            upgrade_material_prices,
+        ),
+    )
+    weapon_tune_recommendations = weapon_tune_debug.get("recommendations") or []
     setting_value_equipment_inputs = {
         "status": "pending",
     } if include_skill_details else {}
@@ -1436,6 +1446,7 @@ def load_character_enchants(
         black_fang_recommendations,
         relic_craft_recommendations,
         raid_armor_upgrade_recommendations,
+        weapon_tune_recommendations,
         load_upgrade_expected_db(),
         upgrade_material_prices,
         steps,
@@ -1444,6 +1455,7 @@ def load_character_enchants(
             "build_black_fang_recommendations": black_fang_debug.get("steps") or [],
             "build_relic_craft_recommendations": relic_craft_debug.get("steps") or [],
             "build_raid_armor_upgrade_recommendations": raid_armor_upgrade_debug.get("steps") or [],
+            "build_weapon_tune_recommendations": weapon_tune_debug.get("steps") or [],
             "build_oath_transcend_recommendations": oath_transcend_debug.get("steps") or [],
             "build_oath_craft_recommendations": oath_craft_debug.get("steps") or [],
         },
@@ -4024,6 +4036,7 @@ def load_character_loadout(
             "blackFangRecommendations": enchant_payload.get("blackFangRecommendations") or [],
             "relicCraftRecommendations": enchant_payload.get("relicCraftRecommendations") or [],
             "raidArmorUpgradeRecommendations": enchant_payload.get("raidArmorUpgradeRecommendations") or [],
+            "weaponTuneRecommendations": enchant_payload.get("weaponTuneRecommendations") or [],
             "upgradeExpectedDb": enchant_payload.get("upgradeExpectedDb"),
             "upgradeMaterialPrices": enchant_payload.get("upgradeMaterialPrices"),
             "creature": creature_payload.get("creature"),

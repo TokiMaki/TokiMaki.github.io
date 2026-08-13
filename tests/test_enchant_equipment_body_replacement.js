@@ -54,6 +54,7 @@ const perfume = {
 assert.equal(resolveCanonicalEquipmentSlotId({ slotName: '마법석' }), 'MAGIC_STON');
 assert.equal(resolveCanonicalEquipmentSlotName({ slotId: 'MAGIC_STON' }), '마법석');
 assert.equal(isEquipmentBodyReplacementSource('raidArmorUpgrade'), true);
+assert.equal(isEquipmentBodyReplacementSource('weaponTune'), true);
 assert.equal(isRelicCraftEquipmentSetPointEligible({ sourceType: 'blackFang' }), true);
 assert.equal(isRelicCraftEquipmentSetPointEligible({
   sourceType: 'relicCraft',

@@ -33,6 +33,10 @@ UPGRADE_MATERIAL_DISPLAY_ITEMS = {
     "oathCrystalFragment": {"label": "서약 결정 조각", "iconUrl": "/asset/oath/oathCrystalFragment.png"},
     "plagueSeed": {"label": "역병의 씨앗", "itemId": "f4404a61f4522fa0a2a280366104033b"},
     "dawnLightBud": {"label": "여명의 빛망울", "iconUrl": "/asset/enchant/dawnLightOrb.png"},
+    "blackCalamity": {
+        "label": "검은 재앙",
+        "iconUrl": "/asset/enchant/blackCalamity.png",
+    },
 }
 
 

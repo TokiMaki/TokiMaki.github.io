@@ -258,7 +258,7 @@ export function createEnchantBufferRecommendation(deps) {
     (rows || []).forEach((row) => {
       if (!isRelicCraftEquipmentSetPointEligible(row)) return;
       if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade'].includes(row.sourceType)) return;
+      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune'].includes(row.sourceType)) return;
       if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && simulator?.role === 'buffer') {
         row = adaptOathAcquisitionRecommendation(row, simulator);
         if (!row) return;
@@ -285,10 +285,10 @@ export function createEnchantBufferRecommendation(deps) {
         equipmentRows,
         true,
       );
-      const current = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
-        ? {}
-        : isEquipmentBodyReplacementSource(row)
+      const current = isEquipmentBodyReplacementSource(row)
           ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
+        : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
+          ? {}
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { effects: row.currentEffects || {} }
         : row.sourceType === 'creature'

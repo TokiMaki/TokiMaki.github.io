@@ -20,6 +20,7 @@ const EQUIPMENT_BODY_REPLACEMENT_SOURCE_TYPES = new Set([
   'blackFang',
   'relicCraft',
   'raidArmorUpgrade',
+  'weaponTune',
 ]);
 
 function cloneValue(value) {

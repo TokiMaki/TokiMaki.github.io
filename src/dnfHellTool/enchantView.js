@@ -172,7 +172,7 @@ const UPGRADE_MATERIAL_ICON_IDS = {
 };
 const BLACK_FANG_SIMULATOR_SLOTS = new Set(['목걸이', '팔찌', '반지']);
 const RAID_ARMOR_UPGRADE_SIMULATOR_SLOTS = new Set(['머리어깨', '상의', '하의', '벨트', '신발']);
-const TUNE_SOURCE_TYPES = new Set(['equipmentTune', 'oathTune']);
+const TUNE_SOURCE_TYPES = new Set(['equipmentTune', 'oathTune', 'weaponTune']);
 const OATH_DECISION_VARIANT_SOURCE_TYPES = new Set(['oathTranscend', 'oathCraft']);
 function formatGold(value) {
   if (!Number.isFinite(value) || value <= 0) return '-';
@@ -291,8 +291,8 @@ function getRecommendationGold(row, includeMaterialCosts = false) {
   }
   const baseGold = Number.isFinite(row?.expectedGold) ? row.expectedGold : Number(row?.auction?.minUnitPrice || 0);
   if (!Number.isFinite(baseGold) || baseGold <= 0) return 0;
-  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)) return baseGold;
-  const materialGold = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
+  if (!includeMaterialCosts || !['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)) return baseGold;
+  const materialGold = ['upgrade', 'weaponTune', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
     ? getMaterialGold(row.expectedMaterials)
     : getMaterialGold(row.materials);
   if (!Number.isFinite(materialGold)) return Number.NaN;
@@ -303,7 +303,7 @@ function isRecommendationPriceUnavailable(row, includeMaterialCosts = false) {
   if (isZeroGoldMaterialEnchant(row)) return false;
   if (!Number.isFinite(row?.expectedGold) && isAuctionPriceUnavailable(row?.auction)) return true;
   if (!includeMaterialCosts) return false;
-  const materials = ['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)
+  const materials = ['upgrade', 'weaponTune', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row?.sourceType)
     ? row.expectedMaterials
     : row?.materials;
   return hasUnavailableMaterialPrice(materials);
@@ -577,6 +577,15 @@ function formatEquipmentTuneEffect(row) {
   return `${pointText} / ${damageText}`;
 }
 
+function formatWeaponTuneEffect(row, isBuffer = false) {
+  if (isBuffer) {
+    return `버프력 ${formatEffectNumber(Number(row.currentEffects?.buffPower || 0))} -> ${formatEffectNumber(Number(row.targetEffects?.buffPower || 0))}`;
+  }
+  const currentFinalDamage = Number(row.currentEffects?.finalDamage || 0);
+  const targetFinalDamage = Number(row.targetEffects?.finalDamage || 0);
+  return `최종뎀 +${formatEffectNumber(currentFinalDamage)}% -> +${formatEffectNumber(targetFinalDamage)}%`;
+}
+
 function formatOathTuneEffect(row) {
   const formatStagePoint = (stageName, setPoint) => `${stageName || '서약'} ${formatEffectNumber(setPoint)}`;
   const pointText = row.currentOathStageName || row.targetOathStageName
@@ -724,6 +733,7 @@ function getEnchantIncludeGroups(row = {}) {
     return [row.relicCraftMode === 'precision' ? '유일:정밀' : '유일:제작'];
   }
   if (row.sourceType === 'raidArmorUpgrade') return [`장비:${row.upgradeStageLabel || row.tier}`];
+  if (row.sourceType === 'weaponTune') return ['장비:조율'];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
   if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return ['서약:초월/정가'];
@@ -802,6 +812,8 @@ const {
   getRelicCraftCandidateSignature,
   getRaidArmorUpgradeExclusiveGroupKey,
   getRaidArmorUpgradeCandidateSignature,
+  getWeaponTuneExclusiveGroupKey,
+  getWeaponTuneCandidateSignature,
   getAvatarEmblemExclusiveGroupKey,
   getAvatarEmblemCandidateSignature,
   getAvatarPlatinumExclusiveGroupKey,
@@ -1124,6 +1136,18 @@ function getRaidArmorUpgradeRows(recommendations = [], equipmentUpgrades = []) {
       materials: Array.isArray(candidate.materials) ? candidate.materials : [],
       simulatorSupported: true,
     }];
+  });
+}
+
+function getWeaponTuneRows(recommendations = [], stepIndex = 0) {
+  return (recommendations || []).flatMap((candidate) => {
+    if (
+      candidate.sourceType !== 'weaponTune'
+      || resolveCanonicalEquipmentSlotId(candidate.targetEquipmentBody || candidate) !== 'WEAPON'
+      || !Array.isArray(candidate.tuneSteps)
+      || !candidate.tuneSteps.length
+    ) return [];
+    return [applyEquipmentTuneDisplayStep(candidate, stepIndex)];
   });
 }
 
@@ -1705,6 +1729,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getBlackFangExclusiveGroupKey(row)
     || getRelicCraftExclusiveGroupKey(row)
     || getRaidArmorUpgradeExclusiveGroupKey(row)
+    || getWeaponTuneExclusiveGroupKey(row)
     || getEquipmentProgressionExclusiveGroupKey(row)
     || getAvatarEmblemExclusiveGroupKey(row)
     || getAvatarPlatinumExclusiveGroupKey(row)
@@ -1735,6 +1760,7 @@ function getSimulatorCandidateSignature(row = {}) {
     || getBlackFangCandidateSignature(row)
     || getRelicCraftCandidateSignature(row)
     || getRaidArmorUpgradeCandidateSignature(row)
+    || getWeaponTuneCandidateSignature(row)
     || getEquipmentProgressionCandidateSignature(row)
     || getAvatarEmblemCandidateSignature(row)
     || getAvatarPlatinumCandidateSignature(row)
@@ -1839,6 +1865,48 @@ function applyEquipmentTuneDisplayStep(
   if (!TUNE_SOURCE_TYPES.has(row.sourceType)) return row;
   const step = getSelectedEquipmentTuneStep(row, stepIndex);
   if (!step) return row;
+  if (row.sourceType === 'weaponTune') {
+    const targetEquipmentBody = cloneSimulatorValue(step.targetEquipmentBody || {});
+    const isRelease = (step.weaponTuneMode || row.weaponTuneMode) === 'release';
+    return {
+      ...row,
+      weaponTuneMode: isRelease ? 'release' : 'tune',
+      tier: isRelease
+        ? `${formatEffectNumber(Number(step.targetWeaponReleasePercent || 0))}%`
+        : `${Number(step.targetWeaponTuneStage || 0)}/4`,
+      itemId: targetEquipmentBody.itemId || row.itemId,
+      itemName: targetEquipmentBody.itemName || row.itemName,
+      itemRarity: targetEquipmentBody.itemRarity || row.itemRarity,
+      iconUrl: targetEquipmentBody.iconUrl || row.iconUrl,
+      itemExplain: step.itemExplain || row.itemExplain,
+      currentEffects: row.currentEffects || step.currentEffects,
+      targetEffects: step.targetEffects || targetEquipmentBody.effects || row.targetEffects,
+      targetEquipmentBody,
+      targetItemId: targetEquipmentBody.itemId || row.targetItemId,
+      targetItemName: targetEquipmentBody.itemName || row.targetItemName,
+      targetItemRarity: targetEquipmentBody.itemRarity || row.targetItemRarity,
+      targetIconUrl: targetEquipmentBody.iconUrl || row.targetIconUrl,
+      auction: { ...(step.auction || row.auction || {}), minUnitPrice: step.expectedGold },
+      expectedGold: step.expectedGold,
+      expectedMaterials: cloneSimulatorValue(step.expectedMaterials || []),
+      materials: cloneSimulatorValue(step.expectedMaterials || []),
+      materialText: step.materialText || '',
+      selectedTuneStepIndex: Number(step.index || 0),
+      currentWeaponTuneStage: Number(
+        row.currentWeaponTuneStage ?? step.currentWeaponTuneStage ?? 0,
+      ),
+      targetWeaponTuneStage: Number(step.targetWeaponTuneStage || 0),
+      currentWeaponReleasePercent: Number(
+        row.currentWeaponReleasePercent ?? step.currentWeaponReleasePercent ?? 0,
+      ),
+      targetWeaponReleasePercent: Number(step.targetWeaponReleasePercent || 0),
+      tuneCount: Number(step.tuneCount || 0),
+      effects: subtractEffects(
+        step.targetEffects || targetEquipmentBody.effects || row.targetEffects || {},
+        row.currentEffects || step.currentEffects || {},
+      ),
+    };
+  }
   const displayRow = {
     ...row,
     itemName: row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율',
@@ -2160,6 +2228,7 @@ export function installEnchantView(ctx) {
   state.currentBlackFangRecommendations = [];
   state.currentRelicCraftRecommendations = [];
   state.currentRaidArmorUpgradeRecommendations = [];
+  state.currentWeaponTuneRecommendations = [];
   state.upgradeExpectedDb = null;
   state.upgradeMaterialPrices = {};
   state.currentDamageBaseline = null;
@@ -2707,6 +2776,7 @@ export function installEnchantView(ctx) {
           ...(state.currentBlackFangRecommendations || []),
           ...(state.currentRelicCraftRecommendations || []),
           ...(state.currentRaidArmorUpgradeRecommendations || []),
+          ...(state.currentWeaponTuneRecommendations || []),
         ],
       );
       const baseOathUpgrades = attachOathAcquisitionBaseCalculationData(
@@ -2782,6 +2852,7 @@ export function installEnchantView(ctx) {
         ...(state.currentBlackFangRecommendations || []),
         ...(state.currentRelicCraftRecommendations || []),
         ...(state.currentRaidArmorUpgradeRecommendations || []),
+        ...(state.currentWeaponTuneRecommendations || []),
       ],
     );
     const baseDamageBaseline = cloneSimulatorValue(state.currentDamageBaseline || {});
@@ -2997,6 +3068,8 @@ export function installEnchantView(ctx) {
         ? BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)
         : row.sourceType === 'raidArmorUpgrade'
           ? RAID_ARMOR_UPGRADE_SIMULATOR_SLOTS.has(targetSlot)
+          : row.sourceType === 'weaponTune'
+            ? targetSlot === '무기'
           : ['보조장비', '마법석', '귀걸이'].includes(targetSlot);
       if (
         !isSupportedSlot
@@ -3384,6 +3457,8 @@ export function installEnchantView(ctx) {
         ? BLACK_FANG_SIMULATOR_SLOTS.has(targetSlot)
         : row.sourceType === 'raidArmorUpgrade'
           ? RAID_ARMOR_UPGRADE_SIMULATOR_SLOTS.has(targetSlot)
+          : row.sourceType === 'weaponTune'
+            ? targetSlot === '무기'
           : ['보조장비', '마법석', '귀걸이'].includes(targetSlot);
       if (
         !isSupportedSlot
@@ -6106,6 +6181,7 @@ export function installEnchantView(ctx) {
     state.currentBlackFangRecommendations = [];
     state.currentRelicCraftRecommendations = [];
     state.currentRaidArmorUpgradeRecommendations = [];
+    state.currentWeaponTuneRecommendations = [];
     state.upgradeExpectedDb = null;
     state.upgradeMaterialPrices = {};
     state.currentDamageBaseline = null;
@@ -6155,6 +6231,7 @@ export function installEnchantView(ctx) {
       || state.currentOathCraftRecommendations.length > 0
       || state.currentRelicCraftRecommendations.length > 0
       || state.currentRaidArmorUpgradeRecommendations.length > 0
+      || state.currentWeaponTuneRecommendations.length > 0
       || state.auraUpgradeGroups.length > 0
     );
   }
@@ -6245,6 +6322,10 @@ export function installEnchantView(ctx) {
         state.currentRaidArmorUpgradeRecommendations,
         getActiveEquipmentUpgrades(),
       ),
+      ...getWeaponTuneRows(
+        state.currentWeaponTuneRecommendations,
+        getTuneStepIndexBySource(state, 'weaponTune'),
+      ),
     ].map((row) => adaptBuffEnhancementRecommendation(row, state.dealerSimulator));
     renderEnchantFilters(allRows);
 
@@ -6260,7 +6341,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -6623,6 +6704,8 @@ export function installEnchantView(ctx) {
         : row.effects;
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
+        : row.sourceType === 'weaponTune'
+          ? formatWeaponTuneEffect(row, isBufferMetric)
         : row.sourceType === 'equipmentTune'
           ? formatEquipmentTuneEffect(row)
         : row.sourceType === 'oathTune'
@@ -6690,13 +6773,17 @@ export function installEnchantView(ctx) {
           ? row.cardSubtitle || '마법석'
         : row.sourceType === 'raidArmorUpgrade'
           ? row.cardSubtitle || row.slot
+        : row.sourceType === 'weaponTune'
+          ? row.cardSubtitle || (row.weaponTuneMode === 'release' ? '개방' : '조율')
         : row.tier || '';
       const displayName = row.sourceType === 'title'
         ? row.priceItem?.itemName || formatLevelOptionName(row.candidateName || row.itemName, Number(row.levelTag || 0))
         : isRequiredEquipmentTune
           ? `유일 필수 조율 ${Number(row.tuneCount || 0).toLocaleString('ko-KR')}회`
         : TUNE_SOURCE_TYPES.has(row.sourceType)
-          ? `${row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'} ${Number(row.tuneCount || 0).toLocaleString('ko-KR')}회`
+          ? row.sourceType === 'weaponTune'
+            ? row.itemName
+            : `${row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'} ${Number(row.tuneCount || 0).toLocaleString('ko-KR')}회`
         : row.sourceType === 'switchingTitle'
           ? row.itemName
         : row.sourceType === 'switchingCreature'
@@ -6717,7 +6804,9 @@ export function installEnchantView(ctx) {
       const displayTitle = isRequiredEquipmentTune
         ? row.itemName
         : TUNE_SOURCE_TYPES.has(row.sourceType)
-        ? row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'
+        ? row.sourceType === 'weaponTune'
+          ? row.cardTitle || '무기 조율'
+          : row.sourceType === 'oathTune' ? '서약 조율' : '장비 조율'
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? '서약 결정'
         : row.sourceType === 'oathAcquisitionCombined'
@@ -6735,7 +6824,7 @@ export function installEnchantView(ctx) {
         && (row.materials || []).some((material) => (
           Number(material?.craftAmount || 0) > 0 || Number(material?.tuneAmount || 0) > 0
         ));
-      const materialParts = ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
+      const materialParts = ['upgrade', 'weaponTune', 'equipmentTune', 'oathTune'].includes(row.sourceType)
         ? getUpgradeMaterialParts(row.expectedMaterials, row.upgradeMode)
         : isMaterialEnchant
           ? getMaterialEnchantMaterialParts(row)
@@ -6758,9 +6847,9 @@ export function installEnchantView(ctx) {
         : isBufferMetric ? '100점당' : '0.1%당';
       const priceLabel = isFreeActionRecommendation(row)
         ? '비용'
-        : includeMaterialCosts && ['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
+        : includeMaterialCosts && ['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
         ? '재료 포함'
-        : ['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType) ? '예상 골드' : '최저가';
+        : ['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType) ? '예상 골드' : '최저가';
       const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
       const materialPartsMarkup = materialParts.length && !hasRelicCraftMaterialGroups
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
@@ -6818,7 +6907,7 @@ export function installEnchantView(ctx) {
       const tuneStepControls = combinedAcquisitionControls || (TUNE_SOURCE_TYPES.has(row.sourceType) && Array.isArray(row.tuneSteps) && row.tuneSteps.length > 1
         ? `<span class="enchant-tune-step-controls">
             <span class="enchant-tune-step-button${row.selectedTuneStepIndex <= 0 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="-1" data-tune-source="${escapeHtml(row.sourceType)}" aria-label="이전 조율 단계">-</span>
-            <span class="enchant-tune-step-label">${Number(row.selectedTuneStepIndex || 0) + 1} / ${row.tuneSteps.length}</span>
+            <span class="enchant-tune-step-label">${row.sourceType === 'weaponTune' ? row.weaponTuneMode === 'release' ? `${formatEffectNumber(Number(row.targetWeaponReleasePercent || 0))}%` : `${Number(row.targetWeaponTuneStage || 0)} / 4` : `${Number(row.selectedTuneStepIndex || 0) + 1} / ${row.tuneSteps.length}`}</span>
             <span class="enchant-tune-step-button${row.selectedTuneStepIndex >= row.tuneSteps.length - 1 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="1" data-tune-source="${escapeHtml(row.sourceType)}" aria-label="다음 조율 단계">+</span>
           </span>`
         : hasOathDecisionVariants
@@ -6831,7 +6920,7 @@ export function installEnchantView(ctx) {
       const popoverName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? [displayName, tierLabel].filter(Boolean).join(' ')
         : displayName;
-      const itemExplainText = row.sourceType === 'oathAcquisitionCombined'
+      const itemExplainText = row.sourceType === 'oathAcquisitionCombined' || row.sourceType === 'weaponTune'
         ? ''
         : showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '';
       const itemExplainHtml = String(itemExplainText || '').includes('\n')
@@ -6911,6 +7000,7 @@ export function installEnchantView(ctx) {
       state.currentBlackFangRecommendations = [];
       state.currentRelicCraftRecommendations = [];
       state.currentRaidArmorUpgradeRecommendations = [];
+      state.currentWeaponTuneRecommendations = [];
       state.upgradeExpectedDb = null;
       state.upgradeMaterialPrices = {};
       state.currentDamageBaseline = null;
@@ -6939,6 +7029,7 @@ export function installEnchantView(ctx) {
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.currentRelicCraftRecommendations = Array.isArray(payload.relicCraftRecommendations) ? payload.relicCraftRecommendations : [];
     state.currentRaidArmorUpgradeRecommendations = Array.isArray(payload.raidArmorUpgradeRecommendations) ? payload.raidArmorUpgradeRecommendations : [];
+    state.currentWeaponTuneRecommendations = Array.isArray(payload.weaponTuneRecommendations) ? payload.weaponTuneRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
     state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
@@ -7209,6 +7300,7 @@ export function installEnchantView(ctx) {
     state.currentBlackFangRecommendations = Array.isArray(payload.blackFangRecommendations) ? payload.blackFangRecommendations : [];
     state.currentRelicCraftRecommendations = Array.isArray(payload.relicCraftRecommendations) ? payload.relicCraftRecommendations : [];
     state.currentRaidArmorUpgradeRecommendations = Array.isArray(payload.raidArmorUpgradeRecommendations) ? payload.raidArmorUpgradeRecommendations : [];
+    state.currentWeaponTuneRecommendations = Array.isArray(payload.weaponTuneRecommendations) ? payload.weaponTuneRecommendations : [];
     state.upgradeExpectedDb = payload.upgradeExpectedDb || null;
     state.upgradeMaterialPrices = payload.upgradeMaterialPrices || {};
     state.currentDamageBaseline = payload.damageBaseline || null;
@@ -7610,6 +7702,12 @@ export function installEnchantView(ctx) {
     if (sourceType === 'oathTune') {
       return getOathTuneRows(getOathTuneRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, getActiveEquipmentUpgrades(), state.currentBufferBaseline);
     }
+    if (sourceType === 'weaponTune') {
+      return getWeaponTuneRows(
+        state.currentWeaponTuneRecommendations,
+        getTuneStepIndexBySource(state, sourceType),
+      );
+    }
     return getEquipmentTuneRows(getEquipmentTuneRecommendationUpgrades(), state.upgradeMaterialPrices, state.currentBufferBaseline);
   }
 
@@ -7637,6 +7735,33 @@ export function installEnchantView(ctx) {
       state.currentBufferBaseline,
       state.dealerSimulator?.role === 'buffer' ? state.dealerSimulator : null,
     );
+  }
+
+  function getWeaponTuneVariantRow(stepIndex, useBaseReference = false) {
+    const row = getWeaponTuneRows(state.currentWeaponTuneRecommendations, stepIndex)[0];
+    if (!row || !useBaseReference || state.dealerSimulator?.role !== 'dealer') {
+      return row || null;
+    }
+    const recommendationContext = getDealerSimulatorRecommendationContext([row]);
+    const referenceBaseline = recommendationContext.options
+      ?.equipmentBodyReferenceBaselineBySlot?.get(row.slot)
+      || state.currentDamageBaseline;
+    const currentEffects = row.currentEquipmentBody?.effects || row.currentEffects || {};
+    const targetEffects = row.targetEquipmentBody?.effects || row.targetEffects || {};
+    const incrementalDamagePercent = getReplacementIncrementalDamagePercent(
+      { effects: targetEffects },
+      { effects: currentEffects },
+      referenceBaseline,
+    );
+    const evaluatedRow = {
+      ...row,
+      incrementalDamagePercent,
+    };
+    evaluatedRow.costPerPointOnePercent = getCostPerPointOnePercent(
+      evaluatedRow,
+      els.enchantMaterialCostToggle?.checked === true,
+    );
+    return evaluatedRow;
   }
 
   function replaceAppliedEquipmentTuneVariant(stepIndex, options = {}) {
@@ -7929,6 +8054,22 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       return;
     }
+    if (sourceType === 'weaponTune' && state.dealerSimulator?.activeSelectionByGroup?.['weaponTune:무기']) {
+      const nextRow = getWeaponTuneVariantRow(
+        state.tuneStepIndexBySource[sourceType],
+        true,
+      );
+      const nextRecommendationId = nextRow ? getDealerSimulatorRecommendationId(nextRow) : '';
+      if (nextRow && nextRecommendationId) {
+        state.dealerSimulatorRecommendations.set(nextRecommendationId, nextRow);
+        applyActiveSimulatorRecommendation(nextRecommendationId);
+        const activeSignature = state.dealerSimulator?.activeSelectionByGroup?.['weaponTune:무기']?.candidateSignature;
+        if (activeSignature === getSimulatorCandidateSignature(nextRow)) return;
+      }
+      state.tuneStepIndexBySource[sourceType] = currentIndex;
+      renderEnchantTable();
+      return;
+    }
     const selectedRow = state.dealerSimulatorRecommendations.get(state.dealerSimulator?.selectedRecommendationId || '');
     if (sourceType === 'equipmentTune' && selectedRow?.sourceType === sourceType) {
       const nextRow = getEquipmentTuneVariantRow(state.tuneStepIndexBySource[sourceType]);
@@ -7938,6 +8079,12 @@ export function installEnchantView(ctx) {
     }
     if (sourceType === 'oathTune' && selectedRow?.sourceType === sourceType) {
       const nextRow = getOathTuneVariantRow(state.tuneStepIndexBySource[sourceType]);
+      state.dealerSimulator.selectedRecommendationId = nextRow
+        ? getDealerSimulatorRecommendationId(nextRow)
+        : '';
+    }
+    if (sourceType === 'weaponTune' && selectedRow?.sourceType === sourceType) {
+      const nextRow = getWeaponTuneVariantRow(state.tuneStepIndexBySource[sourceType]);
       state.dealerSimulator.selectedRecommendationId = nextRow
         ? getDealerSimulatorRecommendationId(nextRow)
         : '';
