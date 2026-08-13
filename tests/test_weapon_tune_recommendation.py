@@ -143,6 +143,8 @@ class WeaponTuneRecommendationTest(unittest.TestCase):
         self.assertEqual(row["cardTitle"], "무기")
         self.assertEqual(row["cardSubtitle"], "개방")
         self.assertEqual(row["currentWeaponReleasePercent"], 0)
+        self.assertEqual(row["targetWeaponReleasePercent"], 100)
+        self.assertEqual(row["tuneCount"], 20)
         self.assertEqual(len(row["tuneSteps"]), 1)
         final_step = row["tuneSteps"][0]
         self.assertEqual(final_step["targetWeaponReleasePercent"], 100)
@@ -181,6 +183,8 @@ class WeaponTuneRecommendationTest(unittest.TestCase):
             self.material_prices,
         )
         row = result["recommendations"][0]
+        self.assertEqual(row["targetWeaponReleasePercent"], 100)
+        self.assertEqual(row["tuneCount"], 2)
         self.assertEqual(
             [step["targetWeaponReleasePercent"] for step in row["tuneSteps"]],
             [100],

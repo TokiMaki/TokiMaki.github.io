@@ -733,7 +733,7 @@ function getEnchantIncludeGroups(row = {}) {
     return [row.relicCraftMode === 'precision' ? '유일:정밀' : '유일:제작'];
   }
   if (row.sourceType === 'raidArmorUpgrade') return [`장비:${row.upgradeStageLabel || row.tier}`];
-  if (row.sourceType === 'weaponTune') return ['장비:조율'];
+  if (row.sourceType === 'weaponTune') return ['장비:무기'];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
   if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return ['서약:초월/정가'];
@@ -6850,7 +6850,13 @@ export function installEnchantView(ctx) {
         : includeMaterialCosts && ['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType)
         ? '재료 포함'
         : ['upgrade', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'oathAcquisitionCombined'].includes(row.sourceType) ? '예상 골드' : '최저가';
-      const materialPartsLabel = row.sourceType === 'upgrade' ? '예상 재료' : '필요 재료';
+      const isWeaponReleaseRecommendation = row.sourceType === 'weaponTune'
+        && row.weaponTuneMode === 'release';
+      const materialPartsLabel = row.sourceType === 'upgrade'
+        ? '예상 재료'
+        : isWeaponReleaseRecommendation
+          ? `필요 재료 (${Number(row.tuneCount || 0).toLocaleString('ko-KR')}회)`
+          : '필요 재료';
       const materialPartsMarkup = materialParts.length && !hasRelicCraftMaterialGroups
         ? `<span class="enchant-popover-material-label">${materialPartsLabel}</span>${materialParts
           .map((part) => `<span class="enchant-popover-material-part" title="${escapeHtml(part.label)}">${part.iconUrl ? `<img src="${escapeHtml(part.iconUrl)}" alt="${escapeHtml(part.label)}" loading="lazy" />` : ''}<span>${escapeHtml(part.amount)}</span></span>`)
@@ -6869,7 +6875,7 @@ export function installEnchantView(ctx) {
       const relicCraftMaterialsMarkup = hasRelicCraftMaterialGroups
         ? [
           formatRelicCraftMaterialGroup('제작 재료', 'craftAmount'),
-          formatRelicCraftMaterialGroup('정밀 재료 (' + formatMaterialAmount(Number(row.precisionOperationCount || RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT)) + '회 상당)', 'tuneAmount'),
+          formatRelicCraftMaterialGroup('정밀 재료 (' + formatMaterialAmount(Number(row.precisionOperationCount || RELIC_CRAFT_TUNE_ATTEMPT_DEFAULT)) + '회)', 'tuneAmount'),
         ].filter(Boolean).join('')
         : '';
       const formatCombinedAcquisitionMaterials = (label, variant) => {
@@ -6920,9 +6926,13 @@ export function installEnchantView(ctx) {
       const popoverName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? [displayName, tierLabel].filter(Boolean).join(' ')
         : displayName;
-      const itemExplainText = row.sourceType === 'oathAcquisitionCombined' || row.sourceType === 'weaponTune'
+      const itemExplainText = row.sourceType === 'oathAcquisitionCombined'
         ? ''
-        : showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '';
+        : row.sourceType === 'weaponTune'
+          ? isWeaponReleaseRecommendation
+            ? `개방률 ${formatEffectNumber(Number(row.currentWeaponReleasePercent || 0))}% -> ${formatEffectNumber(Number(row.targetWeaponReleasePercent || 100))}%`
+            : ''
+          : showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '';
       const itemExplainHtml = String(itemExplainText || '').includes('\n')
         ? String(itemExplainText || '').split('\n').map((part) => escapeHtml(part)).join('<br>')
         : '';

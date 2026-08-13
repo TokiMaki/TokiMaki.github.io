@@ -24,6 +24,7 @@ const DEFAULT_INCLUDE_KEYS = [
   '강화/증폭:강화',
   '강화/증폭:증폭',
   '장비:조율',
+  '장비:무기',
   '장비:흑아',
   '장비:잠식',
   '장비:축성',
@@ -223,14 +224,14 @@ test('storage null은 기본 HTML과 기본-disabled 서약 상태를 보존한�
   assert.deepEqual(storage.calls, []);
   controls.renderEnchantIncludeControls();
 
-  assert.equal(includeControls.innerHTML.length, 8547);
+  assert.equal(includeControls.innerHTML.length, 8797);
   assert.equal(
     sha256(includeControls.innerHTML),
-    'a932cf40010210781a98ea0270d85d82fd746a31b4185dafbd7a811b525fe3d8',
+    '340839407c83b079c54c5e47d04badaeb01faddb68ff71d56f5b8910c000dbea',
   );
-  assert.equal(includeControls.inputs.length, 25);
+  assert.equal(includeControls.inputs.length, 26);
   assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
-  assert.equal(checkedValues(includeControls).length, 25);
+  assert.equal(checkedValues(includeControls).length, 26);
   assert.deepEqual(storage.calls, [['getItem', INCLUDE_KEY]]);
 });
 
@@ -397,13 +398,14 @@ test('legacy fixture HTML 해시를 보존한다', () => {
 
   assert.equal(
     sha256(includeControls.innerHTML),
-    'e1b15d8b985a7f340b49bdf471e07c22a282545e6979a8a58e7ed4e54e8f9f4f',
+    '2148c8bf517adfd6087fa5d771b739416a5577e147eed8fce3c735408508522c',
   );
 });
 
 test('신규 일반 key는 자동 체크하고 신규 default-disabled key는 체크하지 않는다', () => {
   const knownWithoutNewKeys = DEFAULT_INCLUDE_KEYS.filter((key) => ![
     '서약:초월/정가',
+    '장비:무기',
     '장비:흑아',
     '유일:제작',
     '유일:정밀',
@@ -416,8 +418,9 @@ test('신규 일반 key는 자동 체크하고 신규 default-disabled key는 �
 
   controls.renderEnchantIncludeControls();
 
-  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '장비:흑아', '유일:제작', '유일:정밀', '서약:초월/정가']);
+  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '장비:무기', '장비:흑아', '유일:제작', '유일:정밀', '서약:초월/정가']);
   assertStoredJson(storage, KNOWN_KEY, DEFAULT_INCLUDE_KEYS);
+  assert.equal(getInput(includeControls, '장비:무기').checked, true);
   assert.equal(getInput(includeControls, '장비:흑아').checked, true);
   assert.equal(getInput(includeControls, '유일:제작').checked, true);
   assert.equal(getInput(includeControls, '유일:정밀').checked, true);

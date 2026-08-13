@@ -10,7 +10,8 @@ const viewSource = read('../src/dnfHellTool/enchantView.js');
 const replacementSource = read('../src/dnfHellTool/enchantEquipmentBodyReplacement.js');
 
 assert.match(viewSource, /정밀 재료/);
-assert.match(viewSource, /회 상당/);
+assert.doesNotMatch(viewSource, /회 상당/);
+assert.match(viewSource, /\+ '회\)'/);
 assert.match(viewSource, /formatMaterialAmount\(Number\(row\.precisionOperationCount/);
 assert.match(viewSource, /Number\.isInteger\(value\)/);
 assert.match(viewSource, /precisionPercent: Number\(currentBody\.precisionPercent \|\| 0\)/);

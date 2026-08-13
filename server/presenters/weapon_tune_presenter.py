@@ -31,6 +31,7 @@ def build_weapon_tune_recommendation_row(**values) -> dict:
         "targetWeaponTuneStage": first_step.get("targetWeaponTuneStage"),
         "currentWeaponReleasePercent": first_step.get("currentWeaponReleasePercent"),
         "targetWeaponReleasePercent": first_step.get("targetWeaponReleasePercent"),
+        "tuneCount": first_step.get("tuneCount", 0),
         "tuneSteps": values["tune_steps"],
         "selectedTuneStepIndex": 0,
         "auction": first_step["auction"],
