@@ -120,16 +120,14 @@ async function main() {
       entry.avatar.topOptions = [row.topOption];
       entry.avatar.platinumEmblems = [row.platinumEmblems[0]];
       entry.avatar.platinumCandidates = dedupeNames(rows.flatMap((candidate) => candidate.platinumEmblems || []));
-      entry.avatar.candidateCombos = rows;
+      entry.avatar.candidateCombos = rows.map(({ adoptionRate, ...candidate }) => candidate);
       entry.source = {
         site: "dfmax.xyz",
         url,
       };
-      entry.avatar.extractor = "dfmax-avatar-adoption-rank-v1";
+      delete entry.avatar.extractor;
       entry.avatar.needsReview = false;
-      entry.review = {
-        adoptionRate: row.adoptionRate,
-      };
+      delete entry.review;
       updates.push(`${entry.classGroup} ${entry.guideName}: ${rows.length} combos, #1 ${row.topOption} / ${row.platinumEmblems.join(" + ")} (${row.adoptionRate ?? "?"}%)`);
     } catch (error) {
       failures.push(`${entry.classGroup} ${entry.guideName}: ${error.message}`);
@@ -142,7 +140,7 @@ async function main() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-  db.sourcePolicy = "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 검수한 후보를 사용한다. topOptions/platinumEmblems는 채택률 1위 대표값 하나를 보관하고, avatar.platinumCandidates와 avatar.candidateCombos는 실제 스킬 API 기반 딜 효율 비교에 사용한다.";
+  db.sourcePolicy = "DFMAX 직업별 아바타 페이지의 '상의 옵션 & 플래티넘 엠블렘' 표에서 채택률 10% 이상 후보를 사용한다. avatar.candidateCombos에는 최대 4개 후보 조합을 보관하고, topOptions/platinumEmblems는 계산 fallback용 최상위 대표값을 보관한다.";
   db.errors = failures;
   fs.writeFileSync(DB_PATH, `${JSON.stringify(db, null, 2)}\n`, "utf8");
 

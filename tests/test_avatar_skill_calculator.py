@@ -6,6 +6,7 @@ from unittest.mock import patch
 from server.avatar_skill_optimizer import (
     evaluate_avatar_combo,
     extract_current_avatar_skills,
+    get_avatar_candidate_combos,
     get_character_avatar_skill_infos,
     resolve_weapon_mastery_skill_name,
     select_best_avatar_combo_for_character,
@@ -659,6 +660,20 @@ class AvatarSkillCalculatorTests(unittest.TestCase):
                         f"{entry.get('classGroup')}:{entry.get('guideName')}:{skill_name}"
                     )
         self.assertEqual(missing, [])
+
+    def test_avatar_candidate_combo_does_not_expose_adoption_rate(self):
+        result = get_avatar_candidate_combos({
+            "candidateCombos": [{
+                "rank": 1,
+                "topOption": "상의 스킬",
+                "platinumEmblems": ["플티 스킬", "플티 스킬"],
+                "adoptionRate": 73.88,
+            }],
+        }, {})
+
+        self.assertEqual(len(result), 1)
+        self.assertNotIn("adoptionRate", result[0])
+        self.assertEqual(result[0]["sourceRank"], 1)
 
 
 if __name__ == "__main__":

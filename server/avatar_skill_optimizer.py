@@ -284,7 +284,6 @@ def get_avatar_candidate_combos(option_db: dict, current_avatar: dict) -> list[d
         combos.append({
             "topSkill": top_skill,
             "platinumSkills": platinum_skills[:2],
-            "adoptionRate": row.get("adoptionRate"),
             "sourceRank": row.get("rank") or index + 1,
         })
 
