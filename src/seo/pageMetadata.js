@@ -128,6 +128,10 @@ function createCharacterResultMetadata(serverId, characterName) {
   const query = new URLSearchParams({ server: normalizedServerId, name: normalizedName });
   const resultUrl = `${SITE_URL}?${query.toString()}`;
   const displayName = normalizedName || '캐릭터';
+
+
+
+
   return {
     title: `${displayName} 캐릭터 분석 결과 | 던파일럿`,
     description: `${displayName} 캐릭터의 장비와 세팅, 장비점수·버프점수 변화, 골드 대비 스펙업 추천과 시뮬레이션 결과를 확인합니다.`,
@@ -148,6 +152,19 @@ function createCharacterResultMetadata(serverId, characterName) {
     },
     structuredData: ROOT_STRUCTURED_DATA,
   };
+}
+
+function createIndexableCharacterResultMetadata(serverId, characterName) {
+  const metadata = createCharacterResultMetadata(serverId, characterName);
+  const normalizedServerId = String(serverId || 'all').trim() || 'all';
+  const normalizedName = String(characterName || '').trim();
+  if (!normalizedName || normalizedServerId === 'all' || normalizedServerId === 'adventure') {
+    return metadata;
+  }
+  const query = new URLSearchParams({ server: normalizedServerId, name: normalizedName });
+  metadata.robots = 'index,follow';
+  metadata.canonical = `${SITE_URL}?${query.toString()}`;
+  return metadata;
 }
 
 function createNotFoundMetadata(pathname) {
@@ -181,7 +198,7 @@ export function getPageMetadataForLocation(locationLike) {
     const params = new URLSearchParams(String(locationLike?.search || ''));
     const characterName = String(params.get('name') || '').trim();
     if (characterName) {
-      return createCharacterResultMetadata(params.get('server') || 'all', characterName);
+      return createIndexableCharacterResultMetadata(params.get('server') || 'all', characterName);
     }
     return cloneMetadata(ROOT_METADATA);
   }
@@ -249,6 +266,10 @@ export function applyRootMetadata() {
   applyPageMetadata(cloneMetadata(ROOT_METADATA));
 }
 
-export function applyCharacterResultMetadata(serverId, characterName) {
+export function applyCharacterSearchFailureMetadata(serverId, characterName) {
   applyPageMetadata(createCharacterResultMetadata(serverId, characterName));
+}
+
+export function applyCharacterResultMetadata(serverId, characterName) {
+  applyPageMetadata(createIndexableCharacterResultMetadata(serverId, characterName));
 }

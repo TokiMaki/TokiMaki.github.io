@@ -13,10 +13,17 @@ const characterResult = getPageMetadataForLocation({
   pathname: '/',
   search: '?server=cain&name=%ED%85%8C%EC%8A%A4%ED%8A%B8',
 });
-assert.equal(characterResult.robots, 'noindex,follow');
-assert.equal(characterResult.canonical, 'https://www.dunpilot.com/');
+assert.equal(characterResult.robots, 'index,follow');
+assert.equal(characterResult.canonical, 'https://www.dunpilot.com/?server=cain&name=%ED%85%8C%EC%8A%A4%ED%8A%B8');
 assert.equal(characterResult.openGraph.url, 'https://www.dunpilot.com/?server=cain&name=%ED%85%8C%EC%8A%A4%ED%8A%B8');
 assert.match(characterResult.title, /테스트 캐릭터 분석 결과/);
+
+const candidateSearch = getPageMetadataForLocation({
+  pathname: '/',
+  search: '?server=all&name=%ED%85%8C%EC%8A%A4%ED%8A%B8',
+});
+assert.equal(candidateSearch.robots, 'noindex,follow');
+assert.equal(candidateSearch.canonical, 'https://www.dunpilot.com/');
 
 const restoredRoot = getPageMetadataForLocation({ pathname: '/', search: '' });
 assert.deepEqual(restoredRoot, root, 'returning to the landing URL must restore root metadata');

@@ -1,4 +1,4 @@
-import { applyCharacterResultMetadata, applyRootMetadata } from '../seo/pageMetadata.js';
+import { applyCharacterResultMetadata, applyCharacterSearchFailureMetadata, applyRootMetadata } from '../seo/pageMetadata.js';
 
 export function bindToolEvents(ctx) {
   const { els, state, lifecycle } = ctx;
@@ -327,6 +327,14 @@ export function bindToolEvents(ctx) {
       serverId: normalizedServerId,
       characterName: normalizedName,
     })).then((result) => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const isCurrentSearch = currentParams.get('server') === normalizedServerId
+        && currentParams.get('name') === normalizedName;
+      if (result?.serverId && result?.characterName && result.serverId !== 'all' && result.serverId !== 'adventure') {
+        applyCharacterResultMetadata(result.serverId, result.characterName);
+      } else if (!result && !isCandidateSearch && isCurrentSearch) {
+        applyCharacterSearchFailureMetadata(normalizedServerId, normalizedName);
+      }
       if (saveRecent && result?.serverId && result?.characterName) {
         saveRecentSearch(result.serverId, result.characterName);
       }
