@@ -16,6 +16,43 @@ export function createEnchantOathProgression({
       : null;
   }
 
+  function getBufferOathUpgradeBaseRelativeChanges(row = {}) {
+    if (row.sourceType !== 'oathUpgrade') return null;
+    const buffPowerDelta = Number(row.effects?.buffPower);
+    return Number.isFinite(buffPowerDelta) && buffPowerDelta > 0
+      ? { buffPowerDelta }
+      : null;
+  }
+
+  function getOathUpgradeConfig(db = {}) {
+    return db?.oathUpgrade && typeof db.oathUpgrade === 'object'
+      ? db.oathUpgrade
+      : {};
+  }
+
+  function getOathUpgradeLevel(oathUpgrades = {}, db = {}) {
+    const maxLevel = Math.max(0, Number(getOathUpgradeConfig(db).maxLevel || 9));
+    return Math.max(0, Math.min(maxLevel, Math.floor(Number(oathUpgrades?.oathUpgradeLevel || 0))));
+  }
+
+  function applyOathUpgradeLevel(oathUpgrades = {}, targetLevel = 0, db = {}) {
+    const currentLevel = getOathUpgradeLevel(oathUpgrades, db);
+    const normalizedTargetLevel = getOathUpgradeLevel({ oathUpgradeLevel: targetLevel }, db);
+    if (normalizedTargetLevel <= currentLevel) return null;
+    return {
+      ...cloneSimulatorValue(oathUpgrades || {}),
+      oathUpgradeLevel: normalizedTargetLevel,
+    };
+  }
+
+  function getOathUpgradeDamageMultiplier(db = {}, baseOath = {}, simulatedOath = baseOath) {
+    const config = getOathUpgradeConfig(db);
+    const damagePerLevelPercent = Number(config.damagePerLevelPercent || 0);
+    if (!Number.isFinite(damagePerLevelPercent) || damagePerLevelPercent <= 0) return 1;
+    const levelDelta = getOathUpgradeLevel(simulatedOath, db) - getOathUpgradeLevel(baseOath, db);
+    return Math.pow(1 + damagePerLevelPercent / 100, levelDelta);
+  }
+
   function getOathTuneDbRows(db = {}, key) {
     return Array.isArray(db?.[key]) ? db[key] : [];
   }
@@ -311,6 +348,89 @@ export function createEnchantOathProgression({
     }];
   }
 
+  function getOathUpgradeRows(oathUpgrades = {}, oathTuneDb = {}, materialPrices = {}, bufferBaseline = null) {
+    const config = getOathUpgradeConfig(oathTuneDb);
+    const maxLevel = Math.max(0, Number(config.maxLevel || 0));
+    const currentLevel = getOathUpgradeLevel(oathUpgrades, oathTuneDb);
+    const stages = Array.isArray(config.stages) ? config.stages : [];
+    const damagePerLevelPercent = Number(config.damagePerLevelPercent || 0);
+    const buffPowerPerLevel = Number(config.buffPowerPerLevel || 0);
+    const isBufferMetric = Boolean(bufferBaseline?.isBuffer);
+    if (
+      currentLevel >= maxLevel
+      || stages.length < maxLevel
+      || !Number.isFinite(damagePerLevelPercent)
+      || damagePerLevelPercent <= 0
+      || !Number.isFinite(buffPowerPerLevel)
+      || buffPowerPerLevel <= 0
+    ) return [];
+
+    let expectedGold = 0;
+    const materialTotals = new Map();
+    const tuneSteps = [];
+    for (let targetLevel = currentLevel + 1; targetLevel <= maxLevel; targetLevel += 1) {
+      const stage = stages.find((row) => Number(row?.level) === targetLevel);
+      if (!stage) return [];
+      expectedGold += Number(stage.gold || 0);
+      const materialKey = String(stage.materialKey || '').trim();
+      if (materialKey) {
+        const previous = materialTotals.get(materialKey) || {
+          key: materialKey,
+          label: stage.materialLabel || materialKey,
+          amount: 0,
+          iconUrl: stage.iconUrl || '',
+        };
+        previous.amount += Number(stage.materialAmount || 0);
+        materialTotals.set(materialKey, previous);
+      }
+      const levelDelta = targetLevel - currentLevel;
+      tuneSteps.push({
+        index: tuneSteps.length,
+        currentOathUpgradeLevel: currentLevel,
+        targetOathUpgradeLevel: targetLevel,
+        maxOathUpgradeLevel: maxLevel,
+        tuneCount: levelDelta,
+        expectedGold,
+        expectedMaterials: applyUpgradeMaterialPrices(
+          [...materialTotals.values()].map((material) => ({ ...material })),
+          'oathUpgrade',
+          materialPrices,
+        ),
+        effects: isBufferMetric
+          ? { buffPower: levelDelta * buffPowerPerLevel }
+          : { skillDamageMultiplier: Math.pow(1 + damagePerLevelPercent / 100, levelDelta) },
+      });
+    }
+    const first = tuneSteps[0];
+    const nextStage = stages.find((row) => Number(row?.level) === currentLevel + 1) || {};
+    const nextMaterial = first?.expectedMaterials?.find(
+      (material) => material.key === nextStage.materialKey,
+    );
+    if (!first || !Number.isFinite(first.expectedGold) || first.expectedGold <= 0) return [];
+    return [{
+      sourceType: 'oathUpgrade',
+      slot: '묵언의 진의',
+      tier: '업그레이드',
+      cardTitle: '묵언의 진의',
+      cardSubtitle: '업그레이드',
+      metricType: isBufferMetric ? 'buffer' : undefined,
+      itemName: '묵언의 진의',
+      itemRarity: '',
+      iconUrl: nextMaterial?.iconUrl || '',
+      itemExplain: '',
+      effects: first.effects,
+      auction: { minUnitPrice: first.expectedGold },
+      expectedGold: first.expectedGold,
+      expectedMaterials: first.expectedMaterials,
+      tuneSteps,
+      selectedTuneStepIndex: 0,
+      currentOathUpgradeLevel: currentLevel,
+      targetOathUpgradeLevel: first.targetOathUpgradeLevel,
+      maxOathUpgradeLevel: maxLevel,
+      tuneCount: first.targetOathUpgradeLevel - currentLevel,
+    }];
+  }
+
   function getOathTuneExclusiveGroupKey(row = {}) {
     return row.sourceType === 'oathTune' ? 'oathTune' : '';
   }
@@ -326,16 +446,37 @@ export function createEnchantOathProgression({
     ].join(':');
   }
 
+  function getOathUpgradeExclusiveGroupKey(row = {}) {
+    return row.sourceType === 'oathUpgrade' ? 'oathUpgrade' : '';
+  }
+
+  function getOathUpgradeCandidateSignature(row = {}) {
+    const groupKey = getOathUpgradeExclusiveGroupKey(row);
+    if (!groupKey) return '';
+    const steps = Array.isArray(row.tuneSteps) ? row.tuneSteps : [];
+    return [
+      groupKey,
+      Number(row.currentOathUpgradeLevel || steps[0]?.currentOathUpgradeLevel || 0),
+      steps.map((step) => `${Number(step.targetOathUpgradeLevel || 0)}:${Number(step.tuneCount || 0)}`).join(','),
+    ].join(':');
+  }
+
   return {
     getBufferOathTuneBaseRelativeChanges,
+    getBufferOathUpgradeBaseRelativeChanges,
     getOathTuneState,
+    applyOathUpgradeLevel,
     applyOathTunePlan,
     getChangedOathTuneSlots,
     getOathTuneDamageMultiplier,
+    getOathUpgradeDamageMultiplier,
     getOathCrystalEffectsTotal,
     getOathCrystalFinalDamageChangeMultiplier,
     getOathTuneRows,
+    getOathUpgradeRows,
     getOathTuneExclusiveGroupKey,
     getOathTuneCandidateSignature,
+    getOathUpgradeExclusiveGroupKey,
+    getOathUpgradeCandidateSignature,
   };
 }

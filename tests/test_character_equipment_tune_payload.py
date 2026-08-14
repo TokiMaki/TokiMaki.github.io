@@ -3,10 +3,32 @@ from unittest.mock import patch
 
 from server.calculators.oath_tune_calculator import build_oath_set_point_context
 from server.candidates.oath_transcend import build_oath_transcend_recommendations_debug
-from server.character_equipment_service import build_equipment_upgrade_payload
+from server.character_equipment_service import build_equipment_upgrade_payload, build_oath_upgrade_payload
 
 
 class EquipmentTunePayloadTest(unittest.TestCase):
+    @patch("server.character_equipment_service.fetch_item_details", return_value=[])
+    def test_oath_upgrade_level_uses_unlocked_option_count(self, _fetch_item_details_mock):
+        payload = build_oath_upgrade_payload({
+            "oath": {
+                "info": {
+                    "itemId": "oath",
+                    "itemName": "테스트 서약",
+                    "oathUpgrade": {
+                        "options": [
+                            {"stepName": "첫 번째 진의"},
+                            {"stepName": "두 번째 진의"},
+                            {"stepName": "세 번째 진의"},
+                        ],
+                    },
+                },
+                "setInfo": {},
+                "crystal": [],
+            },
+        })
+
+        self.assertEqual(payload["oathUpgradeLevel"], 3)
+
     def test_other_family_set_point_uses_zero_current_contribution(self):
         context = build_oath_set_point_context(
             500,

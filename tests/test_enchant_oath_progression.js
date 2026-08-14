@@ -19,7 +19,7 @@ function applyUpgradeMaterialPrices(materials = [], mode = '', materialPrices = 
       auction: price.auction || {},
       itemId: price.itemId || '',
       itemName: price.label || material.label || '',
-      iconUrl: price.iconUrl || '',
+      iconUrl: price.iconUrl || material.iconUrl || '',
       mode,
     };
   });
@@ -55,15 +55,21 @@ const progression = createEnchantOathProgression({
 
 assert.deepEqual(Object.keys(progression), [
   'getBufferOathTuneBaseRelativeChanges',
+  'getBufferOathUpgradeBaseRelativeChanges',
   'getOathTuneState',
+  'applyOathUpgradeLevel',
   'applyOathTunePlan',
   'getChangedOathTuneSlots',
   'getOathTuneDamageMultiplier',
+  'getOathUpgradeDamageMultiplier',
   'getOathCrystalEffectsTotal',
   'getOathCrystalFinalDamageChangeMultiplier',
   'getOathTuneRows',
+  'getOathUpgradeRows',
   'getOathTuneExclusiveGroupKey',
   'getOathTuneCandidateSignature',
+  'getOathUpgradeExclusiveGroupKey',
+  'getOathUpgradeCandidateSignature',
 ]);
 
 const oathTuneDb = {
@@ -107,6 +113,22 @@ const oathTuneDb = {
       materialLabel: '에픽 소울',
       materialAmount: 3,
     },
+  },
+  oathUpgrade: {
+    maxLevel: 9,
+    damagePerLevelPercent: 4,
+    buffPowerPerLevel: 800,
+    stages: [
+      { level: 1, gold: 500000, materialKey: 'lightClue', materialAmount: 40 },
+      { level: 2, gold: 1000000, materialKey: 'lightClue', materialAmount: 80 },
+      { level: 3, gold: 1500000, materialKey: 'lightClue', materialAmount: 120 },
+      { level: 4, gold: 2000000, materialKey: 'lightClue', materialAmount: 160 },
+      { level: 5, gold: 500000, materialKey: 'lightGuidance', materialAmount: 12 },
+      { level: 6, gold: 750000, materialKey: 'lightGuidance', materialAmount: 16 },
+      { level: 7, gold: 1000000, materialKey: 'lightGuidance', materialAmount: 20 },
+      { level: 8, gold: 1250000, materialKey: 'lightGuidance', materialAmount: 24 },
+      { level: 9, gold: 1500000, materialKey: 'lightGuidance', materialAmount: 28 },
+    ],
   },
 };
 
@@ -241,6 +263,14 @@ const materialPrices = {
     label: '에픽 소울',
     iconUrl: 'epic.png',
     auction: { minUnitPrice: 11 },
+  },
+  lightClue: {
+    label: '빛의 실마리',
+    iconUrl: 'clue.png',
+  },
+  lightGuidance: {
+    label: '빛의 전도',
+    iconUrl: 'guidance.png',
   },
 };
 const unlockedEquipment = [{ tuneSetPoint: 2550 }];
@@ -396,6 +426,52 @@ closeTo(
 );
 assert.equal(progression.getOathTuneDamageMultiplier({}, { setPoint: 1 }, { setPoint: 2 }), 1);
 
+const oathUpgradeDealerRows = progression.getOathUpgradeRows(
+  { oathUpgradeLevel: 0 },
+  oathTuneDb,
+  materialPrices,
+);
+assert.equal(oathUpgradeDealerRows.length, 1);
+assert.equal(oathUpgradeDealerRows[0].tuneSteps.length, 9);
+assert.equal(oathUpgradeDealerRows[0].iconUrl, 'clue.png');
+assert.deepEqual(oathUpgradeDealerRows[0].tuneSteps[0].effects, { skillDamageMultiplier: 1.04 });
+assert.equal(oathUpgradeDealerRows[0].tuneSteps[8].expectedGold, 10000000);
+assert.deepEqual(
+  oathUpgradeDealerRows[0].tuneSteps[8].expectedMaterials.map(({ key, amount }) => [key, amount]),
+  [['lightClue', 400], ['lightGuidance', 100]],
+);
+closeTo(oathUpgradeDealerRows[0].tuneSteps[8].effects.skillDamageMultiplier, 1.04 ** 9);
+
+const oathUpgradeBufferRows = progression.getOathUpgradeRows(
+  { oathUpgradeLevel: 5 },
+  oathTuneDb,
+  materialPrices,
+  { isBuffer: true },
+);
+assert.equal(oathUpgradeBufferRows[0].iconUrl, 'guidance.png');
+assert.deepEqual(oathUpgradeBufferRows[0].tuneSteps.map((step) => step.targetOathUpgradeLevel), [6, 7, 8, 9]);
+assert.deepEqual(oathUpgradeBufferRows[0].tuneSteps[0].effects, { buffPower: 800 });
+assert.deepEqual(oathUpgradeBufferRows[0].tuneSteps[3].effects, { buffPower: 3200 });
+assert.equal(oathUpgradeBufferRows[0].tuneSteps[3].expectedGold, 4500000);
+assert.deepEqual(
+  oathUpgradeBufferRows[0].tuneSteps[3].expectedMaterials.map(({ key, amount }) => [key, amount]),
+  [['lightGuidance', 88]],
+);
+assert.deepEqual(progression.getOathUpgradeRows({ oathUpgradeLevel: 9 }, oathTuneDb), []);
+assert.deepEqual(
+  progression.applyOathUpgradeLevel({ oathUpgradeLevel: 3, crystals: [{ index: 1 }] }, 7, oathTuneDb),
+  { oathUpgradeLevel: 7, crystals: [{ index: 1 }] },
+);
+assert.equal(progression.applyOathUpgradeLevel({ oathUpgradeLevel: 3 }, 3, oathTuneDb), null);
+closeTo(
+  progression.getOathUpgradeDamageMultiplier(
+    oathTuneDb,
+    { oathUpgradeLevel: 2 },
+    { oathUpgradeLevel: 5 },
+  ),
+  1.04 ** 3,
+);
+
 assert.deepEqual(
   progression.getBufferOathTuneBaseRelativeChanges({ sourceType: 'oathTune', effects: { buffPower: 100 } }),
   { buffPowerDelta: 100 },
@@ -407,6 +483,10 @@ assert.equal(
 assert.equal(
   progression.getBufferOathTuneBaseRelativeChanges({ sourceType: 'equipmentTune', effects: { buffPower: 100 } }),
   null,
+);
+assert.deepEqual(
+  progression.getBufferOathUpgradeBaseRelativeChanges({ sourceType: 'oathUpgrade', effects: { buffPower: 1600 } }),
+  { buffPowerDelta: 1600 },
 );
 
 const identityRow = {
@@ -424,6 +504,20 @@ assert.equal(
 );
 assert.equal(progression.getOathTuneExclusiveGroupKey({ sourceType: 'equipmentTune' }), '');
 assert.equal(progression.getOathTuneCandidateSignature({ sourceType: 'equipmentTune' }), '');
+assert.equal(progression.getOathUpgradeExclusiveGroupKey({ sourceType: 'oathUpgrade' }), 'oathUpgrade');
+const oathUpgradeSignature = progression.getOathUpgradeCandidateSignature(oathUpgradeDealerRows[0]);
+assert.equal(
+  oathUpgradeSignature,
+  'oathUpgrade:0:1:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9',
+);
+assert.equal(
+  progression.getOathUpgradeCandidateSignature({
+    ...oathUpgradeDealerRows[0],
+    selectedTuneStepIndex: 5,
+    targetOathUpgradeLevel: 6,
+  }),
+  oathUpgradeSignature,
+);
 
 const baseBeforeRows = clone(baseOath);
 const dbBeforeRows = clone(oathTuneDb);

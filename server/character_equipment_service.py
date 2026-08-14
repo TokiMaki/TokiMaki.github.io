@@ -1260,6 +1260,12 @@ def get_equipment_total_set_point(equipment_rows: list) -> float:
 def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: dict | None = None) -> dict:
     oath = oath_payload.get("oath") or {}
     info = oath.get("info") or {}
+    oath_upgrade = info.get("oathUpgrade") or {}
+    oath_upgrade_level = sum(
+        1
+        for option in oath_upgrade.get("options") or []
+        if isinstance(option, dict)
+    )
     set_info = oath.get("setInfo") or {}
     active = set_info.get("active") or {}
     set_point = set_info.get("setPoint") or active.get("setPoint") or {}
@@ -1320,6 +1326,7 @@ def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: di
         "setOptionName": clean_text(set_info.get("setOptionName")),
         "setRarityName": clean_text(set_info.get("setRarityName")),
         "setPoint": stage_point,
+        "oathUpgradeLevel": oath_upgrade_level,
         "crystals": crystals,
     }
 

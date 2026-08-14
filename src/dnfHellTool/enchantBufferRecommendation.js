@@ -37,6 +37,7 @@ export function createEnchantBufferRecommendation(deps) {
     getBufferUpgradeBaseRelativeChanges,
     getBufferEquipmentTuneBaseRelativeChanges,
     getBufferOathTuneBaseRelativeChanges,
+    getBufferOathUpgradeBaseRelativeChanges,
     getBufferEnchantBaseRelativeChanges,
     resolveBufferNetChanges,
     getCreatureArtifactType,
@@ -258,7 +259,7 @@ export function createEnchantBufferRecommendation(deps) {
     (rows || []).forEach((row) => {
       if (!isRelicCraftEquipmentSetPointEligible(row)) return;
       if (row.sourceType === 'enchant' && row.role !== 'buffer') return;
-      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune'].includes(row.sourceType)) return;
+      if (!['enchant', 'creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune'].includes(row.sourceType)) return;
       if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && simulator?.role === 'buffer') {
         row = adaptOathAcquisitionRecommendation(row, simulator);
         if (!row) return;
@@ -287,7 +288,7 @@ export function createEnchantBufferRecommendation(deps) {
       );
       const current = isEquipmentBodyReplacementSource(row)
           ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
-        : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
+        : ['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade'].includes(row.sourceType)
           ? {}
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { effects: row.currentEffects || {} }
@@ -307,7 +308,7 @@ export function createEnchantBufferRecommendation(deps) {
       row = getTitleBeadOnlyRow(row, current);
       if (!isMaterialAcquisition(row) && !isFreeActionRecommendation(row) && (!Number.isFinite(row?.auction?.minUnitPrice) || row.auction.minUnitPrice <= 0)) return;
       if (
-        !['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType) &&
+        !['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade'].includes(row.sourceType) &&
         !isEquipmentBodyReplacementSource(row) &&
         row.sourceType !== 'oathTranscend' &&
         row.sourceType !== 'oathCraft' &&
@@ -453,6 +454,8 @@ export function createEnchantBufferRecommendation(deps) {
             ? getBufferEquipmentTuneBaseRelativeChanges(row)
           : row.sourceType === 'oathTune'
             ? getBufferOathTuneBaseRelativeChanges(row)
+          : row.sourceType === 'oathUpgrade'
+            ? getBufferOathUpgradeBaseRelativeChanges(row)
           : OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
             ? oathAcquisitionEvaluation?.candidateChanges || null
           : getBufferEnchantBaseRelativeChanges(row, current, baseline);
@@ -476,6 +479,8 @@ export function createEnchantBufferRecommendation(deps) {
                 : {},
               row.sourceType === 'oathTune'
                 ? { oathTune: bufferBaseRelativeChanges }
+                : row.sourceType === 'oathUpgrade'
+                  ? { oathUpgrade: bufferBaseRelativeChanges }
                 : {},
               OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
                 ? { oathAcquisition: bufferBaseRelativeChanges }
@@ -577,6 +582,9 @@ export function createEnchantBufferRecommendation(deps) {
         if (row.sourceType === 'oathTune') {
           delete referenceOathTuneChangesBySource.oathTune;
         }
+        if (row.sourceType === 'oathUpgrade') {
+          delete referenceOathTuneChangesBySource.oathUpgrade;
+        }
         if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) {
           delete referenceOathAcquisitionChangesBySource.oathAcquisition;
           if (oathAcquisitionEvaluation?.referenceChanges) {
@@ -633,7 +641,9 @@ export function createEnchantBufferRecommendation(deps) {
           : referenceEquipmentTuneChangesBySource;
         const candidateOathTuneChangesBySource = row.sourceType === 'oathTune'
           ? { ...referenceOathTuneChangesBySource, oathTune: bufferBaseRelativeChanges }
-          : referenceOathTuneChangesBySource;
+          : row.sourceType === 'oathUpgrade'
+            ? { ...referenceOathTuneChangesBySource, oathUpgrade: bufferBaseRelativeChanges }
+            : referenceOathTuneChangesBySource;
         const candidateOathAcquisitionChangesBySource = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
           ? { oathAcquisition: bufferBaseRelativeChanges }
           : referenceOathAcquisitionChangesBySource;
@@ -780,7 +790,7 @@ export function createEnchantBufferRecommendation(deps) {
           getStableObjectSignature(skillDelta),
           getStableObjectSignature(itemSkillChanges),
         ].join(':')
-        : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
+        : ['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade'].includes(row.sourceType)
         ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
         : OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
           ? `${row.sourceType}:${row.variantGroupKey}:${Number(row.variantCount || 1)}`
@@ -824,7 +834,7 @@ export function createEnchantBufferRecommendation(deps) {
     const bestUpgradeBySlot = new Map();
     const nonUpgradeRows = [];
     efficiencyFilteredRows.forEach((row) => {
-      if (!['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)) {
+      if (!['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade'].includes(row.sourceType)) {
         nonUpgradeRows.push(row);
         return;
       }

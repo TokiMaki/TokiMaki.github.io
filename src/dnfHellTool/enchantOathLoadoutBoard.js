@@ -83,6 +83,7 @@ export function createEnchantOathLoadoutBoard({
   arrangeOathCrystals,
   getBaseOathCrystal,
   getOathSweepState,
+  getOathUpgradeSweepState,
   getOathDetailContext,
 }) {
   function formatOathStageRomanSuffix(stageName) {
@@ -98,6 +99,12 @@ export function createEnchantOathLoadoutBoard({
       'Ⅴ': 'V',
     };
     return romanByGlyph[value] || value.toUpperCase();
+  }
+
+  function formatOathUpgradeRoman(level) {
+    const value = Math.max(0, Math.floor(Number(level || 0)));
+    return ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][value]
+      || String(value);
   }
 
   function getOathLoadoutSlots() {
@@ -231,6 +238,15 @@ export function createEnchantOathLoadoutBoard({
     const oathRarityClass = getOathCrystalRarityClass(oath);
     const oathSymbolClass = ['enchant-oath-symbol', oathRarityClass].filter(Boolean).join(' ');
     const oathFallbackSymbolClass = ['enchant-oath-symbol', 'is-fallback', oathRarityClass].filter(Boolean).join(' ');
+    const oathUpgradeLevel = Math.max(0, Math.floor(Number(oath.oathUpgradeLevel || 0)));
+    const oathUpgradeRoman = formatOathUpgradeRoman(oathUpgradeLevel);
+    const oathUpgradeBadge = oathUpgradeRoman
+      ? `<span class="enchant-oath-upgrade-badge" role="img" aria-label="묵언의 진의 ${escapeHtml(String(oathUpgradeLevel))}단계" title="묵언의 진의 ${escapeHtml(String(oathUpgradeLevel))}단계">${escapeHtml(oathUpgradeRoman)}</span>`
+      : '';
+    const oathUpgradeSweepState = getOathUpgradeSweepState?.() || {};
+    const oathUpgradeSweepStyle = oathUpgradeSweepState.active
+      ? ` style="--simulator-sweep-delay: ${Math.max(0, Math.min(120, Date.now() - Number(oathUpgradeSweepState.entry?.startedAt || Date.now())))}ms"`
+      : '';
     const oathDetailLines = oathItemName ? buildOathDetailLines(oath) : [];
     const oathDetailAttrs = oathItemName
       ? ` tabindex="0" aria-label="${escapeHtml(oathItemName)}" data-oath-symbol-detail="1" data-detail-title="${escapeHtml(oathItemName)}" data-detail-lines="${escapeHtml(JSON.stringify(oathDetailLines))}"`
@@ -242,8 +258,8 @@ export function createEnchantOathLoadoutBoard({
         ${renderOathLoadoutColumn(slots.left, 'left')}
         <div class="enchant-oath-center">
           ${oathIconUrl
-            ? `<span class="${escapeHtml(oathSymbolClass)}"${oathDetailAttrs}><img src="${escapeHtml(oathIconUrl)}" alt="" loading="lazy" decoding="async" data-oath-symbol-image /><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>`
-            : `<span class="${escapeHtml(oathFallbackSymbolClass)}"${oathDetailAttrs}><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span></span>`}
+            ? `<span class="${escapeHtml(oathSymbolClass)}${oathUpgradeSweepState.active ? ' is-simulator-sweep' : ''}"${oathDetailAttrs}${oathUpgradeSweepStyle}><img src="${escapeHtml(oathIconUrl)}" alt="" loading="lazy" decoding="async" data-oath-symbol-image /><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span>${oathUpgradeBadge}</span>`
+            : `<span class="${escapeHtml(oathFallbackSymbolClass)}${oathUpgradeSweepState.active ? ' is-simulator-sweep' : ''}"${oathDetailAttrs}${oathUpgradeSweepStyle}><span class="enchant-oath-symbol-fallback" aria-hidden="true">서약</span>${oathUpgradeBadge}</span>`}
           <strong class="enchant-oath-center-name enchant-oath-stage-${escapeHtml(setOptionRarityClass)}">${escapeHtml(setOptionTitle || (hasCrystals ? '' : '서약 정보 없음'))}</strong>
           ${Number.isFinite(setPoint) && setPoint > 0
             ? `<span class="enchant-oath-center-point">세트 포인트 ${escapeHtml(setPoint.toLocaleString('ko-KR'))}</span>`

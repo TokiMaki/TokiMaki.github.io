@@ -4,6 +4,22 @@
   "maxTuneLevel": 3,
   "uniqueCrystalNameKeyword": "안개 결정",
   "cooldownEquivalentMultiplier": 1.1040808032,
+  "oathUpgrade": {
+    "maxLevel": 9,
+    "damagePerLevelPercent": 4,
+    "buffPowerPerLevel": 800,
+    "stages": [
+      { "level": 1, "gold": 500000, "materialKey": "lightClue", "materialAmount": 40 },
+      { "level": 2, "gold": 1000000, "materialKey": "lightClue", "materialAmount": 80 },
+      { "level": 3, "gold": 1500000, "materialKey": "lightClue", "materialAmount": 120 },
+      { "level": 4, "gold": 2000000, "materialKey": "lightClue", "materialAmount": 160 },
+      { "level": 5, "gold": 500000, "materialKey": "lightGuidance", "materialAmount": 12 },
+      { "level": 6, "gold": 750000, "materialKey": "lightGuidance", "materialAmount": 16 },
+      { "level": 7, "gold": 1000000, "materialKey": "lightGuidance", "materialAmount": 20 },
+      { "level": 8, "gold": 1250000, "materialKey": "lightGuidance", "materialAmount": 24 },
+      { "level": 9, "gold": 1500000, "materialKey": "lightGuidance", "materialAmount": 28 }
+    ]
+  },
   "stageRows": [
     { "name": "레어 I", "rarity": "레어", "requiredPoint": 750, "finalDamagePercent": 0, "buffPower": 0 },
     { "name": "레어 II", "rarity": "레어", "requiredPoint": 830, "finalDamagePercent": 0, "buffPower": 0 },

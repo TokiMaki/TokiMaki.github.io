@@ -43,6 +43,14 @@ class AuctionPriceStatusTest(unittest.TestCase):
             material_price_repository.UPGRADE_MATERIAL_DISPLAY_ITEMS,
         )
         self.assertEqual(
+            material_price_repository.get_upgrade_material_config("lightClue")["label"],
+            "빛의 실마리",
+        )
+        self.assertEqual(
+            material_price_repository.get_upgrade_material_config("lightGuidance")["label"],
+            "빛의 전도",
+        )
+        self.assertEqual(
             material_price_repository.find_upgrade_material_price_config_by_label(
                 "태초 소울 결정"
             )["itemId"],

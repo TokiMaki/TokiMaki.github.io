@@ -37,6 +37,8 @@ UPGRADE_MATERIAL_DISPLAY_ITEMS = {
         "label": "검은 재앙",
         "iconUrl": "/asset/enchant/blackCalamity.png",
     },
+    "lightClue": {"label": "빛의 실마리", "iconUrl": "/asset/enchant/lightClue.png"},
+    "lightGuidance": {"label": "빛의 전도", "iconUrl": "/asset/enchant/lightGuidance.png"},
 }
 
 
@@ -123,6 +125,18 @@ def load_upgrade_material_prices() -> dict:
             "itemId": item_id,
             "iconUrl": get_item_icon_url(item_id) if item_id else "",
             "auction": auction,
+        }
+
+    for key, config in UPGRADE_MATERIAL_DISPLAY_ITEMS.items():
+        if key in payload:
+            continue
+        item_id = clean_text(config.get("itemId"))
+        payload[key] = {
+            "label": clean_text(config.get("label")),
+            "itemId": item_id,
+            "iconUrl": clean_text(config.get("iconUrl"))
+            or (get_item_icon_url(item_id) if item_id else ""),
+            "auction": {},
         }
 
     with _UPGRADE_MATERIAL_PRICE_CACHE_LOCK:

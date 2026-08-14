@@ -25,6 +25,7 @@ export function createEnchantDealerSimulatorCalculation(deps) {
     getEquipmentTuneDamageMultiplier,
     getOathCrystalFinalDamageChangeMultiplier,
     getOathTuneDamageMultiplier,
+    getOathUpgradeDamageMultiplier,
     getElementAdjustedReplacementIncrementalDamagePercent,
     getReplacementIncrementalDamagePercent,
     getDealerAvatarPlatinumEquipmentScoreMultiplier,
@@ -302,6 +303,11 @@ export function createEnchantDealerSimulatorCalculation(deps) {
           ? getPlagueHeartEquipmentScoreMultiplier(simulator.baseEquipmentUpgrades)
           : getPlagueHeartDealerMultiplier(simulator.baseEquipmentUpgrades)))
       * getOathTuneDamageMultiplier(
+        simulator.oathTuneDb,
+        simulator.baseOathUpgrades,
+        simulator.simulatedOathUpgrades,
+      )
+      * getOathUpgradeDamageMultiplier(
         simulator.oathTuneDb,
         simulator.baseOathUpgrades,
         simulator.simulatedOathUpgrades,

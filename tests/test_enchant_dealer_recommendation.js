@@ -231,7 +231,7 @@ function isPreferredDuplicateRecommendation(row, previous, includeMaterialCosts 
 
 function createDependencies(overrides = {}) {
   return {
-    tuneSourceTypes: new Set(['equipmentTune', 'oathTune']),
+    tuneSourceTypes: new Set(['equipmentTune', 'oathTune', 'oathUpgrade']),
     creatureArtifactTypes: new Set(['RED', 'BLUE', 'GREEN']),
     elementEffectKeyByName: ELEMENT_EFFECT_KEY_BY_NAME,
     regionAttackFlat: REGION_ATTACK_FLAT,
@@ -780,6 +780,10 @@ function testRepresentativeRowsAndSimulatorReferences() {
       sourceType: 'oathTune', slot: '서약 조율', itemId: 'oath-tune',
       effects: { skillDamageMultiplier: 1.015 }, auction: { minUnitPrice: 1800 },
     },
+    {
+      sourceType: 'oathUpgrade', slot: '묵언의 진의', itemId: 'oath-upgrade',
+      effects: { skillDamageMultiplier: 1.04 }, auction: { minUnitPrice: 500000 },
+    },
   ].map((row) => (
     row.itemId === 'same-creature' ? { ...row, itemId: 'body-creature' } : row
   )));
@@ -814,6 +818,7 @@ function testRepresentativeRowsAndSimulatorReferences() {
   assert.ok(result.some((row) => row.itemId === 'upgrade-best'));
   assert.ok(result.some((row) => row.itemId === 'equipment-tune'));
   assert.ok(result.some((row) => row.itemId === 'oath-tune'));
+  assert.ok(result.some((row) => row.itemId === 'oath-upgrade'));
   result.forEach((row) => {
     assert.ok(row.incrementalDamagePercent > 0);
     if (!row.freeAction) assert.ok(row.costPerPointOnePercent > 0);

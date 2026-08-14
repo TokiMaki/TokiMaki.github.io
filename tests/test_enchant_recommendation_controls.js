@@ -31,6 +31,7 @@ const DEFAULT_INCLUDE_KEYS = [
   '유일:제작',
   '유일:정밀',
   '서약:조율',
+  '서약:묵언',
   '서약:초월/정가',
 ];
 const SLOT_ORDER = [
@@ -224,14 +225,15 @@ test('storage null은 기본 HTML과 기본-disabled 서약 상태를 보존한�
   assert.deepEqual(storage.calls, []);
   controls.renderEnchantIncludeControls();
 
-  assert.equal(includeControls.innerHTML.length, 8797);
+  assert.equal(includeControls.innerHTML.length, 9047);
   assert.equal(
     sha256(includeControls.innerHTML),
-    '340839407c83b079c54c5e47d04badaeb01faddb68ff71d56f5b8910c000dbea',
+    'e839dbdaaca4365c457b325d73e7412d9eab9cc7fbe50a31e57e7aeea291c0ce',
   );
-  assert.equal(includeControls.inputs.length, 26);
+  assert.equal(includeControls.inputs.length, 27);
+  assert.equal(getInput(includeControls, '서약:묵언').checked, true);
   assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
-  assert.equal(checkedValues(includeControls).length, 26);
+  assert.equal(checkedValues(includeControls).length, 27);
   assert.deepEqual(storage.calls, [['getItem', INCLUDE_KEY]]);
 });
 
@@ -398,13 +400,14 @@ test('legacy fixture HTML 해시를 보존한다', () => {
 
   assert.equal(
     sha256(includeControls.innerHTML),
-    '2148c8bf517adfd6087fa5d771b739416a5577e147eed8fce3c735408508522c',
+    '26ffaa65e5b9e938499a93ce5d75d33865433268b2d28c922615233abb80aac7',
   );
 });
 
 test('신규 일반 key는 자동 체크하고 신규 default-disabled key는 체크하지 않는다', () => {
   const knownWithoutNewKeys = DEFAULT_INCLUDE_KEYS.filter((key) => ![
     '서약:초월/정가',
+    '서약:묵언',
     '장비:무기',
     '장비:흑아',
     '유일:제작',
@@ -418,12 +421,13 @@ test('신규 일반 key는 자동 체크하고 신규 default-disabled key는 �
 
   controls.renderEnchantIncludeControls();
 
-  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '장비:무기', '장비:흑아', '유일:제작', '유일:정밀', '서약:초월/정가']);
+  assertStoredJson(storage, INCLUDE_KEY, ['마법부여:가성비', '장비:무기', '장비:흑아', '유일:제작', '유일:정밀', '서약:묵언', '서약:초월/정가']);
   assertStoredJson(storage, KNOWN_KEY, DEFAULT_INCLUDE_KEYS);
   assert.equal(getInput(includeControls, '장비:무기').checked, true);
   assert.equal(getInput(includeControls, '장비:흑아').checked, true);
   assert.equal(getInput(includeControls, '유일:제작').checked, true);
   assert.equal(getInput(includeControls, '유일:정밀').checked, true);
+  assert.equal(getInput(includeControls, '서약:묵언').checked, true);
   assert.equal(getInput(includeControls, '서약:초월/정가').checked, true);
   assert.deepEqual(storage.calls.map((call) => call.slice(0, 2)), [
     ['getItem', INCLUDE_KEY],

@@ -57,7 +57,7 @@ export function createEnchantDealerRecommendation(deps) {
       const currentEffects = row.currentEquipmentBody?.effects || row.currentEffects || {};
       return subtractEffects(targetEffects, currentEffects);
     }
-    if (['upgrade', 'equipmentTune', 'oathTune', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
+    if (['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade', 'oathTranscend', 'oathCraft'].includes(row.sourceType)) return row.effects || {};
     if (['avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType)) return row.effects || {};
     return subtractEffects(row.effects || {}, current?.effects || {});
   }
@@ -757,7 +757,7 @@ export function createEnchantDealerRecommendation(deps) {
         getEffectSignature(current.effects || {}) === getEffectSignature(row.effects || {})
       ) return;
       if (row.sourceType === 'aura' && current?.itemId && current.itemId === row.itemId) return;
-      const isReplacement = !['upgrade', 'equipmentTune', 'oathTune', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
+      const isReplacement = !['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade', 'avatar', 'switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType);
       const damageEffects = getRecommendationDamageEffects(row, current);
       const replacementEvaluationRow = isEquipmentBodyReplacementSource(row)
         ? {
@@ -825,7 +825,7 @@ export function createEnchantDealerRecommendation(deps) {
         ? `${row.sourceType}:${row.slot}:${row.tier}:${titleSkillKey}:${getEffectSignature(row.effects)}:${itemSkillKey}`
         : isEquipmentBodyReplacementSource(row)
           ? `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`
-          : ['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)
+          : ['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade'].includes(row.sourceType)
           ? `${row.sourceType}:${row.slot}:${row.upgradeMode}:${row.targetLevel}`
         : `${row.sourceType}:${row.slot}:${getEffectSignature(row.effects)}`;
       const previous = bySlotTier.get(key);
@@ -864,7 +864,7 @@ export function createEnchantDealerRecommendation(deps) {
     const bestUpgradeBySlot = new Map();
     const nonUpgradeRows = [];
     efficiencyFilteredRows.forEach((row) => {
-      if (!['upgrade', 'equipmentTune', 'oathTune'].includes(row.sourceType)) {
+      if (!['upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade'].includes(row.sourceType)) {
         nonUpgradeRows.push(row);
         return;
       }

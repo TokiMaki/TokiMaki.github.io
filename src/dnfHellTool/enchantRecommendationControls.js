@@ -7,7 +7,7 @@ const ENCHANT_INCLUDE_GROUPS = [
   { title: '강화/증폭', items: ['강화', '증폭'] },
   { title: '장비', items: ['조율', '무기', '흑아', '잠식', '축성'] },
   { title: '유일', items: ['제작', '정밀'] },
-  { title: '서약', items: ['조율', '초월/정가'] },
+  { title: '서약', items: ['조율', '묵언', '초월/정가'] },
 ];
 const ENCHANT_INCLUDE_ORDER = ENCHANT_INCLUDE_GROUPS.flatMap((group) => group.items.map((item) => `${group.title}:${item}`));
 const DEFAULT_DISABLED_ENCHANT_INCLUDE_GROUPS = new Set();
