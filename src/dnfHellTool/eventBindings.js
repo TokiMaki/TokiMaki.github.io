@@ -335,7 +335,7 @@ export function bindToolEvents(ctx) {
           serverId: result.serverId,
           characterName: result.characterName,
         });
-        els.settingValueTabLink.href = `/stats/?${rankingQuery.toString()}`;
+        els.settingValueTabLink.href = `/ranking/?${rankingQuery.toString()}`;
       }
     });
   };

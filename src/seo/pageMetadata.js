@@ -71,15 +71,15 @@ const ABOUT_METADATA = {
   },
 };
 
-const STATS_METADATA = {
+const RANKING_METADATA = {
   title: '랭킹 | 던파일럿',
   description: '던파일럿에서 갱신된 캐릭터의 장비와 서약 결정, 장비점수, 명성과 현재가 기준 세팅 추정 가치를 함께 확인합니다.',
-  robots: 'noindex,follow',
-  canonical: `${SITE_URL}stats/`,
+  robots: 'index,follow',
+  canonical: `${SITE_URL}ranking/`,
   openGraph: {
     title: '랭킹 | 던파일럿',
     description: '캐릭터의 장비와 서약 결정, 현재가 기준 세팅 추정 가치를 한 화면에서 확인합니다.',
-    url: `${SITE_URL}stats/`,
+    url: `${SITE_URL}ranking/`,
     type: 'website',
     image: SITE_IMAGE_URL,
   },
@@ -186,7 +186,9 @@ export function getPageMetadataForLocation(locationLike) {
     return cloneMetadata(ROOT_METADATA);
   }
   if (pathname === '/about' || pathname === '/about/') return cloneMetadata(ABOUT_METADATA);
-  if (pathname === '/stats' || pathname === '/stats/') return cloneMetadata(STATS_METADATA);
+  if (pathname === '/ranking' || pathname === '/ranking/') {
+    return cloneMetadata(RANKING_METADATA);
+  }
   if (pathname === '/privacy' || pathname === '/privacy/') return cloneMetadata(PRIVACY_METADATA);
   return createNotFoundMetadata(pathname);
 }

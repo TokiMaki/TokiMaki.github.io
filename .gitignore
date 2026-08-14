@@ -52,6 +52,7 @@ htmlcov/
 ### Node / Vite
 node_modules/
 .vite/
+.prerender/
 dist/
 *.tsbuildinfo
 

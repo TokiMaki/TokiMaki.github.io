@@ -5,12 +5,12 @@ import PrivacyPolicyPage from './components/PrivacyPolicyPage.jsx';
 import SettingValueRankingPage from './components/SettingValueRankingPage.jsx';
 import { applyMetadataForLocation } from './seo/pageMetadata.js';
 
-const SPA_PATHS = new Set(['/', '/about', '/about/', '/privacy', '/privacy/', '/stats', '/stats/']);
+const SPA_PATHS = new Set(['/', '/about', '/about/', '/privacy', '/privacy/', '/ranking', '/ranking/']);
 
 function normalizeSpaPath(pathname) {
   if (pathname === '/about') return '/about/';
   if (pathname === '/privacy') return '/privacy/';
-  if (pathname === '/stats') return '/stats/';
+  if (pathname === '/ranking') return '/ranking/';
   return pathname;
 }
 
@@ -85,8 +85,8 @@ export default function App() {
     return <AboutPage />;
   }
 
-  const isStatsPage = pathname === '/stats' || pathname === '/stats/';
-  if (pathname !== '/' && !isStatsPage) {
+  const isRankingPage = pathname === '/ranking' || pathname === '/ranking/';
+  if (pathname !== '/' && !isRankingPage) {
     return (
       <main className={'not-found-page'}>
         <section className={'not-found-panel'}>
@@ -102,11 +102,11 @@ export default function App() {
   return (
     <>
       {shouldRenderTool ? (
-        <div hidden={isStatsPage}>
+        <div hidden={isRankingPage}>
           <DnfHellTool />
         </div>
       ) : null}
-      {isStatsPage ? <SettingValueRankingPage /> : null}
+      {isRankingPage ? <SettingValueRankingPage /> : null}
     </>
   );
 }

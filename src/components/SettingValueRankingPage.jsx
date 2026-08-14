@@ -390,7 +390,7 @@ function RankingRow({ row, role, showPercentile = false }) {
 export default function SettingValueRankingPage() {
   const selectedRoleInitializedRef = useRef(false);
   const selectedCharacter = useMemo(() => {
-    const query = new URLSearchParams(window.location.search);
+    const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
     return {
       serverId: query.get('serverId') || '',
       characterId: query.get('characterId') || '',
@@ -486,11 +486,18 @@ export default function SettingValueRankingPage() {
         </h1>
         <nav className={'tab-bar site-header-tabs'} aria-label={'주요 메뉴'}>
           <a className={'tab-button site-header-tab setting-value-nav-link'} href={analysisHref}>스펙업 순서</a>
-          <a className={'tab-button site-header-tab active setting-value-nav-link'} href={'/stats/'} aria-current={'page'}>랭킹</a>
+          <a className={'tab-button site-header-tab active setting-value-nav-link'} href={'/ranking/'} aria-current={'page'}>랭킹</a>
         </nav>
       </header>
 
       <main className={'setting-value-main'}>
+        <section hidden aria-hidden={'true'}>
+
+
+
+
+
+        </section>
         {selectedRow ? (
           <section className={'setting-value-selected'} aria-label={'현재 검색 캐릭터 순위'}>
             <div className={'setting-value-section-label'}>현재 검색 캐릭터</div>

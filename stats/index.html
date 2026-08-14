@@ -3,25 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="던파일럿에서 갱신된 캐릭터의 장비, 서약 결정, 장비점수, 명성과 현재가 기준 세팅 추정 가치를 함께 확인합니다." />
     <meta name="robots" content="noindex,follow" />
-    <link rel="canonical" href="https://www.dunpilot.com/stats/" />
-    <link rel="icon" type="image/png" href="/Icon.png" />
-    <link rel="apple-touch-icon" href="/Icon.png" />
-    <meta property="og:site_name" content="던파일럿" />
-    <meta property="og:title" content="세팅 가치 랭킹 | 던파일럿" />
-    <meta property="og:description" content="캐릭터의 장비와 서약 결정, 현재가 기준 세팅 추정 가치를 한 화면에서 확인합니다." />
-    <meta property="og:url" content="https://www.dunpilot.com/stats/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://www.dunpilot.com/Icon.png" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="세팅 가치 랭킹 | 던파일럿" />
-    <meta name="twitter:description" content="캐릭터별 장비와 서약 결정, 세팅 추정 가치를 함께 확인합니다." />
-    <meta name="twitter:image" content="https://www.dunpilot.com/Icon.png" />
-    <title>세팅 가치 랭킹 | 던파일럿</title>
+    <link rel="canonical" href="https://www.dunpilot.com/ranking/" />
+    <meta http-equiv="refresh" content="0; url=/ranking/" />
+    <title>랭킹으로 이동 | 던파일럿</title>
+    <script>
+      const target = `/ranking/${window.location.search}${window.location.hash}`;
+      window.location.replace(target);
+    </script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <p><a href="/ranking/">던파일럿 랭킹으로 이동</a></p>
   </body>
 </html>

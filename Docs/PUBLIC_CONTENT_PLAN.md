@@ -135,7 +135,7 @@
 - 스펙업 순서 조회가 완료되면 직전 캐릭터 로드아웃과 동일한 마부·칭호·오라·크리쳐 가격 문맥을 사용해 세팅 추정 가치를 계산한다. 일반 장비 본체와 서약은 제외한다.
 - `POST /api/setting-value/finalize`는 외부 API를 다시 호출하지 않고 서버 캐시의 분석 문맥만 읽어 캐릭터별 최신 snapshot을 SQLite에 upsert한다.
 - `GET /api/setting-value-ranking`은 딜러와 버퍼를 분리해 세팅 추정 가치·공식 점수·명성 순으로 조회한다.
-- `/stats/`는 정적 목업을 제거하고 저장된 최신 snapshot을 표시한다.
+- `/ranking/`는 정적 목업을 제거하고 저장된 최신 snapshot을 표시한다.
 
 아직 구현되지 않은 범위:
 

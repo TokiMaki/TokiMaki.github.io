@@ -26,7 +26,7 @@ export default function HellCalculatorTab() {
               <div className={'loader-status'} id={'searchStatus'}>API 대기</div>
               <div className={'loader-status dev-only'}>
                 파일로 열었다면
-                <span className={'monospace-inline'}>python3 neople_hell_api_server.py</span>
+                <span className={'monospace-inline'}>로컬 API 서버</span>
                 를 먼저 실행해 주세요.
               </div>
               <label htmlFor={'charactersJson'} className={'dev-only label-offset-top'}>자동 생성 결과 미리보기</label>

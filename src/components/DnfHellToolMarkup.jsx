@@ -31,7 +31,7 @@ export default function DnfHellToolMarkup() {
           <div className={'hero-actions'}>
             <nav className={'site-header-tabs'} aria-label={'주요 메뉴'}>
               <span className={'tab-button site-header-tab active'} aria-current={'page'}>스펙업 순서</span>
-              <a className={'tab-button tab-link site-header-tab'} href={'/stats/'}>랭킹</a>
+              <a className={'tab-button tab-link site-header-tab'} href={'/ranking/'}>랭킹</a>
             </nav>
           </div>
         </header>
@@ -79,6 +79,17 @@ export default function DnfHellToolMarkup() {
               <p>공지사항을 불러오는 중...</p>
             </div>
           </aside>
+          <section hidden>
+            <div>
+
+
+
+
+
+
+
+            </div>
+          </section>
         </main>
       </section>
       <div className={'tool-shell'} id={'toolShell'} hidden>
@@ -91,7 +102,7 @@ export default function DnfHellToolMarkup() {
         <div className={'hero-actions'}>
           <div className={'tab-bar site-header-tabs'} role={'tablist'} aria-label={'계산기 탭'}>
             <button type={'button'} className={'tab-button site-header-tab active'} id={'enchantTabButton'} data-tab-target={'enchantPanel'} aria-selected={'true'}>스펙업 순서</button>
-            <a className={'tab-button tab-link site-header-tab'} id={'settingValueTabLink'} href={'/stats/'}>랭킹</a>
+            <a className={'tab-button tab-link site-header-tab'} id={'settingValueTabLink'} href={'/ranking/'}>랭킹</a>
             <button type={'button'} className={'tab-button site-header-tab dev-only'} id={'hellTabButton'} data-tab-target={'hellPanel'} aria-selected={'false'}>헬 계산기</button>
             <button type={'button'} className={'tab-button site-header-tab dev-only'} id={'supplyTabButton'} data-tab-target={'supplyPanel'} aria-selected={'false'}>계시 관리</button>
           </div>

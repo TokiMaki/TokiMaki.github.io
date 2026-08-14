@@ -2,7 +2,7 @@
   "scripts": {
     "dev": "vite",
     "dev:test-api": "VITE_API_BASE=http://127.0.0.1:8799 vite --host 127.0.0.1 --port 5175",
-    "build": "vite build",
+    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir .prerender && node scripts/prerender.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -26,10 +26,10 @@ assert.equal(about.robots, 'index,follow');
 assert.equal(about.canonical, 'https://www.dunpilot.com/about/');
 assert.notEqual(about.title, root.title);
 
-const stats = getPageMetadataForLocation({ pathname: '/stats/', search: '' });
-assert.equal(stats.robots, 'noindex,follow');
-assert.equal(stats.canonical, 'https://www.dunpilot.com/stats/');
-assert.match(stats.title, /세팅 가치 랭킹/);
+const ranking = getPageMetadataForLocation({ pathname: '/ranking/', search: '' });
+assert.equal(ranking.robots, 'index,follow');
+assert.equal(ranking.canonical, 'https://www.dunpilot.com/ranking/');
+assert.equal(ranking.title, '랭킹 | 던파일럿');
 
 const privacy = getPageMetadataForLocation({ pathname: '/privacy/', search: '' });
 assert.equal(privacy.robots, 'noindex,follow');

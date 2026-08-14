@@ -192,7 +192,7 @@ async function addCharacterFromApi() {
     if (!lifecycle.active) return;
     const rawMessage = normalizeApiErrorMessage(error, '캐릭터 검색에 실패했습니다.');
     const message = /fetch/i.test(rawMessage)
-      ? '로컬 API 서버를 먼저 실행해 주세요. python3 neople_hell_api_server.py'
+      ? 'API 서버 연결을 확인해 주세요.'
       : (rawMessage || '캐릭터 검색에 실패했습니다.');
     els.error.textContent = message;
     els.calcState.textContent = '오류';

@@ -4,11 +4,11 @@ function resolveApiBase() {
     return configuredApiBase.replace(/\/$/, '');
   }
 
-  if (location.protocol === 'file:') {
+  if (typeof location !== 'undefined' && location.protocol === 'file:') {
     return 'http://127.0.0.1:8787';
   }
 
-  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+  if (typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     return location.port === '8787' ? '' : 'http://127.0.0.1:8787';
   }
 
