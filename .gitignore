@@ -130,3 +130,4 @@ $RECYCLE.BIN/
 !Docs/research/*.md
 *.txt
 !requirements.txt
+!public/robots.txt
