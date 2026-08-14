@@ -2,6 +2,7 @@
 
 import argparse
 import errno
+import gzip
 import json
 import logging
 import os
@@ -80,6 +81,8 @@ LOADOUT_RESPONSE_CACHE_SECONDS = 60
 MAX_LOADOUT_RESPONSE_CACHE_ENTRIES = 64
 LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS = 60
 SETTING_VALUE_PENDING_SECONDS = 120
+GZIP_MIN_JSON_BYTES = 4 * 1024
+GZIP_COMPRESS_LEVEL = 4
 _HEAVY_REQUEST_SEMAPHORE = BoundedSemaphore(HEAVY_REQUEST_LIMIT)
 _PUBLIC_RESPONSE_CACHE = {}
 _PUBLIC_RESPONSE_INFLIGHT = {}
@@ -138,6 +141,36 @@ def prepare_public_response_payload(value):
 def json_response(payload: dict) -> bytes:
     public_payload = prepare_public_response_payload(payload)
     return json.dumps(public_payload, ensure_ascii=False, indent=2).encode("utf-8")
+
+
+def accepts_gzip_encoding(accept_encoding: str) -> bool:
+    gzip_quality = None
+    wildcard_quality = None
+    for raw_encoding in str(accept_encoding or "").split(","):
+        parts = [part.strip() for part in raw_encoding.split(";")]
+        if not parts or not parts[0]:
+            continue
+        encoding = parts[0].lower()
+        if encoding not in {"gzip", "*"}:
+            continue
+        quality = 1.0
+        for parameter in parts[1:]:
+            name, separator, value = parameter.partition("=")
+            if not separator or name.strip().lower() != "q":
+                continue
+            try:
+                quality = float(value.strip())
+            except ValueError:
+                quality = 0.0
+            if quality < 0 or quality > 1:
+                quality = 0.0
+            break
+        if encoding == "gzip":
+            gzip_quality = quality
+        elif wildcard_quality is None:
+            wildcard_quality = quality
+    quality = gzip_quality if gzip_quality is not None else wildcard_quality
+    return quality is not None and quality > 0
 
 
 def truncate_log_text(value: str, limit: int = 24) -> str:
@@ -708,16 +741,27 @@ class HellApiHandler(SimpleHTTPRequestHandler):
         cache_control: str | None = None,
         cache_hit: bool | None = None,
         error_message: str | None = None,
+        content_encoding: str | None = None,
     ):
         client_aborted = False
         if cache_control:
             self._cache_control = cache_control
+        response_body = body
+        response_content_encoding = str(content_encoding or "").strip()
+        can_negotiate_gzip = not response_content_encoding and len(body) >= GZIP_MIN_JSON_BYTES
+        if can_negotiate_gzip and accepts_gzip_encoding(self.headers.get("Accept-Encoding", "")):
+            response_body = gzip.compress(body, compresslevel=GZIP_COMPRESS_LEVEL, mtime=0)
+            response_content_encoding = "gzip"
         try:
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
+            if can_negotiate_gzip:
+                self.send_header("Vary", "Accept-Encoding")
+            if response_content_encoding:
+                self.send_header("Content-Encoding", response_content_encoding)
+            self.send_header("Content-Length", str(len(response_body)))
             self.end_headers()
-            self.wfile.write(body)
+            self.wfile.write(response_body)
         except (BrokenPipeError, ConnectionResetError):
             client_aborted = True
         finally:
