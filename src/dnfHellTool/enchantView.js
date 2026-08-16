@@ -6617,9 +6617,20 @@ export function installEnchantView(ctx) {
   }
 
   function orderEnchantRecommendationDisplay(recommendations) {
-    let displayRecommendations = state.currentBufferBaseline?.isBuffer
-      ? recommendations.sort(compareBufferRecommendationOrder)
-      : recommendations.sort(compareDealerRecommendationOrder);
+    const compareRecommendations = state.currentBufferBaseline?.isBuffer
+      ? compareBufferRecommendationOrder
+      : compareDealerRecommendationOrder;
+    const previousDisplayIndexByKey = new Map(
+      (state.lastRecommendationDisplayOrder || []).map((key, index) => [key, index]),
+    );
+    let displayRecommendations = recommendations.sort((a, b) => {
+      const comparison = compareRecommendations(a, b);
+      if (comparison) return comparison;
+      const previousA = previousDisplayIndexByKey.get(getRecommendationDisplayOrderKey(a));
+      const previousB = previousDisplayIndexByKey.get(getRecommendationDisplayOrderKey(b));
+      if (previousA === undefined || previousB === undefined) return 0;
+      return previousA - previousB;
+    });
     if (state.equipmentTunePopoverOpen && state.frozenRecommendationDisplayKey) {
       const frozenRowIndex = displayRecommendations.findIndex(
         (row) => getRecommendationDisplayOrderKey(row) === state.frozenRecommendationDisplayKey,
