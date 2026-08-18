@@ -117,11 +117,10 @@ function estimateDamageMultiplier(effects = {}, baseline = {}) {
   const finalDamageMultiplier = (1 + (base.finalDamage + Number(effects.finalDamage || 0)) / 100)
     / (1 + base.finalDamage / 100);
   const attackIncreaseAmplificationMultiplier = (
-    1
-    + ((base.attackIncrease + Number(effects.attackIncrease || 0)) / 100)
-      * (1 + (base.attackAmplification + Number(effects.attackAmplification || 0)) / 100)
+    (1 + (base.attackIncrease + Number(effects.attackIncrease || 0)) / 100)
+    * (1 + (base.attackAmplification + Number(effects.attackAmplification || 0)) / 100)
   ) / (
-    1 + (base.attackIncrease / 100) * (1 + base.attackAmplification / 100)
+    (1 + base.attackIncrease / 100) * (1 + base.attackAmplification / 100)
   );
   const elementMultiplier = (1 + (base.elementDamage + Number(effects.elementAll || 0) * ELEMENT_DAMAGE_PER_ELEMENT) / 100)
     / (1 + base.elementDamage / 100);
@@ -347,7 +346,7 @@ function testReplacementDamageFormulas() {
   assert.equal(getSkillDamageMultiplier(target), 1.1);
   assertClose(
     getReplacementIncrementalDamagePercent(target, current, baseline),
-    19.866845736815343,
+    21.467397056647286,
     1e-12,
   );
   const darkKnightBaseline = {
@@ -412,7 +411,7 @@ function testReplacementDamageFormulas() {
       baseline,
       adjusted,
     ),
-    20.90315852416531,
+    22.517547463477072,
     1e-12,
   );
   assert.equal(

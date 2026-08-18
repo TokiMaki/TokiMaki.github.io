@@ -74,7 +74,8 @@ export function createEnchantDealerRecommendation(deps) {
   }
 
   function getAttackIncreaseAmplificationFactor(attackIncrease = 0, attackAmplification = 0) {
-    return 1 + (Number(attackIncrease || 0) / 100) * (1 + Number(attackAmplification || 0) / 100);
+    return (1 + Number(attackIncrease || 0) / 100)
+      * (1 + Number(attackAmplification || 0) / 100);
   }
 
   function getReplacementIncrementalDamagePercent(row, current, baseline) {

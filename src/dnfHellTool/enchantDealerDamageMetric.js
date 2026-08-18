@@ -20,7 +20,8 @@ export function createEnchantDealerDamageMetric(deps) {
   const ELEMENT_BASE_DAMAGE_PERCENT = 5;
 
   function getAttackIncreaseAmplificationFactor(attackIncrease = 0, attackAmplification = 0) {
-    return 1 + (Number(attackIncrease || 0) / 100) * (1 + Number(attackAmplification || 0) / 100);
+    return (1 + Number(attackIncrease || 0) / 100)
+      * (1 + Number(attackAmplification || 0) / 100);
   }
 
   function getDealerPrimaryStatKey(baseline = {}) {
