@@ -18,6 +18,7 @@ const PUBLIC_OUTPUTS = [
   'compareMaterialEnchantOrder',
   'getRoundedMetricKey',
   'isPreferredDuplicateRecommendation',
+  'hasHigherEnchantTierCandidate',
   'removeInefficientLowerTierEnchants',
 ];
 
@@ -269,6 +270,26 @@ function testDealerAndBufferTierEfficiencyPruning() {
   assert.strictEqual(removeInefficientLowerTierEnchants([otherSource], false)[0], otherSource);
 }
 
+function testHigherEnchantTierWarningUsesCatalogRows() {
+  const { hasHigherEnchantTierCandidate } = createPolicy();
+  const nabel = {
+    sourceType: 'enchant', slot: '귀걸이', role: 'dealer', tier: '준종결',
+  };
+  const unlistedEndEnchant = {
+    sourceType: 'enchant', slot: '귀걸이', role: 'dealer', tier: '종결',
+    auction: { priceStatus: 'unlisted', minUnitPrice: null },
+  };
+  assert.equal(hasHigherEnchantTierCandidate(nabel, [nabel, unlistedEndEnchant]), true);
+  assert.equal(
+    hasHigherEnchantTierCandidate(nabel, [
+      { ...unlistedEndEnchant, slot: '마법석' },
+      { ...unlistedEndEnchant, role: 'buffer' },
+    ]),
+    false,
+  );
+  assert.equal(hasHigherEnchantTierCandidate(unlistedEndEnchant, [nabel]), false);
+}
+
 function testViewImportAndPolicyAssemblyContract() {
   const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
   const view = normalizeSource(readFileSync(viewPath, 'utf8'));
@@ -301,6 +322,7 @@ const tests = [
   testRoundedMetricKey,
   testDuplicatePreferencePolicy,
   testDealerAndBufferTierEfficiencyPruning,
+  testHigherEnchantTierWarningUsesCatalogRows,
   testViewImportAndPolicyAssemblyContract,
 ];
 

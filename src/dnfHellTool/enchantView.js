@@ -709,6 +709,7 @@ const {
   compareMaterialEnchantOrder,
   getRoundedMetricKey,
   isPreferredDuplicateRecommendation,
+  hasHigherEnchantTierCandidate,
   removeInefficientLowerTierEnchants,
 } = createEnchantRecommendationEvaluationPolicy({
   getRecommendationGold,
@@ -1857,15 +1858,6 @@ const {
   getAvatarPlatinumDamageMultiplier,
   getBuffEnhancementMetricMultiplier,
 });
-
-function hasHigherEnchantCandidate(row, recommendationRows) {
-  if (row.sourceType !== 'enchant') return false;
-  return (recommendationRows || []).some((candidate) => (
-    candidate.sourceType === 'enchant' &&
-    candidate.slot === row.slot &&
-    candidate.incrementalDamagePercent > row.incrementalDamagePercent + 0.0001
-  ));
-}
 
 function getSelectedEquipmentTuneStep(row = {}, stepIndex = 0) {
   const steps = Array.isArray(row.tuneSteps) ? row.tuneSteps : [];
@@ -6840,7 +6832,7 @@ export function installEnchantView(ctx) {
       const connector = previousRow
         ? `<span class="enchant-recommend-connector" style="background: ${escapeHtml(materialAcquisition || isMaterialAcquisition(previousRow) ? (isBufferMetric ? BUFFER_EFFICIENCY_COLOR_STOPS : DAMAGE_EFFICIENCY_COLOR_STOPS)[0].color : isBufferMetric ? getBufferArrowBackground(previousRow.buffCostPerHundredPoints, row.buffCostPerHundredPoints) : getArrowBackground(previousRow.costPerPointOnePercent, row.costPerPointOnePercent))};" aria-hidden="true"></span>`
         : '<span class="enchant-recommend-connector enchant-recommend-connector-spacer" aria-hidden="true"></span>';
-      const hasUpgradeWarning = hasHigherEnchantCandidate(row, recommendations);
+      const hasUpgradeWarning = hasHigherEnchantTierCandidate(row, allRows);
       if (simulatorRecommendationId) {
         state.dealerSimulatorRecommendations.set(simulatorRecommendationId, {
           ...row,

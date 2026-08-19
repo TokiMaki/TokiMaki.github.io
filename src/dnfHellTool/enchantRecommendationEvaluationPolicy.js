@@ -90,6 +90,19 @@ export function createEnchantRecommendationEvaluationPolicy(deps) {
     return null;
   }
 
+  function hasHigherEnchantTierCandidate(row = {}, candidateRows = []) {
+    if (row.sourceType !== 'enchant') return false;
+    const tierRank = getEnchantTierRank(row);
+    if (tierRank === null) return false;
+    const role = row.role || 'dealer';
+    return candidateRows.some((candidate) => (
+      candidate.sourceType === 'enchant'
+      && candidate.slot === row.slot
+      && (candidate.role || 'dealer') === role
+      && Number(getEnchantTierRank(candidate)) > tierRank
+    ));
+  }
+
   function getEnchantEfficiencyValue(row = {}, isBuffer = false) {
     const value = isBuffer ? Number(row.buffCostPerHundredPoints || 0) : Number(row.costPerPointOnePercent || 0);
     return Number.isFinite(value) && value > 0 ? value : Number.POSITIVE_INFINITY;
@@ -131,6 +144,7 @@ export function createEnchantRecommendationEvaluationPolicy(deps) {
     compareMaterialEnchantOrder,
     getRoundedMetricKey,
     isPreferredDuplicateRecommendation,
+    hasHigherEnchantTierCandidate,
     removeInefficientLowerTierEnchants,
   };
 }
