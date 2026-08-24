@@ -72,6 +72,58 @@ export function createEnchantBufferSimulatorSourceCalculation(deps) {
   }
 
   function getBufferEquipmentBodyBaseRelativeChanges(row = {}, baseline = {}) {
+    const equipmentBodyChanges = Array.isArray(row.equipmentBodyChanges)
+      ? row.equipmentBodyChanges
+      : [];
+    if (equipmentBodyChanges.length) {
+      const changes = equipmentBodyChanges.map((change) => (
+        getBufferEquipmentBodyBaseRelativeChanges({
+          ...row,
+          equipmentBodyChanges: undefined,
+          baseEquipmentBody: change.baseEquipmentBody,
+          currentEquipmentBody: change.currentEquipmentBody,
+          targetEquipmentBody: change.targetEquipmentBody,
+          baseEquipmentTuneBuffPowerDelta: 0,
+          equipmentTuneBuffPowerDelta: 0,
+        }, baseline)
+      ));
+      if (changes.some((change) => !change)) return null;
+      const combined = changes.reduce((total, change) => ({
+        statDelta: total.statDelta + Number(change.statDelta || 0),
+        buffPowerDelta: total.buffPowerDelta + Number(change.buffPowerDelta || 0),
+        currentBuffAmplificationDelta: total.currentBuffAmplificationDelta
+          + Number(change.currentBuffAmplificationDelta || 0),
+        switchingBuffAmplificationDelta: total.switchingBuffAmplificationDelta
+          + Number(change.switchingBuffAmplificationDelta || 0),
+        buffSkillLevelDelta: total.buffSkillLevelDelta
+          + Number(change.buffSkillLevelDelta || 0),
+        awakeningSkillLevelDelta: total.awakeningSkillLevelDelta
+          + Number(change.awakeningSkillLevelDelta || 0),
+        baseSkillContributions: [
+          ...total.baseSkillContributions,
+          ...(change.baseSkillContributions || []),
+        ],
+        targetSkillContributions: [
+          ...total.targetSkillContributions,
+          ...(change.targetSkillContributions || []),
+        ],
+      }), {
+        statDelta: 0,
+        buffPowerDelta: 0,
+        currentBuffAmplificationDelta: 0,
+        switchingBuffAmplificationDelta: 0,
+        buffSkillLevelDelta: 0,
+        awakeningSkillLevelDelta: 0,
+        baseSkillContributions: [],
+        targetSkillContributions: [],
+      });
+      combined.buffPowerDelta += Number(
+        row.baseEquipmentTuneBuffPowerDelta
+        ?? row.equipmentTuneBuffPowerDelta
+        ?? 0,
+      );
+      return combined;
+    }
     const targetBody = row.targetEquipmentBody || {};
     const currentBody = row.currentEquipmentBody || {};
     const baseBody = row.baseEquipmentBody || currentBody;

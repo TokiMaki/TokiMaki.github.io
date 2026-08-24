@@ -567,6 +567,45 @@ const plagueHeartCandidate = calculation.getBufferRecommendationScopeSimulator(
 assert.equal(resolveWith({ scopeSimulator: plagueHeartReference }).buffPowerDelta, 0);
 assert.equal(resolveWith({ scopeSimulator: plagueHeartCandidate }).buffPowerDelta, 150);
 
+const designationScopeSimulator = {
+  simulatedEquipmentUpgrades: [
+    { slotId: 'SHOULDER', slot: '머리어깨', itemId: 'consecrated-shoulder' },
+    { slotId: 'JACKET', slot: '상의', itemId: 'consecrated-jacket' },
+  ],
+};
+const designationRecommendation = {
+  sourceType: 'raidArmorUpgrade',
+  targetSlotId: 'RELIC_SET',
+  equipmentBodyChanges: [
+    {
+      currentEquipmentBody: { slotId: 'SHOULDER', slot: '머리어깨', itemId: 'consecrated-shoulder' },
+      targetEquipmentBody: { slotId: 'SHOULDER', slot: '머리어깨', itemId: 'relic-shoulder' },
+    },
+    {
+      currentEquipmentBody: { slotId: 'JACKET', slot: '상의', itemId: 'consecrated-jacket' },
+      targetEquipmentBody: { slotId: 'JACKET', slot: '상의', itemId: 'relic-jacket' },
+    },
+  ],
+};
+const designationReference = calculation.getBufferRecommendationScopeSimulator(
+  designationScopeSimulator,
+  designationRecommendation,
+  false,
+);
+const designationCandidate = calculation.getBufferRecommendationScopeSimulator(
+  designationScopeSimulator,
+  designationRecommendation,
+  true,
+);
+assert.deepEqual(
+  designationReference.simulatedEquipmentUpgrades.map((row) => row.itemId),
+  ['consecrated-shoulder', 'consecrated-jacket'],
+);
+assert.deepEqual(
+  designationCandidate.simulatedEquipmentUpgrades.map((row) => row.itemId),
+  ['relic-shoulder', 'relic-jacket'],
+);
+
 function assertScopeSimulation(row, inspectReference, inspectCandidate) {
   const simulator = createScopeSimulator();
   const before = clone(simulator);

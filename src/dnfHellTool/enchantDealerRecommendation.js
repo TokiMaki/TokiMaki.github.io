@@ -82,7 +82,11 @@ export function createEnchantDealerRecommendation(deps) {
     const currentEffects = current?.effects || {};
     const targetEffects = row.effects || {};
     const base = getDamageBaseline(baseline);
-    const finalDamageMultiplier = getFinalDamageReplacementMultiplier(currentEffects, targetEffects);
+    const explicitFinalDamageMultiplier = Number(row.equipmentBodyFinalDamageMultiplier);
+    const finalDamageMultiplier = Number.isFinite(explicitFinalDamageMultiplier)
+      && explicitFinalDamageMultiplier > 0
+      ? explicitFinalDamageMultiplier
+      : getFinalDamageReplacementMultiplier(currentEffects, targetEffects);
     const baseAttackIncrease = Math.max(0, base.attackIncrease - Number(currentEffects.attackIncrease || 0));
     const baseAttackAmplification = Math.max(0, base.attackAmplification - Number(currentEffects.attackAmplification || 0));
     const currentAttackIncreaseAmplificationFactor = getAttackIncreaseAmplificationFactor(

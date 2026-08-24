@@ -342,6 +342,50 @@ assert.equal(
   ).buffPowerDelta,
   1000,
 );
+const designationRow = {
+  sourceType: 'raidArmorUpgrade',
+  baseEquipmentTuneBuffPowerDelta: 80,
+  equipmentBodyChanges: [
+    {
+      baseEquipmentBody: {
+        slotId: 'JACKET', itemId: 'base-jacket', effects: { allStat: 10, buffPower: 100 },
+      },
+      currentEquipmentBody: {
+        slotId: 'JACKET', itemId: 'base-jacket', effects: { allStat: 10, buffPower: 100 },
+      },
+      targetEquipmentBody: {
+        slotId: 'JACKET', itemId: 'relic-jacket', effects: { allStat: 15, buffPower: 130 },
+      },
+    },
+    {
+      baseEquipmentBody: {
+        slotId: 'WRIST', itemId: 'base-wrist', effects: { allStat: 20, buffPower: 200 },
+      },
+      currentEquipmentBody: {
+        slotId: 'WRIST', itemId: 'base-wrist', effects: { allStat: 20, buffPower: 200 },
+      },
+      targetEquipmentBody: {
+        slotId: 'WRIST', itemId: 'designation-wrist', effects: { allStat: 27, buffPower: 250 },
+      },
+    },
+  ],
+};
+assert.deepEqual(
+  bufferBodyCalculation.getBufferEquipmentBodyBaseRelativeChanges(
+    deepFreeze(designationRow),
+    deepFreeze(bodyReplacementBaseline),
+  ),
+  {
+    statDelta: 12,
+    buffPowerDelta: 160,
+    currentBuffAmplificationDelta: 0,
+    switchingBuffAmplificationDelta: 0,
+    buffSkillLevelDelta: 0,
+    awakeningSkillLevelDelta: 0,
+    baseSkillContributions: [],
+    targetSkillContributions: [],
+  },
+);
 assert.equal(
   calculation.getBufferEquipmentBodyBaseRelativeChanges({
     ...blackFangRow,

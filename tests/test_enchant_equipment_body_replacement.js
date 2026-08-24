@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
   isEquipmentBodyReplacementSource,
   isRelicCraftEquipmentSetPointEligible,
+  replaceEquipmentBodiesInRows,
   replaceEquipmentBodyInRows,
   replaceEquipmentBodyPreservingState,
   resolveCanonicalEquipmentSlotId,
@@ -165,6 +166,25 @@ assert.equal(replacedRows[1].itemId, perfume.itemId);
 assert.equal(rows[1].itemId, base.itemId, 'input rows remain immutable');
 assert.equal(replaceEquipmentBodyInRows(rows, { slotId: 'UNKNOWN', itemId: 'x' }), null);
 
+const designationTargets = [
+  { slotId: 'AMULET', itemId: 'designated-necklace', itemName: '성스러운 믿음의 목걸이' },
+  perfume,
+];
+const designatedRows = replaceEquipmentBodiesInRows(rows, designationTargets);
+assert.equal(designatedRows[0].itemId, 'designated-necklace');
+assert.equal(designatedRows[1].itemId, perfume.itemId);
+assert.equal(rows[0].itemId, 'necklace', 'atomic replacement keeps input rows immutable');
+assert.equal(
+  replaceEquipmentBodiesInRows(rows, [...designationTargets, designationTargets[0]]),
+  null,
+  'duplicate target slots reject the entire replacement',
+);
+assert.equal(
+  replaceEquipmentBodiesInRows(rows, [{ slotId: 'UNKNOWN', itemId: 'x' }]),
+  null,
+  'missing target slots reject the entire replacement',
+);
+
 const viewPath = fileURLToPath(new URL('../src/dnfHellTool/enchantView.js', import.meta.url));
 const viewSource = readFileSync(viewPath, 'utf8');
 const blackFangPresenterPath = fileURLToPath(new URL('../server/presenters/black_fang_presenter.py', import.meta.url));
@@ -183,7 +203,7 @@ assert.match(viewSource, /delete simulator\.activeSelectionByGroup\.equipmentTun
 const removeTuneStart = viewSource.indexOf('function removeSimulatedEquipmentTuneSelection');
 const removeTuneEnd = viewSource.indexOf('function removeSimulatorAction', removeTuneStart);
 const removeTuneSource = viewSource.slice(removeTuneStart, removeTuneEnd);
-assert.match(removeTuneSource, /selection\.applyType === 'replaceEquipmentBody'/);
+assert.match(removeTuneSource, /selection\??\.applyType === 'replaceEquipmentBody'/);
 assert.doesNotMatch(removeTuneSource, /simulator\.role !== 'buffer'/);
 
 console.log('ok - equipment body replacement common adapter');

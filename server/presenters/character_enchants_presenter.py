@@ -67,6 +67,8 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
         "itemId": item_id,
         "itemName": item_name,
         "itemRarity": item_rarity,
+        "setItemId": clean_text(equipment.get("setItemId")),
+        "setItemName": clean_text(equipment.get("setItemName")),
         "iconUrl": get_item_icon_url(item_id) if item_id else "",
         "reinforce": reinforce,
         "refine": refine,

@@ -388,6 +388,21 @@ function testDealerSourceIdentityMatrix() {
     identity.getRaidArmorUpgradeCandidateSignature(raidArmorUpgrade),
     'raidArmorUpgrade:상의:consecrated-jacket:finalDamage:15|attack:20',
   );
+  const relicDesignation = {
+    sourceType: 'raidArmorUpgrade',
+    equipmentBodyChanges: [
+      { targetEquipmentBody: { slotId: 'JACKET', itemId: 'relic-jacket' } },
+      { targetEquipmentBody: { slotId: 'WRIST', itemId: 'designation-wrist' } },
+    ],
+  };
+  assert.equal(
+    identity.getRaidArmorUpgradeExclusiveGroupKey(relicDesignation),
+    'raidArmorUpgrade:계시의 지목',
+  );
+  assert.equal(
+    identity.getRaidArmorUpgradeCandidateSignature(relicDesignation),
+    'raidArmorUpgrade:계시의 지목:JACKET:relic-jacket,WRIST:designation-wrist',
+  );
 
   const weaponTune = {
     sourceType: 'weaponTune',

@@ -349,6 +349,18 @@ function testReplacementDamageFormulas() {
     21.467397056647286,
     1e-12,
   );
+  assertClose(
+    getReplacementIncrementalDamagePercent(
+      {
+        equipmentBodyFinalDamageMultiplier: 1.1,
+        effects: { finalDamage: 999 },
+      },
+      { effects: { finalDamage: 5 } },
+      {},
+    ),
+    10,
+    1e-12,
+  );
   const darkKnightBaseline = {
     stat: 11071,
     statName: '힘',

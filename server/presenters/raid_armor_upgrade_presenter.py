@@ -9,9 +9,9 @@ def build_raid_armor_upgrade_recommendation_row(**values) -> dict:
         "upgradeStageLabel": values["stage_label"],
         "fromStage": values["from_stage"],
         "toStage": values["to_stage"],
-        "transitionKey": f"{values['from_stage']}:{values['to_stage']}",
+        "transitionKey": values.get("transition_key") or f"{values['from_stage']}:{values['to_stage']}",
         "requiredCurrentItemId": values["required_current_item_id"],
-        "cardTitle": values["stage_label"],
+        "cardTitle": values.get("card_title") or values["stage_label"],
         "cardSubtitle": target_body["slot"],
         "itemId": target_body["itemId"],
         "itemName": target_body["itemName"],
@@ -34,4 +34,55 @@ def build_raid_armor_upgrade_recommendation_row(**values) -> dict:
         "targetIconUrl": target_body["iconUrl"],
         "targetItemExplain": target_body.get("itemExplain") or "",
         "simulatorSupported": True,
+        "freeAction": bool(values.get("free_action")),
+    }
+
+
+def build_raid_armor_designation_recommendation_row(equipment_body_changes: list) -> dict:
+    first_change = equipment_body_changes[0]
+    first_target = first_change["targetEquipmentBody"]
+    target_ids = ":".join(
+        change["targetEquipmentBody"]["itemId"] for change in equipment_body_changes
+    )
+    return {
+        "sourceType": "raidArmorUpgrade",
+        "slot": "전체 장비",
+        "targetSlotId": "RELIC_SET",
+        "tier": "축성",
+        "upgradeStageLabel": "축성",
+        "fromStage": "consecrated",
+        "toStage": "relic",
+        "transitionKey": "consecrated:relic",
+        "cardTitle": "계시의 지목",
+        "cardSubtitle": "전체 장비",
+        "itemId": target_ids,
+        "itemName": "계시의 지목",
+        "itemRarity": first_target["itemRarity"],
+        "iconUrl": first_target["iconUrl"],
+        "itemExplain": "계시의 지목 대상 장비 일괄 교체",
+        "effects": {},
+        "currentEffects": {},
+        "targetEffects": {},
+        "baseEquipmentBody": first_change["baseEquipmentBody"],
+        "currentEquipmentBody": first_change["currentEquipmentBody"],
+        "targetEquipmentBody": first_target,
+        "equipmentBodyChanges": equipment_body_changes,
+        "auction": {
+            "listingCount": 0,
+            "minUnitPrice": 0,
+            "averagePrice": 0,
+            "auctionNo": None,
+            "priceSource": "freeUpgrade",
+            "isSynthetic": True,
+        },
+        "expectedGold": 0,
+        "materials": [],
+        "materialText": "",
+        "targetItemId": target_ids,
+        "targetItemName": "계시의 지목",
+        "targetItemRarity": first_target["itemRarity"],
+        "targetIconUrl": first_target["iconUrl"],
+        "targetItemExplain": "",
+        "simulatorSupported": True,
+        "freeAction": True,
     }

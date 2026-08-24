@@ -293,7 +293,7 @@ function testComparatorPolicy() {
   assert.ok(compareBufferRecommendationOrder(materialA, efficient) < 0, 'material acquisition precedes priced rows');
   assert.ok(compareBufferRecommendationOrder(materialA, materialB) < 0, 'material rows delegate to material ordering');
   assert.ok(compareBufferRecommendationOrder(efficient, inefficient) < 0, 'positive efficiency sorts ascending');
-  assert.ok(compareBufferRecommendationOrder({ buffCostPerHundredPoints: 0 }, efficient) > 0, 'non-positive efficiency sorts last');
+  assert.ok(compareBufferRecommendationOrder({ buffCostPerHundredPoints: 0 }, efficient) < 0, 'zero-cost efficiency sorts first');
   assert.ok(Number.isNaN(compareBufferRecommendationOrder({}, {})), 'two invalid efficiencies remain comparator-equal through NaN');
 }
 

@@ -1648,6 +1648,320 @@
           "itemName": "고요한 안식의 신발"
         }
       }
+    },
+    "rightTargetsByFamily": {
+      "3af7c961e7d8cd8b5b42c5f82af2a0ad": {
+        "WRIST": {
+          "itemId": "14aa35b710ff05c7502afbdd83fddfbd",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "10cae409f5fbd9f31f1b7e565cdb7be4",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "1805e9cce8dccd082607a00e2ad8f70f",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "de2811a96fe646281ade2ea28317f2c3",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "ff2594fc8475d76fcb2fbb080a8467d1",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "97a123ba55e5a3808dacb1f295871216",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "4ee7bd5912cda6e2a24c1f36d5202b46": {
+        "WRIST": {
+          "itemId": "1d102027205b181ec94bd03581f30fe6",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "f774b185f71d9f5e7a712aa842e8ebba",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "f8f5673ee549e8de296b3c2ba1593ca4",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "819d0bd846c913248d30c8b1e4e53755",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "523be2dc115d046a3ce5ab76f5e1e42b",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "b797e5b10819d9edb772d6cc69f7561d",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "7f788a703a87d783079b41d0fe6448c9": {
+        "WRIST": {
+          "itemId": "51cf7eab82cb21e12737a6268c0e6add",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "715c10bcf2aaaa6d6962d81ea547eb02",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "e4463ab4c93bb247ed33f37843bd324c",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "d8d7fc1c77c8b955e0f137ec1e1c52c2",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "039af53f45fb9d16c597db9b47461c76",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "0cf2f211de3751d2e4ee971b7b29802b",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "b92ca7784123b5fea9cea40144925194": {
+        "WRIST": {
+          "itemId": "99795506455042691ecb67140101e7c7",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "d654d1928961916794e5b7d5cd395ccc",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "9cfcf2182a0ff95b9d6e5b1f975e9b0c",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "599b89c06d047c3420dfe6f9fc5200ce",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "e95d0d0188c0cbbac676d9e126be54db",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "10a3bc2a67ae703481930876824cf126",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "11f7d203a05ea6f13300c0facb39f11e": {
+        "WRIST": {
+          "itemId": "285178063c9a2d39771994cac9c1cddc",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "223dc58926c3f1b1d70b3577965010fb",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "664fcff55af50d736345dbd4a86b63e7",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "7202d17c60081ecd087db83be88edea2",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "96259aad86c6455f46f25ad6098d2ea1",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "96f87549f21b13bbb93d703e7244d621",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "7c9c8335b72c2907df20786f8f5b27f0": {
+        "WRIST": {
+          "itemId": "8d61c8487a1df165ce75b99812c8b48c",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "5bb001afe350fd7f961d8011702f2e41",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "409c36a479a38198b4cc9b4396a465db",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "19a4ccb5b18b9e0cb62786a6f3aa6b45",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "438680ba8d92b6aec4de1230da8c5191",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "e95971719c18493dfe446e89b3e70a80",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "2877466bc2fc8bedf7799d88167c9fe3": {
+        "WRIST": {
+          "itemId": "543d7a7309d039a6900e2dfd8a5744d3",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "309ac7bb265b7eaf2f609084796608f0",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "783eee8dea73eddcc905bbf0313a7629",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "2e958b96ed3c6d4c402507659c151680",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "935accc27486f420cb570fb11fdce870",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "b76ecf86de8c152d08e1b467ff565b31",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "4e65968c4d30898e6879434dc641b6e4": {
+        "WRIST": {
+          "itemId": "d11c08e84a09d567890785eb455f07b3",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "28f8a4376baf4b03ee1bac70c3a1636f",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "16576002c26ba820eb14e919c57e9562",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "ed086c0a1992904dbb2ed30e63ce492a",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "12a87ab980270c3ea4d773817ffa7888",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "7e559b96df9ba1ee1005204f12aa0167",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "854dc8c01b1bc231e132dae5df3c52bc": {
+        "WRIST": {
+          "itemId": "5091df6fd1aedfab36231971b5604e68",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "1106f7ad4891db19bfb37155c7f15156",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "bec5a6769fb20e0be41807a9736ed8c4",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "552554517ac6859a3b890cc26f2353f6",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "138eb59c4b4a1dfa7fffa3d462043f41",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "87883c0cfcad91dc985572e1eb45934d",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "93e7825053bdec4e0f4c12837cf4f57e": {
+        "WRIST": {
+          "itemId": "61ee9ec4dfd2bf600529115950c9a841",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "0b282cdf1ebaf35acaf2753a04523c25",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "51bc77072ed77633484ee871d3327821",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "2553174da0b1bc3cf1614ea331a0aa0d",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "fe11b3d169c66fa3cd358e21c51a647e",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "06ad4ee0f2071c2cd4d00dd6e168d250",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "e23286107ba4328af86c83aabc347e9e": {
+        "WRIST": {
+          "itemId": "5df10056ed10941f560017b6228309ab",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "846a482388ec2d34603890b6ef2e92a1",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "894381942291cd4dbff73b69e284aff1",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "1a72cdab524a069756ea0f1907af5d5f",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "1fed15aa7914aaa2dc89c9ea9d3dee5b",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "af4531a4615605869ba0d9067864ba17",
+          "itemName": "무결한 순수의 마법석"
+        }
+      },
+      "8e9cb65cb6285d7e2f084f440aa18870": {
+        "WRIST": {
+          "itemId": "227d89b89243ae14098449220bb7ddf8",
+          "itemName": "드러난 진실의 팔찌"
+        },
+        "AMULET": {
+          "itemId": "e97845bb843e015bbbc2292b8eaf70e0",
+          "itemName": "성스러운 믿음의 목걸이"
+        },
+        "RING": {
+          "itemId": "265c37882223244be86ae4a58e43be81",
+          "itemName": "거룩한 희생의 반지"
+        },
+        "SUPPORT": {
+          "itemId": "2dac8e35dac507fb27100a55ddf7d1b4",
+          "itemName": "초연한 청렴의 보조장비"
+        },
+        "EARRING": {
+          "itemId": "b057580c55911f464646fc56726a52c9",
+          "itemName": "강인한 절제의 귀걸이"
+        },
+        "MAGIC_STON": {
+          "itemId": "ed8eee21c8c71948eb579cbaf01f3ade",
+          "itemName": "무결한 순수의 마법석"
+        }
+      }
     }
   }
 }

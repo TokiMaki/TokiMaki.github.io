@@ -1,5 +1,6 @@
 import {
   isEquipmentBodyReplacementSource,
+  replaceEquipmentBodiesInRows,
   replaceEquipmentBodyInRows,
 } from './enchantEquipmentBodyReplacement.js';
 import { getPlagueHeartBufferPower } from './enchantPlagueHeartSynergy.js';
@@ -379,6 +380,21 @@ export function createEnchantBufferSimulatorCalculation(deps) {
     const targetSlotId = getBuffSimulatorTargetSlotId(row);
     if (isEquipmentBodyReplacementSource(row)) {
       const equipmentRows = simulator.simulatedEquipmentUpgrades || simulator.baseEquipmentUpgrades || [];
+      const equipmentBodyChanges = Array.isArray(row.equipmentBodyChanges)
+        ? row.equipmentBodyChanges
+        : [];
+      if (equipmentBodyChanges.length) {
+        const bodies = equipmentBodyChanges
+          .map((change) => (
+            useCandidate
+              ? change.targetEquipmentBody
+              : change.currentEquipmentBody || change.baseEquipmentBody
+          ))
+          .filter(Boolean);
+        const simulatedEquipmentUpgrades = replaceEquipmentBodiesInRows(equipmentRows, bodies)
+          || equipmentRows;
+        return { ...simulator, simulatedEquipmentUpgrades };
+      }
       const body = useCandidate ? row.targetEquipmentBody : row.currentEquipmentBody;
       const simulatedEquipmentUpgrades = body
         ? replaceEquipmentBodyInRows(equipmentRows, body) || equipmentRows

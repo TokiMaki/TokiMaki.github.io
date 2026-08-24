@@ -1403,6 +1403,7 @@ def load_character_enchants(
         lambda: build_raid_armor_upgrade_recommendations_debug(
             payload.get("equipment") or [],
             upgrade_material_prices,
+            payload.get("setItemInfo") or [],
         ),
     )
     raid_armor_upgrade_recommendations = raid_armor_upgrade_debug.get("recommendations") or []

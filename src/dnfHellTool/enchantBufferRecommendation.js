@@ -226,15 +226,7 @@ export function createEnchantBufferRecommendation(deps) {
     const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
     if (materialDiff) return materialDiff;
     if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) return compareMaterialEnchantOrder(a, b);
-    const aEfficiency = Number(a.buffCostPerHundredPoints || 0);
-    const bEfficiency = Number(b.buffCostPerHundredPoints || 0);
-    const normalizedA = Number.isFinite(aEfficiency) && aEfficiency > 0
-      ? aEfficiency
-      : Number.POSITIVE_INFINITY;
-    const normalizedB = Number.isFinite(bEfficiency) && bEfficiency > 0
-      ? bEfficiency
-      : Number.POSITIVE_INFINITY;
-    return normalizedA - normalizedB;
+    return a.buffCostPerHundredPoints - b.buffCostPerHundredPoints;
   }
 
   function getBufferRecommendationRows(
@@ -593,7 +585,7 @@ export function createEnchantBufferRecommendation(deps) {
           }
         }
         if (isEquipmentBodyReplacementSource(row)) {
-          if (row.sourceType !== 'raidArmorUpgrade') {
+          if (row.sourceType !== 'raidArmorUpgrade' || row.equipmentBodyChanges?.length) {
             delete referenceEquipmentBodyChangesBySlot[row.slot];
           }
         }

@@ -50,6 +50,7 @@ import { createEnchantDealerRecommendation } from './enchantDealerRecommendation
 import { createEnchantDealerSimulatorCalculation } from './enchantDealerSimulatorCalculation.js';
 import {
   isEquipmentBodyReplacementSource,
+  replaceEquipmentBodiesInRows,
   replaceEquipmentBodyInRows,
   replaceEquipmentBodyPreservingState,
   resolveCanonicalEquipmentSlotId,
@@ -1058,6 +1059,28 @@ function getRelicCraftRows(
   });
 }
 
+function buildCombinedEquipmentBody(bodies = [], label = '계시의 지목') {
+  const effects = addEffects(...bodies.map((body) => body?.effects || {}));
+  const finalDamageMultiplier = bodies.reduce((multiplier, body) => (
+    multiplier * (1 + Number(body?.effects?.finalDamage || 0) / 100)
+  ), 1);
+  if (bodies.some((body) => Number(body?.effects?.finalDamage || 0))) {
+    effects.finalDamage = (finalDamageMultiplier - 1) * 100;
+  }
+  return {
+    slotId: 'SHOULDER',
+    slot: label,
+    slotName: label,
+    itemId: bodies.map((body) => body?.itemId || '').join(':'),
+    itemName: label,
+    effects,
+    itemReinforceSkill: bodies.flatMap((body) => body?.itemReinforceSkill || []),
+    itemBuff: {
+      reinforceSkill: bodies.flatMap((body) => body?.itemBuff?.reinforceSkill || []),
+    },
+  };
+}
+
 function getRaidArmorUpgradeRows(recommendations = [], equipmentUpgrades = []) {
   const activeEquipmentBySlot = new Map(
     (equipmentUpgrades || []).map((equipment) => [
@@ -1066,6 +1089,102 @@ function getRaidArmorUpgradeRows(recommendations = [], equipmentUpgrades = []) {
     ]),
   );
   return (recommendations || []).flatMap((candidate) => {
+    const configuredChanges = Array.isArray(candidate.equipmentBodyChanges)
+      ? candidate.equipmentBodyChanges
+      : [];
+    if (configuredChanges.length) {
+      const resolvedChanges = [];
+      for (const change of configuredChanges) {
+        const targetSlotId = resolveCanonicalEquipmentSlotId(
+          change.targetEquipmentBody || change,
+        );
+        const activeEquipment = activeEquipmentBySlot.get(targetSlotId) || {};
+        if (
+          !targetSlotId
+          || !change.targetEquipmentBody?.itemId
+          || String(activeEquipment.itemId || '').trim()
+            !== String(change.requiredCurrentItemId || '').trim()
+        ) return [];
+        const activeTuneLevel = Number(activeEquipment.tuneLevel);
+        const preserveTuneProgression = (equipmentBody = {}) => {
+          const configuredSetPoint = Number(equipmentBody.tuneSetPoint);
+          if (!Number.isFinite(activeTuneLevel) || !Number.isFinite(configuredSetPoint)) {
+            return equipmentBody;
+          }
+          return {
+            ...equipmentBody,
+            tuneLevel: activeTuneLevel,
+            tuneSetPoint: configuredSetPoint + activeTuneLevel * EQUIPMENT_TUNE_STEP_POINT,
+            tuneUpgradeable: activeEquipment.tuneUpgradeable,
+            tuneRemaining: activeEquipment.tuneRemaining,
+          };
+        };
+        resolvedChanges.push({
+          ...change,
+          baseEquipmentBody: preserveTuneProgression(
+            change.baseEquipmentBody || change.currentEquipmentBody,
+          ),
+          currentEquipmentBody: preserveTuneProgression(change.currentEquipmentBody),
+          targetEquipmentBody: preserveTuneProgression(change.targetEquipmentBody),
+        });
+      }
+      const targetEquipmentUpgrades = replaceEquipmentBodiesInRows(
+        equipmentUpgrades,
+        resolvedChanges.map((change) => change.targetEquipmentBody),
+      );
+      const baseEquipmentUpgrades = replaceEquipmentBodiesInRows(
+        equipmentUpgrades,
+        resolvedChanges.map((change) => change.baseEquipmentBody),
+      );
+      if (!baseEquipmentUpgrades || !targetEquipmentUpgrades) return [];
+      const baseSetPoint = getEquipmentTuneSetPoint(baseEquipmentUpgrades);
+      const currentSetPoint = getEquipmentTuneSetPoint(equipmentUpgrades);
+      const targetSetPoint = getEquipmentTuneSetPoint(targetEquipmentUpgrades);
+      const baseEquipmentBody = buildCombinedEquipmentBody(
+        resolvedChanges.map((change) => change.baseEquipmentBody),
+      );
+      const currentEquipmentBody = buildCombinedEquipmentBody(
+        resolvedChanges.map((change) => change.currentEquipmentBody),
+      );
+      const targetEquipmentBody = buildCombinedEquipmentBody(
+        resolvedChanges.map((change) => change.targetEquipmentBody),
+      );
+      return [{
+        ...candidate,
+        slot: '계시의 지목',
+        targetSlotId: 'RELIC_SET',
+        cardTitle: '계시의 지목',
+        cardSubtitle: '장비',
+        effects: subtractEffects(targetEquipmentBody.effects, currentEquipmentBody.effects),
+        currentEffects: currentEquipmentBody.effects,
+        targetEffects: targetEquipmentBody.effects,
+        baseEquipmentBody,
+        currentEquipmentBody,
+        targetEquipmentBody,
+        equipmentBodyChanges: resolvedChanges,
+        baseEquipmentSetPoint: baseSetPoint,
+        currentEquipmentSetPoint: currentSetPoint,
+        targetEquipmentSetPoint: targetSetPoint,
+        baseEquipmentTuneBuffPowerDelta: (
+          getEquipmentTuneStage(targetSetPoint) - getEquipmentTuneStage(baseSetPoint)
+        ) * EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
+        equipmentTuneBuffPowerDelta: (
+          getEquipmentTuneStage(targetSetPoint) - getEquipmentTuneStage(currentSetPoint)
+        ) * EQUIPMENT_TUNE_MEMORY_BUFF_POWER,
+        equipmentBodyFinalDamageMultiplier: resolvedChanges.reduce((multiplier, change) => (
+          multiplier * getFinalDamageReplacementMultiplier(
+            change.currentEquipmentBody?.effects || {},
+            change.targetEquipmentBody?.effects || {},
+          )
+        ), 1),
+        skillDamageMultiplier: getEquipmentTuneDamageMultiplier(
+          equipmentUpgrades,
+          targetEquipmentUpgrades,
+        ),
+        materials: [],
+        simulatorSupported: true,
+      }];
+    }
     const configuredCurrentEquipmentBody = candidate.currentEquipmentBody || {};
     const configuredTargetEquipmentBody = candidate.targetEquipmentBody || {};
     const targetSlotId = resolveCanonicalEquipmentSlotId(
@@ -1167,11 +1286,23 @@ function attachEquipmentBodyBaseData(equipmentRows = [], recommendations = []) {
   (recommendations || [])
     .filter((row) => isEquipmentBodyReplacementSource(row))
     .forEach((row) => {
-      const slotId = resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row);
-      if (!slotId) return;
-      const rows = recommendationsBySlotId.get(slotId) || [];
-      rows.push(row);
-      recommendationsBySlotId.set(slotId, rows);
+      const bodyRows = row.equipmentBodyChanges?.length
+        ? row.equipmentBodyChanges.map((change) => ({
+          ...row,
+          currentEquipmentBody: change.currentEquipmentBody,
+          targetEquipmentBody: change.targetEquipmentBody,
+          currentEffects: change.currentEquipmentBody?.effects,
+        }))
+        : [row];
+      bodyRows.forEach((bodyRow) => {
+        const slotId = resolveCanonicalEquipmentSlotId(
+          bodyRow.targetEquipmentBody || bodyRow,
+        );
+        if (!slotId) return;
+        const rows = recommendationsBySlotId.get(slotId) || [];
+        rows.push(bodyRow);
+        recommendationsBySlotId.set(slotId, rows);
+      });
     });
   return cloneSimulatorValue(equipmentRows || []).map((equipment) => {
     const recommendationsForSlot = recommendationsBySlotId.get(
@@ -3097,6 +3228,16 @@ export function installEnchantView(ctx) {
       };
     }
     if (isEquipmentBodyReplacementSource(row)) {
+      if (row.sourceType === 'raidArmorUpgrade' && row.equipmentBodyChanges?.length) {
+        return {
+          targetTab: 'equipment',
+          targetSlot: '계시의 지목',
+          targetSlots: row.equipmentBodyChanges.map((change) => (
+            resolveCanonicalEquipmentSlotName(change.targetEquipmentBody || change)
+          )).filter(Boolean),
+          applyType: 'replaceEquipmentBody',
+        };
+      }
       const targetEquipmentBody = row.targetEquipmentBody || {};
       const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || row);
       const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
@@ -3511,6 +3652,17 @@ export function installEnchantView(ctx) {
       };
     }
     if (isEquipmentBodyReplacementSource(row)) {
+      if (row.sourceType === 'raidArmorUpgrade' && row.equipmentBodyChanges?.length) {
+        return {
+          targetTab: 'equipment',
+          targetSlot: '계시의 지목',
+          targetSlots: row.equipmentBodyChanges.map((change) => (
+            resolveCanonicalEquipmentSlotName(change.targetEquipmentBody || change)
+          )).filter(Boolean),
+          applyType: 'replaceEquipmentBody',
+          baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+        };
+      }
       const targetEquipmentBody = row.targetEquipmentBody || {};
       const targetSlotId = resolveCanonicalEquipmentSlotId(targetEquipmentBody || row);
       const targetSlot = resolveCanonicalEquipmentSlotName(targetEquipmentBody || row);
@@ -4379,29 +4531,41 @@ export function installEnchantView(ctx) {
       );
     if (!isPrecisionChange && !invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
     if (!isPrecisionChange && !invalidateRequiredEquipmentTuneSelectionForBodyChange()) return false;
-    const targetSlotId = target.targetSlotId
-      || resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row);
-    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
-      (equipment) => resolveCanonicalEquipmentSlotId(equipment) === targetSlotId,
-    );
-    if (equipmentIndex < 0) return false;
-    simulator.simulatedEquipmentUpgrades.splice(
-      equipmentIndex,
-      1,
-      replaceEquipmentBodyPreservingState(
-        simulator.simulatedEquipmentUpgrades[equipmentIndex],
-        row.targetEquipmentBody || {
-          slotId: row.targetSlotId,
-          slot: row.slot,
-          itemId: row.targetItemId,
-          itemName: row.targetItemName,
-          iconUrl: row.targetIconUrl,
-          itemRarity: row.targetItemRarity,
-          effects: row.targetEffects,
-          itemExplain: row.targetItemExplain,
-        },
-      ),
-    );
+    const targetBodies = (row.equipmentBodyChanges || [])
+      .map((change) => change?.targetEquipmentBody)
+      .filter(Boolean);
+    if (targetBodies.length) {
+      const nextEquipment = replaceEquipmentBodiesInRows(
+        simulator.simulatedEquipmentUpgrades,
+        targetBodies,
+      );
+      if (!nextEquipment) return false;
+      simulator.simulatedEquipmentUpgrades = nextEquipment;
+    } else {
+      const targetSlotId = target.targetSlotId
+        || resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row);
+      const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex(
+        (equipment) => resolveCanonicalEquipmentSlotId(equipment) === targetSlotId,
+      );
+      if (equipmentIndex < 0) return false;
+      simulator.simulatedEquipmentUpgrades.splice(
+        equipmentIndex,
+        1,
+        replaceEquipmentBodyPreservingState(
+          simulator.simulatedEquipmentUpgrades[equipmentIndex],
+          row.targetEquipmentBody || {
+            slotId: row.targetSlotId,
+            slot: row.slot,
+            itemId: row.targetItemId,
+            itemName: row.targetItemName,
+            iconUrl: row.targetIconUrl,
+            itemRarity: row.targetItemRarity,
+            effects: row.targetEffects,
+            itemExplain: row.targetItemExplain,
+          },
+        ),
+      );
+    }
     let requiredTuneResult = { changedSlots: [] };
     if (!isPrecisionChange && requiredTuneSetPoint > 0) {
       requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(
@@ -4418,7 +4582,7 @@ export function installEnchantView(ctx) {
       : { changedSlots: [] };
     if (!reappliedTuneResult) return false;
     target.changedSlots = [...new Set([
-      target.targetSlot,
+      ...(target.targetSlots?.length ? target.targetSlots : [target.targetSlot]),
       ...(requiredTuneResult.changedSlots || []),
       ...(reappliedTuneResult.changedSlots || []),
     ])];
@@ -5592,42 +5756,71 @@ export function installEnchantView(ctx) {
         || simulator?.activeSelectionByGroup?.equipmentTuneRequired
         || null,
       );
-    const targetSlotId = selection.targetSlotId
-      || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot });
-    if (!simulator || !targetSlotId) return false;
+    const equipmentBodyChanges = appliedSnapshot.equipmentBodyChanges || [];
+    const targetSlotIds = equipmentBodyChanges.length
+      ? equipmentBodyChanges.map((change) => (
+        resolveCanonicalEquipmentSlotId(change.targetEquipmentBody || change)
+      )).filter(Boolean)
+      : [selection.targetSlotId
+        || resolveCanonicalEquipmentSlotId({ slot: selection.targetSlot })].filter(Boolean);
+    if (!simulator || !targetSlotIds.length) return false;
     if (!isPrecisionChange && !invalidateActiveEquipmentTuneSelectionForBodyChange()) return false;
     if (!isPrecisionChange && !invalidateRequiredEquipmentTuneSelectionForBodyChange()) return false;
-    const baseEquipment = simulator.baseEquipmentUpgrades.find((equipment) => (
-      resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
-    ));
-    const equipmentIndex = simulator.simulatedEquipmentUpgrades.findIndex((equipment) => (
-      resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
-    ));
-    if (!baseEquipment || equipmentIndex < 0) return false;
-    const targetSlot = resolveCanonicalEquipmentSlotName(baseEquipment);
-    simulator.simulatedEquipmentUpgrades.splice(
-      equipmentIndex,
-      1,
-      replaceEquipmentBodyPreservingState(
-        simulator.simulatedEquipmentUpgrades[equipmentIndex],
-        {
-          slotId: targetSlotId,
-          slot: targetSlot,
-          itemId: baseEquipment.itemId,
-          itemName: baseEquipment.itemName,
-          iconUrl: baseEquipment.iconUrl,
-          itemRarity: baseEquipment.itemRarity,
-          effects: baseEquipment.bodyEffects,
-          itemExplain: baseEquipment.bodyExplain,
-          itemReinforceSkill: baseEquipment.itemReinforceSkill,
-          itemBuff: baseEquipment.itemBuff,
-          tuneLevel: baseEquipment.tuneLevel,
-          tuneSetPoint: baseEquipment.tuneSetPoint,
-          tuneUpgradeable: baseEquipment.tuneUpgradeable,
-          tuneRemaining: baseEquipment.tuneRemaining,
-        },
-      ),
+    const baseBodies = targetSlotIds.map((targetSlotId) => {
+      const baseEquipment = simulator.baseEquipmentUpgrades.find((equipment) => (
+        resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
+      ));
+      if (!baseEquipment) return null;
+      return {
+        slotId: targetSlotId,
+        slot: resolveCanonicalEquipmentSlotName(baseEquipment),
+        itemId: baseEquipment.itemId,
+        itemName: baseEquipment.itemName,
+        iconUrl: baseEquipment.iconUrl,
+        itemRarity: baseEquipment.itemRarity,
+        setItemId: baseEquipment.setItemId,
+        setItemName: baseEquipment.setItemName,
+        effects: baseEquipment.bodyEffects,
+        itemExplain: baseEquipment.bodyExplain,
+        itemReinforceSkill: baseEquipment.itemReinforceSkill,
+        itemBuff: baseEquipment.itemBuff,
+        tuneLevel: baseEquipment.tuneLevel,
+        tuneSetPoint: baseEquipment.tuneSetPoint,
+        tuneUpgradeable: baseEquipment.tuneUpgradeable,
+        tuneRemaining: baseEquipment.tuneRemaining,
+      };
+    });
+    if (baseBodies.some((body) => !body)) return false;
+    const restoredBodyBySlotId = new Map(
+      baseBodies.map((body) => [resolveCanonicalEquipmentSlotId(body), body]),
     );
+    if (equipmentBodyChanges.length) {
+      Object.values(simulator.activeSelectionByGroup || {}).forEach((activeSelection) => {
+        if (activeSelection === selection || activeSelection?.applyType !== 'replaceEquipmentBody') {
+          return;
+        }
+        const activeSnapshot = getAppliedSelectionRecommendationSnapshot(activeSelection) || {};
+        const activeBodies = activeSnapshot.equipmentBodyChanges?.length
+          ? activeSnapshot.equipmentBodyChanges.map((change) => change.targetEquipmentBody)
+          : [activeSnapshot.targetEquipmentBody];
+        activeBodies.filter(Boolean).forEach((activeBody) => {
+          const activeSlotId = resolveCanonicalEquipmentSlotId(activeBody);
+          if (restoredBodyBySlotId.has(activeSlotId)) {
+            restoredBodyBySlotId.set(activeSlotId, activeBody);
+          }
+        });
+      });
+    }
+    const restoredBodies = targetSlotIds.map((targetSlotId) => (
+      restoredBodyBySlotId.get(targetSlotId)
+    ));
+    const restoredEquipment = replaceEquipmentBodiesInRows(
+      simulator.simulatedEquipmentUpgrades,
+      restoredBodies,
+    );
+    if (!restoredEquipment) return false;
+    simulator.simulatedEquipmentUpgrades = restoredEquipment;
+    const restoredSlots = restoredBodies.map(resolveCanonicalEquipmentSlotName).filter(Boolean);
     let requiredTuneResult = { changedSlots: [] };
     if (!isPrecisionChange && requiredTuneSetPoint > 0) {
       requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(
@@ -5644,14 +5837,14 @@ export function installEnchantView(ctx) {
       : { changedSlots: [] };
     if (!reappliedTuneResult) return false;
     if (simulator.role === 'buffer') {
-      delete simulator.equipmentBodyChangesBySlot[targetSlot];
+      delete simulator.equipmentBodyChangesBySlot[selection.targetSlot];
       rebuildBufferSimulatorCalculationState();
     } else {
       rebuildDealerSimulatorCalculationState();
     }
     return {
       changedSlots: [...new Set([
-        targetSlot,
+        ...restoredSlots,
         ...(requiredTuneResult.changedSlots || []),
         ...(reappliedTuneResult.changedSlots || []),
       ])],
@@ -5844,8 +6037,14 @@ export function installEnchantView(ctx) {
       const equipmentBodySelection = Object.values(
         simulator.activeSelectionByGroup || {},
       ).find((selection) => (
-        selection?.targetSlot === equipment?.slot
-        && selection.applyType === 'replaceEquipmentBody'
+        selection?.applyType === 'replaceEquipmentBody'
+        && (
+          selection.targetSlot === equipment?.slot
+          || selection.appliedRecommendationSnapshot?.equipmentBodyChanges?.some((change) => (
+            resolveCanonicalEquipmentSlotId(change.targetEquipmentBody || change)
+              === resolveCanonicalEquipmentSlotId(equipment)
+          ))
+        )
       ));
       if (!currentEquipment || !equipmentBodySelection) {
         return equipment;
@@ -6035,12 +6234,32 @@ export function installEnchantView(ctx) {
     if (!selection) return;
     const snapshot = createSimulatorSnapshot();
     try {
+      const selectionSnapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
+      const designationGroupKey = 'raidArmorUpgrade:계시의 지목';
+      const designationSelection = simulator.activeSelectionByGroup?.[designationGroupKey];
+      let designationResult = null;
+      if (
+        exclusiveGroupKey !== designationGroupKey
+        && designationSelection
+        && selectionSnapshot.sourceType === 'raidArmorUpgrade'
+        && selectionSnapshot.toStage === 'consecrated'
+      ) {
+        designationResult = removeSimulatorAction(designationSelection);
+        if (!designationResult) throw new Error('relic designation dependency removal failed');
+        delete simulator.activeSelectionByGroup[designationGroupKey];
+      }
       const result = removeSimulatorAction(selection);
       if (!result) {
         restoreSimulatorSnapshot(snapshot);
         return;
       }
-      finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection, result);
+      finishActiveSimulatorSelectionRemoval(exclusiveGroupKey, selection, {
+        ...result,
+        changedSlots: [...new Set([
+          ...(designationResult?.changedSlots || []),
+          ...(result.changedSlots || []),
+        ])],
+      });
     } catch {
       restoreSimulatorSnapshot(snapshot);
       renderEnchantCharacterPortrait();
@@ -6850,6 +7069,11 @@ export function installEnchantView(ctx) {
         });
       }
       const isTitleBeadOnly = row.sourceType === 'title' && row.purchaseRoute === 'titleBeadOnly';
+      const isRelicDesignation = row.sourceType === 'raidArmorUpgrade'
+        && (
+          row.targetSlotId === 'RELIC_SET'
+          || (Array.isArray(row.equipmentBodyChanges) && row.equipmentBodyChanges.length > 0)
+        );
       const showOptionText = !['creature', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'creatureArtifact'].includes(row.sourceType);
       const displayEffects = row.sourceType === 'avatar'
         ? row.kind === 'switchingAvatar'
@@ -6874,7 +7098,7 @@ export function installEnchantView(ctx) {
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'relicCraft'
           ? formatRelicCraftEffect(row, isBufferMetric)
-        : row.sourceType === 'raidArmorUpgrade'
+        : row.sourceType === 'raidArmorUpgrade' && !isRelicDesignation
           ? formatBlackFangEffect(row, isBufferMetric)
         : row.sourceType === 'enchant'
           ? formatEnchantTransitionEffect(row, isBufferMetric, activeDamageBaseline)
@@ -6893,8 +7117,12 @@ export function installEnchantView(ctx) {
             : '',
         ].filter(Boolean).join(' / ')
         : '';
-      const effectText = [baseEffectText, bufferSkillEffectText].filter(Boolean).join(' / ');
-      const effectHtml = row.sourceType === 'equipmentTune'
+      const effectText = isRelicDesignation
+        ? ''
+        : [baseEffectText, bufferSkillEffectText].filter(Boolean).join(' / ');
+      const effectHtml = isRelicDesignation
+        ? ''
+        : row.sourceType === 'equipmentTune'
         ? formatEquipmentTuneEffectHtml(row, escapeHtml)
         : row.sourceType === 'oathTune'
           ? formatOathTuneEffectHtml(row, escapeHtml)
@@ -7092,6 +7320,8 @@ export function installEnchantView(ctx) {
         : displayName;
       const itemExplainText = row.sourceType === 'oathAcquisitionCombined'
         ? ''
+        : isRelicDesignation
+          ? ''
         : row.sourceType === 'weaponTune'
           ? isWeaponReleaseRecommendation
             ? `개방률 ${formatEffectNumber(Number(row.currentWeaponReleasePercent || 0))}% -> ${formatEffectNumber(Number(row.targetWeaponReleasePercent || 100))}%`
@@ -7993,7 +8223,13 @@ export function installEnchantView(ctx) {
         simulator.activeSelectionByGroup || {},
       ).find((activeSelection) => (
         activeSelection?.applyType === 'replaceEquipmentBody'
-        && activeSelection.targetSlot === equipment?.slot
+        && (
+          activeSelection.targetSlot === equipment?.slot
+          || activeSelection.appliedRecommendationSnapshot?.equipmentBodyChanges?.some((change) => (
+            resolveCanonicalEquipmentSlotId(change.targetEquipmentBody || change)
+              === resolveCanonicalEquipmentSlotId(equipment)
+          ))
+        )
       ));
       if (!currentEquipment || !equipmentBodySelection) return equipment;
       return replaceEquipmentBodyPreservingState(equipment, {

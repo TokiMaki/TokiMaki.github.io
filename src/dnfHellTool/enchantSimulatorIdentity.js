@@ -145,6 +145,9 @@ export function createEnchantSimulatorIdentity(deps) {
   }
 
   function getRaidArmorUpgradeExclusiveGroupKey(row = {}) {
+    if (row.sourceType === 'raidArmorUpgrade' && row.equipmentBodyChanges?.length) {
+      return 'raidArmorUpgrade:계시의 지목';
+    }
     const targetBody = row.targetEquipmentBody || row;
     const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody);
     const targetSlotName = resolveCanonicalEquipmentSlotName(targetBody);
@@ -155,6 +158,15 @@ export function createEnchantSimulatorIdentity(deps) {
 
   function getRaidArmorUpgradeCandidateSignature(row = {}) {
     const groupKey = getRaidArmorUpgradeExclusiveGroupKey(row);
+    if (groupKey && row.equipmentBodyChanges?.length) {
+      return [
+        groupKey,
+        row.equipmentBodyChanges.map((change) => {
+          const targetBody = change?.targetEquipmentBody || {};
+          return `${targetBody.slotId || ''}:${targetBody.itemId || ''}`;
+        }).sort().join(','),
+      ].join(':');
+    }
     const targetBody = row.targetEquipmentBody || {};
     if (!groupKey || !targetBody.itemId) return '';
     return [

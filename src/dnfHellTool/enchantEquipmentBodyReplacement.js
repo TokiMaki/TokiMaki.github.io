@@ -70,6 +70,8 @@ export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targe
   nextEquipment.itemName = targetBody.itemName || nextEquipment.itemName || '';
   nextEquipment.iconUrl = targetBody.iconUrl || '';
   nextEquipment.itemRarity = targetBody.itemRarity || nextEquipment.itemRarity || '';
+  nextEquipment.setItemId = targetBody.setItemId || nextEquipment.setItemId || '';
+  nextEquipment.setItemName = targetBody.setItemName || nextEquipment.setItemName || '';
   if (
     targetBody.sourceType === 'relicCraft'
     || Number.isFinite(Number(targetBody.precisionPercent))
@@ -118,4 +120,23 @@ export function replaceEquipmentBodyInRows(equipmentRows = [], targetBody = {}) 
     return replaceEquipmentBodyPreservingState(equipment, targetBody);
   });
   return replaced ? rows : null;
+}
+
+export function replaceEquipmentBodiesInRows(equipmentRows = [], targetBodies = []) {
+  if (!Array.isArray(targetBodies) || !targetBodies.length) return null;
+  const targetBySlotId = new Map();
+  for (const targetBody of targetBodies) {
+    const slotId = resolveCanonicalEquipmentSlotId(targetBody);
+    if (!slotId || targetBySlotId.has(slotId)) return null;
+    targetBySlotId.set(slotId, targetBody);
+  }
+  const replacedSlots = new Set();
+  const rows = cloneValue(equipmentRows || []).map((equipment) => {
+    const slotId = resolveCanonicalEquipmentSlotId(equipment);
+    const targetBody = targetBySlotId.get(slotId);
+    if (!targetBody) return equipment;
+    replacedSlots.add(slotId);
+    return replaceEquipmentBodyPreservingState(equipment, targetBody);
+  });
+  return replacedSlots.size === targetBySlotId.size ? rows : null;
 }
