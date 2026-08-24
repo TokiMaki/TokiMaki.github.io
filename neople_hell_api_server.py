@@ -80,6 +80,7 @@ MAX_PUBLIC_RESPONSE_CACHE_ENTRIES = 256
 LOADOUT_RESPONSE_CACHE_SECONDS = 60
 MAX_LOADOUT_RESPONSE_CACHE_ENTRIES = 64
 LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS = 60
+LOADOUT_RESPONSE_INFLIGHT_STALE_SECONDS = LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS
 SETTING_VALUE_PENDING_SECONDS = 120
 GZIP_MIN_JSON_BYTES = 4 * 1024
 GZIP_COMPRESS_LEVEL = 4
@@ -501,6 +502,8 @@ def prune_loadout_response_cache(now: float):
 
 def load_character_loadout_response_body(cache_key: tuple, loader) -> tuple[bytes, bool]:
     now = time.time()
+    stale_inflight = None
+    stale_inflight_age_seconds = 0
     with _LOADOUT_RESPONSE_CACHE_LOCK:
         prune_loadout_response_cache(now)
         cached = _LOADOUT_RESPONSE_CACHE.get(cache_key)
@@ -508,15 +511,31 @@ def load_character_loadout_response_body(cache_key: tuple, loader) -> tuple[byte
             return cached["body"], True
 
         inflight = _LOADOUT_RESPONSE_INFLIGHT.get(cache_key)
+        if inflight and now - float(inflight.get("started_at") or now) >= LOADOUT_RESPONSE_INFLIGHT_STALE_SECONDS:
+            stale_inflight = inflight
+            stale_inflight_age_seconds = now - float(inflight.get("started_at") or now)
+            stale_inflight["error"] = TimeoutError("이전 캐릭터 세팅 계산이 완료되지 않아 다시 계산합니다.")
+            stale_inflight["event"].set()
+            _LOADOUT_RESPONSE_INFLIGHT.pop(cache_key, None)
+            inflight = None
         if not inflight:
-            inflight = {"event": Event(), "body": None, "error": None}
+            inflight = {"event": Event(), "body": None, "error": None, "started_at": now}
             _LOADOUT_RESPONSE_INFLIGHT[cache_key] = inflight
             is_owner = True
         else:
             is_owner = False
 
+    if stale_inflight is not None:
+        write_ops_log("loadout_inflight_recovered", ageSeconds=round(stale_inflight_age_seconds, 1))
+
     if not is_owner:
         if not inflight["event"].wait(LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS):
+            with _LOADOUT_RESPONSE_CACHE_LOCK:
+                if _LOADOUT_RESPONSE_INFLIGHT.get(cache_key) is inflight:
+                    inflight["error"] = TimeoutError("캐릭터 세팅 계산 대기 시간이 초과되었습니다.")
+                    inflight["event"].set()
+                    _LOADOUT_RESPONSE_INFLIGHT.pop(cache_key, None)
+            write_ops_log("loadout_inflight_timeout", waitSeconds=LOADOUT_RESPONSE_INFLIGHT_WAIT_SECONDS)
             raise TimeoutError("캐릭터 세팅 계산 대기 시간이 초과되었습니다.")
         if inflight.get("error") is not None:
             raise inflight["error"]
@@ -526,12 +545,13 @@ def load_character_loadout_response_body(cache_key: tuple, loader) -> tuple[byte
         payload = loader()
         body = json_response(payload)
         with _LOADOUT_RESPONSE_CACHE_LOCK:
-            prune_loadout_response_cache(time.time())
-            _LOADOUT_RESPONSE_CACHE[cache_key] = {
-                "body": body,
-                "expires_at": time.time() + LOADOUT_RESPONSE_CACHE_SECONDS,
-            }
-            inflight["body"] = body
+            if _LOADOUT_RESPONSE_INFLIGHT.get(cache_key) is inflight:
+                prune_loadout_response_cache(time.time())
+                _LOADOUT_RESPONSE_CACHE[cache_key] = {
+                    "body": body,
+                    "expires_at": time.time() + LOADOUT_RESPONSE_CACHE_SECONDS,
+                }
+                inflight["body"] = body
         return body, False
     except Exception as exc:
         with _LOADOUT_RESPONSE_CACHE_LOCK:
@@ -540,7 +560,8 @@ def load_character_loadout_response_body(cache_key: tuple, loader) -> tuple[byte
     finally:
         with _LOADOUT_RESPONSE_CACHE_LOCK:
             inflight["event"].set()
-            _LOADOUT_RESPONSE_INFLIGHT.pop(cache_key, None)
+            if _LOADOUT_RESPONSE_INFLIGHT.get(cache_key) is inflight:
+                _LOADOUT_RESPONSE_INFLIGHT.pop(cache_key, None)
 
 
 class HellApiHandler(SimpleHTTPRequestHandler):
