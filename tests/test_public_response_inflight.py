@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 import unittest
@@ -154,7 +155,7 @@ class LoadoutResponseInflightTest(unittest.TestCase):
                     time.time() - api_server.LOADOUT_RESPONSE_INFLIGHT_STALE_SECONDS - 1
                 )
 
-            replacement_body, replacement_cache_hit = api_server.load_character_loadout_response_body(
+            replacement_body, replacement_cache_hit, replacement_payload = api_server.load_character_loadout_response_body(
                 cache_key,
                 lambda: {"owner": "replacement"},
             )
@@ -164,6 +165,7 @@ class LoadoutResponseInflightTest(unittest.TestCase):
         self.assertFalse(old_owner.is_alive())
         self.assertFalse(replacement_cache_hit)
         self.assertIn(b'"replacement"', replacement_body)
+        self.assertEqual({"owner": "replacement"}, replacement_payload)
         self.assertEqual(1, len(old_result))
         self.assertIn(b'"old"', old_result[0][0])
         self.assertTrue(old_inflight["event"].is_set())
@@ -171,6 +173,33 @@ class LoadoutResponseInflightTest(unittest.TestCase):
         with api_server._LOADOUT_RESPONSE_CACHE_LOCK:
             self.assertNotIn(cache_key, api_server._LOADOUT_RESPONSE_INFLIGHT)
             self.assertEqual(replacement_body, api_server._LOADOUT_RESPONSE_CACHE[cache_key]["body"])
+
+    def test_internal_payload_is_preserved_after_public_field_filtering(self):
+        cache_key = ("character-loadout", "cain", "character-id")
+        payload = {
+            "characterId": "character-id",
+            "settingValueInputs": {
+                "schemaVersion": 1,
+                "status": "pending",
+            },
+        }
+
+        with patch.object(api_server, "API_SERVER_MODE", "prod"):
+            body, cache_hit, internal_payload = api_server.load_character_loadout_response_body(
+                cache_key,
+                lambda: payload,
+            )
+            cached_body, cached_hit, cached_payload = api_server.load_character_loadout_response_body(
+                cache_key,
+                lambda: {"unused": True},
+            )
+
+        self.assertFalse(cache_hit)
+        self.assertTrue(cached_hit)
+        self.assertNotIn("schemaVersion", json.loads(body)["settingValueInputs"])
+        self.assertEqual(1, internal_payload["settingValueInputs"]["schemaVersion"])
+        self.assertEqual(body, cached_body)
+        self.assertEqual(payload, cached_payload)
 
     def test_wait_timeout_evicts_the_stuck_flight(self):
         cache_key = ("character-loadout", "cain", "character-id")
