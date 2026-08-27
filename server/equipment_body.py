@@ -92,6 +92,15 @@ def resolve_relic_precision_percent(potency: dict | None) -> int | None:
     return precision_percent
 
 
+def has_relic_equipment_marker(row: dict | None) -> bool:
+    row = row or {}
+    return (
+        isinstance(row.get("exaltedInfo"), dict)
+        and bool(row.get("exaltedInfo"))
+        and resolve_relic_precision_percent(row.get("potency")) is not None
+    )
+
+
 def _get_precision_multiplier_count(
     precision: dict,
     multiplier_index: int,

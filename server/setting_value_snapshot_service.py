@@ -75,7 +75,7 @@ def _build_equipment_snapshot(loadout: dict, enchant_detail_by_slot: dict | None
                 "tier": enchant_tier,
                 "isEnd": bool(enchant_detail.get("isEnd")) or enchant_tier == "종결",
             } if enchant else None,
-            "isRelic": clean_text(row.get("itemId")) in unique_item_ids,
+            "isRelic": bool(row.get("isRelic")) or clean_text(row.get("itemId")) in unique_item_ids,
         })
     return snapshots
 

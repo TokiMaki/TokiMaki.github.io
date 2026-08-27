@@ -15,6 +15,8 @@
 - 최근 성능 구조: `/api/character-loadout`에는 origin 내부 60초 response cache와 같은 `(serverId, characterId)` 요청 single-flight가 있다. 성공 200 body만 최대 64개 메모리에 저장하고, cache hit/대기 요청은 heavy semaphore와 loadout 계산을 건너뛴다.
 - 최근 성능 구조: `load_character_loadout()` 시작 시 현재 장비/오라/크리쳐/아티팩트/버프강화 장비·크리쳐 itemId를 모아 `fetch_item_details()`를 best-effort로 예열한다. 실패해도 본 계산 경로는 기존처럼 진행한다.
 - 최근 오라 정책: `모험단 모션 오라 아바타`와 `전직의 모션 오라 아바타`는 장착 원본을 `equippedAura`로 보존하고 `clone.itemId`의 오라를 실제 효과 본체로 정규화한다. 일반 오라는 clone 데이터가 있어도 기존 장착 본체를 유지한다.
+- 최근 유일 장비 식별: 장비 API의 `exaltedInfo`와 유효한 `potency.value`를 공통 표식으로 사용하고, 제작 DB itemId는 호환 fallback으로만 사용한다. 따라서 `광휘를 머금은 눈동자` 같은 신규 유일 장비도 목록 추가 없이 표시하고 계시의 지목 교체 대상에서 제외한다.
+- 최근 칭호/크리쳐 정책: 거래 가능한 `플로럴 스태그 알` 및 레벨별 플래티넘 알 12종/선택상자만 구매 후보로 관리한다. 판매 후보가 아닌 `종이달 오르골[Lv]`과 `실반 소네트 페어리[Lv]`는 장착 상세 API의 기존 레벨 칭호/크리쳐 판정과 실제 효과 비교로 종결급을 판단한다.
 - 최근 성능 구조: `character_repository`는 캐릭터 원본 payload에 대해 기존 15초 메모리 TTL cache를 먼저 보고, miss 시 `cache/character-response-cache.sqlite`의 60초 SQLite cache를 확인한다. SQLite hit은 메모리 cache를 다시 채우며, API 성공 payload만 디스크에 저장한다.
 - 최근 성능 구조: `item_repository`는 아이템 상세 API 성공 payload를 메모리와 기존 `character-response-cache.sqlite`의 `item_detail_cache`에 24시간 저장한다. 만료·누락 응답은 재조회하며 아이템 이름 검색과 경매장 가격 캐시는 변경하지 않는다.
 - 최근 랭킹 운영: `scripts/backfill_setting_value_ranking.py`는 기존 캐릭터 검색 캐시 중 랭킹 미저장 캐릭터를 실행 중인 API의 실제 조회·가격·finalize 경로로 순차 적재하며, 중단 후 재실행하면 미완료 후보부터 이어간다.

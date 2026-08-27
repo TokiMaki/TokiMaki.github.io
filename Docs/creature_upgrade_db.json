@@ -1,11 +1,94 @@
 {
   "schemaVersion": 3,
-  "updatedAt": "2026-06-21",
+  "updatedAt": "2026-08-28",
   "source": {
     "type": "manual_item_id_index",
     "note": "effectItems는 딜/버프 계산 기준 아이템, priceItems는 경매장 최저가 비교용 구매 후보 itemId다. 플래티넘 레벨별 알과 선택 상자는 네오플 /df/items wordType=full 검색으로 확인해 고정한다."
   },
   "groups": [
+    {
+      "groupName": "플로럴 스태그",
+      "searchName": "플로럴 스태그",
+      "itemType": "크리쳐",
+      "candidates": [
+        {
+          "name": "플로럴 스태그",
+          "variant": "일반",
+          "effectItems": [
+            {
+              "itemName": "플로럴 스태그 알",
+              "itemId": "d39b0118e0d6cd3eccbaadb9797b6bac"
+            }
+          ],
+          "priceItems": [
+            {
+              "itemName": "플로럴 스태그 알",
+              "itemId": "d39b0118e0d6cd3eccbaadb9797b6bac"
+            }
+          ]
+        },
+        {
+          "name": "플로럴 스태그 플래티넘",
+          "variant": "플래티넘",
+          "priceItems": [
+            {
+              "itemName": "플로럴 스태그 플래티넘 크리쳐 알 선택 상자",
+              "itemId": "3e4f1a4b2bc623c582b9845e0bcc9033"
+            }
+          ],
+          "effectItems": [
+            {
+              "itemName": "플로럴 스태그 플래티넘[30Lv] 알",
+              "itemId": "2d24d7737ff5fd87285d8cbe90bf9ce5"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[35Lv] 알",
+              "itemId": "3da4c8dd79ca77c691c2b3804188c24f"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[40Lv] 알",
+              "itemId": "7f6ebe9304fe6f486a60e1049b0b4fc4"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[45Lv] 알",
+              "itemId": "6331ffbb2871d228ed0bf785fd1705ea"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[50Lv] 알",
+              "itemId": "c086697e5c3bef4f4592f2116c4581c6"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[60Lv] 알",
+              "itemId": "aa62819d3299e04cf5ef12b97b892132"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[70Lv] 알",
+              "itemId": "3ac85a714b7b4936b5f22ac8b5aa6600"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[75Lv] 알",
+              "itemId": "34b6617bc6333f82287a53f8e25343df"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[80Lv] 알",
+              "itemId": "9b9203412e10888da710599d38bb33f3"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[85Lv] 알",
+              "itemId": "86c02c6478f528ef9c71ab8c10753e56"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[95Lv] 알",
+              "itemId": "97ff9597e68cd8ab081861db25ff03d9"
+            },
+            {
+              "itemName": "플로럴 스태그 플래티넘[100Lv] 알",
+              "itemId": "64f798e675b4767855df79bdb08c32c2"
+            }
+          ]
+        }
+      ]
+    },
     {
       "groupName": "운명을 담는 재단사",
       "searchName": "운명을 담는 재단사",

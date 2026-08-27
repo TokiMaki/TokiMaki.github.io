@@ -1,8 +1,12 @@
 import re
 
-from ..data_store import load_relic_craft_db
+from ..data_store import get_relic_equipment_item_ids
 from ..effects import normalize_enchant_status, parse_percent_or_number
-from ..equipment_body import get_equipment_tune_set_point, resolve_relic_precision_percent
+from ..equipment_body import (
+    get_equipment_tune_set_point,
+    has_relic_equipment_marker,
+    resolve_relic_precision_percent,
+)
 from ..enchant_service import load_enchant_tier_cards
 from ..neople_client import clean_text, get_item_icon_url
 from ..setting_value_service import annotate_current_enchant_tiers
@@ -24,16 +28,6 @@ EQUIPMENT_TUNE_SLOT_NAMES = {
 }
 
 
-def _get_relic_equipment_item_ids() -> set[str]:
-    return {
-        clean_text((recipe.get("target") or {}).get("itemId"))
-        for recipe in load_relic_craft_db().get("crafts") or []
-        if recipe.get("enabled")
-        and recipe.get("sourceType") == "relicCraft"
-        and clean_text((recipe.get("target") or {}).get("itemId"))
-    }
-
-
 def build_equipment_upgrade_payload(equipment: dict) -> dict:
     slot_name = clean_text(equipment.get("slotName"))
     slot_id = clean_text(equipment.get("slotId"))
@@ -47,7 +41,10 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
     tune_level = max([int(parse_percent_or_number(tune.get("level"))) for tune in tune_rows] or [0])
     tune_set_point = get_equipment_tune_set_point(equipment)
     tune_upgradeable = any(tune.get("upgrade") is not False for tune in tune_rows)
-    is_relic_equipment = item_id in _get_relic_equipment_item_ids()
+    is_relic_equipment = (
+        has_relic_equipment_marker(equipment)
+        or item_id in get_relic_equipment_item_ids()
+    )
     is_named_unique_equipment = re.match(r"^고유\s*[:\-]", item_name) is not None
     precision_percent = (
         resolve_relic_precision_percent(equipment.get("potency"))

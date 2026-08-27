@@ -1,10 +1,11 @@
 import math
 import time
 
-from ..data_store import load_raid_armor_upgrade_db, load_relic_craft_db
+from ..data_store import get_relic_equipment_item_ids, load_raid_armor_upgrade_db
 from ..effects import normalize_enchant_status, subtract_effects
 from ..equipment_body import (
     get_equipment_tune_set_point,
+    has_relic_equipment_marker,
     resolve_canonical_equipment_slot_id,
     resolve_canonical_equipment_slot_name,
 )
@@ -102,18 +103,10 @@ _SPECIAL_SLOT_IDS = ("SUPPORT", "MAGIC_STON", "EARRING")
 _RARITY_ORDER = {"레어": 0, "유니크": 1, "레전더리": 2, "에픽": 3, "태초": 4}
 
 
-def _get_relic_item_ids() -> set[str]:
-    return {
-        clean_text((recipe.get("target") or {}).get("itemId"))
-        for recipe in load_relic_craft_db().get("crafts") or []
-        if recipe.get("enabled")
-        and clean_text((recipe.get("target") or {}).get("itemId"))
-    }
-
-
 def _is_designation_excluded(equipment: dict, relic_item_ids: set[str]) -> bool:
     return (
-        clean_text(equipment.get("itemId")) in relic_item_ids
+        has_relic_equipment_marker(equipment)
+        or clean_text(equipment.get("itemId")) in relic_item_ids
         or clean_text(equipment.get("itemName")).startswith("흑아 :")
     )
 
@@ -170,7 +163,7 @@ def _build_final_transformation_contexts(
         if _RARITY_ORDER.get(clean_text(equipment.get("itemRarity")), -1) < _RARITY_ORDER["에픽"]:
             return []
 
-    relic_item_ids = _get_relic_item_ids()
+    relic_item_ids = get_relic_equipment_item_ids()
     contexts = []
     family_targets = targets_by_family.get(family_key) or {}
     for slot_id in required_slots:

@@ -205,6 +205,14 @@ class RaidArmorUpgradeRecommendationTest(unittest.TestCase):
                 "itemId": "relic-magic" if slot_id == "MAGIC_STON" else f"current-{slot_id}",
                 "itemName": "흑아 : 목걸이" if slot_id == "AMULET" else f"현재 {slot_id}",
                 "itemRarity": "태초" if slot_id in {"AMULET", "WRIST", "RING"} else "에픽",
+                **(
+                    {
+                        "exaltedInfo": {"damage": "50.2%", "buff": 12930},
+                        "potency": {"value": 100, "damage": "10%", "buff": 4650},
+                    }
+                    if slot_id == "MAGIC_STON"
+                    else {}
+                ),
             }
             for slot_id in right_slots
         ]
@@ -251,13 +259,8 @@ class RaidArmorUpgradeRecommendationTest(unittest.TestCase):
             "server.candidates.raid_armor_upgrade.load_raid_armor_upgrade_db",
             return_value=database,
         ), patch(
-            "server.candidates.raid_armor_upgrade.load_relic_craft_db",
-            return_value={
-                "crafts": [{
-                    "enabled": True,
-                    "target": {"itemId": "relic-magic"},
-                }],
-            },
+            "server.candidates.raid_armor_upgrade.get_relic_equipment_item_ids",
+            return_value=set(),
         ), patch(
             "server.candidates.raid_armor_upgrade.fetch_item_details",
             side_effect=lambda item_ids: [detail_by_id[item_id] for item_id in item_ids],

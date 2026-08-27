@@ -4,7 +4,7 @@ from server.presenters.character_enchants_presenter import build_equipment_upgra
 
 
 class RelicLoadoutPayloadTest(unittest.TestCase):
-    def test_relic_craft_targets_are_marked_by_item_id_without_name_prefix(self):
+    def test_relic_equipment_is_marked_by_configured_id_or_api_marker(self):
         cases = [
             (
                 "df77236c51ea1274a3deb79c3e470695",
@@ -24,17 +24,31 @@ class RelicLoadoutPayloadTest(unittest.TestCase):
                 "보조장비",
                 "SUPPORT",
             ),
+            (
+                "aa5273499f19ddba846919dbb6857d82",
+                "광휘를 머금은 눈동자",
+                "반지",
+                "RING",
+            ),
         ]
 
         for item_id, item_name, slot_name, slot_id in cases:
             with self.subTest(item_name=item_name):
+                marker = (
+                    {
+                        "exaltedInfo": {"damage": "54.6%", "buff": 13030},
+                        "potency": {"value": 100, "damage": "17.1%", "buff": 4250},
+                    }
+                    if item_name == "광휘를 머금은 눈동자"
+                    else {"potency": {"value": 100}}
+                )
                 payload = build_equipment_upgrade_payload({
                     "slotName": slot_name,
                     "slotId": slot_id,
                     "itemId": item_id,
                     "itemName": item_name,
                     "itemRarity": "태초",
-                    "potency": {"value": 100},
+                    **marker,
                     "tune": [{"level": 0, "setPoint": 145, "upgrade": False}],
                 })
 
@@ -51,6 +65,24 @@ class RelicLoadoutPayloadTest(unittest.TestCase):
         })
 
         self.assertFalse(payload["isRelic"])
+
+    def test_weapon_progress_fields_are_not_relic_markers(self):
+        for progress in (
+            {"weaponRelease": {"value": 100, "damage": "13.7%", "buff": 4700}},
+            {"potency": {"value": 100, "damage": "13.7%", "buff": 4700}},
+        ):
+            with self.subTest(progress=next(iter(progress))):
+                payload = build_equipment_upgrade_payload({
+                    "slotName": "무기",
+                    "slotId": "WEAPON",
+                    "itemId": "legacy-weapon",
+                    "itemName": "흉터가 깃든 분노",
+                    "itemRarity": "태초",
+                    **progress,
+                })
+
+                self.assertFalse(payload["isRelic"])
+                self.assertIsNone(payload["precisionPercent"])
 
 
 if __name__ == "__main__":

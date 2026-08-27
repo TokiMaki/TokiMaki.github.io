@@ -85,6 +85,7 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
                 "isAmplified": False,
                 "precisionPercent": 100,
                 "tuneLevel": 1,
+                "isRelic": True,
             }],
             "oathUpgrades": {
                 "itemId": "oath-body",
@@ -105,7 +106,7 @@ class SettingValueSnapshotServiceTest(unittest.TestCase):
                 "schemaVersion": 1,
                 "status": "ready",
                 "blackFangRows": [],
-                "uniqueEquipmentRows": [{"itemId": "weapon"}],
+                "uniqueEquipmentRows": [],
                 "directPrices": {},
                 "platinumPriceByName": {},
             },

@@ -166,6 +166,17 @@ def load_relic_craft_db() -> dict:
     return _RELIC_CRAFT_DB_CACHE
 
 
+def get_relic_equipment_item_ids() -> set[str]:
+    database = load_relic_craft_db()
+    return {
+        str((recipe.get("target") or {}).get("itemId") or "").strip()
+        for recipe in database.get("crafts") or []
+        if recipe.get("enabled")
+        and recipe.get("sourceType") == "relicCraft"
+        and str((recipe.get("target") or {}).get("itemId") or "").strip()
+    }
+
+
 def load_raid_armor_upgrade_db() -> dict:
     global _RAID_ARMOR_UPGRADE_DB_CACHE
     if _RAID_ARMOR_UPGRADE_DB_CACHE is None:
