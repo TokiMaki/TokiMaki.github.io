@@ -1,35 +1,35 @@
 {
   "schemaVersion": 4,
-  "updatedAt": "2026-08-07",
+  "updatedAt": "2026-08-30",
   "source": {
     "type": "manual_item_id_index_from_neople_item_search",
     "note": "titleItems는 네오플 /df/items 검색으로 확인한 칭호 본체 itemId다. titleBeadItems는 네오플 경매장 exact-name 검색으로 확인한 속성별 스페셜 칭호 보주 itemId다. 가격은 itemId 기준으로 조회한다."
   },
   "titleBeadItems": [
     {
-      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[화속성 & 모든스탯]",
-      "itemId": "cc92504d78aa76c2f7adb11c20cf8451",
+      "itemName": "숲속의 유랑악단 스페셜 칭호 보주[화속성 & 모든스탯]",
+      "itemId": "ac3cc6aca94ea79a121bda3281bcd60f",
       "element": "fire",
       "elementValue": 6,
       "allStat": 25
     },
     {
-      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[수속성 & 모든스탯]",
-      "itemId": "f515765f20a0d054a472fbeabb2ffff4",
+      "itemName": "숲속의 유랑악단 스페셜 칭호 보주[수속성 & 모든스탯]",
+      "itemId": "254c9570749baba13fdba9655cd913f6",
       "element": "water",
       "elementValue": 6,
       "allStat": 25
     },
     {
-      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[명속성 & 모든스탯]",
-      "itemId": "fc712a0bb01527b01e4dd2e4263d1cb4",
+      "itemName": "숲속의 유랑악단 스페셜 칭호 보주[명속성 & 모든스탯]",
+      "itemId": "61760285a49739b29fea9f0ea9e16779",
       "element": "light",
       "elementValue": 6,
       "allStat": 25
     },
     {
-      "itemName": "트로피컬 바캉스 스페셜 칭호 보주[암속성 & 모든스탯]",
-      "itemId": "ce808ad0108ee2b329a177f478aaa501",
+      "itemName": "숲속의 유랑악단 스페셜 칭호 보주[암속성 & 모든스탯]",
+      "itemId": "53037f3ea985d308fb785208bc88ef95",
       "element": "dark",
       "elementValue": 6,
       "allStat": 25
@@ -64,6 +64,67 @@
     }
   ],
   "groups": [
+    {
+      "groupName": "종이달 오르골",
+      "searchName": "종이달 오르골",
+      "itemType": "칭호",
+      "titleItems": [
+        {
+          "itemName": "종이달 오르골[30Lv]",
+          "itemId": "1c2ffe9906955ae738e416f032bb2914"
+        },
+        {
+          "itemName": "종이달 오르골[35Lv]",
+          "itemId": "a8383475daf2961932ef8ffc92750e8c"
+        },
+        {
+          "itemName": "종이달 오르골[40Lv]",
+          "itemId": "39814a3d44aeff0d3f90c69936702286"
+        },
+        {
+          "itemName": "종이달 오르골[45Lv]",
+          "itemId": "c08bcf7c8f38eacf32549d35a56db49c"
+        },
+        {
+          "itemName": "종이달 오르골[50Lv]",
+          "itemId": "94487e785ff8a3df59ebd6de3643e5fa"
+        },
+        {
+          "itemName": "종이달 오르골[60Lv]",
+          "itemId": "a66d060f687c1442462063a51d609988"
+        },
+        {
+          "itemName": "종이달 오르골[70Lv]",
+          "itemId": "ab8a96d0aa1c4ad354d2a8f1e562985e"
+        },
+        {
+          "itemName": "종이달 오르골[75Lv]",
+          "itemId": "7648a1e0021ebc76e2d7dd086b89fb6d"
+        },
+        {
+          "itemName": "종이달 오르골[80Lv]",
+          "itemId": "79d8cf314495bde0a4c5fb4b671eac3b"
+        },
+        {
+          "itemName": "종이달 오르골[85Lv]",
+          "itemId": "224a2222c43e00fc5d6ee6dbff527519"
+        },
+        {
+          "itemName": "종이달 오르골[95Lv]",
+          "itemId": "655c8e7efaaa9751d3a1dfb1868b685a"
+        },
+        {
+          "itemName": "종이달 오르골[100Lv]",
+          "itemId": "684b850554cdcbcdde31c99ec1b29b86"
+        }
+      ],
+      "priceItems": [
+        {
+          "itemName": "종이달 오르골 칭호 선택 상자",
+          "itemId": "41914178e78f02589b8e2760788a9da8"
+        }
+      ]
+    },
     {
       "groupName": "천공의 지배자",
       "searchName": "천공의 지배자",

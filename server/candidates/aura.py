@@ -175,6 +175,12 @@ def build_aura_upgrade_groups(aura_db: dict, get_cached_auction) -> tuple[list, 
         group_name = clean_text(item_config.get("groupName") or item_config.get("itemName") or item_id)
         direct_group_names.add(group_name)
         aura_details = fetch_item_details([item_id])
+        display_name = clean_text(item_config.get("displayName"))
+        if display_name:
+            aura_details = [
+                {**detail, "itemName": display_name}
+                for detail in aura_details
+            ]
 
         price_item_ids = [
             clean_text(price_item_id)
@@ -197,9 +203,12 @@ def build_aura_upgrade_groups(aura_db: dict, get_cached_auction) -> tuple[list, 
             detail for detail in price_details
             if "상자" in clean_text(detail.get("itemName"))
         ]
+        price_source_details = [*aura_details, *box_details]
+        if item_config.get("includeDirectPrice") is False:
+            price_source_details = box_details
         price_items = [
             build_aura_price_item(detail, get_cached_auction, errors)
-            for detail in [*aura_details, *box_details]
+            for detail in price_source_details
         ]
         candidates = build_aura_candidates(
             aura_details,
