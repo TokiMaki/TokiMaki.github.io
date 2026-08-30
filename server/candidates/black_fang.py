@@ -1,6 +1,7 @@
 import re
 import time
 
+from ..data_store import load_raid_armor_upgrade_db
 from ..effects import normalize_enchant_status, subtract_effects
 from ..neople_client import (
     clean_item_display_name,
@@ -12,7 +13,7 @@ from ..repositories.auction_repository import (
     get_auction_rows_by_name,
     get_lowest_auction_price,
 )
-from ..repositories.item_repository import fetch_item_details, search_items_by_name
+from ..repositories.item_repository import fetch_item_details, fetch_set_item_detail, search_items_by_name
 from ..repositories.material_price_repository import find_upgrade_material_price_config_by_label
 from ..repositories.resolved_price_repository import get_cached_resolved_price
 from ..presenters.black_fang_presenter import build_black_fang_recommendation_row
@@ -213,6 +214,40 @@ def get_black_fang_scroll_name(set_item_name: str) -> str:
     return f"흑아 태초 변환서 - {set_name}" if set_name else ""
 
 
+def get_designated_relic_item_ids() -> set[str]:
+    transformation = load_raid_armor_upgrade_db().get("finalTransformation") or {}
+    return {
+        clean_text(target.get("itemId"))
+        for targets_by_slot in (transformation.get("rightTargetsByFamily") or {}).values()
+        for target in (targets_by_slot or {}).values()
+        if clean_text(target.get("itemId"))
+    }
+
+
+def resolve_black_fang_source_equipment(
+    equipment: dict,
+    designated_relic_item_ids: set[str],
+    set_item_detail: dict,
+) -> dict:
+    if clean_text(equipment.get("itemId")) not in designated_relic_item_ids:
+        return dict(equipment)
+    slot_id = clean_text(equipment.get("slotId"))
+    source = next((
+        row
+        for row in set_item_detail.get("setItems") or []
+        if clean_text(row.get("slotId")) == slot_id
+        and clean_text(row.get("itemRarity")) == "태초"
+    ), None)
+    if not source:
+        return {}
+    return {
+        **equipment,
+        "itemId": clean_text(source.get("itemId")),
+        "itemName": clean_text(source.get("itemName")),
+        "itemRarity": clean_text(source.get("itemRarity")),
+    }
+
+
 def _find_black_fang_scroll_price_item_uncached(scroll_name: str) -> dict:
     scroll_name = clean_text(scroll_name)
     if not scroll_name:
@@ -257,18 +292,56 @@ def find_black_fang_scroll_price_item(scroll_name: str) -> dict:
 
 def build_black_fang_recommendations_debug(equipment_rows: list, material_prices: dict | None = None) -> dict:
     steps = []
-    targets = [
+    eligible_targets = [
         equipment for equipment in equipment_rows or []
         if clean_text(equipment.get("slotId")) in BLACK_FANG_ACCESSORY_SLOT_IDS
         and clean_text(equipment.get("itemRarity")) == "태초"
         and not clean_text(equipment.get("itemName")).startswith("흑아 :")
     ]
+    designated_relic_item_ids = get_designated_relic_item_ids()
+    designated_targets = [
+        equipment
+        for equipment in eligible_targets
+        if clean_text(equipment.get("itemId")) in designated_relic_item_ids
+    ]
+    set_details_by_id = {}
+    for set_item_id in sorted({
+        clean_text(equipment.get("setItemId"))
+        for equipment in designated_targets
+        if clean_text(equipment.get("setItemId"))
+    }):
+        try:
+            set_details_by_id[set_item_id] = fetch_set_item_detail(set_item_id)
+        except Exception:
+            set_details_by_id[set_item_id] = {}
+    targets = []
+    resolved_designated_count = 0
+    for equipment in eligible_targets:
+        source = resolve_black_fang_source_equipment(
+            equipment,
+            designated_relic_item_ids,
+            set_details_by_id.get(clean_text(equipment.get("setItemId"))) or {},
+        )
+        if not source:
+            continue
+        targets.append((equipment, source))
+        if clean_text(equipment.get("itemId")) in designated_relic_item_ids:
+            resolved_designated_count += 1
+    steps.append({
+        "name": "resolve_designated_relic_sources",
+        "count": len(designated_targets),
+        "resolvedCount": resolved_designated_count,
+    })
     if not targets:
         return {"recommendations": [], "steps": steps}
 
     item_ids = []
     target_pairs = []
-    scroll_names = sorted({get_black_fang_scroll_name(equipment.get("setItemName")) for equipment in targets if get_black_fang_scroll_name(equipment.get("setItemName"))})
+    scroll_names = sorted({
+        get_black_fang_scroll_name(source.get("setItemName"))
+        for _, source in targets
+        if get_black_fang_scroll_name(source.get("setItemName"))
+    })
     scroll_items = {}
     scroll_auction_hits = 0
     scroll_fallback_hits = 0
@@ -293,19 +366,19 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
     black_item_lookup_started_at = time.perf_counter()
     black_match_hits = 0
     black_fallback_hits = 0
-    for equipment in targets:
-        black_name = f"흑아 : {clean_text(equipment.get('itemName'))}"
-        black_item = _find_exact_item_by_match_name(black_name, clean_text(equipment.get("itemTypeDetail")))
+    for current_equipment, source_equipment in targets:
+        black_name = f"흑아 : {clean_text(source_equipment.get('itemName'))}"
+        black_item = _find_exact_item_by_match_name(black_name, clean_text(source_equipment.get("itemTypeDetail")))
         if black_item.get("itemId"):
             black_match_hits += 1
         else:
-            black_item = _find_exact_item_by_name(black_name, clean_text(equipment.get("itemTypeDetail")))
+            black_item = _find_exact_item_by_name(black_name, clean_text(source_equipment.get("itemTypeDetail")))
             if black_item.get("itemId"):
                 black_fallback_hits += 1
         if not black_item.get("itemId"):
             continue
-        target_pairs.append((equipment, black_item))
-        item_ids.extend([clean_text(equipment.get("itemId")), black_item.get("itemId")])
+        target_pairs.append((current_equipment, source_equipment, black_item))
+        item_ids.extend([clean_text(source_equipment.get("itemId")), black_item.get("itemId")])
     steps.append({
         "name": "find_black_items",
         "ms": round((time.perf_counter() - black_item_lookup_started_at) * 1000, 1),
@@ -327,8 +400,8 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
     auction_lookup_ms = 0.0
     material_enrich_ms = 0.0
     material_price_cache = {}
-    for equipment, black_item in target_pairs:
-        scroll_name = get_black_fang_scroll_name(equipment.get("setItemName"))
+    for current_equipment, source_equipment, black_item in target_pairs:
+        scroll_name = get_black_fang_scroll_name(source_equipment.get("setItemName"))
         scroll_item = scroll_items.get(scroll_name) or {}
         scroll_id = scroll_item.get("itemId")
         if scroll_id not in scroll_price_cache:
@@ -355,7 +428,7 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
             auction["scrollUnitPrice"] = scroll_price
             auction["fixedGold"] = fixed_gold
 
-        current_detail = details_by_id.get(clean_text(equipment.get("itemId"))) or {}
+        current_detail = details_by_id.get(clean_text(source_equipment.get("itemId"))) or {}
         black_detail = details_by_id.get(black_item.get("itemId")) or {}
         current_effects = normalize_enchant_status(current_detail.get("itemStatus") or [])
         black_effects = normalize_enchant_status(black_detail.get("itemStatus") or [])
@@ -370,18 +443,22 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
         material_enrich_ms += (time.perf_counter() - material_started_at) * 1000
         material_text = format_materials_text(materials)
         recommendations.append(build_black_fang_recommendation_row(
-            slot=clean_text(equipment.get("slotName")),
+            slot=clean_text(current_equipment.get("slotName")),
             item_id=scroll_id,
             item_name=scroll_item.get("itemName") or scroll_name,
             item_rarity=scroll_item.get("itemRarity"),
             icon_url=get_item_icon_url(scroll_id),
-            item_explain=f"{clean_text(equipment.get('itemName'))} -> {clean_text(black_item.get('itemName'))}",
+            item_explain=f"{clean_text(current_equipment.get('itemName'))} -> {clean_text(black_item.get('itemName'))}",
             effects=effects,
             current_effects=current_effects,
             target_effects=black_effects,
             auction=auction,
             materials=materials,
             material_text=material_text,
+            current_item_name=clean_text(current_equipment.get("itemName")),
+            current_item_id=clean_text(current_equipment.get("itemId")),
+            current_item_rarity=clean_text(current_equipment.get("itemRarity")),
+            current_icon_url=get_item_icon_url(clean_text(current_equipment.get("itemId"))),
             target_item_name=clean_text(black_item.get("itemName")),
             target_item_id=clean_text(black_item.get("itemId")),
             target_item_rarity=clean_text(black_detail.get("itemRarity") or black_item.get("itemRarity")),

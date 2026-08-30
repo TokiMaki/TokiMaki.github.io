@@ -5,7 +5,7 @@ import time
 from contextlib import closing
 
 from ..api_fanout_trace import record_cache_event
-from ..neople_client import clean_item_display_name, clean_text, fetch_item_details_from_api, get_item_icon_url, search_items_by_name_from_api
+from ..neople_client import clean_item_display_name, clean_text, fetch_item_details_from_api, fetch_set_item_detail_from_api, get_item_icon_url, search_items_by_name_from_api
 from .character_repository import CHARACTER_CACHE_DIR, CHARACTER_SQLITE_CACHE_PATH
 
 
@@ -17,6 +17,8 @@ _ITEM_DETAIL_SQLITE_CACHE_LOCK = threading.Lock()
 _ITEM_DETAIL_SQLITE_CACHE_INITIALIZED = False
 _ITEM_SEARCH_CACHE_LOCK = threading.Lock()
 _ITEM_SEARCH_CACHE: dict[str, list] = {}
+_SET_ITEM_DETAIL_CACHE_LOCK = threading.Lock()
+_SET_ITEM_DETAIL_CACHE: dict[str, dict] = {}
 
 
 def _connect_item_detail_cache():
@@ -181,6 +183,24 @@ def fetch_item_details(item_ids: list) -> list:
                 rows_by_id[item_id] = dict(row)
         _save_item_detail_sqlite_cache(valid_rows, fetched_at_ms)
     return [rows_by_id[item_id] for item_id in unique_ids if item_id in rows_by_id]
+
+
+def fetch_set_item_detail(set_item_id: str) -> dict:
+    set_item_id = clean_text(set_item_id)
+    if not set_item_id:
+        return {}
+    with _SET_ITEM_DETAIL_CACHE_LOCK:
+        cached = _SET_ITEM_DETAIL_CACHE.get(set_item_id)
+        if cached is not None:
+            record_cache_event("set_item_detail", "hit")
+            return dict(cached)
+    record_cache_event("set_item_detail", "miss")
+    payload = fetch_set_item_detail_from_api(set_item_id)
+    if clean_text(payload.get("setItemId")) != set_item_id:
+        return {}
+    with _SET_ITEM_DETAIL_CACHE_LOCK:
+        _SET_ITEM_DETAIL_CACHE[set_item_id] = dict(payload)
+    return dict(payload)
 
 
 def search_items_by_name(item_name: str, max_pages: int = 1, word_type: str = "full", limit: int = 30) -> list:

@@ -18,6 +18,7 @@
 - 최근 유일 장비 식별: 장비 API의 `exaltedInfo`와 유효한 `potency.value`를 공통 표식으로 사용하고, 제작 DB itemId는 호환 fallback으로만 사용한다. 따라서 `광휘를 머금은 눈동자` 같은 신규 유일 장비도 목록 추가 없이 표시하고 계시의 지목 교체 대상에서 제외한다.
 - 최근 칭호/크리쳐 정책: 거래 가능한 `플로럴 스태그 알` 및 레벨별 플래티넘 알 12종/선택상자와 `종이달 오르골[Lv]` 12종/선택상자를 구매 후보로 관리한다. 판매 후보가 아닌 `실반 소네트 페어리[Lv]`는 장착 상세 API의 기존 레벨 크리쳐 판정과 실제 효과 비교로 종결급을 판단한다.
 - 최근 신규 상품 DB: `숲속의 유랑악단` 속성별 스페셜 칭호 보주 4종을 직접 itemId 가격 조회 대상으로 추가했다. `종이숲 디오라마 오라`는 공식적으로 동일한 기존 종결 오라 상세를 계산 기준으로 재사용하고 신규 상자 가격과 실제 표시명을 연결한다.
+- 최근 흑아 정책: 계시의 지목으로 변환된 성유물 태초 악세서리는 `setItemId + slotId`로 세트 API의 원본 태초 장비를 복원한 뒤 기존 흑아 추천 경로를 사용한다. 추천 표시는 실제 현재 성유물에서 흑아 장비로 교체되는 형태를 유지한다.
 - 최근 성능 구조: `character_repository`는 캐릭터 원본 payload에 대해 기존 15초 메모리 TTL cache를 먼저 보고, miss 시 `cache/character-response-cache.sqlite`의 60초 SQLite cache를 확인한다. SQLite hit은 메모리 cache를 다시 채우며, API 성공 payload만 디스크에 저장한다.
 - 최근 성능 구조: `item_repository`는 아이템 상세 API 성공 payload를 메모리와 기존 `character-response-cache.sqlite`의 `item_detail_cache`에 24시간 저장한다. 만료·누락 응답은 재조회하며 아이템 이름 검색과 경매장 가격 캐시는 변경하지 않는다.
 - 최근 랭킹 운영: `scripts/backfill_setting_value_ranking.py`는 기존 캐릭터 검색 캐시 중 랭킹 미저장 캐릭터를 실행 중인 API의 실제 조회·가격·finalize 경로로 순차 적재하며, 중단 후 재실행하면 미완료 후보부터 이어간다.

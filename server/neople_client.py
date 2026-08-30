@@ -172,6 +172,14 @@ def fetch_item_details_from_api(item_ids: list) -> list:
     return request_json(url).get("rows") or []
 
 
+def fetch_set_item_detail_from_api(set_item_id: str) -> dict[str, Any]:
+    set_item_id = clean_text(set_item_id)
+    if not set_item_id:
+        return {}
+    url = f"https://api.neople.co.kr/df/setitems/{quote(set_item_id)}"
+    return request_json(url)
+
+
 def fetch_skill_detail_from_api(job_id: str, skill_id: str) -> dict[str, Any]:
     url = f"https://api.neople.co.kr/df/skills/{clean_text(job_id)}/{clean_text(skill_id)}"
     return request_json(url)
