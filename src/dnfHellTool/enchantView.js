@@ -1085,13 +1085,26 @@ function buildCombinedEquipmentBody(bodies = [], label = '계시의 지목') {
   };
 }
 
-function getRaidArmorUpgradeRows(recommendations = [], equipmentUpgrades = []) {
+function getRaidArmorUpgradeRows(
+  recommendations = [],
+  equipmentUpgrades = [],
+  activeSelectionByGroup = {},
+) {
   const activeEquipmentBySlot = new Map(
     (equipmentUpgrades || []).map((equipment) => [
       resolveCanonicalEquipmentSlotId(equipment),
       equipment,
     ]),
   );
+  const simulatedExcludedSlotIds = new Set();
+  Object.values(activeSelectionByGroup || {}).forEach((selection) => {
+    const snapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
+    if (!['blackFang', 'relicCraft'].includes(snapshot.sourceType)) return;
+    const targetSlotId = resolveCanonicalEquipmentSlotId(
+      snapshot.targetEquipmentBody || { slot: snapshot.slot || selection.targetSlot },
+    );
+    if (targetSlotId) simulatedExcludedSlotIds.add(targetSlotId);
+  });
   return (recommendations || []).flatMap((candidate) => {
     const configuredChanges = Array.isArray(candidate.equipmentBodyChanges)
       ? candidate.equipmentBodyChanges
@@ -1103,12 +1116,14 @@ function getRaidArmorUpgradeRows(recommendations = [], equipmentUpgrades = []) {
           change.targetEquipmentBody || change,
         );
         const activeEquipment = activeEquipmentBySlot.get(targetSlotId) || {};
+        if (!targetSlotId || !change.targetEquipmentBody?.itemId) return [];
         if (
-          !targetSlotId
-          || !change.targetEquipmentBody?.itemId
-          || String(activeEquipment.itemId || '').trim()
-            !== String(change.requiredCurrentItemId || '').trim()
-        ) return [];
+          String(activeEquipment.itemId || '').trim()
+          !== String(change.requiredCurrentItemId || '').trim()
+        ) {
+          if (simulatedExcludedSlotIds.has(targetSlotId)) continue;
+          return [];
+        }
         const activeTuneLevel = Number(activeEquipment.tuneLevel);
         const preserveTuneProgression = (equipmentBody = {}) => {
           const configuredSetPoint = Number(equipmentBody.tuneSetPoint);
@@ -1123,13 +1138,38 @@ function getRaidArmorUpgradeRows(recommendations = [], equipmentUpgrades = []) {
             tuneRemaining: activeEquipment.tuneRemaining,
           };
         };
+        const preserveUnchangedBodyState = (equipmentBody = {}) => ({
+          ...equipmentBody,
+          effects: cloneSimulatorValue(
+            activeEquipment.bodyEffects || equipmentBody.effects || {},
+          ),
+          conditionalEffects: cloneSimulatorValue(
+            activeEquipment.conditionalEffects || equipmentBody.conditionalEffects || {},
+          ),
+          itemReinforceSkill: cloneSimulatorValue(
+            activeEquipment.itemReinforceSkill || equipmentBody.itemReinforceSkill || [],
+          ),
+          itemBuff: cloneSimulatorValue(
+            activeEquipment.itemBuff || equipmentBody.itemBuff || {},
+          ),
+        });
+        const preservesCurrentBodyState = change.preserveCurrentPerformance === true;
+        const baseEquipmentBody = preserveTuneProgression(
+          change.baseEquipmentBody || change.currentEquipmentBody,
+        );
+        const currentEquipmentBody = preserveTuneProgression(change.currentEquipmentBody);
+        const targetEquipmentBody = preserveTuneProgression(change.targetEquipmentBody);
         resolvedChanges.push({
           ...change,
-          baseEquipmentBody: preserveTuneProgression(
-            change.baseEquipmentBody || change.currentEquipmentBody,
-          ),
-          currentEquipmentBody: preserveTuneProgression(change.currentEquipmentBody),
-          targetEquipmentBody: preserveTuneProgression(change.targetEquipmentBody),
+          baseEquipmentBody: preservesCurrentBodyState
+            ? preserveUnchangedBodyState(baseEquipmentBody)
+            : baseEquipmentBody,
+          currentEquipmentBody: preservesCurrentBodyState
+            ? preserveUnchangedBodyState(currentEquipmentBody)
+            : currentEquipmentBody,
+          targetEquipmentBody: preservesCurrentBodyState
+            ? preserveUnchangedBodyState(targetEquipmentBody)
+            : targetEquipmentBody,
         });
       }
       const targetEquipmentUpgrades = replaceEquipmentBodiesInRows(
@@ -5807,7 +5847,12 @@ export function installEnchantView(ctx) {
         itemRarity: baseEquipment.itemRarity,
         setItemId: baseEquipment.setItemId,
         setItemName: baseEquipment.setItemName,
+        isRelic: baseEquipment.isRelic === true,
+        precisionPercent: baseEquipment.precisionPercent,
+        precisionAdventureFame: baseEquipment.precisionAdventureFame,
         effects: baseEquipment.bodyEffects,
+        conditionalEffects: baseEquipment.conditionalEffects,
+        raidArmorStage: baseEquipment.raidArmorStage,
         itemExplain: baseEquipment.bodyExplain,
         itemReinforceSkill: baseEquipment.itemReinforceSkill,
         itemBuff: baseEquipment.itemBuff,
@@ -6710,6 +6755,7 @@ export function installEnchantView(ctx) {
       ...getRaidArmorUpgradeRows(
         state.currentRaidArmorUpgradeRecommendations,
         getActiveEquipmentUpgrades(),
+        state.dealerSimulator?.activeSelectionByGroup,
       ),
       ...getWeaponTuneRows(
         state.currentWeaponTuneRecommendations,

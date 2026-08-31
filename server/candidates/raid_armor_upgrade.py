@@ -338,6 +338,7 @@ def build_raid_armor_upgrade_recommendations_debug(
         designation_changes.append({
             "slotId": slot_id,
             "requiredCurrentItemId": current_body["itemId"],
+            "preserveCurrentPerformance": bool(context.get("preserveCurrentPerformance")),
             "baseEquipmentBody": current_body,
             "currentEquipmentBody": current_body,
             "targetEquipmentBody": target_body,

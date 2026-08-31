@@ -71,18 +71,6 @@ export function resolveCanonicalEquipmentSlotName(row = {}) {
 export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targetBody = {}) {
   const nextEquipment = cloneValue(currentEquipment || {});
   const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody);
-  const hasPrecisionPercent = (
-    targetBody.precisionPercent !== null
-    && targetBody.precisionPercent !== undefined
-    && targetBody.precisionPercent !== ''
-    && Number.isFinite(Number(targetBody.precisionPercent))
-  );
-  const hasPrecisionAdventureFame = (
-    targetBody.precisionAdventureFame !== null
-    && targetBody.precisionAdventureFame !== undefined
-    && targetBody.precisionAdventureFame !== ''
-    && Number.isFinite(Number(targetBody.precisionAdventureFame))
-  );
   if (targetSlotId) {
     nextEquipment.slotId = targetSlotId;
     nextEquipment.slot = resolveCanonicalEquipmentSlotName(targetBody);
@@ -93,22 +81,27 @@ export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targe
   nextEquipment.itemRarity = targetBody.itemRarity || nextEquipment.itemRarity || '';
   nextEquipment.setItemId = targetBody.setItemId || nextEquipment.setItemId || '';
   nextEquipment.setItemName = targetBody.setItemName || nextEquipment.setItemName || '';
-  nextEquipment.isRelic = Boolean(
+  if (targetBody.isRelic === false) {
+    nextEquipment.isRelic = false;
+  } else if (
     targetBody.sourceType === 'relicCraft'
-    || hasPrecisionPercent
-    || targetBody.isRelic === true
-  );
+    || Number.isFinite(Number(targetBody.precisionPercent))
+  ) {
+    nextEquipment.isRelic = true;
+  } else if (typeof targetBody.isRelic === 'boolean') {
+    nextEquipment.isRelic = targetBody.isRelic;
+  }
   nextEquipment.bodyEffects = cloneValue(targetBody.effects || {});
   nextEquipment.conditionalEffects = cloneValue(targetBody.conditionalEffects || {});
   nextEquipment.raidArmorStage = String(targetBody.raidArmorStage || '').trim();
-  if (hasPrecisionPercent) {
+  if (Number.isFinite(Number(targetBody.precisionPercent))) {
     nextEquipment.precisionPercent = Number(targetBody.precisionPercent);
-  } else {
-    delete nextEquipment.precisionPercent;
   }
-  if (hasPrecisionAdventureFame) {
+  if (Number.isFinite(Number(targetBody.precisionAdventureFame))) {
     nextEquipment.precisionAdventureFame = Number(targetBody.precisionAdventureFame);
-  } else {
+  }
+  if (targetBody.isRelic === false) {
+    delete nextEquipment.precisionPercent;
     delete nextEquipment.precisionAdventureFame;
   }
   nextEquipment.bodyExplain = targetBody.itemExplain || '';
@@ -118,9 +111,13 @@ export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targe
     nextEquipment.tuneSetPoint = Number(targetBody.tuneSetPoint);
   }
   if (targetBody.tuneUpgradeable === false) {
-    nextEquipment.tuneLevel = 0;
+    nextEquipment.tuneLevel = Number.isFinite(Number(targetBody.tuneLevel))
+      ? Number(targetBody.tuneLevel)
+      : 0;
     nextEquipment.tuneUpgradeable = false;
-    nextEquipment.tuneRemaining = 0;
+    nextEquipment.tuneRemaining = Number.isFinite(Number(targetBody.tuneRemaining))
+      ? Number(targetBody.tuneRemaining)
+      : 0;
   } else if (targetBody.tuneUpgradeable === true) {
     nextEquipment.tuneUpgradeable = true;
     if (Number.isFinite(Number(targetBody.tuneLevel))) {

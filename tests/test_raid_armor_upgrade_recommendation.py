@@ -300,6 +300,7 @@ class RaidArmorUpgradeRecommendationTest(unittest.TestCase):
         )
         for change in changes:
             if change["slotId"] in right_slots:
+                self.assertTrue(change["preserveCurrentPerformance"])
                 self.assertEqual(
                     change["targetEquipmentBody"]["effects"],
                     change["currentEquipmentBody"]["effects"],
@@ -308,6 +309,8 @@ class RaidArmorUpgradeRecommendationTest(unittest.TestCase):
                     change["targetEquipmentBody"]["tuneSetPoint"],
                     change["currentEquipmentBody"]["tuneSetPoint"],
                 )
+            else:
+                self.assertFalse(change["preserveCurrentPerformance"])
         self.assertEqual(incomplete["recommendations"], [])
 
 

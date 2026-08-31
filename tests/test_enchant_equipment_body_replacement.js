@@ -20,6 +20,7 @@ const base = {
   itemRarity: '에픽',
   iconUrl: 'current-icon',
   bodyEffects: { finalDamage: 25, buffPower: 100 },
+  raidArmorStage: 'consecrated',
   bodyExplain: 'current explain',
   itemReinforceSkill: [{ jobName: '공통', skills: [] }],
   itemBuff: { explain: 'current buff' },
@@ -155,8 +156,10 @@ const restored = replaceEquipmentBodyPreservingState(bodyThenProgression, {
   itemId: base.itemId,
   itemName: base.itemName,
   itemRarity: base.itemRarity,
+  isRelic: false,
   iconUrl: base.iconUrl,
   effects: base.bodyEffects,
+  raidArmorStage: base.raidArmorStage,
   itemExplain: base.bodyExplain,
   itemReinforceSkill: base.itemReinforceSkill,
   itemBuff: base.itemBuff,
@@ -167,6 +170,7 @@ const restored = replaceEquipmentBodyPreservingState(bodyThenProgression, {
 });
 assert.equal(restored.itemId, base.itemId);
 assert.deepEqual(restored.bodyEffects, base.bodyEffects);
+assert.equal(restored.raidArmorStage, 'consecrated');
 assert.equal(restored.tuneLevel, base.tuneLevel);
 assert.equal(restored.tuneUpgradeable, base.tuneUpgradeable);
 assert.equal(restored.tuneRemaining, base.tuneRemaining);
@@ -176,6 +180,21 @@ assert.equal(restored.isRelic, false, 'removal clears the replaced relic body ma
 assert.equal('precisionPercent' in restored, false, 'removal clears relic precision');
 assert.equal('precisionAdventureFame' in restored, false, 'removal clears precision fame');
 assert.equal(isBlackFangEquipmentBodyEligible(blackFangRing, [{ ...restored, slotId: 'RING' }]), true);
+
+const maxTuneBodyReplacement = replaceEquipmentBodyPreservingState(base, {
+  slotId: base.slotId,
+  itemId: 'max-tune-target',
+  itemName: '3조율 대상 장비',
+  effects: base.bodyEffects,
+  tuneLevel: 3,
+  tuneSetPoint: 265,
+  tuneUpgradeable: false,
+  tuneRemaining: 0,
+});
+assert.equal(maxTuneBodyReplacement.tuneLevel, 3, 'max tune state survives body replacement');
+assert.equal(maxTuneBodyReplacement.tuneSetPoint, 265);
+assert.equal(maxTuneBodyReplacement.tuneUpgradeable, false);
+assert.equal(maxTuneBodyReplacement.tuneRemaining, 0);
 
 const rows = [
   { slotId: 'AMULET', slot: '목걸이', itemId: 'necklace' },
