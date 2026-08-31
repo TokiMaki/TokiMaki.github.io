@@ -17,6 +17,14 @@ SKILL_ATTACK_OPTION_VALUE_PATTERNS = [
     re.compile(r"속성\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
     re.compile(r"(?:물리|마법|독립)\s*공격력\s*증가율[^{}]*\{(value\d+)\}\s*%", re.IGNORECASE),
 ]
+SKILL_ATTACK_OPTION_EFFECT_GROUPS = (
+    "skillDamage",
+    "skillDamage",
+    "criticalDamage",
+    "damageAmplification",
+    "elementalAttack",
+    "attackIncrease",
+)
 SKILL_EFFECT_MODES = {
     "increase",
     "multiply",
@@ -81,13 +89,31 @@ def parse_skill_attack_percent(text: str) -> float | None:
     return None
 
 
+def find_skill_attack_option_value_entries(option_desc: str) -> tuple[tuple[str, str], ...]:
+    entries = []
+    for raw_line in re.split(r"\r?\n|<br\s*/?>", str(option_desc or ""), flags=re.IGNORECASE):
+        line = clean_text(raw_line)
+        for effect_group, pattern in zip(
+            SKILL_ATTACK_OPTION_EFFECT_GROUPS,
+            SKILL_ATTACK_OPTION_VALUE_PATTERNS,
+        ):
+            match = pattern.search(line)
+            entry = (match.group(1), effect_group) if match else None
+            if entry and entry not in entries:
+                entries.append(entry)
+    return tuple(entries)
+
+
+def find_skill_attack_option_value_keys(option_desc: str) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(
+        value_key
+        for value_key, _effect_group in find_skill_attack_option_value_entries(option_desc)
+    ))
+
+
 def find_skill_attack_option_value_key(option_desc: str) -> str:
-    clean = clean_text(option_desc)
-    for pattern in SKILL_ATTACK_OPTION_VALUE_PATTERNS:
-        match = pattern.search(clean)
-        if match:
-            return match.group(1)
-    return ""
+    value_keys = find_skill_attack_option_value_keys(option_desc)
+    return value_keys[0] if value_keys else ""
 
 
 def normalize_skill_effect_spec(effect_spec: dict | None) -> dict:
@@ -114,10 +140,10 @@ def get_skill_effect_spec(
     explicit_spec = normalize_skill_effect_spec(effect_spec)
     if explicit_spec:
         return explicit_spec["mode"], tuple(explicit_spec["valueKeys"])
-    option_value_key = find_skill_attack_option_value_key(
+    option_value_keys = find_skill_attack_option_value_keys(
         (skill_detail.get("levelInfo") or {}).get("optionDesc") or "",
     )
-    return "increase", (option_value_key,) if option_value_key else ()
+    return "increase", option_value_keys
 
 
 def get_level_effect_values(
@@ -260,6 +286,11 @@ def resolve_skill_effect_multiplier(
         }
 
     normalized_spec = normalize_skill_effect_spec(effect_spec)
+    if not normalized_spec and not value_keys:
+        return {
+            "calculable": False,
+            "reason": "스킬 상세 설명에서 명확한 공격 증가율 필드를 찾지 못했습니다.",
+        }
     current_values = get_level_effect_values(
         skill_detail,
         current_level,
@@ -277,8 +308,51 @@ def resolve_skill_effect_multiplier(
             "calculable": False,
             "reason": "스킬 상세 levelInfo에서 공격 배율을 찾지 못했습니다.",
         }
+    auto_effect_multipliers = None
+    if not normalized_spec:
+        effect_group_by_key = dict(find_skill_attack_option_value_entries(
+            (skill_detail.get("levelInfo") or {}).get("optionDesc") or "",
+        ))
+        transitions_by_group = {}
+        changed_value_keys = []
+        for value_key, current_value, target_value in zip(
+            value_keys,
+            current_values,
+            target_values,
+        ):
+            if current_value == target_value:
+                continue
+            effect_group = effect_group_by_key.get(value_key)
+            if not effect_group:
+                continue
+            transitions_by_group.setdefault(effect_group, set()).add(
+                (current_value, target_value)
+            )
+            changed_value_keys.append(value_key)
+        if not transitions_by_group or any(
+            len(transitions) != 1
+            for transitions in transitions_by_group.values()
+        ):
+            return {
+                "calculable": False,
+                "reason": "자동 판독한 같은 종류의 공격 증가율 변화가 서로 다릅니다.",
+            }
+        auto_effect_multipliers = [
+            next(iter(transitions))
+            for transitions in transitions_by_group.values()
+        ]
+        value_keys = tuple(changed_value_keys)
 
-    if effect_mode == "multiply":
+    if auto_effect_multipliers is not None:
+        current_multiplier = 1.0
+        target_multiplier = 1.0
+        for current_value, target_value in auto_effect_multipliers:
+            current_multiplier *= 1 + current_value / 100
+            target_multiplier *= 1 + target_value / 100
+        multiplier = target_multiplier / current_multiplier
+        current_attack = (current_multiplier - 1) * 100
+        target_attack = (target_multiplier - 1) * 100
+    elif effect_mode == "multiply":
         current_multiplier = 1.0
         target_multiplier = 1.0
         for value in current_values:

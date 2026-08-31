@@ -2,6 +2,7 @@ import {
   isEquipmentBodyReplacementSource,
   replaceEquipmentBodyInRows,
 } from './enchantEquipmentBodyReplacement.js';
+import { RADIANT_EYE_ITEM_NAME } from './enchantRadiantEyeSynergy.js';
 
 export const PLAGUE_HEART_ITEM_NAME = '만병을 잉태한 역병의 심장';
 
@@ -74,6 +75,16 @@ export function countBlackFangEquipment(equipmentRows = [], maxCount = 3) {
   return Math.min(Math.max(0, Math.floor(Number(maxCount) || 0)), count);
 }
 
+export function isBlackBreathEquipment(row = {}) {
+  return isBlackFangEquipment(row)
+    || cleanText(row.itemName) === RADIANT_EYE_ITEM_NAME;
+}
+
+export function countBlackBreathEquipment(equipmentRows = [], maxCount = 3) {
+  const count = (equipmentRows || []).filter(isBlackBreathEquipment).length;
+  return Math.min(Math.max(0, Math.floor(Number(maxCount) || 0)), count);
+}
+
 function getPlagueHeart(equipmentRows = []) {
   return (equipmentRows || []).find(isPlagueHeartEquipment) || null;
 }
@@ -82,7 +93,7 @@ export function getPlagueHeartDealerMultiplier(equipmentRows = []) {
   const heart = getPlagueHeart(equipmentRows);
   if (!heart) return 1;
   const config = getSynergyConfig(heart);
-  const count = countBlackFangEquipment(equipmentRows, config.maxCount);
+  const count = countBlackBreathEquipment(equipmentRows, config.maxCount);
   return (1 + config.dealerFinalDamagePercentPerItem / 100) ** count;
 }
 
@@ -96,7 +107,7 @@ export function getPlagueHeartBufferPower(equipmentRows = []) {
   const heart = getPlagueHeart(equipmentRows);
   if (!heart) return 0;
   const config = getSynergyConfig(heart);
-  return countBlackFangEquipment(equipmentRows, config.maxCount)
+  return countBlackBreathEquipment(equipmentRows, config.maxCount)
     * config.bufferBuffPowerPerItem;
 }
 

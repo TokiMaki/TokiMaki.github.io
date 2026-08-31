@@ -4,6 +4,7 @@ import {
   replaceEquipmentBodyInRows,
 } from './enchantEquipmentBodyReplacement.js';
 import { getPlagueHeartBufferPower } from './enchantPlagueHeartSynergy.js';
+import { getRadiantEyeBufferPower } from './enchantRadiantEyeSynergy.js';
 
 const BUFF_LOADOUT_SLOT_NAME_ALIASES = {
   벨트: '허리',
@@ -362,6 +363,9 @@ export function createEnchantBufferSimulatorCalculation(deps) {
       });
     });
     total.buffPowerDelta += getPlagueHeartBufferPower(
+      scopeSimulator?.simulatedEquipmentUpgrades || scopeSimulator?.baseEquipmentUpgrades || [],
+    );
+    total.buffPowerDelta += getRadiantEyeBufferPower(
       scopeSimulator?.simulatedEquipmentUpgrades || scopeSimulator?.baseEquipmentUpgrades || [],
     );
     return total;

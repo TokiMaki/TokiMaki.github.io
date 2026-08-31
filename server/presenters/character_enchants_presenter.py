@@ -1,6 +1,6 @@
 import re
 
-from ..data_store import get_relic_equipment_item_ids
+from ..data_store import get_raid_armor_stage_by_item_id, get_relic_equipment_item_ids
 from ..effects import normalize_enchant_status, parse_percent_or_number
 from ..equipment_body import (
     get_equipment_tune_set_point,
@@ -72,6 +72,7 @@ def build_equipment_upgrade_payload(equipment: dict) -> dict:
         "amplificationName": amplification_name,
         "isAmplified": bool(amplification_name),
         "isRelic": is_relic_equipment,
+        "raidArmorStage": get_raid_armor_stage_by_item_id(item_id),
         "precisionPercent": precision_percent,
         "tuneLevel": tune_level,
         "tuneSetPoint": tune_set_point,

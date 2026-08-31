@@ -219,6 +219,77 @@
         },
         "requiredBaseEffectKeys": ["attackIncrease"]
       }
+    },
+    {
+      "key": "radiantEye",
+      "enabled": true,
+      "sourceType": "relicCraft",
+      "display": {
+        "cardTitle": "눈동자 제작",
+        "precisionCardTitle": "눈동자 정밀",
+        "cardSubtitle": "반지"
+      },
+      "target": {
+        "itemId": "aa5273499f19ddba846919dbb6857d82",
+        "itemName": "광휘를 머금은 눈동자",
+        "itemRarity": "태초",
+        "slotId": "RING",
+        "itemTypeDetail": "반지"
+      },
+      "eligibility": {
+        "minimumCurrentEquipmentSetPoint": 2550
+      },
+      "baseCraft": {
+        "fixedGold": 100000000,
+        "materials": [
+          { "key": "radiantClarity", "amount": 1 },
+          { "key": "dawnLightBud", "amount": 2400 },
+          { "key": "primordialSoul", "amount": 25 }
+        ]
+      },
+      "precision100": {
+        "targetPercent": 100,
+        "operationCount": 25,
+        "fixedGoldPerAttempt": 4000000,
+        "progression": {
+          "perPercent": { "finalDamage": 0.1, "buffPower": 30, "adventureFame": 5 },
+          "milestones": [
+            { "percent": 25, "finalDamage": 1.6, "buffPower": 280, "adventureFame": 190 },
+            { "percent": 50, "finalDamage": 1.6, "buffPower": 280, "adventureFame": 190 },
+            { "percent": 75, "finalDamage": 1.6, "buffPower": 280, "adventureFame": 190 },
+            { "percent": 100, "finalDamage": 2.7, "buffPower": 530, "adventureFame": 320 }
+          ],
+          "additionalMultiplierCounts": []
+        },
+        "materials": [
+          { "key": "dawnLightBud", "amountPerAttempt": 60 },
+          { "key": "epicSoul", "amountPerAttempt": 60 }
+        ]
+      },
+      "authoritativeEffects": {
+        "baseEffects": {
+          "elementAll": 40
+        },
+        "finalDamage": {
+          "bodyPercent": 54.6,
+          "precisionPercent": 17.1,
+          "additionalMultipliers": []
+        },
+        "buffPower": {
+          "body": 13030,
+          "precision": 4250
+        },
+        "conditionalEffects": {
+          "sanctifiedArmorSynergy": {
+            "dealerFinalDamagePercentPerItem": 1,
+            "bufferBuffPowerPerItem": 200,
+            "maxCount": 5,
+            "eligibleStages": ["consecrated", "relic"],
+            "aggregation": "multiplicative"
+          }
+        },
+        "requiredBaseEffectKeys": ["attackIncrease"]
+      }
     }
   ]
 }

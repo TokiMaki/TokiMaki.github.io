@@ -6,6 +6,10 @@ import {
   getPlagueHeartConditionalEffectText,
   getPlagueHeartDealerRecommendationMultiplier,
 } from './enchantPlagueHeartSynergy.js';
+import {
+  getRadiantEyeConditionalEffectText,
+  getRadiantEyeDealerRecommendationMultiplier,
+} from './enchantRadiantEyeSynergy.js';
 
 export function createEnchantDealerRecommendation(deps) {
   const {
@@ -627,11 +631,17 @@ export function createEnchantDealerRecommendation(deps) {
       if (!isRelicCraftEquipmentSetPointEligible(row)) return;
       if (shouldSkipByElementAlignmentOverride(row, elementAlignmentOverride, currentTitle)) return;
       const plagueHeartMultiplier = getPlagueHeartDealerRecommendationMultiplier(row, equipmentRows);
-      const conditionalEffectText = getPlagueHeartConditionalEffectText(row, equipmentRows, false);
-      if (Math.abs(plagueHeartMultiplier - 1) > 0.000001 || conditionalEffectText) {
+      const radiantEyeMultiplier = getRadiantEyeDealerRecommendationMultiplier(row, equipmentRows);
+      const equipmentConditionalDamageMultiplier = plagueHeartMultiplier * radiantEyeMultiplier;
+      const conditionalEffectText = [
+        getPlagueHeartConditionalEffectText(row, equipmentRows, false),
+        getRadiantEyeConditionalEffectText(row, equipmentRows, false),
+      ].filter(Boolean).join(' / ');
+      if (Math.abs(equipmentConditionalDamageMultiplier - 1) > 0.000001 || conditionalEffectText) {
         row = {
           ...row,
           plagueHeartActualDamageMultiplier: plagueHeartMultiplier,
+          equipmentConditionalDamageMultiplier,
           conditionalEffectText,
         };
       }
@@ -774,14 +784,18 @@ export function createEnchantDealerRecommendation(deps) {
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? { ...row, effects: row.targetEffects || row.effects || {} }
           : row;
-      const plagueHeartActualDamageMultiplier = Number(row.plagueHeartActualDamageMultiplier || 1);
-      const actualDamageEvaluationRow = Number.isFinite(plagueHeartActualDamageMultiplier)
-        && plagueHeartActualDamageMultiplier > 0
-        && Math.abs(plagueHeartActualDamageMultiplier - 1) > 0.000001
+      const rowConditionalDamageMultiplier = Number(
+        row.equipmentConditionalDamageMultiplier
+          || row.plagueHeartActualDamageMultiplier
+          || 1,
+      );
+      const actualDamageEvaluationRow = Number.isFinite(rowConditionalDamageMultiplier)
+        && rowConditionalDamageMultiplier > 0
+        && Math.abs(rowConditionalDamageMultiplier - 1) > 0.000001
         ? {
           ...replacementEvaluationRow,
           skillDamageMultiplier: getSkillDamageMultiplier(replacementEvaluationRow)
-            * plagueHeartActualDamageMultiplier,
+            * rowConditionalDamageMultiplier,
         }
         : replacementEvaluationRow;
       const estimatedDamagePercent = isReplacement

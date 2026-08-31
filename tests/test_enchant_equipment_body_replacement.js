@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  isBlackFangEquipmentBodyEligible,
   isEquipmentBodyReplacementSource,
   isRelicCraftEquipmentSetPointEligible,
   replaceEquipmentBodiesInRows,
@@ -81,6 +82,22 @@ assert.equal(isRelicCraftEquipmentSetPointEligible({
 }), false);
 assert.equal(isRelicCraftEquipmentSetPointEligible({ sourceType: 'relicCraft' }), true);
 
+const blackFangRing = {
+  sourceType: 'blackFang',
+  slot: '반지',
+  targetEquipmentBody: { slotId: 'RING', itemId: 'black-fang-ring' },
+};
+const simulatedRelicRing = { slotId: 'RING', itemId: 'radiant-eye', isRelic: true };
+assert.equal(isBlackFangEquipmentBodyEligible(blackFangRing, [simulatedRelicRing]), false);
+assert.equal(isBlackFangEquipmentBodyEligible(
+  { ...blackFangRing, slot: '목걸이', targetEquipmentBody: { slotId: 'AMULET' } },
+  [simulatedRelicRing],
+), true);
+assert.equal(isBlackFangEquipmentBodyEligible(
+  blackFangRing,
+  [{ slotId: 'RING', itemId: 'base-ring', isRelic: false }],
+), true);
+
 const applied = replaceEquipmentBodyPreservingState(base, perfume);
 assert.equal(applied.itemId, perfume.itemId);
 assert.deepEqual(applied.bodyEffects, perfume.effects);
@@ -155,6 +172,10 @@ assert.equal(restored.tuneUpgradeable, base.tuneUpgradeable);
 assert.equal(restored.tuneRemaining, base.tuneRemaining);
 assert.equal(restored.reinforce, 13, 'removal preserves other active progression state');
 assert.equal(restored.activeActionMarker, 'other-action');
+assert.equal(restored.isRelic, false, 'removal clears the replaced relic body marker');
+assert.equal('precisionPercent' in restored, false, 'removal clears relic precision');
+assert.equal('precisionAdventureFame' in restored, false, 'removal clears precision fame');
+assert.equal(isBlackFangEquipmentBodyEligible(blackFangRing, [{ ...restored, slotId: 'RING' }]), true);
 
 const rows = [
   { slotId: 'AMULET', slot: '목걸이', itemId: 'necklace' },
@@ -195,7 +216,7 @@ assert.match(viewSource, /applyType:\s*'replaceEquipmentBody'/);
 assert.match(viewSource, /replaceEquipmentBodyInRows\(/);
 assert.match(viewSource, /replaceEquipmentBody:\s*\{/);
 assert.match(viewSource, /row\.conditionalEffectText/);
-assert.match(viewSource, /\['보조장비', '마법석', '귀걸이'\]\.includes\(targetSlot\)/);
+assert.match(viewSource, /\['보조장비', '마법석', '귀걸이', '반지'\]\.includes\(targetSlot\)/);
 assert.match(viewSource, /function getEquipmentTuneRecommendationUpgrades\(\)/);
 assert.match(viewSource, /getEquipmentTuneRows\(getEquipmentTuneRecommendationUpgrades\(\)/);
 assert.match(viewSource, /function invalidateActiveEquipmentTuneSelectionForBodyChange\(\)/);

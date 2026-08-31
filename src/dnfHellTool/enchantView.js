@@ -49,6 +49,7 @@ import { createEnchantBufferRecommendation } from './enchantBufferRecommendation
 import { createEnchantDealerRecommendation } from './enchantDealerRecommendation.js';
 import { createEnchantDealerSimulatorCalculation } from './enchantDealerSimulatorCalculation.js';
 import {
+  isBlackFangEquipmentBodyEligible,
   isEquipmentBodyReplacementSource,
   replaceEquipmentBodiesInRows,
   replaceEquipmentBodyInRows,
@@ -902,8 +903,11 @@ function getAuraRows(groups) {
   })));
 }
 
-function getBlackFangRows(recommendations = []) {
-  return (recommendations || []).map((candidate) => {
+function getBlackFangRows(recommendations = [], equipmentRows = []) {
+  const eligibleRecommendations = (recommendations || []).filter(
+    (candidate) => isBlackFangEquipmentBodyEligible(candidate, equipmentRows),
+  );
+  return eligibleRecommendations.map((candidate) => {
     const slot = candidate.slot;
     const targetEquipmentBody = candidate.targetEquipmentBody || {
       slotId: resolveCanonicalEquipmentSlotId({ slot }),
@@ -1309,7 +1313,7 @@ function attachEquipmentBodyBaseData(equipmentRows = [], recommendations = []) {
       resolveCanonicalEquipmentSlotId(equipment),
     ) || [];
     const recommendation = recommendationsForSlot.find((row) => (
-      String(row.currentEquipmentBody?.itemId || '').trim()
+      String(row.currentEquipmentBody?.itemId || row.currentItemId || '').trim()
       === String(equipment?.itemId || '').trim()
     )) || recommendationsForSlot[0];
     if (!recommendation) return equipment;
@@ -3247,7 +3251,7 @@ export function installEnchantView(ctx) {
           ? RAID_ARMOR_UPGRADE_SIMULATOR_SLOTS.has(targetSlot)
           : row.sourceType === 'weaponTune'
             ? targetSlot === '무기'
-          : ['보조장비', '마법석', '귀걸이'].includes(targetSlot);
+          : ['보조장비', '마법석', '귀걸이', '반지'].includes(targetSlot);
       if (
         !isSupportedSlot
         || !targetEquipmentBody.itemId
@@ -3672,7 +3676,7 @@ export function installEnchantView(ctx) {
           ? RAID_ARMOR_UPGRADE_SIMULATOR_SLOTS.has(targetSlot)
           : row.sourceType === 'weaponTune'
             ? targetSlot === '무기'
-          : ['보조장비', '마법석', '귀걸이'].includes(targetSlot);
+          : ['보조장비', '마법석', '귀걸이', '반지'].includes(targetSlot);
       if (
         !isSupportedSlot
         || !targetEquipmentBody.itemId
@@ -4391,6 +4395,28 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function invalidateActiveBlackFangSelectionsForRelicEquipment() {
+    const simulator = state.dealerSimulator;
+    if (!simulator) return;
+    const relicSlotIds = new Set(
+      (simulator.simulatedEquipmentUpgrades || [])
+        .filter((equipment) => equipment?.isRelic === true)
+        .map(resolveCanonicalEquipmentSlotId)
+        .filter(Boolean),
+    );
+    if (!relicSlotIds.size) return;
+    Object.entries(simulator.activeSelectionByGroup || {}).forEach(([groupKey, selection]) => {
+      const snapshot = getAppliedSelectionRecommendationSnapshot(selection) || {};
+      if (snapshot.sourceType !== 'blackFang') return;
+      const targetSlotId = resolveCanonicalEquipmentSlotId(
+        snapshot.targetEquipmentBody || { slot: snapshot.slot || selection.targetSlot },
+      );
+      if (relicSlotIds.has(targetSlotId)) {
+        delete simulator.activeSelectionByGroup[groupKey];
+      }
+    });
+  }
+
   function getActiveRelicCraftRequiredTuneSetPoint(excludedGroupKey = '') {
     const simulator = state.dealerSimulator;
     return Object.entries(simulator?.activeSelectionByGroup || {})
@@ -4566,6 +4592,7 @@ export function installEnchantView(ctx) {
         ),
       );
     }
+    invalidateActiveBlackFangSelectionsForRelicEquipment();
     let requiredTuneResult = { changedSlots: [] };
     if (!isPrecisionChange && requiredTuneSetPoint > 0) {
       requiredTuneResult = applyRequiredEquipmentTuneAfterBodyChange(
@@ -6671,7 +6698,7 @@ export function installEnchantView(ctx) {
       ...getOathUpgradeRows(getOathUpgradeRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, state.currentBufferBaseline),
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),
-      ...getBlackFangRows(state.currentBlackFangRecommendations),
+      ...getBlackFangRows(state.currentBlackFangRecommendations, getActiveEquipmentUpgrades()),
       ...getRelicCraftRows(
         state.currentRelicCraftRecommendations,
         getEquipmentTuneRecommendationUpgrades(),

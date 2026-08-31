@@ -28,6 +28,7 @@ UPGRADE_MATERIAL_PRICE_ITEMS = {
     "pilgrimSeal": {"label": "순례의 인장(1회 교환 가능)", "itemId": "d7e9443a19fe81a9cc8364c201f6ab55"},
 }
 UPGRADE_MATERIAL_DISPLAY_ITEMS = {
+    "radiantClarity": {"label": "선명한 광휘", "iconUrl": "/asset/enchant/radiantClarity.png"},
     "radiantSoul": {"label": "광휘의 소울", "itemId": "6307b8165444a9bd5c4c4aa2d7eae41d"},
     "solidSoul": {"label": "솔리드 소울", "iconUrl": "/asset/soul/solidSoul.png"},
     "oathCrystalFragment": {"label": "서약 결정 조각", "iconUrl": "/asset/oath/oathCrystalFragment.png"},

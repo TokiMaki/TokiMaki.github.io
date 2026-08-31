@@ -29,6 +29,9 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
         cls.authoritative_effects = cls.recipe["authoritativeEffects"]
         cls.cube_recipe = database["crafts"][1]
         cls.heart_recipe = database["crafts"][2]
+        cls.eye_recipe = next(
+            recipe for recipe in database["crafts"] if recipe["key"] == "radiantEye"
+        )
 
     def build_body(self, *, tune_set_point=145, normalized_status=None, authoritative_effects=None):
         detail = {
@@ -265,6 +268,78 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             75,
         )
 
+    def test_radiant_eye_authoritative_effect_material_and_synergy_contract(self):
+        recipe = self.eye_recipe
+        authoritative_effects = recipe["authoritativeEffects"]
+        self.assertEqual(recipe["target"]["slotId"], "RING")
+        self.assertTrue(math.isclose(
+            get_relic_craft_final_damage_percent(
+                authoritative_effects,
+                recipe["precision100"],
+                100,
+            ),
+            81.0366,
+            abs_tol=1e-10,
+        ))
+        self.assertEqual(
+            authoritative_effects["buffPower"]["body"]
+            + authoritative_effects["buffPower"]["precision"],
+            17280,
+        )
+
+        materials = _build_materials(recipe, {
+            "epicSoul": {
+                "label": "에픽 소울 결정",
+                "itemId": "epic-soul",
+                "auction": {"minUnitPrice": 10, "averagePrice": 10, "listingCount": 1},
+            },
+            "primordialSoul": {
+                "label": "태초 소울 결정",
+                "itemId": "primordial-soul",
+                "auction": {"minUnitPrice": 20, "averagePrice": 20, "listingCount": 1},
+            },
+        })
+        self.assertEqual(
+            {material["key"]: material["amount"] for material in materials},
+            {
+                "radiantClarity": 1,
+                "dawnLightBud": 3900,
+                "primordialSoul": 25,
+                "epicSoul": 1500,
+            },
+        )
+        self.assertEqual(
+            recipe["baseCraft"]["fixedGold"]
+            + recipe["precision100"]["fixedGoldPerAttempt"]
+            * recipe["precision100"]["operationCount"],
+            200000000,
+        )
+
+        target = recipe["target"]
+        body, reason = normalize_relic_craft_target_equipment_body(
+            target_config=target,
+            target_detail={
+                **target,
+                "tune": [{"level": 0, "setPoint": 265, "upgrade": False}],
+                "itemReinforceSkill": [],
+                "itemBuff": {},
+            },
+            normalized_status={"attackIncrease": 3729},
+            precision=recipe["precision100"],
+            authoritative_effects=authoritative_effects,
+            icon_url="eye-icon",
+            item_explain="eye explain",
+        )
+        self.assertEqual(reason, "")
+        self.assertEqual(body["effects"]["elementAll"], 40)
+        self.assertTrue(math.isclose(body["effects"]["finalDamage"], 81.0366, abs_tol=1e-10))
+        self.assertEqual(body["effects"]["buffPower"], 17280)
+        self.assertEqual(body["tuneSetPoint"], 265)
+        self.assertEqual(
+            body["conditionalEffects"]["sanctifiedArmorSynergy"]["maxCount"],
+            5,
+        )
+
     def test_uses_detail_tune_set_point_without_local_fallback(self):
         body, reason = self.build_body(tune_set_point=187)
         self.assertEqual(reason, "")
@@ -433,12 +508,20 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
                 "tune": [{"level": 0, "setPoint": 215}],
             },
             {
+                "slotId": "RING",
+                "slotName": "반지",
+                "itemId": "current-ring",
+                "itemName": "현재 반지",
+                "itemRarity": "에픽",
+                "tune": [{"level": 0, "setPoint": 215}],
+            },
+            {
                 "slotId": "WEAPON",
                 "slotName": "무기",
                 "itemId": "set-point-host",
                 "itemName": "세트포인트 장비",
                 "itemRarity": "에픽",
-                "tune": [{"level": 0, "setPoint": 1975}],
+                "tune": [{"level": 0, "setPoint": 1760}],
             },
         ]
         shared_buff = {"explain": "", "reinforceSkill": []}
@@ -480,6 +563,19 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
                 "itemBuff": shared_buff,
             },
             {
+                "itemId": "current-ring",
+                "itemName": "현재 반지",
+                "itemRarity": "에픽",
+                "itemTypeDetail": "반지",
+                "itemExplainDetail": "모든 속성 강화 +40",
+                "itemStatus": [
+                    {"name": "공격력 증가", "value": "3400%"},
+                    {"name": "버프력", "value": 11300},
+                    {"name": "최종 데미지 증가", "value": "38%"},
+                ],
+                "itemBuff": shared_buff,
+            },
+            {
                 "itemId": self.target["itemId"],
                 "itemName": self.target["itemName"],
                 "itemRarity": self.target["itemRarity"],
@@ -506,6 +602,15 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
                 "itemStatus": [{"name": "공격력 증가", "value": "3900%"}],
                 "itemBuff": shared_buff,
             },
+            {
+                "itemId": self.eye_recipe["target"]["itemId"],
+                "itemName": self.eye_recipe["target"]["itemName"],
+                "itemRarity": self.eye_recipe["target"]["itemRarity"],
+                "itemTypeDetail": self.eye_recipe["target"]["itemTypeDetail"],
+                "tune": [{"level": 0, "setPoint": 265, "upgrade": False}],
+                "itemStatus": [{"name": "공격력 증가", "value": "4000%"}],
+                "itemBuff": shared_buff,
+            },
         ]
 
         def build_materials(recipe, _material_prices):
@@ -530,20 +635,22 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
 
         self.assertEqual(
             [row["slot"] for row in result["recommendations"]],
-            ["마법석", "귀걸이", "보조장비"],
+            ["마법석", "귀걸이", "보조장비", "반지"],
         )
         self.assertEqual(
             [row["targetSlotId"] for row in result["recommendations"]],
-            ["MAGIC_STON", "EARRING", "SUPPORT"],
+            ["MAGIC_STON", "EARRING", "SUPPORT", "RING"],
         )
         self.assertEqual(fetch_details.call_count, 1)
         self.assertEqual(set(fetch_details.call_args.args[0]), {
             "current-magic-stone",
             "current-earring",
             "current-support",
+            "current-ring",
             self.target["itemId"],
             "weather-cube-target",
             "plague-heart-target",
+            self.eye_recipe["target"]["itemId"],
         })
         cube_row = result["recommendations"][1]
         self.assertTrue(math.isclose(
@@ -572,6 +679,10 @@ class RelicCraftEquipmentBodyTest(unittest.TestCase):
             heart_recipe["authoritativeEffects"]["conditionalEffects"]["blackFangSynergy"],
         )
         self.assertEqual(heart_row["targetEquipmentSetPoint"], 2550.0)
+        eye_row = result["recommendations"][3]
+        self.assertEqual(eye_row["currentEffects"]["elementAll"], 40.0)
+        self.assertEqual(eye_row["targetEffects"]["elementAll"], 40.0)
+        self.assertNotIn("elementAll", eye_row["effects"])
 
     def test_calculation_constants_have_one_authoritative_source(self):
         helper_source = (ROOT / "server/equipment_body.py").read_text(encoding="utf-8")

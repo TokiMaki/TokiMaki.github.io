@@ -14,6 +14,8 @@ from server.avatar_skill_optimizer import (
 from server.calculators.avatar_skill_calculator import (
     estimate_skill_plus_one,
     find_skill_attack_option_value_key,
+    find_skill_attack_option_value_keys,
+    get_avatar_platinum_skill_damage_multiplier,
     get_skill_attack_ratio,
     normalize_skill_key,
     parse_skill_attack_percent,
@@ -48,6 +50,100 @@ class AvatarSkillCalculatorTests(unittest.TestCase):
                 "기본 공격 및 전직 계열 스킬 공격력 증가율: {value5}%"
             ),
             "value5",
+        )
+
+    def test_auto_detection_does_not_cross_description_lines(self):
+        self.assertEqual(
+            find_skill_attack_option_value_keys(
+                "물리 공격력 증가율:\n별도 효과: {value9}%"
+            ),
+            (),
+        )
+
+    def test_auto_detection_collapses_identical_attack_transitions(self):
+        detail = build_skill_detail(
+            "test-job",
+            "테스트 마스터리",
+            "물리 공격력 증가율: {value1}%\n"
+            "마법 공격력 증가율: {value2}%\n"
+            "독립 공격력 증가율: {value3}%",
+            [
+                (10, {"value1": 20, "value2": 20, "value3": 20}),
+                (11, {"value1": 22, "value2": 22, "value3": 22}),
+            ],
+        )
+
+        result = estimate_skill_plus_one(detail, 10)
+
+        self.assertTrue(result["calculable"])
+        self.assertAlmostEqual(result["multiplier"], 1.22 / 1.20)
+        self.assertEqual(
+            result["effectValueKeys"],
+            ["value1", "value2", "value3"],
+        )
+
+    def test_auto_detection_multiplies_distinct_effect_transitions(self):
+        detail = build_skill_detail(
+            "test-job",
+            "모호한 마스터리",
+            "물리 공격력 증가율: {value1}%\n"
+            "스킬 공격력 증가율: {value2}%",
+            [
+                (10, {"value1": 20, "value2": 10}),
+                (11, {"value1": 22, "value2": 11}),
+            ],
+        )
+
+        result = estimate_skill_plus_one(detail, 10)
+
+        self.assertTrue(result["calculable"])
+        self.assertAlmostEqual(
+            result["multiplier"],
+            (1.22 * 1.11) / (1.20 * 1.10),
+        )
+
+    def test_auto_detected_current_platinum_loss_is_included(self):
+        stylish = build_skill_detail(
+            "test-job",
+            "스타일리쉬",
+            "스킬 공격력 증가율: {value3}%",
+            [(18, {"value3": 18}), (19, {"value3": 20})],
+        )
+        revolver = build_skill_detail(
+            "test-job",
+            "리볼버 강화",
+            "물리 공격력 증가율: {value1}%",
+            [(14, {"value1": 28}), (15, {"value1": 30})],
+        )
+        multiplier = get_avatar_platinum_skill_damage_multiplier(
+            {
+                "currentAvatarSkills": {
+                    "topSkill": "스타일리쉬",
+                    "platinumSlotSkills": ["리볼버 강화", "리볼버 강화"],
+                },
+                "skillInfos": {
+                    "스타일리쉬": {
+                        "currentLevel": 17,
+                        "detail": stylish,
+                        "effectSpec": {
+                            "mode": "increase",
+                            "valueKeys": ["value3"],
+                        },
+                    },
+                    "리볼버강화": {
+                        "currentLevel": 13,
+                        "detail": revolver,
+                        "effectSpec": None,
+                    },
+                },
+            },
+            "상의 아바타",
+            "스타일리쉬",
+        )
+
+        self.assertAlmostEqual(
+            multiplier,
+            (1.20 / 1.18) * (1.28 / 1.30),
         )
     def test_explicit_value_key_uses_authoritative_option_value(self):
         detail = build_skill_detail(
@@ -279,6 +375,48 @@ class AvatarSkillCalculatorTests(unittest.TestCase):
         self.assertTrue(analyzed[0]["calculable"])
         self.assertEqual(analyzed[0]["resolvedSkillName"], "속성의 소검 마스터리")
         self.assertEqual(skill_infos["무기숙련"]["currentLevel"], 20)
+
+    @patch("server.avatar_skill_optimizer.get_current_non_avatar_skill_bonuses", return_value={})
+    @patch("server.avatar_skill_optimizer.get_current_weapon_type", return_value="리볼버")
+    @patch("server.item_skill_option_service.get_character_skill_context")
+    def test_unregistered_skill_uses_safe_option_description_detection(
+        self,
+        get_skill_context,
+        _get_weapon_type,
+        _get_setup_bonuses,
+    ):
+        revolver = build_skill_detail(
+            "test-job",
+            "리볼버 강화",
+            "물리 공격력 증가율: {value1}%",
+            [(13, {"value1": 26}), (14, {"value1": 28})],
+        )
+        get_skill_context.return_value = {
+            "styleByName": {
+                "리볼버강화": {
+                    "name": "리볼버 강화",
+                    "skillId": "revolver-skill",
+                    "level": 13,
+                },
+            },
+            "skillByName": {},
+            "skillDetailById": {"revolver-skill": revolver},
+        }
+
+        analyzed, skill_infos = get_character_avatar_skill_infos(
+            "diregie",
+            "character",
+            {"jobId": "test-job", "jobGrowId": "test-grow"},
+            ["리볼버 강화"],
+            current_avatar={},
+            skill_effect_specs={
+                "스타일리쉬": {"mode": "increase", "valueKeys": ["value3"]},
+            },
+        )
+
+        self.assertTrue(analyzed[0]["calculable"])
+        self.assertEqual(analyzed[0]["effectValueKeys"], ["value1"])
+        self.assertIsNone(skill_infos["리볼버강화"]["effectSpec"])
 
     def test_recognized_coefficient_combines_avatar_levels_once(self):
         recognized = build_skill_detail(

@@ -16,6 +16,7 @@ from .data_store import (
 )
 from .api_fanout_trace import finish_api_fanout_trace, start_api_fanout_trace
 from .effects import get_creature_artifact_status_summary, get_title_enchant_status_summary, normalize_enchant_status, order_effects, parse_percent_or_number
+from .equipment_body import get_equipment_detail_base_element_bonus
 from .avatar_skill_optimizer import (
     flatten_skill_rows,
     get_avatar_candidate_combos,
@@ -541,22 +542,6 @@ def status_rows_to_map(status_rows: list) -> dict:
         for status in status_rows or []
         if clean_text(status.get("name"))
     }
-
-
-def parse_element_bonus_from_text(text: str) -> float:
-    values = [
-        parse_percent_or_number(match.group(1))
-        for match in re.finditer(r"(?:모든\s*)?속성\s*강화\s*\+?\s*([0-9.]+)", clean_text(text))
-    ]
-    return max(values or [0])
-
-
-def get_equipment_detail_base_element_bonus(detail: dict) -> float:
-    effects = normalize_enchant_status(detail.get("itemStatus") or [])
-    explain_element = parse_element_bonus_from_text(
-        detail.get("itemExplainDetail") or detail.get("itemExplain") or ""
-    )
-    return max(effects.get("elementAll", 0), explain_element)
 
 
 def _get_equipment_base_element_bonus_debug(equipment_rows: list) -> dict:

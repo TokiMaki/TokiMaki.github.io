@@ -3,6 +3,7 @@ import time
 
 from ..data_store import load_raid_armor_upgrade_db
 from ..effects import normalize_enchant_status, subtract_effects
+from ..equipment_body import get_equipment_detail_base_element_bonus
 from ..neople_client import (
     clean_item_display_name,
     clean_text,
@@ -214,6 +215,20 @@ def get_black_fang_scroll_name(set_item_name: str) -> str:
     return f"흑아 태초 변환서 - {set_name}" if set_name else ""
 
 
+def get_black_fang_equipment_body_effect_pair(
+    current_detail: dict | None,
+    black_detail: dict | None,
+) -> tuple[dict, dict]:
+    current_effects = normalize_enchant_status((current_detail or {}).get("itemStatus") or [])
+    black_effects = normalize_enchant_status((black_detail or {}).get("itemStatus") or [])
+    current_element_bonus = get_equipment_detail_base_element_bonus(current_detail)
+    if current_element_bonus > 0:
+        current_effects["elementAll"] = current_element_bonus
+        if not float(black_effects.get("elementAll") or 0):
+            black_effects["elementAll"] = current_element_bonus
+    return current_effects, black_effects
+
+
 def get_designated_relic_item_ids() -> set[str]:
     transformation = load_raid_armor_upgrade_db().get("finalTransformation") or {}
     return {
@@ -378,7 +393,11 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
         if not black_item.get("itemId"):
             continue
         target_pairs.append((current_equipment, source_equipment, black_item))
-        item_ids.extend([clean_text(source_equipment.get("itemId")), black_item.get("itemId")])
+        item_ids.extend([
+            clean_text(current_equipment.get("itemId")),
+            clean_text(source_equipment.get("itemId")),
+            black_item.get("itemId"),
+        ])
     steps.append({
         "name": "find_black_items",
         "ms": round((time.perf_counter() - black_item_lookup_started_at) * 1000, 1),
@@ -428,10 +447,12 @@ def build_black_fang_recommendations_debug(equipment_rows: list, material_prices
             auction["scrollUnitPrice"] = scroll_price
             auction["fixedGold"] = fixed_gold
 
-        current_detail = details_by_id.get(clean_text(source_equipment.get("itemId"))) or {}
         black_detail = details_by_id.get(black_item.get("itemId")) or {}
-        current_effects = normalize_enchant_status(current_detail.get("itemStatus") or [])
-        black_effects = normalize_enchant_status(black_detail.get("itemStatus") or [])
+        current_detail = details_by_id.get(clean_text(current_equipment.get("itemId"))) or {}
+        current_effects, black_effects = get_black_fang_equipment_body_effect_pair(
+            current_detail,
+            black_detail,
+        )
         effects = subtract_effects(
             black_effects,
             current_effects,

@@ -4,6 +4,7 @@ from unittest.mock import patch
 from server.calculators.oath_tune_calculator import build_oath_set_point_context
 from server.candidates.oath_transcend import build_oath_transcend_recommendations_debug
 from server.character_equipment_service import build_equipment_upgrade_payload, build_oath_upgrade_payload
+from server.data_store import get_raid_armor_stage_by_item_id, load_raid_armor_upgrade_db
 
 
 class EquipmentTunePayloadTest(unittest.TestCase):
@@ -123,6 +124,28 @@ class EquipmentTunePayloadTest(unittest.TestCase):
         self.assertFalse(payload["tuneUpgradeable"])
         self.assertEqual(payload["tuneRemaining"], 0)
         self.assertEqual(payload["tuneSetPoint"], 145)
+
+    def test_raid_armor_stage_uses_registered_item_ids(self):
+        database = load_raid_armor_upgrade_db()
+        consecrated = database["pieces"][0]["stages"]["consecrated"]
+        transformation = database["finalTransformation"]
+        family_targets = next(iter(transformation["targetsByFamily"].values()))
+        relic = family_targets[transformation["requiredSlots"][0]]
+
+        self.assertEqual(
+            get_raid_armor_stage_by_item_id(consecrated["itemId"]),
+            "consecrated",
+        )
+        self.assertEqual(get_raid_armor_stage_by_item_id(relic["itemId"]), "relic")
+        payload = build_equipment_upgrade_payload({
+            "slotName": "머리어깨",
+            "slotId": "SHOULDER",
+            "itemId": consecrated["itemId"],
+            "itemName": consecrated["itemName"],
+            "itemRarity": "에픽",
+            "tune": [{"level": 0, "setPoint": 215, "upgrade": False}],
+        })
+        self.assertEqual(payload["raidArmorStage"], "consecrated")
 
     @patch("server.candidates.oath_transcend.build_oath_transcend_materials", side_effect=lambda rows: rows)
     @patch("server.candidates.oath_transcend.build_oath_set_point_context")

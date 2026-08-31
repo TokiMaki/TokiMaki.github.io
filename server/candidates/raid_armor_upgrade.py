@@ -1,7 +1,11 @@
 import math
 import time
 
-from ..data_store import get_relic_equipment_item_ids, load_raid_armor_upgrade_db
+from ..data_store import (
+    get_raid_armor_stage_by_item_id,
+    get_relic_equipment_item_ids,
+    load_raid_armor_upgrade_db,
+)
 from ..effects import normalize_enchant_status, subtract_effects
 from ..equipment_body import (
     get_equipment_tune_set_point,
@@ -49,6 +53,7 @@ def _normalize_equipment_body(stage: dict, detail: dict, slot_id: str) -> dict:
         "itemReinforceSkill": detail.get("itemReinforceSkill") or [],
         "itemBuff": detail.get("itemBuff") or {},
         "itemExplain": get_item_explain(detail),
+        "raidArmorStage": get_raid_armor_stage_by_item_id(item_id),
     }
 
 

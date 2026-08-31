@@ -4,6 +4,7 @@ import time
 from ..data_store import load_relic_craft_db
 from ..effects import normalize_enchant_status, subtract_effects
 from ..equipment_body import (
+    get_equipment_detail_base_element_bonus,
     get_equipment_tune_set_point,
     get_relic_precision_effects,
     normalize_relic_craft_target_equipment_body,
@@ -284,6 +285,9 @@ def _build_recipe_recommendation(
         current_effects = current_body["effects"]
     else:
         current_effects = normalize_enchant_status(current_detail.get("itemStatus") or [])
+        current_element_bonus = get_equipment_detail_base_element_bonus(current_detail)
+        if current_element_bonus > 0:
+            current_effects["elementAll"] = current_element_bonus
         current_body = _build_current_equipment_body(current, current_detail, current_effects)
 
     target_effects = target_body["effects"]

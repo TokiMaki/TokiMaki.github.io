@@ -46,6 +46,15 @@ export function isRelicCraftEquipmentSetPointEligible(row = {}) {
   return Number.isFinite(currentSetPoint) && currentSetPoint >= minimumSetPoint;
 }
 
+export function isBlackFangEquipmentBodyEligible(row = {}, equipmentRows = []) {
+  const targetSlotId = resolveCanonicalEquipmentSlotId(row.targetEquipmentBody || row);
+  if (!targetSlotId) return true;
+  const currentEquipment = (equipmentRows || []).find((equipment) => (
+    resolveCanonicalEquipmentSlotId(equipment) === targetSlotId
+  ));
+  return currentEquipment?.isRelic !== true;
+}
+
 export function resolveCanonicalEquipmentSlotId(row = {}) {
   const slotId = String(row?.slotId || '').trim();
   if (EQUIPMENT_SLOT_NAME_BY_ID[slotId]) return slotId;
@@ -62,6 +71,18 @@ export function resolveCanonicalEquipmentSlotName(row = {}) {
 export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targetBody = {}) {
   const nextEquipment = cloneValue(currentEquipment || {});
   const targetSlotId = resolveCanonicalEquipmentSlotId(targetBody);
+  const hasPrecisionPercent = (
+    targetBody.precisionPercent !== null
+    && targetBody.precisionPercent !== undefined
+    && targetBody.precisionPercent !== ''
+    && Number.isFinite(Number(targetBody.precisionPercent))
+  );
+  const hasPrecisionAdventureFame = (
+    targetBody.precisionAdventureFame !== null
+    && targetBody.precisionAdventureFame !== undefined
+    && targetBody.precisionAdventureFame !== ''
+    && Number.isFinite(Number(targetBody.precisionAdventureFame))
+  );
   if (targetSlotId) {
     nextEquipment.slotId = targetSlotId;
     nextEquipment.slot = resolveCanonicalEquipmentSlotName(targetBody);
@@ -72,21 +93,23 @@ export function replaceEquipmentBodyPreservingState(currentEquipment = {}, targe
   nextEquipment.itemRarity = targetBody.itemRarity || nextEquipment.itemRarity || '';
   nextEquipment.setItemId = targetBody.setItemId || nextEquipment.setItemId || '';
   nextEquipment.setItemName = targetBody.setItemName || nextEquipment.setItemName || '';
-  if (
+  nextEquipment.isRelic = Boolean(
     targetBody.sourceType === 'relicCraft'
-    || Number.isFinite(Number(targetBody.precisionPercent))
-  ) {
-    nextEquipment.isRelic = true;
-  } else if (typeof targetBody.isRelic === 'boolean') {
-    nextEquipment.isRelic = targetBody.isRelic;
-  }
+    || hasPrecisionPercent
+    || targetBody.isRelic === true
+  );
   nextEquipment.bodyEffects = cloneValue(targetBody.effects || {});
   nextEquipment.conditionalEffects = cloneValue(targetBody.conditionalEffects || {});
-  if (Number.isFinite(Number(targetBody.precisionPercent))) {
+  nextEquipment.raidArmorStage = String(targetBody.raidArmorStage || '').trim();
+  if (hasPrecisionPercent) {
     nextEquipment.precisionPercent = Number(targetBody.precisionPercent);
+  } else {
+    delete nextEquipment.precisionPercent;
   }
-  if (Number.isFinite(Number(targetBody.precisionAdventureFame))) {
+  if (hasPrecisionAdventureFame) {
     nextEquipment.precisionAdventureFame = Number(targetBody.precisionAdventureFame);
+  } else {
+    delete nextEquipment.precisionAdventureFame;
   }
   nextEquipment.bodyExplain = targetBody.itemExplain || '';
   nextEquipment.itemReinforceSkill = cloneValue(targetBody.itemReinforceSkill || []);

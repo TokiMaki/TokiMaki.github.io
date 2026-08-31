@@ -23,6 +23,7 @@ class RelicPrecisionRecommendationTest(unittest.TestCase):
         cls.perfume = cls.recipes[0]
         cls.cube = cls.recipes[1]
         cls.heart = cls.recipes[2]
+        cls.eye = next(recipe for recipe in cls.recipes if recipe["key"] == "radiantEye")
 
     def test_precision_progression_tables_and_potency_value(self):
         cases = [
@@ -32,6 +33,8 @@ class RelicPrecisionRecommendationTest(unittest.TestCase):
             (self.cube, 100, {"finalDamage": 10.0, "buffPower": 4650, "adventureFame": 1370}),
             (self.heart, 25, {"finalDamage": 2.5, "buffPower": 1070, "adventureFame": 310}),
             (self.heart, 100, {"finalDamage": 10.0, "buffPower": 4500, "adventureFame": 1370}),
+            (self.eye, 25, {"finalDamage": 4.0, "buffPower": 1000, "adventureFame": 310}),
+            (self.eye, 100, {"finalDamage": 17.1, "buffPower": 4250, "adventureFame": 1370}),
         ]
         for recipe, percent, expected in cases:
             with self.subTest(recipe=recipe["key"], percent=percent):

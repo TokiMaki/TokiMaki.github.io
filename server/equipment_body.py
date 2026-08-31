@@ -1,4 +1,7 @@
 import math
+import re
+
+from .effects import normalize_enchant_status
 
 
 _SLOT_ID_BY_NAME = {
@@ -28,6 +31,22 @@ def _number(value) -> float:
     except (TypeError, ValueError):
         return 0.0
     return number if math.isfinite(number) else 0.0
+
+
+def get_equipment_detail_base_element_bonus(detail: dict | None) -> float:
+    detail = detail or {}
+    effects = normalize_enchant_status(detail.get("itemStatus") or [])
+    explain = _clean_text(
+        detail.get("itemExplainDetail") or detail.get("itemExplain")
+    )
+    explain_values = [
+        _number(match.group(1).replace(",", ""))
+        for match in re.finditer(
+            r"(?:모든\s*)?속성\s*강화\s*\+?\s*([0-9.,]+)",
+            explain,
+        )
+    ]
+    return max(_number(effects.get("elementAll")), *explain_values, 0.0)
 
 
 def resolve_canonical_equipment_slot_id(row: dict | None) -> str:
@@ -235,6 +254,8 @@ def normalize_relic_craft_target_equipment_body(
         return {}, "missing_relic_craft_target_set_point"
 
     effects = dict(normalized_status or {})
+    for effect_key, value in (authoritative_effects.get("baseEffects") or {}).items():
+        effects[effect_key] = _number(value)
     effects.pop("finalDamage", None)
     effects.pop("buffPower", None)
     required_effect_reason_by_key = {

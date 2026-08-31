@@ -3,6 +3,11 @@ import {
   isRelicCraftEquipmentSetPointEligible,
 } from './enchantEquipmentBodyReplacement.js';
 import { getPlagueHeartBufferPower, getPlagueHeartBufferRecommendationPower, getPlagueHeartConditionalEffectText } from './enchantPlagueHeartSynergy.js';
+import {
+  getRadiantEyeBufferPower,
+  getRadiantEyeBufferRecommendationPower,
+  getRadiantEyeConditionalEffectText,
+} from './enchantRadiantEyeSynergy.js';
 
 export function createEnchantBufferRecommendation(deps) {
   const {
@@ -245,7 +250,8 @@ export function createEnchantBufferRecommendation(deps) {
     const currentArtifactBySlot = getCurrentCreatureArtifactBySlot(currentCreature);
     const equipmentRows = simulator?.simulatedEquipmentUpgrades || currentEquipmentRows || [];
     const baseScore = calculateBufferScore(baseline, {
-      buffPowerDelta: getPlagueHeartBufferPower(equipmentRows),
+      buffPowerDelta: getPlagueHeartBufferPower(equipmentRows)
+        + getRadiantEyeBufferPower(equipmentRows),
     });
     const bySlotTier = new Map();
     (rows || []).forEach((row) => {
@@ -266,7 +272,10 @@ export function createEnchantBufferRecommendation(deps) {
           },
         }
       : row;
-      const conditionalEffectText = getPlagueHeartConditionalEffectText(row, equipmentRows, true);
+      const conditionalEffectText = [
+        getPlagueHeartConditionalEffectText(row, equipmentRows, true),
+        getRadiantEyeConditionalEffectText(row, equipmentRows, true),
+      ].filter(Boolean).join(' / ');
       if (conditionalEffectText) row = { ...row, conditionalEffectText };
       const currentPlagueHeartBuffPower = getPlagueHeartBufferRecommendationPower(
         row,
@@ -274,6 +283,16 @@ export function createEnchantBufferRecommendation(deps) {
         false,
       );
       const targetPlagueHeartBuffPower = getPlagueHeartBufferRecommendationPower(
+        row,
+        equipmentRows,
+        true,
+      );
+      const currentRadiantEyeBuffPower = getRadiantEyeBufferRecommendationPower(
+        row,
+        equipmentRows,
+        false,
+      );
+      const targetRadiantEyeBuffPower = getRadiantEyeBufferRecommendationPower(
         row,
         equipmentRows,
         true,
@@ -342,8 +361,12 @@ export function createEnchantBufferRecommendation(deps) {
           + equipmentTuneBuffPowerDelta;
       const buffPowerDelta = baseBuffPowerDelta
         + targetPlagueHeartBuffPower
-        - currentPlagueHeartBuffPower;
-      const candidateBuffPowerChange = baseBuffPowerDelta + targetPlagueHeartBuffPower;
+        - currentPlagueHeartBuffPower
+        + targetRadiantEyeBuffPower
+        - currentRadiantEyeBuffPower;
+      const candidateBuffPowerChange = baseBuffPowerDelta
+        + targetPlagueHeartBuffPower
+        + targetRadiantEyeBuffPower;
       const buffAmplificationChanges = row.sourceType === 'title' && !titleAppliesToSwitching
         ? { currentBuffAmplificationDelta: buffAmplificationDelta }
         : {

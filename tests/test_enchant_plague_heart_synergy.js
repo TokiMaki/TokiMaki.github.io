@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  countBlackBreathEquipment,
   countBlackFangEquipment,
   getPlagueHeartBufferPower,
   getPlagueHeartBufferRecommendationPower,
@@ -46,6 +47,13 @@ const normalAccessory = (slotId, slot, index) => ({
   itemName: `일반 장비 ${index}`,
   effects: { finalDamage: 30 + index },
 });
+const radiantEye = {
+  slotId: 'RING',
+  slot: '반지',
+  itemId: 'radiant-eye',
+  itemName: '광휘를 머금은 눈동자',
+  effects: { finalDamage: 80, elementAll: 40 },
+};
 const blackRows = [
   blackFang('AMULET', '목걸이', 1),
   blackFang('WRIST', '팔찌', 2),
@@ -68,6 +76,30 @@ function testCountAndStandaloneSynergy() {
     assertClose(getPlagueHeartEquipmentScoreMultiplier(equipment), 1.092552);
     assert.equal(getPlagueHeartBufferPower(equipment), 75 * count);
   }
+}
+
+function testRadiantEyeIsOnlyIncludedInBlackBreathCount() {
+  const equipment = [heartBody, radiantEye, blackRows[0]];
+  assert.equal(countBlackFangEquipment(equipment), 1);
+  assert.equal(countBlackBreathEquipment(equipment), 2);
+  assertClose(getPlagueHeartDealerMultiplier(equipment), 1.03 ** 2);
+  assert.equal(getPlagueHeartBufferPower(equipment), 150);
+
+  const currentRing = normalAccessory('RING', '반지', 1);
+  const eyeRow = {
+    sourceType: 'relicCraft',
+    slot: '반지',
+    currentEquipmentBody: currentRing,
+    targetEquipmentBody: radiantEye,
+  };
+  assertClose(
+    getPlagueHeartDealerRecommendationMultiplier(eyeRow, [heartBody, currentRing]),
+    1.03,
+  );
+  assert.equal(
+    getPlagueHeartBufferRecommendationPower(eyeRow, [heartBody, currentRing], true),
+    75,
+  );
 }
 
 function testBlackFangFirstThenHeart() {
@@ -121,6 +153,7 @@ function testOrderIndependentFinalState() {
 
 for (const test of [
   testCountAndStandaloneSynergy,
+  testRadiantEyeIsOnlyIncludedInBlackBreathCount,
   testBlackFangFirstThenHeart,
   testHeartFirstThenBlackFang,
   testOrderIndependentFinalState,

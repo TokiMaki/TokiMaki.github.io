@@ -186,3 +186,28 @@ def load_raid_armor_upgrade_db() -> dict:
         except FileNotFoundError:
             _RAID_ARMOR_UPGRADE_DB_CACHE = {}
     return _RAID_ARMOR_UPGRADE_DB_CACHE
+
+
+def get_raid_armor_stage_by_item_id(item_id: str) -> str:
+    item_id = str(item_id or "").strip()
+    if not item_id:
+        return ""
+    database = load_raid_armor_upgrade_db()
+    for piece in database.get("pieces") or []:
+        for stage_name, stage in (piece.get("stages") or {}).items():
+            if str(stage.get("itemId") or "").strip() == item_id:
+                return str(stage_name or "").strip()
+
+    transformation = database.get("finalTransformation") or {}
+    required_slots = {
+        str(slot_id or "").strip()
+        for slot_id in transformation.get("requiredSlots") or []
+    }
+    for targets in (transformation.get("targetsByFamily") or {}).values():
+        for slot_id, target in (targets or {}).items():
+            if (
+                str(slot_id or "").strip() in required_slots
+                and str((target or {}).get("itemId") or "").strip() == item_id
+            ):
+                return "relic"
+    return ""

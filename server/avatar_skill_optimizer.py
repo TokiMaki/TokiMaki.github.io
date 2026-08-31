@@ -721,7 +721,7 @@ def get_character_avatar_skill_infos(
                 normalized_effect_specs.get(key)
                 if skill_effect_specs is not None
                 else None
-            ) or ({"mode": "unsupported"} if skill_effect_specs is not None else None)
+            )
             effect_mode = get_skill_effect_spec(skill_detail, effect_spec)[0]
             effect_context = {
                 "recognizedBaseLevel": 0,
