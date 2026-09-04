@@ -7,6 +7,7 @@ export function createEnchantOathAcquisition({
   getCostPerPointOnePercent,
   getRoleRelevantEffects,
   getOathTuneState,
+  getEffectiveOathSetPoint,
   syncOathTuneStageDisplay,
   getSimulatorExclusiveGroupKey,
   getSimulatorCandidateSignature,
@@ -812,6 +813,13 @@ export function createEnchantOathAcquisition({
       row,
       requestedCount,
     );
+    const currentEffectiveSetPoint = typeof getEffectiveOathSetPoint === 'function'
+      ? getEffectiveOathSetPoint(referenceOath, simulator.simulatedEquipmentUpgrades || [])
+      : Number(referenceOath.setPoint || 0);
+    const calculationReferenceOath = {
+      ...referenceOath,
+      setPoint: currentEffectiveSetPoint,
+    };
     const referenceBySlot = new Map(
       (referenceOath.crystals || []).map((crystal) => [Number(crystal?.index), crystal]),
     );
@@ -845,7 +853,7 @@ export function createEnchantOathAcquisition({
           ...getOathAcquisitionCandidateScore(
             entry,
             currentCrystal,
-            referenceOath,
+            calculationReferenceOath,
             simulator.oathTuneDb,
             simulator.role,
             targetFamilyName,
@@ -906,7 +914,7 @@ export function createEnchantOathAcquisition({
       (sum, entry) => sum + Number(entry.targetSlotSetPoint || 0),
       0,
     );
-    const currentSetPoint = Number(referenceOath.setPoint || 0);
+    const currentSetPoint = currentEffectiveSetPoint;
     const targetSetPoint = currentSetPoint - currentSetPointContribution + targetSlotSetPoint;
     const currentState = getOathTuneState(simulator.oathTuneDb, currentSetPoint);
     const targetState = getOathTuneState(simulator.oathTuneDb, targetSetPoint);

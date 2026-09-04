@@ -567,16 +567,21 @@ function formatUpgradeEffect(row) {
 
 function formatEquipmentTuneEffect(row) {
   const pointText = `태초 ${formatEffectNumber(row.currentSetPoint)} -> 태초 ${formatEffectNumber(row.targetSetPoint)}`;
+  const oathPointText = Number.isFinite(row.currentOathSetPoint)
+    && Number.isFinite(row.targetOathSetPoint)
+    && row.currentOathSetPoint !== row.targetOathSetPoint
+    ? `서약 ${formatEffectNumber(row.currentOathSetPoint)} -> ${formatEffectNumber(row.targetOathSetPoint)}`
+    : '';
   if (
     row.requiredForRelicCraft === true
     && Number(row.selectedTuneStepIndex || 0) === 0
   ) return pointText;
   if (row.metricType === 'buffer') {
     const buffPowerText = `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`;
-    return `${pointText} / ${buffPowerText}`;
+    return [pointText, oathPointText, buffPowerText].filter(Boolean).join(' / ');
   }
   const damageText = `최종뎀 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
-  return `${pointText} / ${damageText}`;
+  return [pointText, oathPointText, damageText].filter(Boolean).join(' / ');
 }
 
 function formatWeaponTuneEffect(row, isBuffer = false) {
@@ -655,6 +660,11 @@ function formatEquipmentTuneEffectHtml(row, escapeHtml) {
   const currentPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.currentSetPoint)}`, escape);
   const targetPoint = formatOathStageNameHtml(`태초 ${formatEffectNumber(row.targetSetPoint)}`, escape);
   const pointHtml = `${currentPoint} <span class="enchant-oath-stage-arrow">-&gt;</span> ${targetPoint}`;
+  const oathPointText = Number.isFinite(row.currentOathSetPoint)
+    && Number.isFinite(row.targetOathSetPoint)
+    && row.currentOathSetPoint !== row.targetOathSetPoint
+    ? `서약 ${formatEffectNumber(row.currentOathSetPoint)} -> ${formatEffectNumber(row.targetOathSetPoint)}`
+    : '';
   if (
     row.requiredForRelicCraft === true
     && Number(row.selectedTuneStepIndex || 0) === 0
@@ -662,7 +672,7 @@ function formatEquipmentTuneEffectHtml(row, escapeHtml) {
   const tuneText = row.metricType === 'buffer'
     ? `버프력 +${formatEffectNumber(row.currentTuneBuffPower)} -> +${formatEffectNumber(row.targetTuneBuffPower)}`
     : `최종뎀 +${formatEffectNumber(row.currentTuneFinalDamage)}% -> +${formatEffectNumber(row.targetTuneFinalDamage)}%`;
-  return `${pointHtml} / ${escape(tuneText)}`;
+  return [pointHtml, oathPointText ? escape(oathPointText) : '', escape(tuneText)].filter(Boolean).join(' / ');
 }
 
 function formatOathTranscendEffectHtml(row, isBuffer, escapeHtml, setPointOnly = false) {
@@ -1430,6 +1440,7 @@ const {
   getBufferEquipmentTuneBaseRelativeChanges,
   getEquipmentTuneStage,
   getEquipmentTuneSetPoint,
+  getEquipmentOathPointState,
   getEquipmentTuneDamageMultiplier,
   applyEquipmentTunePlan,
   getChangedEquipmentTuneSlots,
@@ -1598,6 +1609,7 @@ const {
   applyUpgradeMaterialPrices,
   cloneSimulatorValue,
   getEquipmentTuneSetPoint,
+  getEquipmentOathPointState,
   equipmentTuneMinSetPoint: EQUIPMENT_TUNE_MIN_SET_POINT,
 });
 
@@ -1636,6 +1648,9 @@ const {
   getCostPerPointOnePercent,
   getRoleRelevantEffects,
   getOathTuneState,
+  getEffectiveOathSetPoint: (oathUpgrades, equipmentUpgrades) => (
+    getEquipmentOathPointState(equipmentUpgrades, oathUpgrades).oathSetPoint
+  ),
   syncOathTuneStageDisplay,
   getSimulatorExclusiveGroupKey,
   getSimulatorCandidateSignature,
@@ -2111,6 +2126,10 @@ function applyEquipmentTuneDisplayStep(
     selectedTuneStepIndex: step.index,
     currentSetPoint: step.currentSetPoint,
     targetSetPoint: step.targetSetPoint,
+    ...(Number.isFinite(step.currentOathSetPoint) && Number.isFinite(step.targetOathSetPoint) ? {
+      currentOathSetPoint: step.currentOathSetPoint,
+      targetOathSetPoint: step.targetOathSetPoint,
+    } : {}),
     currentTuneFinalDamage: step.currentFinalDamage,
     targetTuneFinalDamage: step.targetFinalDamage,
     currentTuneBuffPower: step.currentBuffPower,
@@ -2341,7 +2360,7 @@ export function installEnchantView(ctx) {
     getOathStageRarityClass,
     getDealerPrimaryStatKey,
     normalizeDealerEnchantDisplayEffects,
-    getActiveOathUpgrades,
+    getActiveOathUpgrades: getDisplayedActiveOathUpgrades,
     arrangeOathCrystals: (crystals) => arrangeSimulatedOathAcquisitionSlots(
       crystals,
       state.dealerSimulator || {},
@@ -2510,6 +2529,11 @@ export function installEnchantView(ctx) {
       getEquipmentTuneRecommendationUpgrades(),
       state.upgradeMaterialPrices,
       state.currentBufferBaseline,
+      {
+        oathUpgrades: getActiveOathUpgrades(),
+        oathTuneDb: state.oathTuneStageDb,
+        getOathTuneState,
+      },
     );
   }
 
@@ -2517,6 +2541,17 @@ export function installEnchantView(ctx) {
     return isDealerSimulatorActive() || isBufferSimulatorActive()
       ? state.dealerSimulator.simulatedOathUpgrades
       : state.currentOathUpgrades;
+  }
+
+  function getDisplayedActiveOathUpgrades() {
+    const oathUpgrades = cloneSimulatorValue(getActiveOathUpgrades() || {});
+    if (!oathUpgrades || !Object.keys(oathUpgrades).length) return oathUpgrades;
+    const pointState = getEquipmentOathPointState(
+      getActiveEquipmentUpgrades(),
+      oathUpgrades,
+    );
+    oathUpgrades.setPoint = pointState.oathSetPoint;
+    return syncOathTuneStageDisplay(oathUpgrades, state.oathTuneStageDb);
   }
 
   function getDisplayOrderedOathTuneUpgrades(oathUpgrades) {
@@ -4716,6 +4751,11 @@ export function installEnchantView(ctx) {
       beforeTuneSnapshot,
       state.upgradeMaterialPrices,
       state.currentBufferBaseline,
+      {
+        oathUpgrades: getActiveOathUpgrades(),
+        oathTuneDb: state.oathTuneStageDb,
+        getOathTuneState,
+      },
     )[0];
     const variants = baseRow?.tuneSteps || [];
     if (!baseRow || !variants.length) {
@@ -8187,7 +8227,16 @@ export function installEnchantView(ctx) {
         getTuneStepIndexBySource(state, sourceType),
       );
     }
-    return getEquipmentTuneRows(getEquipmentTuneRecommendationUpgrades(), state.upgradeMaterialPrices, state.currentBufferBaseline);
+    return getEquipmentTuneRows(
+      getEquipmentTuneRecommendationUpgrades(),
+      state.upgradeMaterialPrices,
+      state.currentBufferBaseline,
+      {
+        oathUpgrades: getActiveOathUpgrades(),
+        oathTuneDb: state.oathTuneStageDb,
+        getOathTuneState,
+      },
+    );
   }
 
   function getEquipmentTuneVariantRow(stepIndex) {

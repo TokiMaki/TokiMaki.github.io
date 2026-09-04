@@ -3,11 +3,21 @@ from unittest.mock import patch
 
 from server.calculators.oath_tune_calculator import build_oath_set_point_context
 from server.candidates.oath_transcend import build_oath_transcend_recommendations_debug
-from server.character_equipment_service import build_equipment_upgrade_payload, build_oath_upgrade_payload
+from server.character_equipment_service import (
+    build_equipment_upgrade_payload,
+    build_oath_upgrade_payload,
+    get_effective_equipment_total_set_point,
+)
 from server.data_store import get_raid_armor_stage_by_item_id, load_raid_armor_upgrade_db
 
 
 class EquipmentTunePayloadTest(unittest.TestCase):
+    def test_effective_equipment_set_point_uses_oath_adjusted_active_point(self):
+        self.assertEqual(get_effective_equipment_total_set_point({
+            "equipment": [{"tune": [{"setPoint": 2525}]}],
+            "setItemInfo": [{"active": {"setPoint": {"current": 2550}}}],
+        }), 2550)
+
     @patch("server.character_equipment_service.fetch_item_details", return_value=[])
     def test_oath_upgrade_level_uses_unlocked_option_count(self, _fetch_item_details_mock):
         payload = build_oath_upgrade_payload({
@@ -29,6 +39,21 @@ class EquipmentTunePayloadTest(unittest.TestCase):
         })
 
         self.assertEqual(payload["oathUpgradeLevel"], 3)
+
+    @patch("server.character_equipment_service.fetch_item_details", return_value=[])
+    def test_oath_upgrade_payload_preserves_borrowed_set_point(self, _fetch_item_details_mock):
+        payload = build_oath_upgrade_payload({
+            "oath": {
+                "info": {"setPoint": 655},
+                "setInfo": {"active": {"setPoint": {"current": 2485}}},
+                "crystal": [{"setPoint": 1855}],
+            },
+        })
+
+        self.assertEqual(payload["setPoint"], 2485)
+        self.assertEqual(payload["rawSetPoint"], 2510)
+        self.assertEqual(payload["reportedSetPoint"], 2485)
+        self.assertEqual(payload["borrowedSetPoint"], 25)
 
     def test_other_family_set_point_uses_zero_current_contribution(self):
         context = build_oath_set_point_context(

@@ -1242,6 +1242,16 @@ def get_equipment_total_set_point(equipment_rows: list) -> float:
     )
 
 
+def get_effective_equipment_total_set_point(equipment_payload: dict) -> float:
+    raw_set_point = get_equipment_total_set_point(equipment_payload.get("equipment") or [])
+    active_set_points = [
+        parse_percent_or_number(((row.get("active") or {}).get("setPoint") or {}).get("current"))
+        for row in equipment_payload.get("setItemInfo") or []
+        if isinstance(row, dict)
+    ]
+    return max([raw_set_point, *active_set_points])
+
+
 def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: dict | None = None) -> dict:
     oath = oath_payload.get("oath") or {}
     info = oath.get("info") or {}
@@ -1301,6 +1311,11 @@ def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: di
         mist_effects = normalize_enchant_status(mist_assimilation.get("status") or [])
         if mist_effects:
             oath_effects = mist_effects
+    raw_set_point = parse_percent_or_number(info.get("setPoint")) + sum(
+        parse_percent_or_number(crystal.get("setPoint"))
+        for crystal in crystals
+    )
+    borrowed_set_point = max(0, raw_set_point - stage_point)
     return {
         "itemId": oath_item_id,
         "itemName": clean_text(info.get("itemName")),
@@ -1311,6 +1326,9 @@ def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: di
         "setOptionName": clean_text(set_info.get("setOptionName")),
         "setRarityName": clean_text(set_info.get("setRarityName")),
         "setPoint": stage_point,
+        "rawSetPoint": raw_set_point,
+        "reportedSetPoint": stage_point,
+        "borrowedSetPoint": borrowed_set_point,
         "oathUpgradeLevel": oath_upgrade_level,
         "crystals": crystals,
     }
@@ -1318,7 +1336,7 @@ def build_oath_upgrade_payload(oath_payload: dict, mist_assimilation_payload: di
 
 def load_character_oath_upgrades(server_id: str, character_id: str) -> dict:
     cached_payload = get_character_cached_computed_payload(server_id, character_id, "oathUpgrades")
-    if cached_payload is not None:
+    if cached_payload is not None and "rawSetPoint" in cached_payload:
         return cached_payload
     try:
         payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath")
@@ -1425,7 +1443,7 @@ def load_character_enchants(
         oath_payload = get_character_cached_payload(server_id, character_id, "oath", "equip/oath") if oath_upgrades else {}
     except Exception:
         oath_payload = {}
-    equipment_set_point = get_equipment_total_set_point(payload.get("equipment") or [])
+    equipment_set_point = get_effective_equipment_total_set_point(payload)
     allow_oath_decision_recommendations = equipment_set_point >= EQUIPMENT_PRIMEVAL_SET_POINT_CUTOFF
     if allow_oath_decision_recommendations:
         oath_transcend_debug = _measure_step(

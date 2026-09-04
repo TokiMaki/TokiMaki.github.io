@@ -61,6 +61,7 @@ assert.deepEqual(Object.keys(progression), [
   'getBufferEquipmentTuneBaseRelativeChanges',
   'getEquipmentTuneStage',
   'getEquipmentTuneSetPoint',
+  'getEquipmentOathPointState',
   'getEquipmentTuneDamageMultiplier',
   'applyEquipmentTunePlan',
   'getChangedEquipmentTuneSlots',
@@ -797,5 +798,65 @@ for (const row of [
 ]) {
   assert.equal(progression.getBufferEquipmentTuneBaseRelativeChanges(row), null);
 }
+
+const borrowedEquipment = [{
+  slot: '상의',
+  itemName: '테스트 장비',
+  itemRarity: '레전더리',
+  tuneLevel: 0,
+  tuneRemaining: 3,
+  tuneSetPoint: 2525,
+}];
+const borrowedOath = {
+  setPoint: 2485,
+  rawSetPoint: 2510,
+  reportedSetPoint: 2485,
+  borrowedSetPoint: 25,
+};
+assert.deepEqual(
+  progression.getEquipmentOathPointState(borrowedEquipment, borrowedOath),
+  {
+    rawEquipmentSetPoint: 2525,
+    rawOathSetPoint: 2510,
+    borrowedSetPoint: 25,
+    equipmentSetPoint: 2550,
+    oathSetPoint: 2485,
+  },
+);
+const borrowedRows = progression.getEquipmentTuneRows(
+  borrowedEquipment,
+  materialPrices,
+  null,
+  {
+    oathUpgrades: borrowedOath,
+    oathTuneDb: {},
+    getOathTuneState: (_db, point) => ({
+      damageMultiplier: 1 + Math.floor(point / 25) * 0.005,
+      blessingBuffPower: Math.floor(point / 25) * 80,
+      stageBuffPower: 0,
+    }),
+  },
+);
+assert.equal(borrowedRows.length, 1);
+assert.equal(borrowedRows[0].tuneSteps[0].tuneCount, 3);
+assert.ok(Math.abs(borrowedRows[0].effects.skillDamageMultiplier - (1.5 / 1.495)) < 1e-12);
+
+assert.deepEqual(
+  progression.getEquipmentTuneRows(
+    [{ ...borrowedEquipment[0], tuneRemaining: 2 }],
+    materialPrices,
+    null,
+    {
+      oathUpgrades: borrowedOath,
+      oathTuneDb: {},
+      getOathTuneState: (_db, point) => ({
+        damageMultiplier: 1 + Math.floor(point / 25) * 0.005,
+        blessingBuffPower: Math.floor(point / 25) * 80,
+        stageBuffPower: 0,
+      }),
+    },
+  ),
+  [],
+);
 
 console.log('enchant equipment tune progression: ok');

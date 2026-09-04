@@ -3,6 +3,7 @@ export function createEnchantOathProgression({
   applyUpgradeMaterialPrices,
   cloneSimulatorValue,
   getEquipmentTuneSetPoint,
+  getEquipmentOathPointState,
   equipmentTuneMinSetPoint,
 }) {
 
@@ -214,9 +215,22 @@ export function createEnchantOathProgression({
       .map((crystal) => `oath:${Number(crystal.index)}`);
   }
 
-  function getOathTuneDamageMultiplier(db = {}, baseOath = {}, simulatedOath = baseOath) {
-    const baseState = getOathTuneState(db, Number(baseOath?.setPoint || 0));
-    const simulatedState = getOathTuneState(db, Number(simulatedOath?.setPoint || 0));
+  function getOathTuneDamageMultiplier(
+    db = {},
+    baseOath = {},
+    simulatedOath = baseOath,
+    baseEquipment = null,
+    simulatedEquipment = baseEquipment,
+  ) {
+    const hasEquipmentContext = Array.isArray(baseEquipment) && Array.isArray(simulatedEquipment);
+    const baseSetPoint = hasEquipmentContext
+      ? getEquipmentOathPointState(baseEquipment, baseOath).oathSetPoint
+      : Number(baseOath?.setPoint || 0);
+    const simulatedSetPoint = hasEquipmentContext
+      ? getEquipmentOathPointState(simulatedEquipment, simulatedOath).oathSetPoint
+      : Number(simulatedOath?.setPoint || 0);
+    const baseState = getOathTuneState(db, baseSetPoint);
+    const simulatedState = getOathTuneState(db, simulatedSetPoint);
     if (!baseState || !simulatedState || baseState.damageMultiplier <= 0) return 1;
     return simulatedState.damageMultiplier / baseState.damageMultiplier;
   }
@@ -245,9 +259,10 @@ export function createEnchantOathProgression({
   function getOathTuneRows(oathUpgrades = {}, oathTuneDb = {}, materialPrices = {}, currentEquipmentUpgrades = [], bufferBaseline = null) {
     const db = oathTuneDb || {};
     const isBufferMetric = Boolean(bufferBaseline?.isBuffer);
-    if (getEquipmentTuneSetPoint(currentEquipmentUpgrades) < equipmentTuneMinSetPoint) return [];
+    const pointState = getEquipmentOathPointState(currentEquipmentUpgrades, oathUpgrades);
+    if (pointState.equipmentSetPoint < equipmentTuneMinSetPoint) return [];
     const pointPerTune = Number(db.pointPerTune || 10);
-    const totalSetPoint = Number(oathUpgrades?.setPoint || 0);
+    const totalSetPoint = pointState.oathSetPoint;
     if (!Number.isFinite(pointPerTune) || pointPerTune <= 0 || !Number.isFinite(totalSetPoint) || totalSetPoint <= 0) return [];
     const currentState = getOathTuneState(db, totalSetPoint);
     if (!currentState) return [];

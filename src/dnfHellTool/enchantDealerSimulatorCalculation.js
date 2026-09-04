@@ -295,6 +295,8 @@ export function createEnchantDealerSimulatorCalculation(deps) {
       * getEquipmentTuneDamageMultiplier(
         simulator.baseEquipmentUpgrades,
         simulator.simulatedEquipmentUpgrades,
+        simulator.baseOathUpgrades,
+        simulator.simulatedOathUpgrades,
       )
       * getOathCrystalFinalDamageChangeMultiplier(
         simulator.baseOathUpgrades,
@@ -316,6 +318,8 @@ export function createEnchantDealerSimulatorCalculation(deps) {
         simulator.oathTuneDb,
         simulator.baseOathUpgrades,
         simulator.simulatedOathUpgrades,
+        simulator.baseEquipmentUpgrades,
+        simulator.simulatedEquipmentUpgrades,
       )
       * getOathUpgradeDamageMultiplier(
         simulator.oathTuneDb,

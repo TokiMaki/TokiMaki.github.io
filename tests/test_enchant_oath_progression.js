@@ -41,6 +41,19 @@ function getEquipmentTuneSetPoint(rows = []) {
   return rows.reduce((sum, row) => sum + Number(row?.tuneSetPoint || 0), 0);
 }
 
+function getEquipmentOathPointState(equipmentRows = [], oath = {}) {
+  const rawEquipmentSetPoint = getEquipmentTuneSetPoint(equipmentRows);
+  const currentOathSetPoint = Number(oath?.setPoint || 0);
+  const rawOathSetPoint = Number.isFinite(Number(oath?.rawSetPoint))
+    ? Number(oath.rawSetPoint) + currentOathSetPoint - Number(oath?.reportedSetPoint || 0)
+    : currentOathSetPoint + Number(oath?.borrowedSetPoint || 0);
+  const borrowedSetPoint = Math.min(Math.max(0, 2550 - rawEquipmentSetPoint), rawOathSetPoint);
+  return {
+    equipmentSetPoint: rawEquipmentSetPoint + borrowedSetPoint,
+    oathSetPoint: rawOathSetPoint - borrowedSetPoint,
+  };
+}
+
 function closeTo(actual, expected, epsilon = 1e-12) {
   assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} != ${expected}`);
 }
@@ -50,6 +63,7 @@ const progression = createEnchantOathProgression({
   applyUpgradeMaterialPrices,
   cloneSimulatorValue: clone,
   getEquipmentTuneSetPoint,
+  getEquipmentOathPointState,
   equipmentTuneMinSetPoint: 2550,
 });
 
@@ -308,8 +322,17 @@ assert.deepEqual(
 assert.equal(prePrimevalRow.effects.skillDamageMultiplier > 1, true);
 
 assert.deepEqual(
-  progression.getOathTuneRows(baseOath, oathTuneDb, materialPrices, [{ tuneSetPoint: 2549 }]),
+  progression.getOathTuneRows({ setPoint: 0 }, oathTuneDb, materialPrices, [{ tuneSetPoint: 2549 }]),
   [],
+);
+assert.equal(
+  progression.getOathTuneRows(
+    { ...baseOath, rawSetPoint: 2555, reportedSetPoint: 2530, borrowedSetPoint: 25 },
+    oathTuneDb,
+    materialPrices,
+    [{ tuneSetPoint: 2525 }],
+  ).length,
+  1,
 );
 assert.deepEqual(
   progression.getOathTuneRows(
@@ -423,6 +446,23 @@ closeTo(
     { setPoint: 2580 },
   ),
   stateAt2580.damageMultiplier / stateAt2550.damageMultiplier,
+);
+const transferredOath = {
+  setPoint: 2485,
+  rawSetPoint: 2510,
+  reportedSetPoint: 2485,
+  borrowedSetPoint: 25,
+};
+closeTo(
+  progression.getOathTuneDamageMultiplier(
+    oathTuneDb,
+    transferredOath,
+    transferredOath,
+    [{ tuneSetPoint: 2525 }],
+    [{ tuneSetPoint: 2545 }],
+  ),
+  progression.getOathTuneState(oathTuneDb, 2505).damageMultiplier
+    / progression.getOathTuneState(oathTuneDb, 2485).damageMultiplier,
 );
 assert.equal(progression.getOathTuneDamageMultiplier({}, { setPoint: 1 }, { setPoint: 2 }), 1);
 

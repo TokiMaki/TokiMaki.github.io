@@ -140,9 +140,51 @@ export function createEnchantEquipmentTuneProgression({
     }, 0);
   }
 
-  function getEquipmentTuneDamageMultiplier(baseEquipment = [], simulatedEquipment = baseEquipment) {
-    const baseStage = getEquipmentTuneStage(getEquipmentTuneSetPoint(baseEquipment));
-    const simulatedStage = getEquipmentTuneStage(getEquipmentTuneSetPoint(simulatedEquipment));
+  function getOathRawSetPoint(oathUpgrades = {}) {
+    const rawSetPoint = Number(oathUpgrades?.rawSetPoint);
+    const reportedSetPoint = Number(oathUpgrades?.reportedSetPoint);
+    const currentSetPoint = Number(oathUpgrades?.setPoint || 0);
+    if (Number.isFinite(rawSetPoint) && Number.isFinite(reportedSetPoint)) {
+      return rawSetPoint + currentSetPoint - reportedSetPoint;
+    }
+    const borrowedSetPoint = Number(oathUpgrades?.borrowedSetPoint || 0);
+    return currentSetPoint + (Number.isFinite(borrowedSetPoint) ? borrowedSetPoint : 0);
+  }
+
+  function getEquipmentOathPointStateFromSetPoints(rawEquipmentSetPoint, oathUpgrades = {}) {
+    const rawOathSetPoint = Math.max(0, getOathRawSetPoint(oathUpgrades));
+    const borrowedSetPoint = Math.min(
+      Math.max(0, EQUIPMENT_TUNE_MIN_SET_POINT - rawEquipmentSetPoint),
+      rawOathSetPoint,
+    );
+    return {
+      rawEquipmentSetPoint,
+      rawOathSetPoint,
+      borrowedSetPoint,
+      equipmentSetPoint: rawEquipmentSetPoint + borrowedSetPoint,
+      oathSetPoint: rawOathSetPoint - borrowedSetPoint,
+    };
+  }
+
+  function getEquipmentOathPointState(currentEquipmentUpgrades = [], oathUpgrades = {}) {
+    return getEquipmentOathPointStateFromSetPoints(
+      getEquipmentTuneSetPoint(currentEquipmentUpgrades),
+      oathUpgrades,
+    );
+  }
+
+  function getEquipmentTuneDamageMultiplier(
+    baseEquipment = [],
+    simulatedEquipment = baseEquipment,
+    baseOath = {},
+    simulatedOath = baseOath,
+  ) {
+    const baseStage = getEquipmentTuneStage(
+      getEquipmentOathPointState(baseEquipment, baseOath).equipmentSetPoint,
+    );
+    const simulatedStage = getEquipmentTuneStage(
+      getEquipmentOathPointState(simulatedEquipment, simulatedOath).equipmentSetPoint,
+    );
     const baseMultiplier = 1 + baseStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE / 100;
     const simulatedMultiplier = 1 + simulatedStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE / 100;
     return baseMultiplier > 0 ? simulatedMultiplier / baseMultiplier : 1;
@@ -188,17 +230,86 @@ export function createEnchantEquipmentTuneProgression({
       .map((row) => row.slot);
   }
 
-  function getEquipmentTuneRows(currentEquipmentUpgrades = [], materialPrices = {}, bufferBaseline = null) {
+  function getEquipmentTuneRows(
+    currentEquipmentUpgrades = [],
+    materialPrices = {},
+    bufferBaseline = null,
+    oathContext = {},
+  ) {
     const totalSetPoint = getEquipmentTuneSetPoint(currentEquipmentUpgrades);
-    if (totalSetPoint < EQUIPMENT_TUNE_MIN_SET_POINT) return [];
+    const oathUpgrades = oathContext?.oathUpgrades || {};
+    const pointState = getEquipmentOathPointState(currentEquipmentUpgrades, oathUpgrades);
+    if (pointState.equipmentSetPoint < EQUIPMENT_TUNE_MIN_SET_POINT) return [];
     const candidates = getEquipmentTuneCandidates(currentEquipmentUpgrades);
     const maxTuneCount = candidates.reduce((sum, equipment) => sum + Number(equipment.tuneRemaining || 0), 0);
     if (maxTuneCount <= 0) return [];
-    const currentStage = getEquipmentTuneStage(totalSetPoint);
+    const currentStage = getEquipmentTuneStage(pointState.equipmentSetPoint);
     const maxStage = getEquipmentTuneStage(totalSetPoint + maxTuneCount * EQUIPMENT_TUNE_STEP_POINT);
-    if (maxStage <= currentStage) return [];
+    const usesBorrowedOathPoint = pointState.borrowedSetPoint > 0;
+    if (maxStage <= currentStage && !usesBorrowedOathPoint) return [];
 
     const tuneSteps = [];
+    if (usesBorrowedOathPoint && typeof oathContext?.getOathTuneState === 'function') {
+      const db = oathContext.oathTuneDb || {};
+      const currentOathState = oathContext.getOathTuneState(db, pointState.oathSetPoint);
+      const currentEquipmentMultiplier = 1 + currentStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE / 100;
+      const currentOathMultiplier = Number(currentOathState?.damageMultiplier || 1);
+      const currentBuffPower = currentStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER
+        + Number(currentOathState?.blessingBuffPower || 0)
+        + Number(currentOathState?.stageBuffPower || 0);
+      let lastDamageMultiplier = currentEquipmentMultiplier * currentOathMultiplier;
+      let lastBuffPower = currentBuffPower;
+      const minimumTuneCount = Math.ceil(
+        (EQUIPMENT_TUNE_MIN_SET_POINT - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT,
+      );
+      for (let tuneCount = 1; tuneCount <= maxTuneCount; tuneCount += 1) {
+        if (tuneCount < minimumTuneCount) continue;
+        const targetSetPoint = totalSetPoint + tuneCount * EQUIPMENT_TUNE_STEP_POINT;
+        const targetPointState = getEquipmentOathPointStateFromSetPoints(
+          targetSetPoint,
+          oathUpgrades,
+        );
+        const targetStage = getEquipmentTuneStage(targetPointState.equipmentSetPoint);
+        const targetOathState = oathContext.getOathTuneState(db, targetPointState.oathSetPoint);
+        if (!targetOathState) continue;
+        const targetEquipmentMultiplier = 1 + targetStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE / 100;
+        const targetOathMultiplier = Number(targetOathState.damageMultiplier || 1);
+        const targetCombinedMultiplier = targetEquipmentMultiplier * targetOathMultiplier;
+        const targetBuffPower = targetStage * EQUIPMENT_TUNE_MEMORY_BUFF_POWER
+          + Number(targetOathState.blessingBuffPower || 0)
+          + Number(targetOathState.stageBuffPower || 0);
+        const isBuffer = Boolean(bufferBaseline?.isBuffer);
+        const improved = isBuffer
+          ? targetBuffPower > lastBuffPower + 0.000001
+          : targetCombinedMultiplier > lastDamageMultiplier + 0.000001;
+        if (!improved) continue;
+        const cost = allocateEquipmentTuneCost(candidates, tuneCount);
+        if (!cost || cost.gold <= 0) continue;
+        const expectedMaterials = applyUpgradeMaterialPrices(cost.materials, 'equipmentTune', materialPrices)
+          .map((material) => ({ ...material, itemName: material.label || material.itemName }));
+        tuneSteps.push({
+          index: tuneSteps.length,
+          tuneCount,
+          currentSetPoint: totalSetPoint,
+          targetSetPoint,
+          currentOathSetPoint: pointState.oathSetPoint,
+          targetOathSetPoint: targetPointState.oathSetPoint,
+          currentFinalDamage: currentStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
+          targetFinalDamage: targetStage * EQUIPMENT_TUNE_MEMORY_FINAL_DAMAGE,
+          currentBuffPower,
+          targetBuffPower,
+          expectedGold: cost.gold,
+          expectedMaterials,
+          tunePlan: cloneSimulatorValue(cost.tunePlan),
+          effects: isBuffer
+            ? { buffPower: targetBuffPower - currentBuffPower }
+            : { skillDamageMultiplier: targetCombinedMultiplier / (currentEquipmentMultiplier * currentOathMultiplier) },
+        });
+        lastDamageMultiplier = targetCombinedMultiplier;
+        lastBuffPower = targetBuffPower;
+      }
+    }
+    if (!usesBorrowedOathPoint) {
     for (let stage = currentStage + 1; stage <= maxStage; stage += 1) {
       const threshold = EQUIPMENT_TUNE_MIN_SET_POINT + stage * EQUIPMENT_TUNE_MEMORY_POINT;
       const tuneCount = Math.ceil((threshold - totalSetPoint) / EQUIPMENT_TUNE_STEP_POINT);
@@ -233,6 +344,7 @@ export function createEnchantEquipmentTuneProgression({
           ? { buffPower: buffPowerAfter - buffPowerBefore }
           : { skillDamageMultiplier: damageMultiplier },
       });
+    }
     }
     const first = tuneSteps[0];
     if (!first) return [];
@@ -405,6 +517,7 @@ export function createEnchantEquipmentTuneProgression({
     getBufferEquipmentTuneBaseRelativeChanges,
     getEquipmentTuneStage,
     getEquipmentTuneSetPoint,
+    getEquipmentOathPointState,
     getEquipmentTuneDamageMultiplier,
     applyEquipmentTunePlan,
     getChangedEquipmentTuneSlots,

@@ -94,6 +94,10 @@ acquisition = createEnchantOathAcquisition({
   getCostPerPointOnePercent,
   getRoleRelevantEffects,
   getOathTuneState,
+  getEffectiveOathSetPoint: (oathUpgrades, equipmentUpgrades) => (
+    Number(oathUpgrades?.setPoint || 0)
+    + Number(equipmentUpgrades?.[0]?.returnedOathSetPoint || 0)
+  ),
   syncOathTuneStageDisplay,
   getSimulatorExclusiveGroupKey,
   getSimulatorCandidateSignature,
@@ -208,6 +212,16 @@ assert.equal(adapted.currentSetPoint, 190);
 assert.equal(adapted.targetSetPoint, 220);
 assert.deepEqual(candidateRow, candidateSnapshot);
 assert.deepEqual(simulator, simulatorSnapshot);
+
+const adaptedAfterEquipmentTune = acquisition.adaptOathAcquisitionRecommendation(
+  candidateRow,
+  {
+    ...simulator,
+    simulatedEquipmentUpgrades: [{ returnedOathSetPoint: 25 }],
+  },
+);
+assert.equal(adaptedAfterEquipmentTune.currentSetPoint, 215);
+assert.equal(adaptedAfterEquipmentTune.targetSetPoint, 245);
 
 const descriptors = acquisition.getOathAcquisitionSelectionDescriptors(adapted);
 assert.deepEqual(descriptors.map((descriptor) => descriptor.exclusiveGroupKey), ['oathAcquire:0']);
