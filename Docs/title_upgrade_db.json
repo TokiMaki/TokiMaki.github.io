@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 4,
-  "updatedAt": "2026-08-30",
+  "schemaVersion": 5,
+  "updatedAt": "2026-09-10",
   "source": {
     "type": "manual_item_id_index_from_neople_item_search",
     "note": "titleItems는 네오플 /df/items 검색으로 확인한 칭호 본체 itemId다. titleBeadItems는 네오플 경매장 exact-name 검색으로 확인한 속성별 스페셜 칭호 보주 itemId다. 가격은 itemId 기준으로 조회한다."
@@ -30,34 +30,6 @@
     {
       "itemName": "숲속의 유랑악단 스페셜 칭호 보주[암속성 & 모든스탯]",
       "itemId": "53037f3ea985d308fb785208bc88ef95",
-      "element": "dark",
-      "elementValue": 6,
-      "allStat": 25
-    },
-    {
-      "itemName": "DNF X NBA 스페셜 칭호 보주[화속성 & 모든스탯]",
-      "itemId": "06dc11ce66f6b3c71f628717293fd9db",
-      "element": "fire",
-      "elementValue": 6,
-      "allStat": 25
-    },
-    {
-      "itemName": "DNF X NBA 스페셜 칭호 보주[수속성 & 모든스탯]",
-      "itemId": "e0059fc5ad1dcb52a39e0855f9815272",
-      "element": "water",
-      "elementValue": 6,
-      "allStat": 25
-    },
-    {
-      "itemName": "DNF X NBA 스페셜 칭호 보주[명속성 & 모든스탯]",
-      "itemId": "06784fd6af1de36277ea72c952d3ce8b",
-      "element": "light",
-      "elementValue": 6,
-      "allStat": 25
-    },
-    {
-      "itemName": "DNF X NBA 스페셜 칭호 보주[암속성 & 모든스탯]",
-      "itemId": "8ff597a8cb25bde0ad591625b955c2a8",
       "element": "dark",
       "elementValue": 6,
       "allStat": 25
