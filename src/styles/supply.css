@@ -578,6 +578,14 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .enchant-candidate-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      width: 100%;
+      min-width: 0;
+    }
     .enchant-candidate-portrait {
       --supply-detail-portrait-transform: none;
       --supply-detail-portrait-crop-width: 100%;
@@ -634,6 +642,12 @@
       width: 13px;
       height: 13px;
       object-fit: contain;
+    }
+    .enchant-candidate-score {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 18px;
     }
     .enchant-candidate-name,
     .enchant-candidate-adventure,

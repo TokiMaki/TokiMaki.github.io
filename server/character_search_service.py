@@ -9,6 +9,7 @@ from .repositories.character_repository import (
     get_cached_adventure_search_candidates,
     save_character_search_candidates,
 )
+from .repositories.setting_value_repository import load_setting_value_score_summaries
 
 SERVER_SEARCH_ORDER = (
     ("cain", "카인"),
@@ -144,6 +145,19 @@ def add_search_candidate_sort_keys(candidate: dict, order: int, target_name: str
     return candidate
 
 
+def attach_cached_score_summaries(candidates: list[dict]) -> list[dict]:
+    summaries = load_setting_value_score_summaries(candidates)
+    for candidate in candidates or []:
+        key = (
+            clean_text(candidate.get("serverId")).lower(),
+            clean_text(candidate.get("characterId")),
+        )
+        summary = summaries.get(key)
+        if summary:
+            candidate.update(summary)
+    return candidates
+
+
 def search_character(
     server_id: str,
     character_name: str,
@@ -274,6 +288,7 @@ def search_all_characters_response(character_name: str, limit: int = 10) -> dict
             candidates.append(candidate)
 
     candidates = hydrate_search_candidates_detail(candidates)
+    attach_cached_score_summaries(candidates)
     save_character_search_candidates(candidates)
     candidates.sort(key=lambda row: (row["_serverOrder"], row["_exactOrder"]))
     for row in candidates:
@@ -306,6 +321,7 @@ def search_adventure_characters_response(adventure_name: str) -> dict:
         for order, (server_id, _) in enumerate(SERVER_SEARCH_ORDER)
     }
     candidates = get_cached_adventure_search_candidates(target_name)
+    attach_cached_score_summaries(candidates)
     candidates.sort(key=lambda row: (
         server_order_by_id.get(clean_text(row.get("serverId")).lower(), len(SERVER_SEARCH_ORDER)),
         -parse_int(row.get("fame")),

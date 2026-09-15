@@ -227,6 +227,48 @@ def update_setting_value_snapshot_score(
         return False
 
 
+def load_setting_value_score_summaries(candidates: list[dict]) -> dict[tuple[str, str], dict]:
+    keys = []
+    seen_keys = set()
+    for candidate in candidates or []:
+        if not isinstance(candidate, dict):
+            continue
+        key = (
+            clean_text(candidate.get("serverId")).lower(),
+            clean_text(candidate.get("characterId")),
+        )
+        if not all(key) or key in seen_keys:
+            continue
+        seen_keys.add(key)
+        keys.append(key)
+    if not keys:
+        return {}
+
+    conditions = " OR ".join("(server_id = ? AND character_id = ?)" for _ in keys)
+    params = [value for key in keys for value in key]
+    try:
+        _ensure_setting_value_snapshot_table()
+        with closing(_connect_setting_value_db()) as conn:
+            rows = conn.execute(
+                f"""
+                SELECT server_id, character_id, equipment_score, buff_score
+                FROM setting_value_snapshot
+                WHERE {conditions}
+                """,
+                params,
+            ).fetchall()
+    except Exception:
+        return {}
+
+    return {
+        (clean_text(row[0]).lower(), clean_text(row[1])): {
+            "equipmentScore": _positive_int_or_none(row[2]),
+            "buffScore": _positive_int_or_none(row[3]),
+        }
+        for row in rows
+    }
+
+
 def _get_ranking_order_sql(sort: str) -> str:
     order_sql = {
         "score": "COALESCE(buff_score, equipment_score, 0) DESC, total_gold DESC, updated_at_ms DESC",

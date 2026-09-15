@@ -2349,6 +2349,7 @@ export function installEnchantView(ctx) {
     escapeHtml,
     bindCharacterAvatars,
     getCharacterPortraitMarkup,
+    isBufferCharacter: isLikelyBufferCharacter,
   });
 
   const { renderOathLoadoutBoard } = createEnchantOathLoadoutBoard({

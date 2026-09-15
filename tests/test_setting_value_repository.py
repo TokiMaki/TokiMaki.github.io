@@ -76,6 +76,24 @@ class SettingValueRepositoryTest(unittest.TestCase):
         self.assertEqual(row["equipmentScore"], 2345)
         self.assertEqual(row["settingValue"]["totalGold"], 100)
 
+    def test_score_summaries_are_loaded_for_search_candidates(self):
+        dealer = self.snapshot("dealer", 100, equipment_score=2345)
+        buffer = self.snapshot("buffer", 100, equipment_score=None)
+        buffer["role"] = "buffer"
+        buffer["buffScore"] = 6789
+        self.assertTrue(repository.save_setting_value_snapshot(dealer))
+        self.assertTrue(repository.save_setting_value_snapshot(buffer))
+
+        summaries = repository.load_setting_value_score_summaries([
+            {"serverId": "cain", "characterId": "dealer"},
+            {"serverId": "cain", "characterId": "buffer"},
+            {"serverId": "cain", "characterId": "missing"},
+        ])
+
+        self.assertEqual(summaries[("cain", "dealer")]["equipmentScore"], 2345)
+        self.assertEqual(summaries[("cain", "buffer")]["buffScore"], 6789)
+        self.assertNotIn(("cain", "missing"), summaries)
+
     def test_selected_character_rank_includes_role_population_count(self):
         repository.save_setting_value_snapshot(self.snapshot("first", 500))
         repository.save_setting_value_snapshot(self.snapshot("second", 300))

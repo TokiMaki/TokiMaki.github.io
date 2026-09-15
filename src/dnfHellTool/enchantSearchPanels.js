@@ -1,4 +1,6 @@
 const CHARACTER_FAME_ICON_URL = new URL('../../이미지/fame.png', import.meta.url).href;
+const EQUIPMENT_SCORE_ICON_URL = new URL('../../이미지/equipmentScore.png', import.meta.url).href;
+const BUFFER_SCORE_ICON_URL = new URL('../../이미지/bufferScore.png', import.meta.url).href;
 
 export function createEnchantSearchPanels({
   els,
@@ -6,6 +8,7 @@ export function createEnchantSearchPanels({
   escapeHtml,
   bindCharacterAvatars,
   getCharacterPortraitMarkup,
+  isBufferCharacter,
 }) {
   function setEnchantAnalysisPanel(mode, message = '') {
     const isLoading = mode === 'loading';
@@ -131,6 +134,17 @@ export function createEnchantSearchPanels({
           const jobLabel = String(candidate.jobGrowName || candidate.jobName || '').trim();
           const fame = Number(candidate.fame || 0);
           const hasFame = candidate.fame !== undefined && candidate.fame !== null && String(candidate.fame).trim() !== '';
+          const equipmentScore = Number(candidate.equipmentScore);
+          const buffScore = Number(candidate.buffScore);
+          const hasEquipmentScore = Number.isFinite(equipmentScore) && equipmentScore > 0;
+          const hasBuffScore = Number.isFinite(buffScore) && buffScore > 0;
+          const usesBufferScore = hasBuffScore || (!hasEquipmentScore && isBufferCharacter(candidate));
+          const hasScore = usesBufferScore ? hasBuffScore : hasEquipmentScore;
+          const score = usesBufferScore ? buffScore : equipmentScore;
+          const scoreLabel = usesBufferScore ? '버프점수' : '장비점수';
+          const scoreIconUrl = usesBufferScore ? BUFFER_SCORE_ICON_URL : EQUIPMENT_SCORE_ICON_URL;
+          const scoreClassName = usesBufferScore ? 'enchant-portrait-buffer-score' : 'enchant-portrait-equipment-score';
+          const scoreText = hasScore ? Math.round(score).toLocaleString('ko-KR') : '-';
           const candidateCharacter = {
             serverId,
             characterId: String(candidate.characterId || '').trim(),
@@ -143,12 +157,15 @@ export function createEnchantSearchPanels({
           };
           return `
             <button type="button" class="enchant-candidate-card" data-candidate-server-id="${escapeHtml(serverId)}" data-candidate-character-name="${escapeHtml(characterName)}">
-              <span class="enchant-candidate-server">${escapeHtml(serverName)}</span>
+              <span class="enchant-candidate-meta">
+                <span class="enchant-candidate-server">${escapeHtml(serverName)}</span>
+                ${hasFame ? `<span class="enchant-candidate-fame" title="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}" aria-label="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}</span>` : ''}
+              </span>
               <span class="supply-detail-portrait enchant-candidate-portrait">
                 ${getCharacterPortraitMarkup(candidateCharacter, { zoom: 1, showName: false })}
               </span>
               <span class="enchant-candidate-info">
-                ${hasFame ? `<span class="enchant-candidate-fame" title="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}" aria-label="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}</span>` : ''}
+                <span class="enchant-candidate-score ${scoreClassName}" title="${hasScore ? `${scoreLabel} ${escapeHtml(scoreText)}` : `${scoreLabel} 확인 불가`}" aria-label="${hasScore ? `${scoreLabel} ${escapeHtml(scoreText)}` : `${scoreLabel} 확인 불가`}"><strong><img src="${escapeHtml(scoreIconUrl)}" alt="" loading="lazy" decoding="async" />${escapeHtml(scoreText)}</strong></span>
                 <span class="enchant-candidate-name">${escapeHtml(characterName)}</span>
                 ${adventureName ? `<span class="enchant-candidate-adventure">${escapeHtml(adventureName)}</span>` : ''}
                 ${jobLabel ? `<span class="enchant-candidate-job">${escapeHtml(jobLabel)}</span>` : ''}
