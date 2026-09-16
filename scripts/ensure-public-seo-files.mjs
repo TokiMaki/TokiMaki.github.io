@@ -1,6 +1,6 @@
 import { copyFile, readFile } from 'node:fs/promises';
 
-const files = ['robots.txt', 'sitemap.xml'];
+const files = ['robots.txt', 'sitemap.xml', 'ads.txt'];
 
 for (const file of files) {
   const source = `public/${file}`;

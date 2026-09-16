@@ -131,3 +131,4 @@ $RECYCLE.BIN/
 *.txt
 !requirements.txt
 !public/robots.txt
+!public/ads.txt

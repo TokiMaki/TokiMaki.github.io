@@ -6,6 +6,7 @@ const routes = [
   ['/', 'dist/index.html'],
   ['/about/', 'dist/about/index.html'],
   ['/ranking/', 'dist/ranking/index.html'],
+  ['/privacy/', 'dist/privacy/index.html'],
 ];
 
 const serverEntryUrl = pathToFileURL(resolve('.prerender/entry-server.js')).href;

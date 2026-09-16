@@ -5,6 +5,7 @@ const cases = [
   ['dist/index.html', 'landing-page'],
   ['dist/about/index.html', 'about-page'],
   ['dist/ranking/index.html', 'setting-value-page'],
+  ['dist/privacy/index.html', 'privacy-page'],
 ];
 
 for (const [path, expectedClass] of cases) {
@@ -20,5 +21,8 @@ assert.match(rankingHtml, /https:\/\/www\.dunpilot\.com\/ranking\//);
 const legacyStatsHtml = await readFile('dist/stats/index.html', 'utf8');
 assert.match(legacyStatsHtml, /<meta name="robots" content="noindex,follow" \/>/);
 assert.match(legacyStatsHtml, /\/ranking\//);
+
+const adsTxt = await readFile('dist/ads.txt', 'utf8');
+assert.equal(adsTxt.trim(), 'google.com, pub-1303918238179014, DIRECT, f08c47fec0942fa0');
 
 console.log('prerender output tests passed');
