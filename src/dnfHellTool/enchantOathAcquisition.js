@@ -973,8 +973,12 @@ export function createEnchantOathAcquisition({
     };
   }
 
-  function rebuildOathAcquisitionPlansFromBase(simulator = {}, recommendationRows = []) {
-    const baseOath = cloneSimulatorValue(simulator.baseOathUpgrades || {});
+  function rebuildOathAcquisitionPlansFromBase(
+    simulator = {},
+    recommendationRows = [],
+    baseOathOverride = null,
+  ) {
+    const baseOath = cloneSimulatorValue(baseOathOverride || simulator.baseOathUpgrades || {});
     if (!Array.isArray(baseOath.crystals)) return null;
     const planningSimulator = {
       ...simulator,

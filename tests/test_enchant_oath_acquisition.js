@@ -556,6 +556,26 @@ assert.equal(recomposedPlans.oathUpgrades.crystals[1].itemId, 'epic-slot-1');
 assert.equal(recomposedPlans.oathUpgrades.crystals[2].itemId, 'legend-high');
 assert.deepEqual(recompositionSimulator.simulatedOathUpgrades.crystals, recompositionBaseCrystals);
 
+const primevalBodyOverride = {
+  ...cloneSimulatorValue(recompositionSimulator.baseOathUpgrades),
+  itemId: 'primeval-oath-body',
+  itemName: '강림한 마력 서약',
+  itemRarity: '태초',
+  bodySetPoint: 655,
+  setPoint: Number(recompositionSimulator.baseOathUpgrades.setPoint) + 200,
+};
+const recomposedWithPrimevalBody = acquisition.rebuildOathAcquisitionPlansFromBase(
+  recompositionSimulator,
+  [recompositionEpicRow],
+  primevalBodyOverride,
+);
+assert.equal(recomposedWithPrimevalBody.oathUpgrades.itemId, 'primeval-oath-body');
+assert.equal(
+  recomposedWithPrimevalBody.snapshotPlans[0].referenceOathUpgrades.setPoint,
+  primevalBodyOverride.setPoint,
+  '태초 서약 본체 적용 후 초월/정가는 적용된 본체의 세트포인트에서 시작한다',
+);
+
 const recomposedFullPlans = acquisition.rebuildOathAcquisitionPlansFromBase(
   recompositionSimulator,
   [

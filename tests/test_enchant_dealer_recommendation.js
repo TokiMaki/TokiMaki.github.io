@@ -916,11 +916,15 @@ function testComparatorPolicyAndStableSort() {
   const materialOtherB = {
     sourceType: 'oathCraft', acquisition: { label: '재료' }, incrementalDamagePercent: 3,
   };
+  const oathBodyUpgrade = {
+    sourceType: 'oathBodyUpgrade', freeAction: true, costPerPointOnePercent: 0,
+  };
   assert.ok(compareDealerRecommendationOrder(
     { ...normalB, recommendationPriority: -1 },
     { ...materialEnchantA, recommendationPriority: 0 },
   ) < 0);
   assert.ok(compareDealerRecommendationOrder(materialEnchantA, normalA) < 0);
+  assert.ok(compareDealerRecommendationOrder(materialEnchantA, oathBodyUpgrade) < 0);
   assert.ok(compareDealerRecommendationOrder(materialEnchantA, materialEnchantB) < 0);
   assert.ok(compareDealerRecommendationOrder(materialOtherB, materialOtherA) < 0);
   assert.ok(compareDealerRecommendationOrder(normalA, normalB) < 0);

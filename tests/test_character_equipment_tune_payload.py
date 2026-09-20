@@ -164,12 +164,11 @@ class EquipmentTunePayloadTest(unittest.TestCase):
 
         targets = resolve_oath_body_upgrade_targets(
             {"itemName": "영겁의 안개 서약", "itemRarity": "에픽"},
+            {"setOptionName": "무리 : 초월"},
             {},
-            {},
-            "pack-set",
         )
 
-        search_mock.assert_called_once_with("서약", max_pages=2, word_type="full", limit=30)
+        search_mock.assert_called_once_with("무리 서약", word_type="full", limit=30)
         self.assertEqual([target["itemRarity"] for target in targets], rarities)
 
     def test_primeval_oath_upgrade_target_excludes_primeval(self):

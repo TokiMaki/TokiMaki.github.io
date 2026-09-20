@@ -421,22 +421,24 @@ function getRoleRelevantEffects(effects = {}, isBuffer = false) {
   );
 }
 
-function formatEffectTransitionValue(key, currentValue, targetValue) {
-  const suffix = ['finalDamage', 'attackIncrease', 'attackAmplification', 'buffAmplification', 'critical'].includes(key) ? '%' : '';
-  return `${EFFECT_LABELS[key] || key} ${formatEffectNumber(currentValue)}${suffix} -> ${formatEffectNumber(targetValue)}${suffix}`;
-}
-
 function formatBlackFangEffect(row, isBuffer = false) {
-  const currentEffects = row.currentEffects || {};
-  const targetEffects = row.targetEffects || {};
+  const currentEffects = getRoleRelevantEffects(row.currentEffects || {}, isBuffer);
+  const targetEffects = getRoleRelevantEffects(row.targetEffects || {}, isBuffer);
   const changedEffects = getRoleRelevantEffects(row.effects || {}, isBuffer);
   const changedKeys = EFFECT_ORDER
     .filter((key) => Number.isFinite(changedEffects?.[key]))
-    .filter((key) => !(Number.isFinite(changedEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
-  const parts = changedKeys
-    .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
+    .filter((key) => Number.isFinite(targetEffects?.[key]))
+    .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
+  const parts = changedKeys.map((key) => formatEffectValue(
+    key,
+    Number(targetEffects[key] || 0) - Number(currentEffects[key] || 0),
+  ));
   const baseText = parts.length ? parts.join(' / ') : formatEffects(changedEffects);
   return [baseText, row.conditionalEffectText].filter(Boolean).join(' / ');
+}
+
+function formatOathBodyUpgradeEffect(row, isBuffer = false) {
+  return formatBlackFangEffect(row, isBuffer);
 }
 
 function formatRelicCraftEffect(row, isBuffer = false) {
@@ -448,10 +450,9 @@ function formatRelicCraftEffect(row, isBuffer = false) {
     !Number.isFinite(Number(currentEffects[effectKey]))
     || !Number.isFinite(Number(targetEffects[effectKey]))
   ) return '';
-  return formatEffectTransitionValue(
+  return formatEffectValue(
     effectKey,
-    Number(currentEffects[effectKey]),
-    Number(targetEffects[effectKey]),
+    Number(targetEffects[effectKey]) - Number(currentEffects[effectKey]),
   );
 }
 
@@ -523,7 +524,10 @@ function formatEnchantTransitionEffect(row, isBuffer = false, baseline = {}) {
     .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)))
     .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
   const parts = changedKeys
-    .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
+    .map((key) => formatEffectValue(
+      key,
+      Number(targetEffects[key] || 0) - Number(currentEffects[key] || 0),
+    ));
   if (row.sourceType === 'enchant' && (isBuffer || getDealerPrimaryStatKey(baseline))) return parts.join(' / ');
   return parts.length ? parts.join(' / ') : formatEffects(row.effects);
 }
@@ -554,8 +558,11 @@ function formatTitleBeadTransitionEffect(row, isBuffer = false) {
     .filter((key) => !(Number.isFinite(currentEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)))
     .filter((key) => !(Number.isFinite(targetEffects.allStat) && ['str', 'int', 'vit', 'spr'].includes(key)));
   const parts = changedKeys
-    .map((key) => formatEffectTransitionValue(key, Number(currentEffects[key] || 0), Number(targetEffects[key] || 0)));
-  return parts.length ? parts.join(' / ') : formatEffects(targetEffects);
+    .map((key) => formatEffectValue(
+      key,
+      Number(targetEffects[key] || 0) - Number(currentEffects[key] || 0),
+    ));
+  return parts.length ? parts.join(' / ') : formatEffects(row.effects);
 }
 
 function formatUpgradeEffect(row) {
@@ -643,6 +650,26 @@ function formatOathStageNameHtml(stageName, escapeHtml) {
   const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
   const rarityClass = getOathStageRarityClass(stageName);
   return `<span class="enchant-oath-stage enchant-oath-stage-${escape(rarityClass)}">${escape(stageName)}</span>`;
+}
+
+function formatOathBodyUpgradeSetPointHtml(row, escapeHtml) {
+  const currentSetPoint = Number(row.currentOathSetPoint);
+  const targetSetPoint = Number(row.targetOathSetPoint);
+  if (
+    !Number.isFinite(currentSetPoint)
+    || !Number.isFinite(targetSetPoint)
+    || currentSetPoint === targetSetPoint
+  ) return '';
+  const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
+  const currentPoint = formatOathStageNameHtml(
+    `${row.currentOathStageName || '서약'} ${formatEffectNumber(currentSetPoint)}`,
+    escape,
+  );
+  const targetPoint = formatOathStageNameHtml(
+    `${row.targetOathStageName || '서약'} ${formatEffectNumber(targetSetPoint)}`,
+    escape,
+  );
+  return `${currentPoint} <span class="enchant-oath-stage-arrow">-&gt;</span> ${targetPoint}`;
 }
 
 function formatOathTuneEffectHtml(row, escapeHtml) {
@@ -810,6 +837,25 @@ function getAcquisitionOptionsMarkup(options = [], escapeHtml) {
     return `<span class="enchant-material-cost"${materialName ? ` title="${escape(materialName)}"` : ''}>${icon}<span>${escape(label)}</span></span>`;
   }).filter(Boolean);
   return rows.length ? `<span class="enchant-acquisition-options">${rows.join('')}</span>` : '';
+}
+
+function getCompactOathBodyAcquisitionMarkup(options = [], escapeHtml) {
+  if (!Array.isArray(options) || !options.length) return '';
+  const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
+  const rows = options.map((option) => {
+    const amount = Number(option?.amount || 0);
+    const materialName = option?.materialLabel || option?.materialItemName || option?.materialName || option?.label || '';
+    const hasMaterialIcon = Boolean(option?.materialIconUrl);
+    const label = hasMaterialIcon && Number.isFinite(amount) && amount > 0
+      ? amount.toLocaleString('ko-KR')
+      : getAcquisitionLabel(option);
+    if (!label) return '';
+    const icon = hasMaterialIcon
+      ? `<img src="${escape(option.materialIconUrl)}" alt="${escape(materialName)}" loading="lazy" decoding="async" />`
+      : '';
+    return `<span class="enchant-material-cost"${materialName ? ` title="${escape(materialName)}"` : ''}>${icon}<span>${escape(label)}</span></span>`;
+  }).filter(Boolean);
+  return rows.length ? `<span class="enchant-acquisition-options is-compact">${rows.join('<span class="enchant-acquisition-divider">/</span>')}</span>` : '';
 }
 
 function getCardRows(cards) {
@@ -7407,6 +7453,8 @@ export function installEnchantView(ctx) {
           ? formatOathTuneEffect(row)
         : row.sourceType === 'oathUpgrade'
           ? formatOathUpgradeEffect(row)
+        : row.sourceType === 'oathBodyUpgrade'
+          ? formatOathBodyUpgradeEffect(row, isBufferMetric)
         : row.sourceType === 'oathTranscend'
           || row.sourceType === 'oathCraft'
           || row.sourceType === 'oathAcquisitionCombined'
@@ -7447,6 +7495,9 @@ export function installEnchantView(ctx) {
           || row.sourceType === 'oathCraft'
           || row.sourceType === 'oathAcquisitionCombined'
           ? formatOathTranscendEffectHtml(row, isBufferMetric, escapeHtml, row.sourceType === 'oathAcquisitionCombined')
+        : '';
+      const setPointHtml = row.sourceType === 'oathBodyUpgrade'
+        ? formatOathBodyUpgradeSetPointHtml(row, escapeHtml)
         : '';
       const titleElementLabel = row.sourceType === 'title' && row.titleEnchantElement
         ? ELEMENT_LABEL_BY_NAME[row.titleEnchantElement] || row.titleEnchantElement
@@ -7518,6 +7569,8 @@ export function installEnchantView(ctx) {
               : '장비 조율'
         : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
           ? '서약 결정'
+        : row.sourceType === 'oathBodyUpgrade'
+          ? row.cardTitle || '빛의 서약'
         : row.sourceType === 'oathAcquisitionCombined'
           ? '서약 결정'
         : row.sourceType === 'relicCraft'
@@ -7527,7 +7580,9 @@ export function installEnchantView(ctx) {
         : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
       const isMaterialEnchant = isMaterialEnchantRecommendation(row);
-      const acquisitionOptionsMarkup = getAcquisitionOptionsMarkup(row.acquisitionOptions, escapeHtml);
+      const acquisitionOptionsMarkup = row.sourceType === 'oathBodyUpgrade'
+        ? getCompactOathBodyAcquisitionMarkup(row.acquisitionOptions, escapeHtml)
+        : getAcquisitionOptionsMarkup(row.acquisitionOptions, escapeHtml);
       const primaryAcquisitionMarkup = row.sourceType === 'oathBodyUpgrade'
         ? getAcquisitionOptionsMarkup(
           (row.acquisitionOptions || []).filter((option) => option?.materialIconUrl).slice(0, 1),
@@ -7644,17 +7699,28 @@ export function installEnchantView(ctx) {
             <span class="enchant-tune-step-button${row.selectedVariantIndex >= row.oathDecisionVariants.length - 1 ? ' is-disabled' : ''}" role="button" tabindex="0" data-recommendation-variant-step="1" data-variant-group="${escapeHtml(row.variantGroupKey)}" data-variant-max="${row.oathDecisionVariants.length - 1}" aria-label="다음 적용 개수">+</span>
           </span>`
         : '');
-      const popoverName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+      const popoverBaseName = row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
         ? [displayName, tierLabel].filter(Boolean).join(' ')
         : displayName;
+      const popoverProgressText = row.sourceType === 'relicCraft'
+        && Number.isFinite(Number(row.targetPrecisionPercent))
+        ? row.relicCraftMode === 'precision'
+          ? `정밀도 ${formatEffectNumber(Number(row.currentPrecisionPercent || 0))}% -> ${formatEffectNumber(Number(row.targetPrecisionPercent))}%`
+          : `정밀도 ${formatEffectNumber(Number(row.targetPrecisionPercent))}%`
+        : isWeaponReleaseRecommendation
+          ? `개방률 ${formatEffectNumber(Number(row.currentWeaponReleasePercent || 0))}% -> ${formatEffectNumber(Number(row.targetWeaponReleasePercent || 100))}%`
+          : '';
+      const popoverName = [popoverBaseName, popoverProgressText ? `(${popoverProgressText})` : '']
+        .filter(Boolean)
+        .join(' ');
+      const hideEquipmentTransitionText = isEquipmentBodyReplacementSource(row)
+        || ['oathBodyUpgrade', 'oathTranscend', 'oathCraft'].includes(row.sourceType);
       const itemExplainText = row.sourceType === 'oathAcquisitionCombined'
         ? ''
         : isRelicDesignation
           ? ''
-        : row.sourceType === 'weaponTune'
-          ? isWeaponReleaseRecommendation
-            ? `개방률 ${formatEffectNumber(Number(row.currentWeaponReleasePercent || 0))}% -> ${formatEffectNumber(Number(row.targetWeaponReleasePercent || 100))}%`
-            : ''
+        : hideEquipmentTransitionText
+          ? ''
           : showOptionText || ['switchingTitle', 'switchingCreature', 'switchingFragment'].includes(row.sourceType) ? row.itemExplain : '';
       const itemExplainHtml = String(itemExplainText || '').includes('\n')
         ? String(itemExplainText || '').split('\n').map((part) => escapeHtml(part)).join('<br>')
@@ -7668,6 +7734,7 @@ export function installEnchantView(ctx) {
         effectHtml
           ? { html: effectHtml, className: 'enchant-popover-effect' }
           : { text: effectText, className: 'enchant-popover-effect' },
+        { html: setPointHtml, className: 'enchant-popover-effect' },
         { text: row.priceWarningText ? `⚠ ${row.priceWarningText}` : '', className: 'enchant-recommend-warning' },
         { text: acquisitionOptionsMarkup ? '획득 방법' : legacyAcquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
         { html: acquisitionOptionsMarkup, className: 'enchant-popover-material' },
@@ -9313,9 +9380,22 @@ export function installEnchantView(ctx) {
         ? { transcend: transcendCount, craft: craftCount }
         : null,
     )).filter(Boolean);
+    const currentOathBody = getOathBodySnapshot(
+      simulator.simulatedOathUpgrades || simulator.baseOathUpgrades || {},
+    );
+    const replacedBaseOath = replaceOathBody(
+      simulator.baseOathUpgrades || {},
+      currentOathBody,
+    );
+    if (!replacedBaseOath) return false;
+    const acquisitionBaseOath = reconcileOathSetPointState(
+      replacedBaseOath,
+      simulator.simulatedEquipmentUpgrades,
+    );
     const rebuilt = rebuildOathAcquisitionPlansFromBase(
       simulator,
       planConfigs.map((config) => config.planVariant),
+      acquisitionBaseOath,
     );
     if (!rebuilt) return false;
 

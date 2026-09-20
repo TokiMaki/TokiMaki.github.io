@@ -328,9 +328,15 @@ def get_oath_crystal_family_name(item_name: str) -> str:
 
 def get_oath_context_family_name(oath: dict) -> str:
     set_option_name = clean_text(((oath or {}).get("setInfo") or {}).get("setOptionName"))
-    if " : " not in set_option_name:
-        return ""
-    return clean_text(set_option_name.split(" : ", 1)[0])
+    if " : " in set_option_name:
+        return clean_text(set_option_name.split(" : ", 1)[0])
+    family_points = {}
+    for crystal in (oath or {}).get("crystal") or []:
+        family_name = get_oath_crystal_family_name((crystal or {}).get("itemName"))
+        if not family_name:
+            continue
+        family_points[family_name] = family_points.get(family_name, 0) + get_oath_crystal_set_point(crystal)
+    return max(family_points, key=family_points.get, default="")
 
 
 def is_oath_other_family(current_family_name: str, target_family_name: str) -> bool:

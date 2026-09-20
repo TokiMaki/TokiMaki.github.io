@@ -56,7 +56,11 @@ from .candidates.relic_craft import (
 )
 from .candidates.raid_armor_upgrade import build_raid_armor_upgrade_recommendations_debug
 from .candidates.weapon_tune import build_weapon_tune_recommendations_debug
-from .candidates.oath_transcend import build_oath_craft_recommendations_debug, build_oath_transcend_recommendations_debug
+from .candidates.oath_transcend import (
+    build_oath_craft_recommendations_debug,
+    build_oath_transcend_recommendations_debug,
+    get_oath_context_family_name,
+)
 from .candidates.switching_fragment import (
     SWITCHING_FRAGMENT_TARGET_SLOTS,
     get_switching_fragment_auction_candidate_groups,
@@ -1264,7 +1268,7 @@ OATH_BODY_BASE_ALL_STAT_BY_RARITY = {
     "에픽": 40,
     "태초": 45,
 }
-OATH_UPGRADES_CACHE_RESOURCE = "oathUpgradesV4"
+OATH_UPGRADES_CACHE_RESOURCE = "oathUpgradesV6"
 
 
 def normalize_oath_body_status(status_rows: list, item_rarity: str = "") -> dict:
@@ -1279,7 +1283,7 @@ def resolve_oath_body_upgrade_targets(
     info: dict,
     set_info: dict,
     current_detail: dict,
-    equipment_set_item_id: str = "",
+    oath_context: dict | None = None,
 ) -> list[dict]:
     item_name = clean_text(info.get("itemName"))
     current_rarity = clean_text(info.get("itemRarity"))
@@ -1287,24 +1291,17 @@ def resolve_oath_body_upgrade_targets(
     is_mist_oath = "안개" in item_name
     if not item_name or current_rarity_order is None:
         return []
-    family_name = clean_text(set_info.get("setOptionName")).split(":", 1)[0].strip()
+    family_name = get_oath_context_family_name(oath_context or {"setInfo": set_info})
     if not family_name and clean_text(current_detail.get("setItemId")) and item_name.endswith(" 서약"):
         family_name = clean_text(item_name[:-len(" 서약")]).rsplit(" ", 1)[-1]
-    target_set_item_id = clean_text(equipment_set_item_id) if is_mist_oath else clean_text(current_detail.get("setItemId"))
-    if is_mist_oath and not target_set_item_id:
-        return []
-    if not is_mist_oath and not family_name:
+    target_set_item_id = clean_text(current_detail.get("setItemId"))
+    if not family_name:
         return []
     target_rarities = set(OATH_BODY_RARITY_ORDER) if is_mist_oath else {
         rarity for rarity, rarity_order in OATH_BODY_RARITY_ORDER.items()
         if rarity_order > current_rarity_order
     }
     rows = search_items_by_name(
-        "서약",
-        max_pages=2,
-        word_type="full",
-        limit=30,
-    ) if is_mist_oath else search_items_by_name(
         f"{family_name} 서약",
         word_type="full",
         limit=30,
@@ -1332,7 +1329,7 @@ def resolve_oath_body_upgrade_targets(
             ),
             {},
         ) if target_set_item_id else {}
-        if not target_detail and not is_mist_oath and len(rarity_details) == 1:
+        if not target_detail and len(rarity_details) == 1:
             target_detail = rarity_details[0]
         target_item_id = clean_text(target_detail.get("itemId"))
         target_effects = normalize_oath_body_status(
@@ -1374,7 +1371,6 @@ def resolve_primeval_oath_upgrade_target(info: dict, set_info: dict, current_det
 def build_oath_upgrade_payload(
     oath_payload: dict,
     mist_assimilation_payload: dict | None = None,
-    equipment_set_item_id: str = "",
 ) -> dict:
     oath = oath_payload.get("oath") or {}
     info = oath.get("info") or {}
@@ -1448,7 +1444,7 @@ def build_oath_upgrade_payload(
         info,
         set_info,
         oath_detail,
-        equipment_set_item_id,
+        oath,
     )
     if "안개" in clean_text(info.get("itemName")) and upgrade_targets:
         for effect_key in ("attackIncrease", "attackAmplification"):
@@ -1481,7 +1477,6 @@ def build_oath_upgrade_payload(
         "rawSetPoint": raw_set_point,
         "reportedSetPoint": stage_point,
         "borrowedSetPoint": borrowed_set_point,
-        "bodyUpgradeSetItemId": clean_text(equipment_set_item_id),
         "oathUpgradeLevel": oath_upgrade_level,
         "crystals": crystals,
     }
@@ -1490,23 +1485,17 @@ def build_oath_upgrade_payload(
 def load_character_oath_upgrades(
     server_id: str,
     character_id: str,
-    equipment_set_item_id: str = "",
 ) -> dict:
     cached_payload = get_character_cached_computed_payload(
         server_id,
         character_id,
         OATH_UPGRADES_CACHE_RESOURCE,
     )
-    cached_is_mist_oath = "안개" in clean_text((cached_payload or {}).get("itemName"))
     if (
         cached_payload is not None
         and "rawSetPoint" in cached_payload
         and "bodySetPoint" in cached_payload
         and "upgradeTargets" in cached_payload
-        and (
-            not cached_is_mist_oath
-            or clean_text(cached_payload.get("bodyUpgradeSetItemId")) == clean_text(equipment_set_item_id)
-        )
     ):
         return cached_payload
     try:
@@ -1528,7 +1517,6 @@ def load_character_oath_upgrades(
     oath_upgrades = build_oath_upgrade_payload(
         payload,
         mist_assimilation_payload,
-        equipment_set_item_id,
     )
     save_character_cached_computed_payload(
         server_id,
@@ -1602,21 +1590,10 @@ def load_character_enchants(
     setting_value_equipment_inputs = {
         "status": "pending",
     } if include_skill_details else {}
-    equipment_set_item_id = clean_text(next((
-        row.get("setItemId")
-        for row in sorted(
-            payload.get("setItemInfo") or [],
-            key=lambda value: parse_percent_or_number(
-                (((value.get("active") or {}).get("setPoint") or {}).get("current"))
-            ),
-            reverse=True,
-        )
-        if clean_text(row.get("setItemId"))
-    ), ""))
     oath_upgrades = _measure_step(
         steps,
         "load_character_oath_upgrades",
-        lambda: load_character_oath_upgrades(server_id, character_id, equipment_set_item_id),
+        lambda: load_character_oath_upgrades(server_id, character_id),
     )
     buffer_baseline = load_character_buffer_baseline(
         server_id,

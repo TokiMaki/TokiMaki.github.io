@@ -356,6 +356,8 @@ const primevalRows = progression.getOathBodyUpgradeRows(
 assert.equal(primevalRows.length, 2);
 assert.deepEqual(primevalRows.map((row) => row.tier), ['에픽', '태초']);
 assert.equal(primevalRows[0].sourceType, 'oathBodyUpgrade');
+assert.equal(primevalRows[0].currentOathSetPoint, 2530);
+assert.equal(primevalRows[0].targetOathSetPoint, 2610);
 assert.equal(primevalRows[0].effects.attackIncrease, undefined);
 assert.equal(primevalRows[0].acquisition, null);
 assert.deepEqual(primevalRows[0].acquisitionOptions, []);

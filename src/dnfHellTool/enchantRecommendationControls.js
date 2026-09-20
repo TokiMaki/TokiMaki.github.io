@@ -136,7 +136,7 @@ export function createEnchantRecommendationControls({
                 return `
                   <label class="enchant-include-option">
                     <input type="checkbox" data-enchant-tier="${escapeHtml(key)}" value="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} />
-                    <span>${escapeHtml(item)}</span>
+                    <span>${escapeHtml(group.title === '서약' && item === '본체' ? '서약' : item)}</span>
                   </label>
                   ${group.splitAfter === item ? '<span class="enchant-include-option-break" aria-hidden="true"></span>' : ''}
                 `;

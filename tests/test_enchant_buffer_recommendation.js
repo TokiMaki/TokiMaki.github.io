@@ -285,12 +285,15 @@ function testComparatorPolicy() {
   const inefficient = { buffCostPerHundredPoints: 200 };
   const materialA = { acquisition: { label: '재료' }, materialRank: 1, buffCostPerHundredPoints: 9999 };
   const materialB = { acquisition: { label: '재료' }, materialRank: 2, buffCostPerHundredPoints: 1 };
+  const materialEnchant = { sourceType: 'enchant', acquisition: { label: '재료' }, buffCostPerHundredPoints: 9999 };
+  const oathBodyUpgrade = { sourceType: 'oathBodyUpgrade', freeAction: true, buffCostPerHundredPoints: 0 };
 
   assert.ok(compareBufferRecommendationOrder(
     { ...inefficient, recommendationPriority: -1 },
     { ...materialA, recommendationPriority: 0 },
   ) < 0, 'recommendationPriority is the first key');
   assert.ok(compareBufferRecommendationOrder(materialA, efficient) < 0, 'material acquisition precedes priced rows');
+  assert.ok(compareBufferRecommendationOrder(materialEnchant, oathBodyUpgrade) < 0, 'material enchant precedes oath body upgrades');
   assert.ok(compareBufferRecommendationOrder(materialA, materialB) < 0, 'material rows delegate to material ordering');
   assert.ok(compareBufferRecommendationOrder(efficient, inefficient) < 0, 'positive efficiency sorts ascending');
   assert.ok(compareBufferRecommendationOrder({ buffCostPerHundredPoints: 0 }, efficient) < 0, 'zero-cost efficiency sorts first');

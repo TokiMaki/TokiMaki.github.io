@@ -1146,6 +1146,15 @@
       width: 11px;
       height: 11px;
     }
+    .enchant-acquisition-options.is-compact {
+      flex-direction: row;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .enchant-acquisition-divider {
+      color: var(--muted);
+    }
     .enchant-recommend-popover {
       position: absolute;
       left: 12px;

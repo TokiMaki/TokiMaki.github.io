@@ -137,5 +137,5 @@ export function getRadiantEyeConditionalEffectText(row = {}, equipmentRows = [],
   const multiplier = getRadiantEyeDealerMultiplier(targetRows)
     / getRadiantEyeDealerMultiplier(currentRows);
   const percent = (multiplier - 1) * 100;
-  return percent > 0.000001 ? `[천상의 빛] 최종 데미지 +${percent.toFixed(0)}%` : '';
+  return percent > 0.000001 ? `[천상의 빛] 최종뎀 +${percent.toFixed(0)}%` : '';
 }

@@ -87,10 +87,10 @@ export function createEnchantOathProgression({
       return [];
     }
     const currentEffects = oathUpgrades.effects || {};
-    const currentState = getOathTuneState(
-      db,
-      Number(getEquipmentOathPointState(equipmentRows, oathUpgrades)?.oathSetPoint || 0),
+    const currentOathSetPoint = Number(
+      getEquipmentOathPointState(equipmentRows, oathUpgrades)?.oathSetPoint || 0,
     );
+    const currentState = getOathTuneState(db, currentOathSetPoint);
     const targetBodies = Array.isArray(oathUpgrades?.upgradeTargets)
       ? oathUpgrades.upgradeTargets
       : oathUpgrades?.primevalUpgradeTarget?.itemId
@@ -148,7 +148,7 @@ export function createEnchantOathProgression({
         sourceType: 'oathBodyUpgrade',
         slot: '서약',
         tier: targetBody.itemRarity,
-        cardTitle: '서약',
+        cardTitle: '빛의 서약',
         cardSubtitle: targetBody.itemRarity,
         itemId: targetBody.itemId,
         itemName: targetBody.itemName,
@@ -157,6 +157,10 @@ export function createEnchantOathProgression({
         itemExplain: `${oathUpgrades.itemName || '현재 서약'} -> ${targetBody.itemName}`,
         currentEffects: cloneSimulatorValue(currentEffects),
         targetEffects: cloneSimulatorValue(targetEffects),
+        currentOathSetPoint,
+        targetOathSetPoint: Number(targetOath.setPoint || 0),
+        currentOathStageName: currentState?.stageName || '',
+        targetOathStageName: targetState?.stageName || '',
         effects,
         targetOathBody: cloneSimulatorValue(targetBody),
         targetOathUpgrades: targetOath,

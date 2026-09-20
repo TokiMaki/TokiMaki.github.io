@@ -228,6 +228,10 @@ export function createEnchantBufferRecommendation(deps) {
   function compareBufferRecommendationOrder(a = {}, b = {}) {
     const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
     if (priorityDiff) return priorityDiff;
+    const aIsMaterialEnchant = a.sourceType === 'enchant' && isMaterialAcquisition(a);
+    const bIsMaterialEnchant = b.sourceType === 'enchant' && isMaterialAcquisition(b);
+    if (a.sourceType === 'oathBodyUpgrade' && bIsMaterialEnchant) return 1;
+    if (b.sourceType === 'oathBodyUpgrade' && aIsMaterialEnchant) return -1;
     const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
     if (materialDiff) return materialDiff;
     if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) return compareMaterialEnchantOrder(a, b);

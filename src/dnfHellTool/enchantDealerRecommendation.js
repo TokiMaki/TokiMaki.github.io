@@ -899,6 +899,8 @@ export function createEnchantDealerRecommendation(deps) {
   function compareDealerRecommendationOrder(a, b) {
     const priorityDiff = Number(a.recommendationPriority || 0) - Number(b.recommendationPriority || 0);
     if (priorityDiff) return priorityDiff;
+    if (a.sourceType === 'oathBodyUpgrade' && isMaterialEnchantAcquisition(b)) return 1;
+    if (b.sourceType === 'oathBodyUpgrade' && isMaterialEnchantAcquisition(a)) return -1;
     const materialDiff = Number(isMaterialAcquisition(b)) - Number(isMaterialAcquisition(a));
     if (materialDiff) return materialDiff;
     if (isMaterialAcquisition(a) && isMaterialAcquisition(b)) {
