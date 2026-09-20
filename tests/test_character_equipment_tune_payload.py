@@ -7,11 +7,176 @@ from server.character_equipment_service import (
     build_equipment_upgrade_payload,
     build_oath_upgrade_payload,
     get_effective_equipment_total_set_point,
+    normalize_oath_body_status,
+    resolve_oath_body_upgrade_targets,
+    resolve_primeval_oath_upgrade_target,
 )
 from server.data_store import get_raid_armor_stage_by_item_id, load_raid_armor_upgrade_db
 
 
 class EquipmentTunePayloadTest(unittest.TestCase):
+    def test_oath_body_status_removes_rarity_base_stat(self):
+        for rarity, raw_stat, option_stat in (
+            ("유니크", 328, 298),
+            ("레전더리", 385, 350),
+            ("에픽", 440, 400),
+            ("태초", 495, 450),
+        ):
+            status = [
+                {"name": name, "value": raw_stat}
+                for name in ("힘", "지능", "체력", "정신력")
+            ]
+            self.assertEqual(normalize_oath_body_status(status, rarity)["allStat"], option_stat)
+
+    @patch("server.character_equipment_service.fetch_item_details")
+    @patch("server.character_equipment_service.search_items_by_name")
+    def test_primeval_oath_upgrade_target_uses_same_family_detail(self, search_mock, detail_mock):
+        search_mock.return_value = [{
+            "itemId": "primeval-oath",
+            "itemName": "강림한 여우 서약",
+            "itemRarity": "태초",
+            "itemTypeDetail": "서약",
+        }]
+        detail_mock.return_value = [{
+            "itemId": "primeval-oath",
+            "itemName": "강림한 여우 서약",
+            "itemRarity": "태초",
+            "setItemId": "fox-set",
+            "itemStatus": [
+                {"name": "최종 데미지 증가", "value": 57},
+                {"name": "힘", "value": 495},
+                {"name": "지능", "value": 495},
+                {"name": "체력", "value": 495},
+                {"name": "정신력", "value": 495},
+            ],
+            "oath": {"point": 655},
+        }]
+
+        target = resolve_primeval_oath_upgrade_target(
+            {"itemName": "부름에 이끌린 여우 서약", "itemRarity": "레전더리"},
+            {"setOptionName": "여우 : 초월"},
+            {"setItemId": "fox-set"},
+        )
+
+        self.assertEqual(target["itemId"], "primeval-oath")
+        self.assertEqual(target["setPoint"], 655)
+        self.assertEqual(target["effects"]["finalDamage"], 57)
+        self.assertEqual(target["effects"]["allStat"], 450)
+        self.assertEqual(target["acquisitionOptions"][0]["amount"], 2)
+        self.assertEqual(target["acquisitionOptions"][0]["displayLabel"], "광휘")
+        self.assertEqual(
+            target["acquisitionOptions"][0]["materialIconUrl"],
+            "/asset/material/radiant-trace.png",
+        )
+
+    @patch("server.character_equipment_service.fetch_item_details")
+    @patch("server.character_equipment_service.search_items_by_name")
+    def test_oath_body_upgrade_targets_include_each_higher_rarity(self, search_mock, detail_mock):
+        rarities = ["레전더리", "에픽", "태초"]
+        search_mock.return_value = [{
+            "itemId": f"{rarity}-oath",
+            "itemName": f"{rarity} 여우 서약",
+            "itemRarity": rarity,
+            "itemTypeDetail": "서약",
+        } for rarity in rarities]
+        base_stats = {
+            "레전더리": 35,
+            "에픽": 40,
+            "태초": 45,
+        }
+        option_stats = {
+            "레전더리": 350,
+            "에픽": 400,
+            "태초": 450,
+        }
+        detail_mock.return_value = [{
+            "itemId": f"{rarity}-oath",
+            "itemName": f"{rarity} 여우 서약",
+            "itemRarity": rarity,
+            "setItemId": "fox-set",
+            "itemStatus": [
+                {"name": "최종 데미지 증가", "value": 20 + index * 10},
+                *[
+                    {"name": name, "value": option_stats[rarity] + base_stats[rarity]}
+                    for name in ("힘", "지능", "체력", "정신력")
+                ],
+            ],
+            "oath": {"point": 300 + index * 100},
+        } for index, rarity in enumerate(rarities)]
+
+        targets = resolve_oath_body_upgrade_targets(
+            {"itemName": "유니크 여우 서약", "itemRarity": "유니크"},
+            {"setOptionName": "여우 : 초월"},
+            {"setItemId": "fox-set"},
+        )
+
+        self.assertEqual([target["itemRarity"] for target in targets], rarities)
+        self.assertEqual([target["effects"]["allStat"] for target in targets], [350, 400, 450])
+        self.assertNotIn("acquisitionOptions", targets[0])
+        self.assertNotIn("acquisitionOptions", targets[1])
+        self.assertEqual(targets[2]["acquisitionOptions"][0]["amount"], 2)
+
+    @patch("server.character_equipment_service.fetch_item_details")
+    @patch("server.character_equipment_service.search_items_by_name")
+    def test_primeval_oath_upgrade_target_falls_back_to_item_name_family(self, search_mock, detail_mock):
+        search_mock.return_value = [{
+            "itemId": "primeval-oath",
+            "itemName": "행운의 태초 서약",
+            "itemRarity": "태초",
+            "itemTypeDetail": "서약",
+        }]
+        detail_mock.return_value = [{
+            "itemId": "primeval-oath",
+            "itemName": "행운의 태초 서약",
+            "itemRarity": "태초",
+            "setItemId": "serendipity-set",
+            "itemStatus": [{"name": "최종 데미지 증가", "value": 57}],
+            "oath": {"point": 655},
+        }]
+
+        target = resolve_primeval_oath_upgrade_target(
+            {"itemName": "필연성의 행운 서약", "itemRarity": "에픽"},
+            {},
+            {"setItemId": "serendipity-set"},
+        )
+
+        search_mock.assert_called_once_with("행운 서약", word_type="full", limit=30)
+        self.assertEqual(target["itemId"], "primeval-oath")
+
+    @patch("server.character_equipment_service.fetch_item_details")
+    @patch("server.character_equipment_service.search_items_by_name")
+    def test_mist_oath_upgrade_targets_use_equipment_set_family(self, search_mock, detail_mock):
+        rarities = ["유니크", "레전더리", "에픽", "태초"]
+        search_mock.return_value = [{
+            "itemId": f"{rarity}-oath",
+            "itemName": f"{rarity} 무리 서약",
+            "itemRarity": rarity,
+            "itemTypeDetail": "서약",
+        } for rarity in rarities]
+        detail_mock.return_value = [{
+            "itemId": f"{rarity}-oath",
+            "itemName": f"{rarity} 무리 서약",
+            "itemRarity": rarity,
+            "setItemId": "pack-set",
+            "itemStatus": [{"name": "최종 데미지 증가", "value": 20 + index * 10}],
+            "oath": {"point": 165 + index * 100},
+        } for index, rarity in enumerate(rarities)]
+
+        targets = resolve_oath_body_upgrade_targets(
+            {"itemName": "영겁의 안개 서약", "itemRarity": "에픽"},
+            {},
+            {},
+            "pack-set",
+        )
+
+        search_mock.assert_called_once_with("서약", max_pages=2, word_type="full", limit=30)
+        self.assertEqual([target["itemRarity"] for target in targets], rarities)
+
+    def test_primeval_oath_upgrade_target_excludes_primeval(self):
+        self.assertEqual(resolve_primeval_oath_upgrade_target(
+            {"itemName": "강림한 여우 서약", "itemRarity": "태초"}, {}, {},
+        ), {})
+
     def test_effective_equipment_set_point_uses_oath_adjusted_active_point(self):
         self.assertEqual(get_effective_equipment_total_set_point({
             "equipment": [{"tune": [{"setPoint": 2525}]}],
@@ -39,6 +204,45 @@ class EquipmentTunePayloadTest(unittest.TestCase):
         })
 
         self.assertEqual(payload["oathUpgradeLevel"], 3)
+
+    @patch("server.character_equipment_service.resolve_oath_body_upgrade_targets", return_value=[
+        {"effects": {"attackIncrease": 2337.5}},
+        {"effects": {"attackIncrease": 2337.5}},
+    ])
+    @patch("server.character_equipment_service.fetch_item_details")
+    def test_mist_oath_effects_preserve_base_status_fields(
+        self,
+        fetch_item_details_mock,
+        _resolve_targets_mock,
+    ):
+        fetch_item_details_mock.return_value = [{
+            "itemId": "mist-oath",
+            "itemStatus": [
+                {"name": "최종 데미지 증가", "value": 62.5},
+            ],
+        }]
+        payload = build_oath_upgrade_payload({
+            "oath": {
+                "info": {
+                    "itemId": "mist-oath",
+                    "itemName": "영겁의 안개 서약",
+                    "itemRarity": "에픽",
+                },
+                "setInfo": {},
+                "crystal": [],
+            },
+        }, {
+            "mistAssimilation": {
+                "status": [
+                    {"name": "최종 데미지 증가", "value": 53},
+                    {"name": "버프력", "value": 8893},
+                ],
+            },
+        })
+
+        self.assertEqual(payload["effects"]["finalDamage"], 53)
+        self.assertEqual(payload["effects"]["attackIncrease"], 2337.5)
+        self.assertEqual(payload["effects"]["buffPower"], 8893)
 
     @patch("server.character_equipment_service.fetch_item_details", return_value=[])
     def test_oath_upgrade_payload_preserves_borrowed_set_point(self, _fetch_item_details_mock):

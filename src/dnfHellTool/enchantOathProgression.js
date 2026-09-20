@@ -8,6 +8,7 @@ export function createEnchantOathProgression({
 }) {
 
   const OATH_SLOT_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const OATH_BODY_RARITY_ORDER = ['유니크', '레전더리', '에픽', '태초'];
 
   function getBufferOathTuneBaseRelativeChanges(row = {}) {
     if (row.sourceType !== 'oathTune') return null;
@@ -23,6 +24,164 @@ export function createEnchantOathProgression({
     return Number.isFinite(buffPowerDelta) && buffPowerDelta > 0
       ? { buffPowerDelta }
       : null;
+  }
+
+  function replaceOathBody(oathUpgrades = {}, targetBody = {}) {
+    const currentBodySetPoint = Number(oathUpgrades?.bodySetPoint || 0);
+    const targetBodySetPoint = Number(targetBody?.setPoint || 0);
+    if (!targetBody?.itemId || !Number.isFinite(targetBodySetPoint) || targetBodySetPoint <= 0) {
+      return null;
+    }
+    return {
+      ...cloneSimulatorValue(oathUpgrades || {}),
+      itemId: targetBody.itemId,
+      itemName: targetBody.itemName || '',
+      itemRarity: targetBody.itemRarity || '태초',
+      iconUrl: targetBody.iconUrl || '',
+      effects: cloneSimulatorValue(targetBody.effects || {}),
+      bodySetPoint: targetBodySetPoint,
+      setPoint: Number(oathUpgrades?.setPoint || 0)
+        - currentBodySetPoint
+        + targetBodySetPoint,
+    };
+  }
+
+  function reconcileOathSetPointState(oathUpgrades = {}, equipmentRows = []) {
+    const pointState = getEquipmentOathPointState(equipmentRows, oathUpgrades);
+    const rawOathSetPoint = Number(pointState?.rawOathSetPoint);
+    const oathSetPoint = Number(pointState?.oathSetPoint);
+    if (!Number.isFinite(rawOathSetPoint) || !Number.isFinite(oathSetPoint)) {
+      return cloneSimulatorValue(oathUpgrades || {});
+    }
+    return {
+      ...cloneSimulatorValue(oathUpgrades || {}),
+      rawSetPoint: rawOathSetPoint,
+      reportedSetPoint: oathSetPoint,
+      borrowedSetPoint: Number(pointState?.borrowedSetPoint || 0),
+      setPoint: oathSetPoint,
+    };
+  }
+
+  function getOathBodyEffectsTotal(oathUpgrades = {}) {
+    return cloneSimulatorValue(oathUpgrades?.effects || {});
+  }
+
+  function getOathBodyFinalDamageChangeMultiplier(baseOath = {}, simulatedOath = baseOath) {
+    const baseMultiplier = 1 + Number(baseOath?.effects?.finalDamage || 0) / 100;
+    const simulatedMultiplier = 1 + Number(simulatedOath?.effects?.finalDamage || 0) / 100;
+    return baseMultiplier > 0 && Number.isFinite(simulatedMultiplier)
+      ? simulatedMultiplier / baseMultiplier
+      : 1;
+  }
+
+  function getOathBodyUpgradeRows(
+    oathUpgrades = {},
+    equipmentRows = [],
+    db = {},
+    isBuffer = false,
+    baseOathUpgrades = oathUpgrades,
+  ) {
+    const currentRarityIndex = OATH_BODY_RARITY_ORDER.indexOf(oathUpgrades?.itemRarity);
+    const isMistOath = String(oathUpgrades?.itemName || '').includes('안개');
+    if (currentRarityIndex < 0) {
+      return [];
+    }
+    const currentEffects = oathUpgrades.effects || {};
+    const currentState = getOathTuneState(
+      db,
+      Number(getEquipmentOathPointState(equipmentRows, oathUpgrades)?.oathSetPoint || 0),
+    );
+    const targetBodies = Array.isArray(oathUpgrades?.upgradeTargets)
+      ? oathUpgrades.upgradeTargets
+      : oathUpgrades?.primevalUpgradeTarget?.itemId
+        ? [oathUpgrades.primevalUpgradeTarget]
+        : [];
+    return targetBodies.flatMap((targetBody) => {
+      const targetRarityIndex = OATH_BODY_RARITY_ORDER.indexOf(targetBody?.itemRarity);
+      if (!targetBody?.itemId || (!isMistOath && targetRarityIndex <= currentRarityIndex)) return [];
+      const replacedTargetOath = replaceOathBody(oathUpgrades, targetBody);
+      if (!replacedTargetOath) return [];
+      const targetOath = reconcileOathSetPointState(replacedTargetOath, equipmentRows);
+      const targetState = getOathTuneState(db, targetOath.setPoint);
+      const oathSetDamageMultiplier = Number(currentState?.damageMultiplier || 0) > 0
+        ? Number(targetState?.damageMultiplier || 1) / Number(currentState.damageMultiplier)
+        : 1;
+      const targetEffects = targetBody.effects || {};
+      const effects = {};
+      new Set([...Object.keys(currentEffects), ...Object.keys(targetEffects)]).forEach((key) => {
+        const current = Number(currentEffects[key] || 0);
+        const target = Number(targetEffects[key] || 0);
+        if (key === 'finalDamage') {
+          const multiplier = (1 + target / 100) / (1 + current / 100);
+          if (multiplier > 1) effects.finalDamage = (multiplier - 1) * 100;
+        } else if (target > current) {
+          effects[key] = target - current;
+        }
+      });
+      const bufferBaseOath = isBuffer ? baseOathUpgrades || oathUpgrades : oathUpgrades;
+      const replacedBufferTargetOath = isBuffer ? replaceOathBody(bufferBaseOath, targetBody) : null;
+      const bufferTargetOath = replacedBufferTargetOath
+        ? reconcileOathSetPointState(replacedBufferTargetOath, equipmentRows)
+        : null;
+      const bufferBaseState = isBuffer
+        ? getOathTuneState(
+          db,
+          Number(getEquipmentOathPointState(equipmentRows, bufferBaseOath)?.oathSetPoint || 0),
+        )
+        : null;
+      const bufferTargetState = isBuffer
+        ? getOathTuneState(db, Number(bufferTargetOath?.setPoint || 0))
+        : null;
+      const bufferBaseEffects = bufferBaseOath?.effects || {};
+      const bufferBaseRelativeChanges = isBuffer && bufferTargetOath ? {
+        statDelta: Number(targetEffects.allStat || 0) - Number(bufferBaseEffects.allStat || 0),
+        buffPowerDelta: Number(targetEffects.buffPower || 0) - Number(bufferBaseEffects.buffPower || 0)
+          + Number(bufferTargetState?.stageBuffPower || 0) + Number(bufferTargetState?.blessingBuffPower || 0)
+          - Number(bufferBaseState?.stageBuffPower || 0) - Number(bufferBaseState?.blessingBuffPower || 0),
+        currentBuffAmplificationDelta: Number(targetEffects.buffAmplification || 0)
+          - Number(bufferBaseEffects.buffAmplification || 0),
+        switchingBuffAmplificationDelta: Number(targetEffects.buffAmplification || 0)
+          - Number(bufferBaseEffects.buffAmplification || 0),
+      } : null;
+      const isPrimevalTarget = targetBody.itemRarity === '태초';
+      return [{
+        sourceType: 'oathBodyUpgrade',
+        slot: '서약',
+        tier: targetBody.itemRarity,
+        cardTitle: '서약',
+        cardSubtitle: targetBody.itemRarity,
+        itemId: targetBody.itemId,
+        itemName: targetBody.itemName,
+        itemRarity: targetBody.itemRarity,
+        iconUrl: targetBody.iconUrl,
+        itemExplain: `${oathUpgrades.itemName || '현재 서약'} -> ${targetBody.itemName}`,
+        currentEffects: cloneSimulatorValue(currentEffects),
+        targetEffects: cloneSimulatorValue(targetEffects),
+        effects,
+        targetOathBody: cloneSimulatorValue(targetBody),
+        targetOathUpgrades: targetOath,
+        acquisitionOptions: cloneSimulatorValue(targetBody.acquisitionOptions || []),
+        acquisition: isPrimevalTarget
+          ? { label: '광휘의 흔적 2개\n안개서약 Lv.100 정가' }
+          : null,
+        freeAction: true,
+        auction: { minUnitPrice: 0 },
+        expectedGold: 0,
+        metricType: isBuffer ? 'buffer' : undefined,
+        bufferSimulatorSupported: isBuffer,
+        bufferBaseRelativeChanges,
+        skillDamageMultiplier: oathSetDamageMultiplier,
+      }];
+    });
+  }
+
+  function getOathBodyUpgradeExclusiveGroupKey(row = {}) {
+    return row.sourceType === 'oathBodyUpgrade' ? 'oathBodyUpgrade' : '';
+  }
+
+  function getOathBodyUpgradeCandidateSignature(row = {}) {
+    const groupKey = getOathBodyUpgradeExclusiveGroupKey(row);
+    return groupKey && row.itemId ? `${groupKey}:${row.itemId}` : '';
   }
 
   function getOathUpgradeConfig(db = {}) {
@@ -477,6 +636,13 @@ export function createEnchantOathProgression({
   }
 
   return {
+    getOathBodyUpgradeRows,
+    replaceOathBody,
+    reconcileOathSetPointState,
+    getOathBodyEffectsTotal,
+    getOathBodyFinalDamageChangeMultiplier,
+    getOathBodyUpgradeExclusiveGroupKey,
+    getOathBodyUpgradeCandidateSignature,
     getBufferOathTuneBaseRelativeChanges,
     getBufferOathUpgradeBaseRelativeChanges,
     getOathTuneState,

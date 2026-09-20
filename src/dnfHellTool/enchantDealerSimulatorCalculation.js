@@ -17,6 +17,7 @@ export function createEnchantDealerSimulatorCalculation(deps) {
     subtractEffects,
     getAvatarRegularEmblemEffectsTotal,
     getEquipmentProgressionEffectsTotal,
+    getOathBodyEffectsTotal,
     getOathCrystalEffectsTotal,
     normalizeSimulatorDamageDelta,
     getSelectedStatEffect,
@@ -28,6 +29,7 @@ export function createEnchantDealerSimulatorCalculation(deps) {
     getEquipmentProgressionFinalDamageChangeMultiplier,
     getEquipmentTuneDamageMultiplier,
     getOathCrystalFinalDamageChangeMultiplier,
+    getOathBodyFinalDamageChangeMultiplier,
     getOathTuneDamageMultiplier,
     getOathUpgradeDamageMultiplier,
     getElementAdjustedReplacementIncrementalDamagePercent,
@@ -146,7 +148,10 @@ export function createEnchantDealerSimulatorCalculation(deps) {
               getEquipmentBodyEffectsTotal(simulatedEquipment),
               getEquipmentProgressionEffectsTotal(simulatedEquipment, upgradeDb, metricBaseBaseline),
             ),
-            getOathCrystalEffectsTotal(simulatedOath),
+            addEffects(
+              getOathBodyEffectsTotal(simulatedOath),
+              getOathCrystalEffectsTotal(simulatedOath),
+            ),
           ),
         ),
       ),
@@ -165,7 +170,10 @@ export function createEnchantDealerSimulatorCalculation(deps) {
               getEquipmentBodyEffectsTotal(baseEquipment),
               getEquipmentProgressionEffectsTotal(baseEquipment, upgradeDb, metricBaseBaseline),
             ),
-            getOathCrystalEffectsTotal(baseOath),
+            addEffects(
+              getOathBodyEffectsTotal(baseOath),
+              getOathCrystalEffectsTotal(baseOath),
+            ),
           ),
         ),
       ),
@@ -234,7 +242,10 @@ export function createEnchantDealerSimulatorCalculation(deps) {
               metricBaseBaseline,
             ),
           ),
-          getOathCrystalEffectsTotal(simulator.simulatedOathUpgrades),
+          addEffects(
+            getOathBodyEffectsTotal(simulator.simulatedOathUpgrades),
+            getOathCrystalEffectsTotal(simulator.simulatedOathUpgrades),
+          ),
         ),
       ),
       addEffects(
@@ -254,7 +265,10 @@ export function createEnchantDealerSimulatorCalculation(deps) {
               metricBaseBaseline,
             ),
           ),
-          getOathCrystalEffectsTotal(simulator.baseOathUpgrades),
+          addEffects(
+            getOathBodyEffectsTotal(simulator.baseOathUpgrades),
+            getOathCrystalEffectsTotal(simulator.baseOathUpgrades),
+          ),
         ),
       ),
     );
@@ -299,6 +313,10 @@ export function createEnchantDealerSimulatorCalculation(deps) {
         simulator.simulatedOathUpgrades,
       )
       * getOathCrystalFinalDamageChangeMultiplier(
+        simulator.baseOathUpgrades,
+        simulator.simulatedOathUpgrades,
+      )
+      * getOathBodyFinalDamageChangeMultiplier(
         simulator.baseOathUpgrades,
         simulator.simulatedOathUpgrades,
       )

@@ -2,6 +2,7 @@ export function createEnchantOathAcquisition({
   oathDecisionVariantSourceTypes,
   applyUpgradeMaterialPrices,
   cloneSimulatorValue,
+  addEffects,
   getRecommendationGold,
   mergeUpgradeMaterials,
   getCostPerPointOnePercent,
@@ -13,6 +14,14 @@ export function createEnchantOathAcquisition({
   getSimulatorCandidateSignature,
 }) {
   const OATH_DECISION_VARIANT_SOURCE_TYPES = oathDecisionVariantSourceTypes;
+  const mergeEffects = typeof addEffects === 'function'
+    ? addEffects
+    : (...rows) => rows.reduce((result, effects) => {
+      Object.entries(effects || {}).forEach(([key, value]) => {
+        result[key] = Number(result[key] || 0) + Number(value || 0);
+      });
+      return result;
+    }, {});
   function getOathAcquisitionSlotIndex(selection = {}, groupKey = '') {
     const decisionSlotIndex = Number(selection.targetDecision?.slotIndex);
     if (Number.isInteger(decisionSlotIndex)) return decisionSlotIndex;
@@ -445,11 +454,17 @@ export function createEnchantOathAcquisition({
 
   function getBufferOathStateBaseRelativeChanges(baseOath = {}, targetOath = {}, db = {}) {
     const baseEffects = getRoleRelevantEffects(
-      combineOathDecisionEffects(baseOath.crystals || [], 'effects'),
+      mergeEffects(
+        baseOath.effects || {},
+        combineOathDecisionEffects(baseOath.crystals || [], 'effects'),
+      ),
       true,
     );
     const targetEffects = getRoleRelevantEffects(
-      combineOathDecisionEffects(targetOath.crystals || [], 'effects'),
+      mergeEffects(
+        targetOath.effects || {},
+        combineOathDecisionEffects(targetOath.crystals || [], 'effects'),
+      ),
       true,
     );
     const changedKeys = new Set([

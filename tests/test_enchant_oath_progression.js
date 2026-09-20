@@ -49,6 +49,8 @@ function getEquipmentOathPointState(equipmentRows = [], oath = {}) {
     : currentOathSetPoint + Number(oath?.borrowedSetPoint || 0);
   const borrowedSetPoint = Math.min(Math.max(0, 2550 - rawEquipmentSetPoint), rawOathSetPoint);
   return {
+    rawOathSetPoint,
+    borrowedSetPoint,
     equipmentSetPoint: rawEquipmentSetPoint + borrowedSetPoint,
     oathSetPoint: rawOathSetPoint - borrowedSetPoint,
   };
@@ -68,6 +70,13 @@ const progression = createEnchantOathProgression({
 });
 
 assert.deepEqual(Object.keys(progression), [
+  'getOathBodyUpgradeRows',
+  'replaceOathBody',
+  'reconcileOathSetPointState',
+  'getOathBodyEffectsTotal',
+  'getOathBodyFinalDamageChangeMultiplier',
+  'getOathBodyUpgradeExclusiveGroupKey',
+  'getOathBodyUpgradeCandidateSignature',
   'getBufferOathTuneBaseRelativeChanges',
   'getBufferOathUpgradeBaseRelativeChanges',
   'getOathTuneState',
@@ -265,6 +274,174 @@ const baseOath = {
     },
   ],
 };
+
+const oathWithPrimevalTarget = {
+  ...clone(baseOath),
+  itemId: 'legendary-oath',
+  itemName: '부름에 이끌린 여우 서약',
+  itemRarity: '레전더리',
+  effects: { allStat: 300, finalDamage: 30, attackIncrease: 2337.5, buffPower: 5000 },
+  bodySetPoint: 500,
+  rawSetPoint: 2530,
+  reportedSetPoint: 2530,
+  oathUpgradeLevel: 4,
+  primevalUpgradeTarget: {
+    itemId: 'primeval-oath',
+    itemName: '강림한 여우 서약',
+    itemRarity: '태초',
+    iconUrl: 'primeval.png',
+    effects: { allStat: 495, finalDamage: 57, attackIncrease: 2337.5, buffPower: 9393 },
+    setPoint: 655,
+    acquisitionOptions: [{
+      label: '광휘의 흔적',
+      displayLabel: '광휘',
+      amount: 2,
+      materialIconUrl: '/asset/material/radiant-trace.png',
+    }, { label: '안개서약 Lv.100 정가' }],
+  },
+};
+oathWithPrimevalTarget.upgradeTargets = [{
+  itemId: 'epic-oath',
+  itemName: '에픽 여우 서약',
+  itemRarity: '에픽',
+  iconUrl: 'epic.png',
+  effects: { allStat: 400, finalDamage: 45, attackIncrease: 2337.5, buffPower: 7000 },
+  setPoint: 580,
+}, oathWithPrimevalTarget.primevalUpgradeTarget];
+const replacedOath = progression.replaceOathBody(
+  oathWithPrimevalTarget,
+  oathWithPrimevalTarget.primevalUpgradeTarget,
+);
+assert.equal(replacedOath.itemId, 'primeval-oath');
+assert.equal(replacedOath.rawSetPoint, 2530);
+assert.equal(replacedOath.setPoint, 2685);
+assert.equal(
+  getEquipmentOathPointState([{ tuneSetPoint: 2550 }], replacedOath).oathSetPoint,
+  2685,
+);
+const replacedBorrowedOath = progression.replaceOathBody(
+  {
+    ...oathWithPrimevalTarget,
+    setPoint: 2485,
+    rawSetPoint: 2510,
+    reportedSetPoint: 2485,
+  },
+  oathWithPrimevalTarget.primevalUpgradeTarget,
+);
+assert.equal(replacedBorrowedOath.rawSetPoint, 2510);
+assert.equal(replacedBorrowedOath.setPoint, 2640);
+assert.equal(
+  getEquipmentOathPointState([{ tuneSetPoint: 2525 }], replacedBorrowedOath).oathSetPoint,
+  2640,
+);
+assert.equal(replacedOath.oathUpgradeLevel, 4);
+assert.deepEqual(replacedOath.crystals, oathWithPrimevalTarget.crystals);
+closeTo(
+  progression.getOathBodyFinalDamageChangeMultiplier(oathWithPrimevalTarget, replacedOath),
+  1.57 / 1.3,
+);
+closeTo(
+  progression.getOathBodyFinalDamageChangeMultiplier(
+    { effects: { finalDamage: 50 } },
+    { effects: { finalDamage: 57 } },
+  ),
+  1.57 / 1.5,
+);
+const primevalRows = progression.getOathBodyUpgradeRows(
+  oathWithPrimevalTarget,
+  [{ tuneSetPoint: 2550 }],
+  oathTuneDb,
+  true,
+);
+assert.equal(primevalRows.length, 2);
+assert.deepEqual(primevalRows.map((row) => row.tier), ['에픽', '태초']);
+assert.equal(primevalRows[0].sourceType, 'oathBodyUpgrade');
+assert.equal(primevalRows[0].effects.attackIncrease, undefined);
+assert.equal(primevalRows[0].acquisition, null);
+assert.deepEqual(primevalRows[0].acquisitionOptions, []);
+assert.equal(primevalRows[1].targetOathUpgrades.oathUpgradeLevel, 4);
+closeTo(primevalRows[1].effects.finalDamage, (1.57 / 1.3 - 1) * 100);
+assert.notEqual(primevalRows[1].effects.finalDamage, 57 - 30);
+assert.equal(primevalRows[1].acquisition.label, '광휘의 흔적 2개\n안개서약 Lv.100 정가');
+assert.equal(
+  primevalRows[1].acquisitionOptions[0].materialIconUrl,
+  '/asset/material/radiant-trace.png',
+);
+assert.equal(primevalRows[1].bufferSimulatorSupported, true);
+const epicOath = progression.replaceOathBody(
+  oathWithPrimevalTarget,
+  oathWithPrimevalTarget.upgradeTargets[0],
+);
+const [primevalFromEpic] = progression.getOathBodyUpgradeRows(
+  epicOath,
+  [{ tuneSetPoint: 2550 }],
+  oathTuneDb,
+  true,
+  oathWithPrimevalTarget,
+);
+assert.deepEqual(
+  primevalFromEpic.bufferBaseRelativeChanges,
+  primevalRows[1].bufferBaseRelativeChanges,
+);
+assert.notEqual(primevalFromEpic.effects.finalDamage, primevalRows[1].effects.finalDamage);
+assert.deepEqual(
+  progression.getOathBodyUpgradeRows({ ...oathWithPrimevalTarget, itemRarity: '태초' }, [], oathTuneDb),
+  [],
+);
+const mistOathRows = progression.getOathBodyUpgradeRows({
+  ...oathWithPrimevalTarget,
+  itemId: 'mist-oath',
+  itemName: '영겁의 안개 서약',
+  itemRarity: '에픽',
+  effects: { allStat: 250, finalDamage: 15, buffPower: 4000 },
+  upgradeTargets: [{
+    itemId: 'unique-oath',
+    itemName: '유니크 여우 서약',
+    itemRarity: '유니크',
+    effects: { allStat: 300, finalDamage: 20, buffPower: 5000 },
+    setPoint: 165,
+  }],
+}, [{ tuneSetPoint: 2550 }], oathTuneDb);
+assert.equal(mistOathRows.length, 1);
+assert.equal(mistOathRows[0].tier, '유니크');
+assert.equal(mistOathRows[0].acquisition, null);
+assert.deepEqual(mistOathRows[0].acquisitionOptions, []);
+const mistBufferRows = progression.getOathBodyUpgradeRows({
+  ...oathWithPrimevalTarget,
+  itemId: 'mist-oath',
+  itemName: '영겁의 안개 서약',
+  itemRarity: '에픽',
+  effects: { allStat: 250, finalDamage: 15, buffPower: 4000 },
+  upgradeTargets: [mistOathRows[0].targetOathBody],
+}, [{ tuneSetPoint: 2550 }], oathTuneDb, true);
+assert.equal(mistBufferRows.length, 1);
+assert.ok(mistBufferRows[0].bufferBaseRelativeChanges.statDelta > 0);
+assert.ok(mistBufferRows[0].bufferBaseRelativeChanges.buffPowerDelta > 0);
+const reconciledMistOath = progression.reconcileOathSetPointState(
+  progression.replaceOathBody(
+    {
+      ...clone(baseOath),
+      itemId: 'mist-oath',
+      itemName: '영겁의 안개 서약',
+      itemRarity: '에픽',
+      bodySetPoint: 455,
+      rawSetPoint: 1550,
+      reportedSetPoint: 455,
+      borrowedSetPoint: 1095,
+      setPoint: 455,
+    },
+    mistOathRows[0].targetOathBody,
+  ),
+  [{ tuneSetPoint: 1455 }],
+);
+const reconciledAgain = progression.reconcileOathSetPointState(
+  progression.replaceOathBody(reconciledMistOath, mistOathRows[0].targetOathBody),
+  [{ tuneSetPoint: 1455 }],
+);
+assert.equal(reconciledMistOath.rawSetPoint, 1260);
+assert.equal(reconciledMistOath.setPoint, 165);
+assert.equal(reconciledAgain.rawSetPoint, 1260);
+assert.equal(reconciledAgain.setPoint, 165);
 const materialPrices = {
   legendarySoul: {
     itemId: 'legendary-soul',

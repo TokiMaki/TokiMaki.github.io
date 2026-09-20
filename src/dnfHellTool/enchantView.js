@@ -14,7 +14,7 @@ import { createEnchantRecommendationLayout } from './enchantRecommendationLayout
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 import { getSwitchingTitleRows, getSwitchingFragmentRows, getSwitchingCreatureRows } from './enchantSwitchingRows.js';
-import { createEnchantOathLoadoutBoard } from './enchantOathLoadoutBoard.js';
+import { createEnchantOathLoadoutBoard, getLocalOathSymbolIconUrl } from './enchantOathLoadoutBoard.js';
 import { createEnchantAvatarLoadoutBoard } from './enchantAvatarLoadoutBoard.js';
 import { createEnchantBuffLoadoutBoard } from './enchantBuffLoadoutBoard.js';
 import { createEnchantBufferSimulatorCalculation } from './enchantBufferSimulatorCalculation.js';
@@ -175,6 +175,8 @@ const UPGRADE_MATERIAL_ICON_IDS = {
 const BLACK_FANG_SIMULATOR_SLOTS = new Set(['목걸이', '팔찌', '반지']);
 const RAID_ARMOR_UPGRADE_SIMULATOR_SLOTS = new Set(['머리어깨', '상의', '하의', '벨트', '신발']);
 const TUNE_SOURCE_TYPES = new Set(['equipmentTune', 'oathTune', 'oathUpgrade', 'weaponTune']);
+const STEP_VARIANT_SOURCE_TYPES = new Set([...TUNE_SOURCE_TYPES, 'oathBodyUpgrade']);
+const OATH_BODY_UPGRADE_RARITIES = ['유니크', '레전더리', '에픽', '태초'];
 const OATH_DECISION_VARIANT_SOURCE_TYPES = new Set(['oathTranscend', 'oathCraft']);
 function formatGold(value) {
   if (!Number.isFinite(value) || value <= 0) return '-';
@@ -757,6 +759,7 @@ function getEnchantIncludeGroups(row = {}) {
   if (row.sourceType === 'raidArmorUpgrade') return [`장비:${row.upgradeStageLabel || row.tier}`];
   if (row.sourceType === 'weaponTune') return ['장비:무기'];
   if (row.sourceType === 'equipmentTune') return ['장비:조율'];
+  if (row.sourceType === 'oathBodyUpgrade') return ['서약:본체'];
   if (row.sourceType === 'oathTune') return ['서약:조율'];
   if (row.sourceType === 'oathUpgrade') return ['서약:묵언'];
   if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)) return ['서약:초월/정가'];
@@ -788,6 +791,25 @@ function getAcquisitionMarkup(acquisition = {}, escapeHtml) {
     ? `<img src="${escape(acquisition.materialIconUrl)}" alt="" loading="lazy" decoding="async" />`
     : '';
   return `<span class="enchant-material-cost">${icon}<span>${escape(label)}</span></span>`;
+}
+
+function getAcquisitionOptionsMarkup(options = [], escapeHtml) {
+  if (!Array.isArray(options) || !options.length) return '';
+  const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => String(value ?? '');
+  const rows = options.map((option) => {
+    const amount = Number(option?.amount || 0);
+    const materialName = option?.materialLabel || option?.materialItemName || option?.materialName || option?.label || '';
+    const displayName = option?.displayLabel || materialName;
+    const label = option?.materialIconUrl && Number.isFinite(amount) && amount > 0
+      ? `${displayName} ${amount.toLocaleString('ko-KR')}개`
+      : getAcquisitionLabel(option);
+    if (!label) return '';
+    const icon = option?.materialIconUrl
+      ? `<img src="${escape(option.materialIconUrl)}" alt="${escape(materialName)}" loading="lazy" decoding="async" />`
+      : '';
+    return `<span class="enchant-material-cost"${materialName ? ` title="${escape(materialName)}"` : ''}>${icon}<span>${escape(label)}</span></span>`;
+  }).filter(Boolean);
+  return rows.length ? `<span class="enchant-acquisition-options">${rows.join('')}</span>` : '';
 }
 
 function getCardRows(cards) {
@@ -1451,6 +1473,7 @@ const {
 } = createEnchantEquipmentTuneProgression({
   applyUpgradeMaterialPrices,
   cloneSimulatorValue,
+  addEffects,
   upgradeMaterialLabels: UPGRADE_MATERIAL_LABELS,
 });
 
@@ -1588,6 +1611,13 @@ const {
 });
 
 const {
+  getOathBodyUpgradeRows,
+  replaceOathBody,
+  reconcileOathSetPointState,
+  getOathBodyEffectsTotal,
+  getOathBodyFinalDamageChangeMultiplier,
+  getOathBodyUpgradeExclusiveGroupKey,
+  getOathBodyUpgradeCandidateSignature,
   getBufferOathTuneBaseRelativeChanges,
   getBufferOathUpgradeBaseRelativeChanges,
   getOathTuneState,
@@ -1643,6 +1673,7 @@ const {
   oathDecisionVariantSourceTypes: OATH_DECISION_VARIANT_SOURCE_TYPES,
   applyUpgradeMaterialPrices,
   cloneSimulatorValue,
+  addEffects,
   getRecommendationGold,
   mergeUpgradeMaterials,
   getCostPerPointOnePercent,
@@ -1913,6 +1944,49 @@ function mergeAppliedSimulatorSnapshots(rows = [], simulator = {}) {
   return mergedRows;
 }
 
+function collapseOathBodyUpgradeRows(rows = [], selectedIndex = 0) {
+  const bodyRows = rows.filter((row) => row?.sourceType === 'oathBodyUpgrade');
+  if (!bodyRows.length) return rows;
+  const preservedSteps = bodyRows.find((row) => Array.isArray(row.tuneSteps) && row.tuneSteps.length)
+    ?.tuneSteps;
+  const sourceRows = preservedSteps || bodyRows;
+  const seenItemIds = new Set();
+  const tuneSteps = sourceRows
+    .slice()
+    .sort((a, b) => (
+      OATH_BODY_UPGRADE_RARITIES.indexOf(String(a?.targetOathBody?.itemRarity || a?.itemRarity || ''))
+      - OATH_BODY_UPGRADE_RARITIES.indexOf(String(b?.targetOathBody?.itemRarity || b?.itemRarity || ''))
+    ))
+    .filter((row) => {
+      const itemId = String(row?.targetOathBody?.itemId || row?.itemId || '').trim();
+      if (!itemId || seenItemIds.has(itemId)) return false;
+      seenItemIds.add(itemId);
+      return true;
+    })
+    .map((row, index) => {
+      const {
+        tuneSteps: _tuneSteps,
+        selectedTuneStepIndex: _selectedTuneStepIndex,
+        isApplied: _isApplied,
+        exclusiveGroupKey: _exclusiveGroupKey,
+        candidateSignature: _candidateSignature,
+        ...step
+      } = row;
+      return { ...step, index };
+    });
+  if (!tuneSteps.length) return rows.filter((row) => row?.sourceType !== 'oathBodyUpgrade');
+  const index = Math.max(0, Math.min(tuneSteps.length - 1, Number(selectedIndex || 0)));
+  const selected = tuneSteps[index];
+  return [
+    ...rows.filter((row) => row?.sourceType !== 'oathBodyUpgrade'),
+    {
+      ...selected,
+      tuneSteps,
+      selectedTuneStepIndex: index,
+    },
+  ];
+}
+
 function getSimulatorExclusiveGroupKey(row = {}) {
   return getBufferEnchantExclusiveGroupKey(row)
     || getBufferCreatureArtifactExclusiveGroupKey(row)
@@ -1934,6 +2008,7 @@ function getSimulatorExclusiveGroupKey(row = {}) {
     || getEquipmentTuneExclusiveGroupKey(row)
     || getOathTuneExclusiveGroupKey(row)
     || getOathUpgradeExclusiveGroupKey(row)
+    || getOathBodyUpgradeExclusiveGroupKey(row)
     || getOathAcquisitionExclusiveGroupKey(row)
     || getBlackFangExclusiveGroupKey(row)
     || getRelicCraftExclusiveGroupKey(row)
@@ -1966,6 +2041,7 @@ function getSimulatorCandidateSignature(row = {}) {
     || getEquipmentTuneCandidateSignature(row)
     || getOathTuneCandidateSignature(row)
     || getOathUpgradeCandidateSignature(row)
+    || getOathBodyUpgradeCandidateSignature(row)
     || getOathAcquisitionCandidateSignature(row)
     || getBlackFangCandidateSignature(row)
     || getRelicCraftCandidateSignature(row)
@@ -2029,6 +2105,7 @@ const {
   subtractEffects,
   getAvatarRegularEmblemEffectsTotal,
   getEquipmentProgressionEffectsTotal,
+  getOathBodyEffectsTotal,
   getOathCrystalEffectsTotal,
   normalizeSimulatorDamageDelta,
   getSelectedStatEffect,
@@ -2040,6 +2117,7 @@ const {
   getEquipmentProgressionFinalDamageChangeMultiplier,
   getEquipmentTuneDamageMultiplier,
   getOathCrystalFinalDamageChangeMultiplier,
+  getOathBodyFinalDamageChangeMultiplier,
   getOathTuneDamageMultiplier,
   getOathUpgradeDamageMultiplier,
   getElementAdjustedReplacementIncrementalDamagePercent,
@@ -2064,9 +2142,17 @@ function applyEquipmentTuneDisplayStep(
   bufferBaseline = null,
   bufferSimulator = null,
 ) {
-  if (!TUNE_SOURCE_TYPES.has(row.sourceType)) return row;
+  if (!STEP_VARIANT_SOURCE_TYPES.has(row.sourceType)) return row;
   const step = getSelectedEquipmentTuneStep(row, stepIndex);
   if (!step) return row;
+  if (row.sourceType === 'oathBodyUpgrade') {
+    return {
+      ...row,
+      ...cloneSimulatorValue(step),
+      tuneSteps: cloneSimulatorValue(row.tuneSteps || []),
+      selectedTuneStepIndex: Number(step.index || 0),
+    };
+  }
   if (row.sourceType === 'weaponTune') {
     const targetEquipmentBody = cloneSimulatorValue(step.targetEquipmentBody || {});
     const isRelease = (step.weaponTuneMode || row.weaponTuneMode) === 'release';
@@ -2378,7 +2464,8 @@ export function installEnchantView(ctx) {
       };
     },
     getOathUpgradeSweepState: () => {
-      const entry = state.dealerSimulator?.activeSweepSlots?.get('oath:upgrade');
+      const activeSweepSlots = state.dealerSimulator?.activeSweepSlots;
+      const entry = activeSweepSlots?.get('oath:upgrade') || activeSweepSlots?.get('서약');
       return { active: Boolean(entry), entry };
     },
     getOathDetailContext: () => (
@@ -3369,6 +3456,13 @@ export function installEnchantView(ctx) {
         applyType: 'applyOathUpgradePlan',
       };
     }
+    if (row.sourceType === 'oathBodyUpgrade' && row.targetOathBody?.itemId) {
+      return {
+        targetTab: 'oath',
+        targetSlot: '서약',
+        applyType: 'replaceOathBody',
+      };
+    }
     if (row.sourceType === 'aura') {
       const hasDamageEffect = Boolean(row.effects && Object.keys(row.effects).length);
       const hasSkillDamageEffect = Math.abs(getSkillDamageMultiplier(row) - 1) > 0.000001;
@@ -3506,8 +3600,17 @@ export function installEnchantView(ctx) {
   }
 
   function resolveBufferSimulatorTarget(row = {}) {
-    if (!isBufferSimulatorActive() || !row?.bufferSimulatorSupported) return null;
+    if (!isBufferSimulatorActive()) return null;
     const simulator = state.dealerSimulator;
+    if (row.sourceType === 'oathBodyUpgrade' && row.targetOathBody?.itemId && row.bufferBaseRelativeChanges) {
+      return {
+        targetTab: 'oath',
+        targetSlot: '서약',
+        applyType: 'replaceOathBody',
+        baseRelativeChanges: cloneSimulatorValue(row.bufferBaseRelativeChanges),
+      };
+    }
+    if (!row?.bufferSimulatorSupported) return null;
     if (row.sourceType === 'equipmentTune') {
       if (
         !Array.isArray(row.tunePlan?.slotChanges)
@@ -4845,6 +4948,46 @@ export function installEnchantView(ctx) {
     return true;
   }
 
+  function getOathBodySnapshot(oathUpgrades = {}) {
+    return {
+      itemId: oathUpgrades.itemId || '',
+      itemName: oathUpgrades.itemName || '',
+      itemRarity: oathUpgrades.itemRarity || '',
+      iconUrl: oathUpgrades.iconUrl || '',
+      effects: cloneSimulatorValue(oathUpgrades.effects || {}),
+      setPoint: Number(oathUpgrades.bodySetPoint || 0),
+    };
+  }
+
+  function applySimulatedOathBodyUpgrade(row, target) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || target?.applyType !== 'replaceOathBody') return false;
+    const currentOath = simulator.simulatedOathUpgrades || {};
+    const replacedOath = replaceOathBody(currentOath, row.targetOathBody);
+    if (!replacedOath) return false;
+    target.beforeOathBody = cloneSimulatorValue(
+      simulator.activeSelectionByGroup?.oathBodyUpgrade?.beforeOathBody,
+    ) || getOathBodySnapshot(currentOath);
+    target.changedSlots = ['서약'];
+    const nextOath = reconcileOathSetPointState(
+      replacedOath,
+      simulator.simulatedEquipmentUpgrades,
+    );
+    simulator.simulatedOathUpgrades = nextOath;
+    if (simulator.role === 'buffer') {
+      const changes = cloneSimulatorValue(
+        target.baseRelativeChanges || row.bufferBaseRelativeChanges,
+      );
+      if (!changes) return false;
+      simulator.oathAcquisitionChangesBySource.oathBodyUpgrade = changes;
+      if (!syncBufferOathAcquisitionChanges(row.targetOathBody)) return false;
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
+    return true;
+  }
+
   function preserveActiveOathUpgradeLevel(oathUpgrades = {}, simulator = state.dealerSimulator) {
     const selection = simulator?.activeSelectionByGroup?.oathUpgrade;
     const currentLevel = Number(simulator?.simulatedOathUpgrades?.oathUpgradeLevel || 0);
@@ -4938,7 +5081,7 @@ export function installEnchantView(ctx) {
     return true;
   }
 
-  function syncBufferOathAcquisitionChanges() {
+  function syncBufferOathAcquisitionChanges(oathBodyOverride = null) {
     const simulator = state.dealerSimulator;
     if (simulator?.role !== 'buffer') return true;
     const hasAcquisition = Object.values(simulator.activeSelectionByGroup || {}).some(
@@ -4950,8 +5093,26 @@ export function installEnchantView(ctx) {
     }
     const acquisitionOath = simulator.activeSelectionByGroup?.oathTune?.beforeTuneSnapshot
       || simulator.simulatedOathUpgrades;
+    const activeBodyTarget = oathBodyOverride
+      || simulator.activeSelectionByGroup?.oathBodyUpgrade
+        ?.appliedRecommendationSnapshot?.targetOathBody
+      || null;
+    let referenceOath = cloneSimulatorValue(simulator.baseOathUpgrades || {});
+    if (activeBodyTarget?.itemId) {
+      const replacedReferenceOath = replaceOathBody(referenceOath, activeBodyTarget);
+      if (!replacedReferenceOath) return false;
+      referenceOath = reconcileOathSetPointState(
+        replacedReferenceOath,
+        simulator.simulatedEquipmentUpgrades,
+      );
+    } else {
+      referenceOath = reconcileOathSetPointState(
+        referenceOath,
+        simulator.simulatedEquipmentUpgrades,
+      );
+    }
     const changes = getBufferOathStateBaseRelativeChanges(
-      simulator.baseOathUpgrades,
+      referenceOath,
       acquisitionOath,
       simulator.oathTuneDb,
     );
@@ -5183,6 +5344,7 @@ export function installEnchantView(ctx) {
       apply: applySimulatedOathUpgradePlan,
       remove: removeSimulatedOathUpgradeSelection,
     },
+    replaceOathBody: { apply: applySimulatedOathBodyUpgrade, remove: removeSimulatedOathBodyUpgradeSelection },
     acquireOathDecision: { apply: applySimulatedOathAcquisition },
   };
 
@@ -5511,6 +5673,7 @@ export function installEnchantView(ctx) {
       artifactType: target.artifactType || '',
       buffSlotId: target.buffSlotId || '',
       applyType: target.applyType,
+      beforeOathBody: cloneSimulatorValue(target.beforeOathBody),
       baseRelativeChanges: cloneSimulatorValue(target.baseRelativeChanges),
       appliedRecommendationSnapshot,
       ...(['applyEquipmentTunePlan', 'applyOathTunePlan', 'applyOathUpgradePlan'].includes(target.applyType) ? {
@@ -6135,6 +6298,29 @@ export function installEnchantView(ctx) {
       oathUpgrade: 0,
     };
     return { changedSlots: ['oath:upgrade'] };
+  }
+
+  function removeSimulatedOathBodyUpgradeSelection(selection = {}) {
+    const simulator = state.dealerSimulator;
+    if (!simulator || !selection.beforeOathBody) return false;
+    const replacedOath = replaceOathBody(
+      simulator.simulatedOathUpgrades || {},
+      selection.beforeOathBody,
+    );
+    if (!replacedOath) return false;
+    const restoredOath = reconcileOathSetPointState(
+      replacedOath,
+      simulator.simulatedEquipmentUpgrades,
+    );
+    simulator.simulatedOathUpgrades = restoredOath;
+    if (simulator.role === 'buffer') {
+      delete simulator.oathAcquisitionChangesBySource.oathBodyUpgrade;
+      if (!syncBufferOathAcquisitionChanges(selection.beforeOathBody)) return false;
+      rebuildBufferSimulatorCalculationState();
+    } else {
+      rebuildDealerSimulatorCalculationState();
+    }
+    return { changedSlots: ['서약'] };
   }
 
   function removeSimulatedEquipmentTuneSelection(selection = {}) {
@@ -6782,6 +6968,17 @@ export function installEnchantView(ctx) {
       ...getVisibleEquipmentTuneRows(),
       ...getOathTuneRows(getOathTuneRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, getActiveEquipmentUpgrades(), state.currentBufferBaseline),
       ...getOathUpgradeRows(getOathUpgradeRecommendationUpgrades(), state.oathTuneStageDb, state.upgradeMaterialPrices, state.currentBufferBaseline),
+      ...getOathBodyUpgradeRows(
+        getActiveOathUpgrades(),
+        getActiveEquipmentUpgrades(),
+        state.oathTuneStageDb,
+        Boolean(state.currentBufferBaseline?.isBuffer),
+        state.dealerSimulator?.baseOathUpgrades || state.currentOathUpgrades,
+      )
+        .map((row) => ({
+          ...row,
+          iconUrl: getLocalOathSymbolIconUrl(row.targetOathBody || row) || row.iconUrl,
+        })),
       ...getOathTranscendRows(state.currentOathTranscendRecommendations, state.upgradeMaterialPrices),
       ...getOathTranscendRows(state.currentOathCraftRecommendations, state.upgradeMaterialPrices, 'oathCraft'),
       ...getBlackFangRows(state.currentBlackFangRecommendations, getActiveEquipmentUpgrades()),
@@ -6817,7 +7014,7 @@ export function installEnchantView(ctx) {
         isBuffer
           ? (
             (row.sourceType === 'enchant' && row.role === 'buffer') ||
-            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune'].includes(row.sourceType)
+            ['creature', 'creatureArtifact', 'title', 'switchingTitle', 'switchingCreature', 'switchingFragment', 'aura', 'avatar', 'upgrade', 'equipmentTune', 'oathTune', 'oathUpgrade', 'oathBodyUpgrade', 'oathTranscend', 'oathCraft', 'blackFang', 'relicCraft', 'raidArmorUpgrade', 'weaponTune'].includes(row.sourceType)
           )
           : row.sourceType !== 'enchant' || row.role !== 'buffer'
       ))
@@ -6934,7 +7131,7 @@ export function installEnchantView(ctx) {
       return `oathCombined:${row.oathAcquisitionPairKey}`;
     }
     if (row.requiredForRelicCraft === true) return 'tune:equipmentTuneRequired';
-    if (TUNE_SOURCE_TYPES.has(row.sourceType)) return `tune:${row.sourceType}`;
+    if (STEP_VARIANT_SOURCE_TYPES.has(row.sourceType)) return `tune:${row.sourceType}`;
     if (OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType) && row.variantGroupKey) {
       return `oathDecision:${row.variantGroupKey}`;
     }
@@ -7033,6 +7230,10 @@ export function installEnchantView(ctx) {
         simulator?.simulatedEquipmentUpgrades || state.currentEquipmentUpgrades,
       );
     if (simulator) recommendations = mergeAppliedSimulatorSnapshots(recommendations, simulator);
+    recommendations = collapseOathBodyUpgradeRows(
+      recommendations,
+      getTuneStepIndexBySource(state, 'oathBodyUpgrade'),
+    );
     recommendations = collapseOathDecisionRecommendationVariants(
       recommendations,
       state.oathDecisionVariantIndexByGroup,
@@ -7048,7 +7249,7 @@ export function installEnchantView(ctx) {
       state.currentBufferBaseline?.isBuffer === true && simulator?.role !== 'buffer',
     );
     recommendations = recommendations.map((row) => (
-      TUNE_SOURCE_TYPES.has(row.sourceType)
+      STEP_VARIANT_SOURCE_TYPES.has(row.sourceType)
         ? applyEquipmentTuneDisplayStep(
           row,
           getTuneStepIndexBySource(state, row.sourceType),
@@ -7102,16 +7303,16 @@ export function installEnchantView(ctx) {
       const hasOathDecisionVariants = OATH_DECISION_VARIANT_SOURCE_TYPES.has(row.sourceType)
         && Array.isArray(row.oathDecisionVariants)
         && row.oathDecisionVariants.length > 1;
-      const hasVariantActions = TUNE_SOURCE_TYPES.has(row.sourceType)
+      const hasVariantActions = STEP_VARIANT_SOURCE_TYPES.has(row.sourceType)
         || hasOathDecisionVariants
         || isCombinedOathAcquisition;
       const variantPopoverSource = isCombinedOathAcquisition
         ? row.oathAcquisitionPairKey
         : hasOathDecisionVariants ? row.variantGroupKey : row.sourceType;
-      const tuneStepIndex = TUNE_SOURCE_TYPES.has(row.sourceType)
+      const tuneStepIndex = STEP_VARIANT_SOURCE_TYPES.has(row.sourceType)
         ? getTuneStepIndexBySource(state, row.sourceType)
         : state.equipmentTuneStepIndex;
-      if (!isApplied || TUNE_SOURCE_TYPES.has(row.sourceType)) {
+      if (!isApplied || STEP_VARIANT_SOURCE_TYPES.has(row.sourceType)) {
         row = applyEquipmentTuneDisplayStep(
           row,
           tuneStepIndex,
@@ -7193,6 +7394,8 @@ export function installEnchantView(ctx) {
         ? row.kind === 'switchingAvatar'
           ? {}
           : Object.fromEntries(Object.entries(row.effects || {}).filter(([key]) => key !== 'skillDamageMultiplier'))
+        : row.sourceType === 'oathBodyUpgrade'
+          ? getRoleRelevantEffects(row.effects || {}, isBufferMetric)
         : row.effects;
       const baseEffectText = row.sourceType === 'upgrade'
         ? formatUpgradeEffect(row)
@@ -7324,8 +7527,20 @@ export function installEnchantView(ctx) {
         : row.slot;
       const acquisitionLabel = getAcquisitionLabel(row.acquisition);
       const isMaterialEnchant = isMaterialEnchantRecommendation(row);
-      const legacyAcquisitionLabel = isMaterialEnchant ? '' : acquisitionLabel;
-      const acquisitionMarkup = legacyAcquisitionLabel || isMaterialEnchant ? getAcquisitionMarkup(row.acquisition, escapeHtml) : '';
+      const acquisitionOptionsMarkup = getAcquisitionOptionsMarkup(row.acquisitionOptions, escapeHtml);
+      const primaryAcquisitionMarkup = row.sourceType === 'oathBodyUpgrade'
+        ? getAcquisitionOptionsMarkup(
+          (row.acquisitionOptions || []).filter((option) => option?.materialIconUrl).slice(0, 1),
+          escapeHtml,
+        )
+        : acquisitionOptionsMarkup;
+      const legacyAcquisitionLabel = isMaterialEnchant || acquisitionOptionsMarkup ? '' : acquisitionLabel;
+      const acquisitionMarkup = primaryAcquisitionMarkup
+        || (legacyAcquisitionLabel || isMaterialEnchant ? getAcquisitionMarkup(row.acquisition, escapeHtml) : '');
+      const hasAcquisitionDisplay = Boolean(acquisitionMarkup);
+      const hasExplicitAcquisitionDisplay = Boolean(acquisitionOptionsMarkup || legacyAcquisitionLabel);
+      const hideOathBodyCost = row.sourceType === 'oathBodyUpgrade'
+        && !hasExplicitAcquisitionDisplay;
       const hasRelicCraftMaterialGroups = row.sourceType === 'relicCraft'
         && (row.materials || []).some((material) => (
           Number(material?.craftAmount || 0) > 0 || Number(material?.tuneAmount || 0) > 0
@@ -7416,7 +7631,7 @@ export function installEnchantView(ctx) {
           </span>`).join('')}
         </span>`
         : '';
-      const tuneStepControls = combinedAcquisitionControls || (TUNE_SOURCE_TYPES.has(row.sourceType) && Array.isArray(row.tuneSteps) && (row.tuneSteps.length > 1 || row.sourceType === 'oathUpgrade')
+      const tuneStepControls = combinedAcquisitionControls || (STEP_VARIANT_SOURCE_TYPES.has(row.sourceType) && Array.isArray(row.tuneSteps) && (row.tuneSteps.length > 1 || row.sourceType === 'oathUpgrade')
         ? `<span class="enchant-tune-step-controls">
             <span class="enchant-tune-step-button${row.selectedTuneStepIndex <= 0 ? ' is-disabled' : ''}" role="button" tabindex="0" data-equipment-tune-step="-1" data-tune-source="${escapeHtml(row.sourceType)}" aria-label="이전 조율 단계">-</span>
             <span class="enchant-tune-step-label">${row.sourceType === 'weaponTune' ? row.weaponTuneMode === 'release' ? `${formatEffectNumber(Number(row.targetWeaponReleasePercent || 0))}%` : `${Number(row.targetWeaponTuneStage || 0)} / 4` : row.sourceType === 'oathUpgrade' ? `${Number(row.targetOathUpgradeLevel || 0)} / ${Number(row.maxOathUpgradeLevel || 9)}` : `${Number(row.selectedTuneStepIndex || 0) + 1} / ${row.tuneSteps.length}`}</span>
@@ -7454,15 +7669,16 @@ export function installEnchantView(ctx) {
           ? { html: effectHtml, className: 'enchant-popover-effect' }
           : { text: effectText, className: 'enchant-popover-effect' },
         { text: row.priceWarningText ? `⚠ ${row.priceWarningText}` : '', className: 'enchant-recommend-warning' },
-        { text: legacyAcquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
+        { text: acquisitionOptionsMarkup ? '획득 방법' : legacyAcquisitionLabel ? '재료 구매' : '', className: 'enchant-popover-label' },
+        { html: acquisitionOptionsMarkup, className: 'enchant-popover-material' },
         { text: legacyAcquisitionLabel, className: 'enchant-popover-material' },
-        { text: legacyAcquisitionLabel || isMaterialEnchant ? '' : `${priceLabel} ${rowGoldText}`, className: 'enchant-popover-price' },
+        { text: hasAcquisitionDisplay || hideOathBodyCost ? '' : `${priceLabel} ${rowGoldText}`, className: 'enchant-popover-price' },
         { html: materialPartsMarkup, className: 'enchant-popover-material enchant-popover-material-list' },
         { html: relicCraftMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { html: combinedAcquisitionMaterialsMarkup, className: 'enchant-popover-material enchant-oath-combined-materials' },
         { text: !isCombinedOathAcquisition && !materialPartsMarkup && !relicCraftMaterialsMarkup && row.materialText ? `필요 재료 ${row.materialText}` : '', className: 'enchant-popover-material' },
         { text: isRequiredEquipmentTuneBaseVariant ? '태초 세트 포인트 유지' : isBufferMetric ? `${row.sourceType === 'equipmentTune' ? '버프점수' : '교체 시 버프점수'} ${Number(row.incrementalBuffScore || 0) > 0 ? '+' : ''}${Math.round(row.incrementalBuffScore).toLocaleString('ko-KR')}점` : `${TUNE_SOURCE_TYPES.has(row.sourceType) ? '딜 상승' : '교체 상승'} ${formatPercent(row.incrementalDamagePercent)}`, className: 'enchant-popover-gain' },
-        { text: isRequiredEquipmentTuneBaseVariant || legacyAcquisitionLabel || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
+        { text: isRequiredEquipmentTuneBaseVariant || hasExplicitAcquisitionDisplay || hideOathBodyCost || isMaterialEnchant ? '' : isBufferMetric ? `버프점수 100점당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.buffCostPerHundredPoints)}` : `딜 0.1%당 ${isFreeActionRecommendation(row) ? '0 골드' : formatGold(row.costPerPointOnePercent)}`, className: 'enchant-popover-cost' },
         { html: tuneStepControls, className: 'enchant-popover-tune-controls' },
         { text: isRemovalLocked ? '유일 장비 구성에 따라 자동 적용되는 조율입니다.' : isApplied ? '한 번 더 눌러 시뮬레이터 적용 해제' : '', className: 'enchant-simulator-touch-hint' },
         { text: simulatorTarget ? '한 번 더 눌러 시뮬레이터에 적용' : '', className: 'enchant-simulator-touch-hint' },
@@ -7493,9 +7709,9 @@ export function installEnchantView(ctx) {
               <span class="enchant-recommend-title" title="${escapeHtml(displayTitle)}"><span class="enchant-recommend-title-text">${escapeHtml(displayTitle)}</span></span>
               <span class="enchant-recommend-sub">${escapeHtml(tierLabel)}</span>
             </span>
-            <span class="enchant-recommend-metric">
-              <strong>${acquisitionMarkup || escapeHtml(isFreeActionRecommendation(row) ? '0' : formatCompactGold(cardMetricValue))}</strong>
-              ${legacyAcquisitionLabel || isMaterialEnchant ? '' : `<span>${cardMetricLabel}</span>`}
+            <span class="enchant-recommend-metric${hideOathBodyCost ? ' is-empty' : ''}">
+              ${hideOathBodyCost ? '' : `<strong>${acquisitionMarkup || escapeHtml(isFreeActionRecommendation(row) ? '0' : formatCompactGold(cardMetricValue))}</strong>
+              ${hasAcquisitionDisplay ? '' : `<span>${cardMetricLabel}</span>`}`}
             </span>
             ${popover}
           </button>
@@ -8279,6 +8495,24 @@ export function installEnchantView(ctx) {
     );
   }
 
+  function getOathBodyUpgradeVariantRow(stepIndex) {
+    const row = [...(state.dealerSimulatorRecommendations?.values() || [])]
+      .find((candidate) => (
+        candidate?.sourceType === 'oathBodyUpgrade'
+        && Array.isArray(candidate.tuneSteps)
+        && candidate.tuneSteps.length
+      ));
+    if (!row) return null;
+    return applyEquipmentTuneDisplayStep(
+      row,
+      stepIndex,
+      els.enchantMaterialCostToggle?.checked === true,
+      getActiveDamageBaseline(),
+      state.currentBufferBaseline,
+      state.dealerSimulator?.role === 'buffer' ? state.dealerSimulator : null,
+    );
+  }
+
   function getWeaponTuneVariantRow(stepIndex, useBaseReference = false) {
     const row = getWeaponTuneRows(state.currentWeaponTuneRecommendations, stepIndex)[0];
     if (!row || !useBaseReference || state.dealerSimulator?.role !== 'dealer') {
@@ -8667,6 +8901,19 @@ export function installEnchantView(ctx) {
       renderEnchantTable();
       return;
     }
+    if (sourceType === 'oathBodyUpgrade' && state.dealerSimulator?.activeSelectionByGroup?.oathBodyUpgrade) {
+      const nextRow = getOathBodyUpgradeVariantRow(state.tuneStepIndexBySource[sourceType]);
+      const nextRecommendationId = nextRow ? getDealerSimulatorRecommendationId(nextRow) : '';
+      if (nextRow && nextRecommendationId) {
+        state.dealerSimulatorRecommendations.set(nextRecommendationId, nextRow);
+        applyActiveSimulatorRecommendation(nextRecommendationId);
+        const activeSignature = state.dealerSimulator?.activeSelectionByGroup?.oathBodyUpgrade?.candidateSignature;
+        if (activeSignature === getSimulatorCandidateSignature(nextRow)) return;
+      }
+      state.tuneStepIndexBySource[sourceType] = currentIndex;
+      renderEnchantTable();
+      return;
+    }
     if (sourceType === 'weaponTune' && state.dealerSimulator?.activeSelectionByGroup?.['weaponTune:무기']) {
       const nextRow = getWeaponTuneVariantRow(
         state.tuneStepIndexBySource[sourceType],
@@ -8698,6 +8945,12 @@ export function installEnchantView(ctx) {
     }
     if (sourceType === 'oathUpgrade' && selectedRow?.sourceType === sourceType) {
       const nextRow = getOathUpgradeVariantRow(state.tuneStepIndexBySource[sourceType]);
+      state.dealerSimulator.selectedRecommendationId = nextRow
+        ? getDealerSimulatorRecommendationId(nextRow)
+        : '';
+    }
+    if (sourceType === 'oathBodyUpgrade' && selectedRow?.sourceType === sourceType) {
+      const nextRow = getOathBodyUpgradeVariantRow(state.tuneStepIndexBySource[sourceType]);
       state.dealerSimulator.selectedRecommendationId = nextRow
         ? getDealerSimulatorRecommendationId(nextRow)
         : '';

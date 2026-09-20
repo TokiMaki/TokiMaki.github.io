@@ -687,8 +687,8 @@ export function createEnchantDealerRecommendation(deps) {
           ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
         : TUNE_SOURCE_TYPES.has(row.sourceType)
           ? { effects: {} }
-        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
-          ? { effects: row.currentEffects || {} }
+          : ['oathTranscend', 'oathCraft', 'oathBodyUpgrade'].includes(row.sourceType)
+            ? { effects: row.currentEffects || {} }
         : row.sourceType === 'avatar'
           ? { effects: {} }
         : row.sourceType === 'switchingTitle'
@@ -781,7 +781,7 @@ export function createEnchantDealerRecommendation(deps) {
             || row.targetEffects
             || addEffects(row.currentEffects, row.effects),
         }
-        : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+        : ['oathTranscend', 'oathCraft', 'oathBodyUpgrade'].includes(row.sourceType)
           ? { ...row, effects: row.targetEffects || row.effects || {} }
           : row;
       const rowConditionalDamageMultiplier = Number(
@@ -806,7 +806,7 @@ export function createEnchantDealerRecommendation(deps) {
               actualDamageEvaluationRow,
               isEquipmentBodyReplacementSource(row)
                 ? row.currentEquipmentBody || { effects: row.currentEffects || {} }
-                : row.sourceType === 'oathTranscend' || row.sourceType === 'oathCraft'
+                : ['oathTranscend', 'oathCraft', 'oathBodyUpgrade'].includes(row.sourceType)
                   ? { effects: row.currentEffects || {} }
                   : current,
               evaluationBaseline,

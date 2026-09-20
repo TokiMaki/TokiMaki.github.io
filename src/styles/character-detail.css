@@ -1101,6 +1101,9 @@
       font-size: 10px;
       white-space: nowrap;
     }
+    .enchant-recommend-metric.is-empty {
+      min-height: 13px;
+    }
     .enchant-recommend-metric strong {
       overflow: hidden;
       color: var(--good);
@@ -1126,6 +1129,22 @@
     .enchant-material-cost span {
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .enchant-acquisition-options {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 2px;
+      width: 100%;
+      line-height: 1.1;
+      text-align: left;
+    }
+    .enchant-acquisition-options .enchant-material-cost {
+      justify-content: flex-start;
+    }
+    .enchant-acquisition-options .enchant-material-cost img {
+      width: 11px;
+      height: 11px;
     }
     .enchant-recommend-popover {
       position: absolute;

@@ -597,6 +597,53 @@ function testWeaponTuneUsesBufferPowerWithoutDealerFinalDamage() {
   assert.ok(result.incrementalBuffScore > 0);
 }
 
+function testOathBodyUpgradeIsEvaluatedForBuffer() {
+  const { getBufferRecommendationRows } = createRecommendation();
+  const baseline = {
+    isBuffer: true,
+    bufferKey: 'muse',
+    jobName: '아처',
+    statName: '정신력',
+    stat: 7036,
+    activeSelfStat: 699,
+    switchingStatDelta: 0,
+    buffPower: 275954,
+    buffAmplification: 5,
+    switchingBuffAmplificationDelta: 0,
+    buffSkillName: '러블리 템포',
+    buffSkillLevel: 26,
+    awakeningSkillName: '온 더 스테이지',
+    awakeningSkillLevel: 35,
+    auraStat: 644,
+    auraAttack: 0,
+    currentSelfStatSkills: {},
+  };
+  const [result] = getBufferRecommendationRows(
+    [{
+      sourceType: 'oathBodyUpgrade',
+      slot: '서약',
+      itemId: 'primeval-oath',
+      itemName: '영원불변의 행운 서약',
+      currentEffects: { allStat: 440, buffPower: 8693 },
+      targetEffects: { allStat: 495, buffPower: 9393 },
+      effects: { allStat: 55, buffPower: 700 },
+      bufferBaseRelativeChanges: { statDelta: 55, buffPowerDelta: 700 },
+      freeAction: true,
+      expectedGold: 0,
+      auction: { minUnitPrice: 0 },
+    }],
+    [],
+    null,
+    null,
+    null,
+    deepFreeze(baseline),
+  );
+
+  assert.ok(result);
+  assert.equal(result.sourceType, 'oathBodyUpgrade');
+  assert.ok(result.incrementalBuffScore > 0);
+}
+
 const tests = [
   testFactoryContract,
   testCalculateBufferScoreFixturesAndEdges,
@@ -605,6 +652,7 @@ const tests = [
   testSimulatorResolutionFailureFallsBackToBaseScoring,
   testRelicCraftUsesNormalizedBodyAndBufferCallbackOnly,
   testWeaponTuneUsesBufferPowerWithoutDealerFinalDamage,
+  testOathBodyUpgradeIsEvaluatedForBuffer,
 ];
 
 let failures = 0;
