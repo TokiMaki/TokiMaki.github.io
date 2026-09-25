@@ -44,18 +44,20 @@ export function createEnchantBuffEnhancementMetric(deps) {
   function getBuffEnhancementState(loadout = {}, baseLoadout = loadout) {
     const skillInfo = baseLoadout?.skillInfo || loadout?.skillInfo || {};
     const baseLevel = Number(skillInfo.level || 0);
+    const maxLevel = Math.max(0, Number(skillInfo.maxLevel || 20));
     const levelDelta = getBuffLoadoutLevelContribution(loadout)
       - getBuffLoadoutLevelContribution(baseLoadout);
-    const effectiveLevel = Math.max(0, Math.min(20, baseLevel + levelDelta));
+    const effectiveLevel = Math.max(0, Math.min(maxLevel, baseLevel + levelDelta));
     return {
       effectiveLevel,
+      maxLevel,
       denseFragmentCount: getBuffLoadoutDenseFragmentCount(loadout),
     };
   }
 
   function getBuffEquipmentScoreCoefficient(loadout = {}, baseLoadout = loadout) {
-    const { effectiveLevel, denseFragmentCount } = getBuffEnhancementState(loadout, baseLoadout);
-    return 100 - (20 - effectiveLevel) * 2 + denseFragmentCount * 0.25;
+    const { effectiveLevel, maxLevel, denseFragmentCount } = getBuffEnhancementState(loadout, baseLoadout);
+    return 100 - (maxLevel - effectiveLevel) * 2 + denseFragmentCount * 0.25;
   }
 
   function getBuffActualDamageMultiplier(loadout = {}, baseLoadout = loadout) {

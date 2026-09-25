@@ -120,6 +120,30 @@ assertClose(metric.getBuffEnhancementMetricMultiplier({
   simulatedBuffLoadout: upperCapSimulated,
 }, 'equipmentScore'), 100 / 98);
 
+const levelThirtyBase = {
+  skillInfo: {
+    level: 29,
+    maxLevel: 30,
+    currentCoefficients: [106],
+    perLevelCoefficients: [2],
+  },
+  equipment: [],
+  avatar: [],
+  creature: [],
+};
+const levelThirtySimulated = {
+  ...clone(levelThirtyBase),
+  avatar: [{ buffContribution: { platinumSkillLevel: 1 } }],
+};
+assertClose(metric.getBuffEnhancementMetricMultiplier({
+  baseBuffLoadout: levelThirtyBase,
+  simulatedBuffLoadout: levelThirtySimulated,
+}, 'equipmentScore'), 100 / 98);
+assertClose(metric.getBuffEnhancementMetricMultiplier({
+  baseBuffLoadout: levelThirtyBase,
+  simulatedBuffLoadout: levelThirtySimulated,
+}), 2.08 / 2.06);
+
 const lowerCapBase = {
   skillInfo: { level: 1 },
   equipment: [{ slotId: 'TITLE', buffContribution: { skillLevel: 5 } }],

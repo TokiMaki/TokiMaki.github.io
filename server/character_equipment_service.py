@@ -396,10 +396,16 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
     creature_buff = ((creature_payload.get("skill") or {}).get("buff") or {})
     skill_info = equipment_buff.get("skillInfo") or avatar_buff.get("skillInfo") or creature_buff.get("skillInfo") or {}
     buff_skill_name = clean_text(skill_info.get("name"))
+    job_id = clean_text(
+        equipment_payload.get("jobId")
+        or avatar_payload.get("jobId")
+        or creature_payload.get("jobId")
+    )
     job_name = clean_text(equipment_payload.get("jobName"))
     job_grow_name = clean_text(equipment_payload.get("jobGrowName"))
-    if not job_name or not job_grow_name:
+    if not job_id or not job_name or not job_grow_name:
         status_payload = get_character_cached_payload(server_id, character_id, "status", "status")
+        job_id = job_id or clean_text(status_payload.get("jobId"))
         job_name = job_name or clean_text(status_payload.get("jobName"))
         job_grow_name = job_grow_name or clean_text(status_payload.get("jobGrowName"))
     switching_context = {
@@ -423,6 +429,12 @@ def build_buff_loadout_payload(server_id: str, character_id: str) -> dict:
     max_skill_level = int((load_dealer_switching_buff_db().get("metadata") or {}).get("baseLevel") or 0) if (
         switching_entry and clean_text(switching_entry.get("buffSkillName")) == buff_skill_name
     ) else 0
+    skill_id = clean_text(skill_info.get("skillId"))
+    if max_skill_level and job_id and skill_id:
+        try:
+            max_skill_level = int(get_skill_detail(job_id, skill_id).get("maxLevel") or max_skill_level)
+        except Exception:
+            pass
     equivalent_skill_names = [
         clean_text(skill_name)
         for skill_name in (switching_entry or {}).get("equivalentSwitchingPlatinumSkills") or []

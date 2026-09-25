@@ -118,6 +118,7 @@ class SwitchingAvatarContributionTest(unittest.TestCase):
         ns = self.ns
         payloads = {
             "buff_equipment": {
+                "jobId": "archer",
                 "jobName": "아처",
                 "jobGrowName": "眞 뮤즈",
                 "skill": {"buff": {"skillInfo": {
@@ -135,8 +136,13 @@ class SwitchingAvatarContributionTest(unittest.TestCase):
             "get_item_icon_url": lambda item_id: f"icon:{item_id}",
             "get_avatar_auction_emblems": lambda row: list(row.get("emblems") or []),
             "get_character_cached_payload": lambda _server, _character, resource, _path: payloads.get(resource, {}),
-            "find_dealer_switching_buff_entry": lambda *_args, **_kwargs: {},
+            "find_dealer_switching_buff_entry": lambda *_args, **_kwargs: {
+                "buffSkillName": "러블리 템포",
+            },
             "match_current_switching_coefficients": lambda *_args: [],
+            "get_skill_detail": lambda job_id, skill_id: {
+                "maxLevel": 40 if (job_id, skill_id) == ("archer", "lovely-tempo") else 0,
+            },
             "load_dealer_switching_buff_db": lambda: {"metadata": {"baseLevel": 20}},
             "get_switching_creature_target_skill_names": lambda skill, equivalents: [
                 name for name in [skill, *(equivalents or [])] if name
@@ -154,6 +160,7 @@ class SwitchingAvatarContributionTest(unittest.TestCase):
         payload = ns["build_buff_loadout_payload"]("cain", "makimuse")
 
         self.assertEqual(payload["skillInfo"]["level"], 32)
+        self.assertEqual(payload["skillInfo"]["maxLevel"], 40)
         self.assertEqual(len(payload["avatar"]), 1)
         self.assertEqual(payload["avatar"][0]["buffAvatarSource"], "wornFallback")
         self.assertEqual(payload["avatar"][0]["buffContribution"], {
