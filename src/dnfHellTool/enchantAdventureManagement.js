@@ -172,7 +172,7 @@ export function createEnchantAdventureManagement({ els, state, apiBase, escapeHt
         }
       }
       if (dialog && currentGeneration === generation) {
-        message = '1분 동안 장비 해제가 확인되지 않았습니다. 장비 상태를 확인한 뒤 다시 시도해 주세요.';
+        message = '장비 해제가 확인되지 않았습니다. 장비 상태를 확인한 뒤 다시 시도해 주세요.';
       }
     } finally {
       clearTimeout(timeout);
