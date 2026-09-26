@@ -483,8 +483,45 @@
     }
     .enchant-candidate-head {
       display: grid;
-      gap: 3px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
       padding: 6px 0 1px;
+      text-align: center;
+    }
+    .enchant-adventure-manage-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 30px;
+      padding: 4px 8px;
+      border: 1px solid #806d4b;
+      border-radius: 4px;
+      background: #1d1a15;
+      color: #e7d5b2;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .enchant-candidate-head:not(:has(.enchant-adventure-manage-button)) p {
+      grid-column: 1 / -1;
+    }
+    .enchant-adventure-manage-button:hover,
+    .enchant-adventure-manage-button:focus-visible {
+      border-color: #c3a870;
+      background: #292318;
+    }
+    .enchant-candidate-edit-actions {
+      display: inline-flex;
+      gap: 6px;
+    }
+    .enchant-candidate-edit-actions button:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .enchant-candidate-edit-message {
+      margin: 4px 0 0;
+      color: #f0bf9b;
+      font-size: 12px;
       text-align: center;
     }
     .enchant-candidate-head p {
@@ -562,6 +599,79 @@
       background: #11100d;
       outline: none;
       transform: translateY(-1px);
+    }
+    .enchant-candidate-edit-card {
+      cursor: grab;
+      user-select: none;
+    }
+    .enchant-candidate-edit-card:active {
+      cursor: grabbing;
+    }
+    .enchant-candidate-edit-card.is-hidden {
+      border-style: dashed;
+      border-color: #726655;
+    }
+    .enchant-candidate-edit-card.is-hidden .enchant-candidate-portrait,
+    .enchant-candidate-edit-card.is-hidden .enchant-candidate-info {
+      opacity: 0.38;
+    }
+    .enchant-candidate-edit-card.is-dragging {
+      opacity: 0.4;
+    }
+    .enchant-candidate-edit-card.is-drop-before::before,
+    .enchant-candidate-edit-card.is-drop-after::after {
+      position: absolute;
+      z-index: 2;
+      top: 4px;
+      bottom: 4px;
+      width: 3px;
+      border-radius: 2px;
+      background: #e5bf70;
+      box-shadow: 0 0 5px rgb(229 191 112 / 0.65);
+      pointer-events: none;
+      content: '';
+    }
+    .enchant-candidate-edit-card.is-drop-before::before { left: -6px; }
+    .enchant-candidate-edit-card.is-drop-after::after { right: -6px; }
+    .enchant-candidate-hide {
+      flex: 0 0 auto;
+      min-height: 22px;
+      padding: 2px 5px;
+      border: 1px solid #806d4b;
+      border-radius: 3px;
+      background: #211d16;
+      color: #e7d5b2;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .enchant-candidate-hide[aria-pressed="true"] {
+      border-color: #aa765e;
+      background: #3a251e;
+      color: #f0c4ad;
+    }
+    .enchant-candidate-move {
+      position: absolute;
+      z-index: 1;
+      top: 38%;
+      display: grid;
+      place-items: center;
+      width: 27px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid #a28a5b;
+      border-radius: 3px;
+      background: rgb(18 16 13 / 0.88);
+      color: #f5dfb2;
+      font-size: 25px;
+      line-height: 1;
+      transform: translateY(-50%);
+      cursor: pointer;
+    }
+    .enchant-candidate-move.is-left { left: 9px; }
+    .enchant-candidate-move.is-right { right: 9px; }
+    .enchant-candidate-move:disabled {
+      opacity: 0.28;
+      cursor: default;
     }
     .enchant-candidate-server {
       justify-self: start;
@@ -2974,4 +3084,149 @@
     .row-delete-button:hover {
       border-color: color-mix(in srgb, var(--bad) 86%, transparent);
       background: color-mix(in srgb, var(--bad) 20%, transparent);
+    }
+
+    .enchant-adventure-manage-dialog {
+      width: min(460px, calc(100vw - 24px));
+      max-height: min(700px, calc(100dvh - 24px));
+      padding: 18px;
+      border: 1px solid #877452;
+      border-radius: 6px;
+      background: #161511;
+      color: #ede7d9;
+      box-shadow: 0 18px 48px rgb(0 0 0 / 0.6);
+      overflow: auto;
+    }
+    .enchant-adventure-manage-dialog::backdrop {
+      background: rgb(0 0 0 / 0.7);
+    }
+    .enchant-adventure-manage-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .enchant-adventure-manage-heading h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .enchant-adventure-manage-heading button {
+      min-width: 32px;
+      min-height: 32px;
+      padding: 4px 7px;
+      border: 1px solid #665c49;
+      border-radius: 4px;
+      background: #24221d;
+      color: #e9dfc9;
+      cursor: pointer;
+    }
+    .enchant-adventure-manage-dialog button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .enchant-adventure-manage-primary {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid #baa070;
+      border-radius: 4px;
+      background: #4b3d25;
+      color: #fff2d7;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .enchant-adventure-manage-character {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #3d382e;
+    }
+    .enchant-adventure-manage-portrait {
+      flex: 0 0 96px;
+      width: 96px;
+    }
+    .enchant-adventure-manage-identity {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .enchant-adventure-manage-identity small {
+      color: #b5a98e;
+      font-size: 12px;
+    }
+    .enchant-adventure-manage-identity strong {
+      font-size: 16px;
+    }
+    .enchant-adventure-manage-section-label {
+      margin: 0 0 7px;
+      color: #c8c0ae;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .enchant-adventure-manage-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      margin-bottom: 14px;
+      padding: 10px;
+      border: 1px solid #5c5343;
+      background: #1d1b17;
+    }
+    .enchant-adventure-manage-item img {
+      flex: 0 0 48px;
+      object-fit: contain;
+    }
+    .enchant-adventure-manage-item span {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .enchant-adventure-manage-item small {
+      color: #b5a98e;
+      font-size: 11px;
+    }
+    .enchant-adventure-manage-item strong {
+      font-size: 14px;
+    }
+    .enchant-adventure-manage-steps {
+      display: grid;
+      gap: 7px;
+      margin: 0 0 16px;
+      padding-left: 22px;
+      color: #c8c0ae;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .enchant-adventure-manage-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 0 0;
+      color: #f0bf9b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .enchant-adventure-manage-status.is-checking {
+      color: #d9c99c;
+    }
+    .enchant-adventure-manage-spinner {
+      flex: 0 0 14px;
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: enchant-adventure-manage-spin 0.8s linear infinite;
+    }
+    @keyframes enchant-adventure-manage-spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .enchant-adventure-manage-spinner { animation: none; }
     }

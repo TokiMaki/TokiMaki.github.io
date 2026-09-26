@@ -12,6 +12,7 @@ import { createEnchantEfficiencyLegend } from './enchantEfficiencyLegend.js';
 import { createEnchantRecommendationControls } from './enchantRecommendationControls.js';
 import { createEnchantRecommendationLayout } from './enchantRecommendationLayout.js';
 import { createEnchantSearchPanels } from './enchantSearchPanels.js';
+import { createEnchantAdventureManagement } from './enchantAdventureManagement.js';
 import { getCreatureRows, getCreatureArtifactRows } from './enchantCreatureRows.js';
 import { getSwitchingTitleRows, getSwitchingFragmentRows, getSwitchingCreatureRows } from './enchantSwitchingRows.js';
 import { createEnchantOathLoadoutBoard, getLocalOathSymbolIconUrl } from './enchantOathLoadoutBoard.js';
@@ -2482,6 +2483,25 @@ export function installEnchantView(ctx) {
     bindCharacterAvatars,
     getCharacterPortraitMarkup,
     isBufferCharacter: isLikelyBufferCharacter,
+  });
+
+  const adventureManagement = createEnchantAdventureManagement({
+    els,
+    state,
+    apiBase: API_BASE,
+    escapeHtml,
+    parseApiJsonResponse,
+    onSaved: (adventureName) => { void searchEnchantCharacter({ serverId: 'adventure', characterName: adventureName }); },
+    onEditingChange: (candidates, hidden, options) => {
+      setEnchantCandidatePanel('ready', candidates, state.enchantAdventureSearchName, {
+        editing: true,
+        hidden: [...hidden],
+        ...options,
+      });
+    },
+    onEditingCancel: () => {
+      setEnchantCandidatePanel('ready', state.enchantSearchCandidates, state.enchantAdventureSearchName);
+    },
   });
 
   const { renderOathLoadoutBoard } = createEnchantOathLoadoutBoard({
@@ -8278,6 +8298,9 @@ export function installEnchantView(ctx) {
       return;
     }
 
+    adventureManagement.reset();
+    state.enchantAdventureSearchName = isAdventureSearch ? characterName : '';
+
     const isAllServerSearch = !serverId || serverId === 'all';
     const isCandidateSearch = isAllServerSearch || isAdventureSearch;
     state.enchantRecommendationLoading = true;
@@ -9860,6 +9883,7 @@ export function installEnchantView(ctx) {
     loadCurrentCharacterPreview,
     loadCurrentCharacterLoadout,
     searchEnchantCharacter,
+    openAdventureManagement: adventureManagement.open,
     showEnchantAnalysisLoading,
     showEnchantCandidateLoading,
     renderEnchantCharacterPortrait,
@@ -9870,5 +9894,9 @@ export function installEnchantView(ctx) {
   renderEnchantCharacterPortrait();
   renderEnchantIncludeControls();
   renderEfficiencyLegend();
-  return finishEventListenerCapture();
+  const removeCapturedListeners = finishEventListenerCapture();
+  return () => {
+    adventureManagement.reset();
+    removeCapturedListeners();
+  };
 }

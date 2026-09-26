@@ -468,6 +468,11 @@ if (els.enchantServerIdInput) {
 }
 if (els.enchantCandidatePanel) {
   els.enchantCandidatePanel.addEventListener('click', (event) => {
+    if (event.target.closest('[data-adventure-manage-open]')) {
+      event.preventDefault();
+      ctx.actions.openAdventureManagement?.();
+      return;
+    }
     const card = event.target.closest('[data-candidate-server-id][data-candidate-character-name]');
     if (!card) return;
     event.preventDefault();

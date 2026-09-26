@@ -323,15 +323,19 @@ def search_adventure_characters_response(adventure_name: str) -> dict:
     candidates = get_cached_adventure_search_candidates(target_name)
     attach_cached_score_summaries(candidates)
     candidates.sort(key=lambda row: (
-        server_order_by_id.get(clean_text(row.get("serverId")).lower(), len(SERVER_SEARCH_ORDER)),
         -parse_int(row.get("fame")),
+        server_order_by_id.get(clean_text(row.get("serverId")).lower(), len(SERVER_SEARCH_ORDER)),
         clean_text(row.get("characterName")),
     ))
+
+    from .adventure_management_service import apply_adventure_search_settings
+    candidates, hidden_count = apply_adventure_search_settings(candidates, target_name, remember_order=True)
 
     return {
         "mode": "adventure",
         "adventureName": target_name,
         "candidates": candidates,
+        "hiddenCount": hidden_count,
         "cacheOnly": True,
     }
 

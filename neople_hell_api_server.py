@@ -31,6 +31,15 @@ from server.character_search_service import (
     search_all_characters_response,
     search_character_response,
 )
+from server.adventure_management_service import (
+    AdventureManagementError,
+    AdventureManagementRateLimitError,
+    cancel_adventure_challenge,
+    revoke_adventure_edit_grant,
+    save_adventure_search_settings,
+    start_adventure_challenge,
+    verify_adventure_challenge,
+)
 from server.character_summary_service import summarize_character_response
 from server.repositories.equipment_score_repository import load_official_equipment_score
 from server.setting_value_snapshot_service import (
@@ -673,6 +682,8 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             write_ops_log("api_request_start", route=parsed.path)
         if parsed.path == "/api/setting-value/finalize":
             return self.handle_setting_value_finalize(parsed)
+        if parsed.path.startswith("/api/adventure-management/"):
+            return self.run_limited_api_request(parsed, lambda: self.handle_adventure_management(parsed))
         return self.send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
 
     def do_GET(self):
@@ -878,6 +889,47 @@ class HellApiHandler(SimpleHTTPRequestHandler):
             self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
         except Exception as exc:
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_GATEWAY)
+
+    def handle_adventure_management(self, parsed):
+        if parsed.path not in {
+            "/api/adventure-management/start",
+            "/api/adventure-management/verify",
+            "/api/adventure-management/save",
+            "/api/adventure-management/revoke",
+            "/api/adventure-management/cancel",
+        }:
+            return self.send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            if length < 2 or length > 16_384:
+                raise AdventureManagementError("요청 크기가 올바르지 않습니다.")
+            payload = json.loads(self.rfile.read(length))
+            if not isinstance(payload, dict):
+                raise AdventureManagementError("요청 형식이 올바르지 않습니다.")
+            if parsed.path.endswith("/start"):
+                result = start_adventure_challenge(payload.get("adventureName"))
+            elif parsed.path.endswith("/verify"):
+                result = verify_adventure_challenge(payload.get("challengeToken"))
+            elif parsed.path.endswith("/revoke"):
+                result = revoke_adventure_edit_grant(payload.get("editToken"))
+            elif parsed.path.endswith("/cancel"):
+                result = cancel_adventure_challenge(payload.get("challengeToken"))
+            else:
+                result = save_adventure_search_settings(
+                    payload.get("adventureName"), payload.get("editToken"),
+                    payload.get("order"), payload.get("hidden"),
+                )
+            self.send_json(result)
+        except AdventureManagementRateLimitError as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.TOO_MANY_REQUESTS)
+        except AdventureManagementError as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        except (ValueError, TypeError):
+            self.send_json({"error": "인증 요청 또는 설정값이 올바르지 않습니다."}, status=HTTPStatus.BAD_REQUEST)
+        except NeopleMaintenanceError as exc:
+            self.send_json({"error": str(exc)}, status=HTTPStatus.SERVICE_UNAVAILABLE)
+        except Exception:
+            self.send_json({"error": "장비 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요."}, status=HTTPStatus.BAD_GATEWAY)
 
     def handle_avatar_skill_efficiency(self, parsed):
         query = parse_qs(parsed.query)

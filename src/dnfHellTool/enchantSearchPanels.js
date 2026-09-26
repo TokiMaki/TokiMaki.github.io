@@ -62,7 +62,7 @@ export function createEnchantSearchPanels({
     setEnchantAnalysisPanel('ready');
   }
 
-  function setEnchantCandidatePanel(mode, candidates = [], message = '') {
+  function setEnchantCandidatePanel(mode, candidates = [], message = '', options = {}) {
     if (els.enchantIncludeCard) {
       els.enchantIncludeCard.hidden = true;
     }
@@ -96,7 +96,7 @@ export function createEnchantSearchPanels({
       `;
       return;
     }
-    els.enchantCandidatePanel.innerHTML = renderEnchantSearchCandidates(candidates, message);
+    els.enchantCandidatePanel.innerHTML = renderEnchantSearchCandidates(candidates, message, options);
     bindCharacterAvatars(els.enchantCandidatePanel);
   }
 
@@ -104,7 +104,7 @@ export function createEnchantSearchPanels({
     setEnchantCandidatePanel('loading');
   }
 
-  function renderEnchantSearchCandidates(candidates = [], searchText = '') {
+  function renderEnchantSearchCandidates(candidates = [], searchText = '', options = {}) {
     const rows = Array.isArray(candidates) ? candidates : [];
     if (!rows.length) {
       const isAdventureSearch = state.enchantCandidateLookupType === 'adventure';
@@ -116,7 +116,10 @@ export function createEnchantSearchPanels({
       `;
     }
     const searchLabel = String(searchText || '').trim();
-    const searchTypeLabel = state.enchantCandidateLookupType === 'adventure' ? '모험단' : '전체 서버';
+    const isAdventureSearch = state.enchantCandidateLookupType === 'adventure';
+    const editing = isAdventureSearch && options.editing === true;
+    const hidden = new Set(options.hidden || []);
+    const searchTypeLabel = isAdventureSearch ? '모험단' : '전체 서버';
     return `
       <div class="enchant-candidate-head">
         <p>
@@ -124,10 +127,15 @@ export function createEnchantSearchPanels({
           ${searchLabel ? `<span class="enchant-candidate-search-keyword">${escapeHtml(searchLabel)}</span>` : ''}
           <span class="enchant-candidate-result-suffix">검색 결과</span>
         </p>
+        ${editing ? `<span class="enchant-candidate-edit-actions"><button type="button" class="enchant-adventure-manage-button" data-adventure-manage-cancel ${options.saving ? 'disabled' : ''}>취소</button><button type="button" class="enchant-adventure-manage-button" data-adventure-manage-save ${options.saving ? 'disabled' : ''}>${options.saving ? '저장 중' : '저장'}</button></span>` : isAdventureSearch ? '<button type="button" class="enchant-adventure-manage-button" data-adventure-manage-open title="모험단 캐릭터 순서와 표시 설정" aria-label="모험단 관리"><span aria-hidden="true">⚙</span> 관리</button>' : ''}
       </div>
+      ${editing && options.editMessage ? `<p class="enchant-candidate-edit-message" role="status">${escapeHtml(options.editMessage)}</p>` : ''}
       <div class="enchant-candidate-grid">
-        ${rows.map((candidate) => {
+        ${rows.map((candidate, index) => {
           const serverId = String(candidate.serverId || '').trim().toLowerCase();
+          const characterId = String(candidate.characterId || '').trim();
+          const candidateKey = `${serverId}:${characterId}`;
+          const isHidden = hidden.has(candidateKey);
           const serverName = String(candidate.serverName || serverId).trim();
           const characterName = String(candidate.characterName || '').trim();
           const adventureName = String(candidate.adventureName || '').trim();
@@ -155,11 +163,10 @@ export function createEnchantSearchPanels({
             jobGrowName: candidate.jobGrowName || '',
             fame: Number(candidate.fame || 0),
           };
-          return `
-            <button type="button" class="enchant-candidate-card" data-candidate-server-id="${escapeHtml(serverId)}" data-candidate-character-name="${escapeHtml(characterName)}">
+          const cardContent = `
               <span class="enchant-candidate-meta">
                 <span class="enchant-candidate-server">${escapeHtml(serverName)}</span>
-                ${hasFame ? `<span class="enchant-candidate-fame" title="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}" aria-label="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}</span>` : ''}
+                ${editing ? `<button type="button" class="enchant-candidate-hide" data-adventure-hide="${escapeHtml(candidateKey)}" aria-pressed="${isHidden}" aria-label="${escapeHtml(characterName)} ${isHidden ? '목록에 표시' : '모험단 목록에서 숨기기'}" title="${isHidden ? '목록에 표시' : '모험단 목록에서 숨기기'}">${isHidden ? '숨김' : '숨기기'}</button>` : hasFame ? `<span class="enchant-candidate-fame" title="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}" aria-label="명성 ${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}"><img src="${escapeHtml(CHARACTER_FAME_ICON_URL)}" alt="" loading="lazy" decoding="async" />${escapeHtml(Math.round(fame).toLocaleString('ko-KR'))}</span>` : ''}
               </span>
               <span class="supply-detail-portrait enchant-candidate-portrait">
                 ${getCharacterPortraitMarkup(candidateCharacter, { zoom: 1, showName: false })}
@@ -169,9 +176,13 @@ export function createEnchantSearchPanels({
                 <span class="enchant-candidate-name">${escapeHtml(characterName)}</span>
                 ${adventureName ? `<span class="enchant-candidate-adventure">${escapeHtml(adventureName)}</span>` : ''}
                 ${jobLabel ? `<span class="enchant-candidate-job">${escapeHtml(jobLabel)}</span>` : ''}
-              </span>
-            </button>
-          `;
+              </span>`;
+          if (!editing) return `<button type="button" class="enchant-candidate-card" data-candidate-server-id="${escapeHtml(serverId)}" data-candidate-character-name="${escapeHtml(characterName)}">${cardContent}</button>`;
+          return `<div class="enchant-candidate-card enchant-candidate-edit-card${isHidden ? ' is-hidden' : ''}" data-adventure-card-key="${escapeHtml(candidateKey)}" draggable="true">
+            ${cardContent}
+            <button type="button" class="enchant-candidate-move is-left" data-adventure-move="left" data-adventure-key="${escapeHtml(candidateKey)}" aria-label="${escapeHtml(characterName)} 왼쪽으로 이동" title="왼쪽으로 이동" ${index === 0 ? 'disabled' : ''}>‹</button>
+            <button type="button" class="enchant-candidate-move is-right" data-adventure-move="right" data-adventure-key="${escapeHtml(candidateKey)}" aria-label="${escapeHtml(characterName)} 오른쪽으로 이동" title="오른쪽으로 이동" ${index === rows.length - 1 ? 'disabled' : ''}>›</button>
+          </div>`;
         }).join('')}
       </div>
     `;
